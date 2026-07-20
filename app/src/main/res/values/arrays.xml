@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="xposed_scope">
+        <item>com.android.deskclock</item>
+        <item>com.mi.health</item>
+        <item>com.xiaomi.smarthome</item>
+        <item>android</item>
+    </string-array>
+</resources>
