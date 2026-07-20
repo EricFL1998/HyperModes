@@ -11,8 +11,18 @@ import io.github.libxposed.api.XposedModuleInterface
  * META-INF/xposed/java_init.list. Thin delegator only.
  */
 class XposedInit : XposedModule() {
+    private var processName: String? = null
+
+    override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
+        processName = param.processName
+    }
+
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         if (param.packageName != Protocol.TARGET_PACKAGE) return
+        if (processName != null && processName != param.packageName) {
+            log(Log.INFO, TAG, "skipping hook install in secondary process: $processName")
+            return
+        }
         try {
             DeskClockHook(this).install(param.classLoader)
             log(Log.INFO, TAG, "hook installed for ${param.packageName}")
