@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">HyperModes</string>
+    <string name="xposed_description">HyperOS Bedtime control - edit the DeskClock bedtime schedule and manually start/stop bedtime mode with full Mi Health / Mi Home / Zen Mode sync</string>
 </resources>

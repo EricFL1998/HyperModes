@@ -5,40 +5,43 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
-import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
+import io.github.libxposed.api.XposedInterface
+import io.github.libxposed.api.XposedModule
 
 /**
- * Hooks DeskClock's Application.onCreate to register the command receiver
- * inside the DeskClock process, then delegates to BedtimeController.
+ * Hooks Application.attach(Context) inside DeskClock — the same capture point
+ * the reference module (HyperCeiler) uses: attach is final, always called,
+ * and after chain.proceed() the Application's base context is ready.
+ * Registers the command receiver, then delegates to BedtimeController.
  *
  * The receiver must be RECEIVER_EXPORTED (sender is our app, a different uid)
  * and is guarded by our signature-level permission so only our app can
  * trigger it.
  */
-class DeskClockHook {
+class DeskClockHook(private val module: XposedModule) {
 
-    fun install(lpparam: LoadPackageParam) {
-        XposedHelpers.findAndHookMethod(
-            Application::class.java.name, lpparam.classLoader, "onCreate",
-            object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val app = param.thisObject as Application
+    fun install(classLoader: ClassLoader) {
+        val attach = Application::class.java.getDeclaredMethod("attach", Context::class.java)
+        module.hook(attach)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    val app = chain.thisObject as Application
                     try {
-                        registerReceiver(app, lpparam.classLoader)
+                        registerReceiver(app, classLoader)
                     } catch (t: Throwable) {
-                        XposedBridge.log("HyperModes: receiver registration failed: $t")
+                        log("receiver registration failed: $t")
                     }
+                    return result
                 }
-            }
-        )
+            })
     }
 
     private fun registerReceiver(app: Application, classLoader: ClassLoader) {
-        val controller = BedtimeController(app, classLoader)
+        val controller = BedtimeController(app, classLoader) { msg -> log(msg) }
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -55,9 +58,7 @@ class DeskClockHook {
                     Protocol.ACTION_QUERY_STATE -> emptyList()
                     else -> return
                 }
-                XposedBridge.log(
-                    "HyperModes: ${intent.action} -> ${results.joinToString { it.format() }}"
-                )
+                log("${intent.action} -> ${results.joinToString { it.format() }}")
                 sendResult(app, results, controller.querySleepModeState())
             }
         }
@@ -73,7 +74,7 @@ class DeskClockHook {
             Protocol.PERMISSION_CONTROL, null,
             Context.RECEIVER_EXPORTED
         )
-        XposedBridge.log("HyperModes: command receiver registered in DeskClock")
+        log("command receiver registered in DeskClock")
     }
 
     private fun sendResult(context: Context, results: List<StepResult>, inSleepMode: Boolean) {
@@ -82,5 +83,11 @@ class DeskClockHook {
             putExtra(Protocol.EXTRA_STEPS, results.map { it.format() }.toTypedArray())
             putExtra(Protocol.EXTRA_IN_SLEEP_MODE, inSleepMode)
         })
+    }
+
+    private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
+
+    companion object {
+        private const val TAG = "HyperModes"
     }
 }
