@@ -1181,6 +1181,472 @@ git commit -m "chore: final verification pass"
 
 ---
 
+### Task 8: Migrate to libxposed API 101 (modern LSPosed API)
+
+**Files:**
+- Modify: `app/build.gradle.kts` (swap Xposed dependency)
+- Modify: `app/src/main/java/com/banana/hypermodes/XposedInit.kt` (full rewrite)
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/DeskClockHook.kt` (full rewrite)
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/BedtimeController.kt` (replace XposedHelpers/XposedBridge with Reflect + logger)
+- Create: `app/src/main/java/com/banana/hypermodes/hook/Reflect.kt`
+- Test: `app/src/test/java/com/banana/hypermodes/hook/ReflectTest.kt`
+- Modify: `app/src/main/resources/META-INF/xposed/module.prop` (`targetApiVersion=101`)
+- Modify: `app/src/main/AndroidManifest.xml` (drop legacy meta-data, add `android:description`)
+- Modify: `app/src/main/res/values/strings.xml` (add `xposed_description`)
+- Delete: `app/src/main/assets/xposed_init`
+
+**Interfaces:**
+- Consumes: `Protocol.*` (Task 2), `StepResult` (Task 3).
+- Produces:
+  - `Reflect.findClass(name: String, classLoader: ClassLoader): Class<*>`, `Reflect.callStatic(clazz: Class<*>, name: String, vararg args: Any?): Any?`, `Reflect.call(instance: Any, name: String, vararg args: Any?): Any?`, `Reflect.newInstance(clazz: Class<*>, vararg args: Any?): Any`, `Reflect.setIntField(instance: Any, name: String, value: Int)`, `Reflect.setObjectField(instance: Any, name: String, value: Any?)`
+  - `BedtimeController(context: Context, classLoader: ClassLoader, log: (String) -> Unit)` — same four public operations as before.
+  - `DeskClockHook(module: XposedModule)` with `install(classLoader: ClassLoader)`.
+
+**Context for the implementer:** API 101 facts verified against the published sources jar (`io.github.libxposed:api:101.0.1`):
+- Entry: `abstract class XposedModule : XposedInterfaceWrapper, XposedModuleInterface`; override `onPackageReady(param: XposedModuleInterface.PackageReadyParam)` (gives `getPackageName()`, `getClassLoader()`).
+- Hooking: `module.hook(executable).setExceptionMode(...).intercept(hooker)`; `XposedInterface.Hooker.intercept(chain: XposedInterface.Chain): Any?` — call `chain.proceed()` to run the original; `chain.getThisObject()`.
+- Logging: `module.log(priority: Int, tag: String?, msg: String)` and an overload with `Throwable`. No `XposedBridge`, no `XposedHelpers`.
+
+- [ ] **Step 1: Swap the Gradle dependency**
+
+In `app/build.gradle.kts`, replace both `de.robv.android.xposed:api:82` lines with:
+
+```kotlin
+    compileOnly("io.github.libxposed:api:101.0.1")
+    compileOnly("io.github.libxposed:api:101.0.1:sources")
+```
+
+- [ ] **Step 2: Write the failing Reflect test**
+
+Create `app/src/test/java/com/banana/hypermodes/hook/ReflectTest.kt`:
+
+```kotlin
+package com.banana.hypermodes.hook
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Test
+
+class ReflectTest {
+
+    @Suppress("unused")
+    open class Base {
+        var baseField: Int = 1
+    }
+
+    @Suppress("unused")
+    class Fixture : Base() {
+        var hour: Int = 0
+        var label: Any? = null
+        private var secret: Int = 7
+
+        fun setHour(value: Int) {
+            hour = value
+        }
+
+        fun greet(prefix: String, times: Int): String = prefix.repeat(times)
+
+        fun secretValue(): Int = secret
+
+        class WithCtor(val ctx: String, val count: Int)
+
+        companion object {
+            @JvmStatic
+            fun add(a: Int, b: Int): Int = a + b
+
+            @JvmStatic
+            fun describe(ctx: Appendable?): String = if (ctx == null) "null-ok" else "non-null"
+
+            @JvmStatic
+            fun noArgs(): String = "none"
+        }
+    }
+
+    @Test
+    fun `callStatic resolves int parameters with boxed args`() {
+        assertEquals(5, Reflect.callStatic(Fixture::class.java, "add", 2, 3))
+    }
+
+    @Test
+    fun `callStatic with no args`() {
+        assertEquals("none", Reflect.callStatic(Fixture::class.java, "noArgs"))
+    }
+
+    @Test
+    fun `callStatic matches null arg to reference parameter`() {
+        assertEquals("null-ok", Reflect.callStatic(Fixture::class.java, "describe", null))
+    }
+
+    @Test
+    fun `callStatic throws NoSuchMethodException for unknown name`() {
+        assertThrows(NoSuchMethodException::class.java) {
+            Reflect.callStatic(Fixture::class.java, "missing")
+        }
+    }
+
+    @Test
+    fun `call invokes instance method with mixed args`() {
+        assertEquals("abab", Reflect.call(Fixture(), "greet", "ab", 2))
+    }
+
+    @Test
+    fun `call works for setter style methods`() {
+        val f = Fixture()
+        Reflect.call(f, "setHour", 42)
+        assertEquals(42, f.hour)
+    }
+
+    @Test
+    fun `setIntField writes private fields`() {
+        val f = Fixture()
+        Reflect.setIntField(f, "secret", 99)
+        assertEquals(99, f.secretValue())
+    }
+
+    @Test
+    fun `setIntField walks superclasses`() {
+        val f = Fixture()
+        Reflect.setIntField(f, "baseField", 9)
+        assertEquals(9, f.baseField)
+    }
+
+    @Test
+    fun `setObjectField writes reference fields`() {
+        val f = Fixture()
+        Reflect.setObjectField(f, "label", "x")
+        assertEquals("x", f.label)
+    }
+
+    @Test
+    fun `newInstance matches constructor by arg types`() {
+        val o = Reflect.newInstance(Fixture.WithCtor::class.java, "a", 3) as Fixture.WithCtor
+        assertEquals("a", o.ctx)
+        assertEquals(3, o.count)
+    }
+
+    @Test
+    fun `findClass loads via given classloader`() {
+        assertEquals(
+            String::class.java,
+            Reflect.findClass("java.lang.String", javaClass.classLoader)
+        )
+    }
+}
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `.\gradlew.bat :app:testDebugUnitTest --tests "com.banana.hypermodes.hook.ReflectTest"`
+Expected: FAIL — `Reflect` unresolved.
+
+- [ ] **Step 4: Implement Reflect**
+
+Create `app/src/main/java/com/banana/hypermodes/hook/Reflect.kt`:
+
+```kotlin
+package com.banana.hypermodes.hook
+
+import java.lang.reflect.Constructor
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+
+/**
+ * Minimal reflection helpers replacing XposedHelpers (not shipped in
+ * libxposed API 101). Lookups walk superclasses and match parameters by
+ * assignability with primitive/wrapper equivalence; null matches any
+ * reference type.
+ */
+internal object Reflect {
+
+    fun findClass(name: String, classLoader: ClassLoader): Class<*> =
+        Class.forName(name, false, classLoader)
+
+    fun callStatic(clazz: Class<*>, name: String, vararg args: Any?): Any? {
+        val method = findMethod(clazz, name, args)
+        method.isAccessible = true
+        return method.invoke(null, *args)
+    }
+
+    fun call(instance: Any, name: String, vararg args: Any?): Any? {
+        val method = findMethod(instance.javaClass, name, args)
+        method.isAccessible = true
+        return method.invoke(instance, *args)
+    }
+
+    fun newInstance(clazz: Class<*>, vararg args: Any?): Any {
+        val ctor = findConstructor(clazz, args)
+        ctor.isAccessible = true
+        return ctor.newInstance(*args)
+    }
+
+    fun setIntField(instance: Any, name: String, value: Int) {
+        val field = findField(instance.javaClass, name)
+        field.isAccessible = true
+        field.setInt(instance, value)
+    }
+
+    fun setObjectField(instance: Any, name: String, value: Any?) {
+        val field = findField(instance.javaClass, name)
+        field.isAccessible = true
+        field.set(instance, value)
+    }
+
+    private fun findMethod(clazz: Class<*>, name: String, args: Array<out Any?>): Method {
+        var c: Class<*>? = clazz
+        while (c != null) {
+            c.declaredMethods
+                .firstOrNull { it.name == name && paramsMatch(it.parameterTypes, args) }
+                ?.let { return it }
+            c = c.superclass
+        }
+        throw NoSuchMethodException(
+            "${clazz.name}.$name(${args.joinToString { it?.javaClass?.name ?: "null" }})"
+        )
+    }
+
+    private fun findConstructor(clazz: Class<*>, args: Array<out Any?>): Constructor<*> =
+        clazz.declaredConstructors.firstOrNull { paramsMatch(it.parameterTypes, args) }
+            ?: throw NoSuchMethodException(
+                "${clazz.name}<init>(${args.joinToString { it?.javaClass?.name ?: "null" }})"
+            )
+
+    private fun findField(clazz: Class<*>, name: String): Field {
+        var c: Class<*>? = clazz
+        while (c != null) {
+            try {
+                return c.getDeclaredField(name)
+            } catch (_: NoSuchFieldException) {
+                c = c.superclass
+            }
+        }
+        throw NoSuchFieldException("${clazz.name}.$name")
+    }
+
+    private fun paramsMatch(types: Array<Class<*>>, args: Array<out Any?>): Boolean {
+        if (types.size != args.size) return false
+        return types.indices.all { i ->
+            val arg = args[i] ?: return@all !types[i].isPrimitive
+            matches(types[i], arg.javaClass)
+        }
+    }
+
+    private fun matches(param: Class<*>, arg: Class<*>): Boolean {
+        if (param.isAssignableFrom(arg)) return true
+        if (!param.isPrimitive) return false
+        val boxed: Class<*> = when (param) {
+            java.lang.Integer.TYPE -> java.lang.Integer::class.java
+            java.lang.Long.TYPE -> java.lang.Long::class.java
+            java.lang.Boolean.TYPE -> java.lang.Boolean::class.java
+            java.lang.Double.TYPE -> java.lang.Double::class.java
+            java.lang.Float.TYPE -> java.lang.Float::class.java
+            java.lang.Short.TYPE -> java.lang.Short::class.java
+            java.lang.Byte.TYPE -> java.lang.Byte::class.java
+            Character.TYPE -> java.lang.Character::class.java
+            else -> return false
+        }
+        return arg == boxed
+    }
+}
+```
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `.\gradlew.bat :app:testDebugUnitTest --tests "com.banana.hypermodes.hook.ReflectTest"`
+Expected: PASS (11 tests).
+
+- [ ] **Step 6: Rewrite BedtimeController onto Reflect + logger**
+
+Apply these mechanical replacements throughout `app/src/main/java/com/banana/hypermodes/hook/BedtimeController.kt` (structure, step order, and StepResult names stay exactly as they are):
+
+1. Constructor becomes:
+```kotlin
+class BedtimeController(
+    private val context: Context,
+    private val classLoader: ClassLoader,
+    private val log: (String) -> Unit
+) {
+```
+2. Imports: drop `de.robv.android.xposed.XposedBridge` and `de.robv.android.xposed.XposedHelpers`; no new imports needed (Reflect is same-package).
+3. `XposedHelpers.findClass(X, classLoader)` → `Reflect.findClass(X, classLoader)`
+4. `XposedHelpers.callStaticMethod(cls, name, ...args)` → `Reflect.callStatic(cls, name, ...args)`
+5. `XposedHelpers.callMethod(obj, name, ...args)` → `Reflect.call(obj, name, ...args)`
+6. `XposedHelpers.newInstance(cls, ...args)` → `Reflect.newInstance(cls, ...args)`
+7. `XposedHelpers.setIntField(...)` → `Reflect.setIntField(...)`; `XposedHelpers.setObjectField(...)` → `Reflect.setObjectField(...)`
+8. `XposedBridge.log("$TAG: ...")` → `log("...")` (the tag is applied by the caller's logger).
+
+- [ ] **Step 7: Rewrite DeskClockHook**
+
+Replace the entire content of `app/src/main/java/com/banana/hypermodes/hook/DeskClockHook.kt`:
+
+```kotlin
+package com.banana.hypermodes.hook
+
+import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.util.Log
+import com.banana.hypermodes.protocol.Protocol
+import io.github.libxposed.api.XposedInterface
+import io.github.libxposed.api.XposedModule
+
+/**
+ * Hooks Application.attach(Context) inside DeskClock — the same capture point
+ * the reference module (HyperCeiler) uses: attach is final, always called,
+ * and after chain.proceed() the Application's base context is ready.
+ * Registers the command receiver, then delegates to BedtimeController.
+ *
+ * The receiver must be RECEIVER_EXPORTED (sender is our app, a different uid)
+ * and is guarded by our signature-level permission so only our app can
+ * trigger it.
+ */
+class DeskClockHook(private val module: XposedModule) {
+
+    fun install(classLoader: ClassLoader) {
+        val attach = Application::class.java.getDeclaredMethod("attach", Context::class.java)
+        module.hook(attach)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    val app = chain.thisObject as Application
+                    try {
+                        registerReceiver(app, classLoader)
+                    } catch (t: Throwable) {
+                        log("receiver registration failed: $t")
+                    }
+                    return result
+                }
+            })
+    }
+
+    private fun registerReceiver(app: Application, classLoader: ClassLoader) {
+        val controller = BedtimeController(app, classLoader) { msg -> log(msg) }
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val results: List<StepResult> = when (intent.action) {
+                    Protocol.ACTION_APPLY_SCHEDULE -> controller.applySchedule(
+                        sleepHour = intent.getIntExtra(Protocol.EXTRA_SLEEP_HOUR, 22),
+                        sleepMin = intent.getIntExtra(Protocol.EXTRA_SLEEP_MIN, 30),
+                        wakeHour = intent.getIntExtra(Protocol.EXTRA_WAKE_HOUR, 7),
+                        wakeMin = intent.getIntExtra(Protocol.EXTRA_WAKE_MIN, 30),
+                        repeatDays = intent.getIntExtra(Protocol.EXTRA_REPEAT_DAYS, Protocol.EVERY_DAY)
+                    )
+                    Protocol.ACTION_START_BEDTIME -> controller.startBedtime()
+                    Protocol.ACTION_STOP_BEDTIME -> controller.stopBedtime()
+                    Protocol.ACTION_QUERY_STATE -> emptyList()
+                    else -> return
+                }
+                log("${intent.action} -> ${results.joinToString { it.format() }}")
+                sendResult(app, results, controller.querySleepModeState())
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(Protocol.ACTION_APPLY_SCHEDULE)
+            addAction(Protocol.ACTION_START_BEDTIME)
+            addAction(Protocol.ACTION_STOP_BEDTIME)
+            addAction(Protocol.ACTION_QUERY_STATE)
+        }
+        app.registerReceiver(
+            receiver, filter,
+            Protocol.PERMISSION_CONTROL, null,
+            Context.RECEIVER_EXPORTED
+        )
+        log("command receiver registered in DeskClock")
+    }
+
+    private fun sendResult(context: Context, results: List<StepResult>, inSleepMode: Boolean) {
+        context.sendBroadcast(Intent(Protocol.ACTION_RESULT).apply {
+            setPackage(Protocol.MODULE_PACKAGE)
+            putExtra(Protocol.EXTRA_STEPS, results.map { it.format() }.toTypedArray())
+            putExtra(Protocol.EXTRA_IN_SLEEP_MODE, inSleepMode)
+        })
+    }
+
+    private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
+
+    companion object {
+        private const val TAG = "HyperModes"
+    }
+}
+```
+
+- [ ] **Step 8: Rewrite XposedInit**
+
+Replace the entire content of `app/src/main/java/com/banana/hypermodes/XposedInit.kt`:
+
+```kotlin
+package com.banana.hypermodes
+
+import android.util.Log
+import com.banana.hypermodes.hook.DeskClockHook
+import com.banana.hypermodes.protocol.Protocol
+import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface
+
+/**
+ * LSPosed (libxposed API 101) entry point, listed in
+ * META-INF/xposed/java_init.list. Thin delegator only.
+ */
+class XposedInit : XposedModule() {
+    override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
+        if (param.packageName != Protocol.TARGET_PACKAGE) return
+        try {
+            DeskClockHook(this).install(param.classLoader)
+            log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+        } catch (t: Throwable) {
+            log(Log.ERROR, TAG, "failed to install hook", t)
+        }
+    }
+
+    companion object {
+        private const val TAG = "HyperModes"
+    }
+}
+```
+
+- [ ] **Step 9: Update packaging files**
+
+1. Set `app/src/main/resources/META-INF/xposed/module.prop` to:
+
+```
+minApiVersion=101
+targetApiVersion=101
+autoHotReload=true
+staticScope=false
+```
+
+2. Delete `app/src/main/assets/xposed_init` (legacy loader file; the modern loader uses `java_init.list`, which already contains `com.banana.hypermodes.XposedInit` — leave it and `scope.list` unchanged).
+
+3. In `app/src/main/AndroidManifest.xml`, remove all four legacy meta-data entries (`xposedmodule`, `xposeddescription`, `xposedminversion`, `xposedscope`) and add to the `<application>` tag:
+
+```xml
+        android:description="@string/xposed_description"
+```
+
+4. In `app/src/main/res/values/strings.xml`, add:
+
+```xml
+    <string name="xposed_description">HyperOS Bedtime control - edit the DeskClock bedtime schedule and manually start/stop bedtime mode with full Mi Health / Mi Home / Zen Mode sync</string>
+```
+
+- [ ] **Step 10: Full verification build**
+
+Run: `.\gradlew.bat clean :app:assembleDebug :app:testDebugUnitTest`
+Expected: BUILD SUCCESSFUL; all unit tests pass (Protocol 7 + StepResult 4 + Reflect 11 = 22). Then verify the APK packaging: `META-INF/xposed/java_init.list`, `module.prop`, `scope.list` present; `assets/xposed_init` ABSENT; `java_init.list` content is `com.banana.hypermodes.XposedInit`.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add -A
+git commit -m "feat: migrate module to libxposed API 101 (XposedModule entry, modern packaging)"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** architecture (Tasks 3–4), protocol (Task 2), all four call sequences (Task 3), UI incl. day chips + state display (Task 6), cleanup (Tasks 1, 4, 5), Alarm-field fallback (Task 3 `mutateAlarm`/`setAlarmDays`), error handling (Task 3 `runStep` + Task 6 timeout), testing (Tasks 2, 3, 7). The one deliberate deviation (exported receivers + signature permission) is documented in Global Constraints.

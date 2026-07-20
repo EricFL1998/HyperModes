@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.theme.HyperModesTheme
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -206,6 +207,11 @@ fun MainScreen() {
                     onClick = { send(Protocol.ACTION_QUERY_STATE) },
                     enabled = !awaitingResult
                 ) { Text("Refresh state") }
+                TextButton(
+                    onClick = {
+                        Shell.cmd("am force-stop com.android.deskclock").exec()
+                    }
+                ) { Text("Force-stop DeskClock") }
             }
         }
 

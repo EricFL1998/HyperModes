@@ -24,13 +24,29 @@ One APK, one Gradle module (`:app`), two runtime halves:
 - **Hook half** (`com.banana.hypermodes.hook`) — runs *inside* the
   `com.android.deskclock` process. Required because the internal methods need
   DeskClock's ClassLoader and app Context (Mi Health provider access).
-  - `XposedInit` — LSPosed entry point. Filters to `com.android.deskclock`,
-    hooks `Application.onCreate`, registers the command broadcast receiver
-    (see "Export model" below — exported + signature permission).
+  - Framework: **modern libxposed API 101** (`io.github.libxposed:api:101.0.1`,
+    `compileOnly`). Entry class extends `XposedModule` and overrides
+    `onPackageReady` (NOT legacy `IXposedHookLoadPackage` / API 82 — the
+    reference module in `example lsposed module/` uses the same modern style).
+    Packaging is modern-only: `META-INF/xposed/java_init.list` + `module.prop`
+    (`minApiVersion=101`, `targetApiVersion=101`) + `scope.list`; **no**
+    `assets/xposed_init` and **no** `xposedmodule`/`xposedminversion`/
+    `xposedscope` manifest meta-data (the manager picks the module up from
+    module.prop; description moves to `android:description`).
+  - `XposedInit` — entry point. Filters to `com.android.deskclock`, delegates
+    to `DeskClockHook`, which hooks `Application.attach(Context)` (the pattern
+    the reference module uses — always runs, never overridden) via
+    `module.hook(...).intercept(...)`, then registers the command broadcast
+    receiver (see "Export model" below — exported + signature permission).
   - `BedtimeController` — typed Kotlin façade over the internal APIs. One method
     per operation: `applySchedule(...)`, `startBedtime()`, `stopBedtime()`,
-    `querySleepModeState()`. No raw `XposedHelpers.callStaticMethod` strings
-    scattered through hook code. Resolved classes cached per process.
+    `querySleepModeState()`. libxposed API 101 ships no `XposedHelpers`, so all
+    reflective calls go through a small internal `Reflect` helper object
+    (superclass-walking method/field lookup with primitive/wrapper matching),
+    never raw reflection strings scattered through hook code. Resolved classes
+    cached per process.
+  - Logging via `module.log(priority, tag, msg)` (API 101 has no
+    `XposedBridge`).
   - Every step individually try/caught, accumulating a list of
     `StepResult(name, success, detail)` so one missing/renamed method never
     aborts the remaining steps and failures are visible on-device.
@@ -140,6 +156,10 @@ Health sync uses the hour/min parameters directly, not the Alarm object).
 
 - Delete the orphaned `xposed/` Gradle module directory (not included in
   `settings.gradle.kts`; abandoned split-module attempt).
+- Delete legacy Xposed packaging: `app/src/main/assets/xposed_init` and the
+  `xposedmodule`/`xposedminversion`/`xposedscope`/`xposeddescription` manifest
+  meta-data; replace the `de.robv.android.xposed:api:82` dependency with
+  `io.github.libxposed:api:101.0.1`; set `module.prop` `targetApiVersion=101`.
 - Remove the phantom `.ModeLoggerReceiver` from `AndroidManifest.xml` — it
   references a class that does not exist.
 - Prune dead manifest permissions: storage, `SET_ALARM`,
@@ -163,6 +183,10 @@ Health sync uses the hour/min parameters directly, not the Alarm object).
 
 - No device/emulator with LSPosed is available in CI: verification is a
   successful Gradle build (`assembleDebug`) plus code review.
+- JVM unit tests cover the pure logic: `Protocol` bitmask helpers,
+  `StepResult` formatting, and the `Reflect` resolution helpers (fixture
+  classes: static/instance calls, primitive-int parameters, null args,
+  superclass fields, constructors).
 - On-device verification checklist (manual, documented in the plan):
   apply schedule → check Clock app UI + Mi Health; start bedtime → DND on,
   Mi Home devices react; stop bedtime → sleep mode exits; state query matches
