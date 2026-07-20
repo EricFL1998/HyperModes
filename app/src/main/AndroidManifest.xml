@@ -1,21 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Guards the command receiver inside DeskClock; only apps signed with
+         our certificate (i.e. this app itself) can trigger it. -->
+    <permission
+        android:name="com.banana.hypermodes.permission.CONTROL"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.banana.hypermodes.permission.CONTROL" />
+
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
-    <uses-permission android:name="android.permission.SET_ALARM" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
-    <!-- Permissions to access Mi Health provider -->
-    <uses-permission android:name="com.mi.health.permission.READ_SLEEP_DATA" />
-    <uses-permission android:name="com.mi.health.permission.WRITE_SLEEP_DATA" />
-
-    <!-- Query packages for Mi Health and Clock app -->
     <queries>
-        <package android:name="com.mi.health" />
-        <package android:name="com.xiaomi.smarthome" />
         <package android:name="com.android.deskclock" />
     </queries>
 
@@ -26,39 +21,25 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HyperModes">
 
-        <!-- LSPosed Module Metadata -->
+        <!-- LSPosed module metadata -->
         <meta-data
             android:name="xposedmodule"
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="HyperOS Bedtime Sync &amp; Ecosystem Enforcer - Native manual activation of Mi Home, Mi Health, and Zen Mode" />
+            android:value="HyperOS Bedtime control - edit the DeskClock bedtime schedule and manually start/stop bedtime mode with full Mi Health / Mi Home / Zen Mode sync" />
         <meta-data
             android:name="xposedminversion"
             android:value="93" />
-
-        <!-- Xposed scope - target com.android.deskclock -->
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />
 
-        <receiver
-            android:name=".ModeLoggerReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.app.action.AUTOMATIC_ZEN_RULE_STATUS_CHANGED" />
-                <action android:name="android.app.action.INTERRUPTION_FILTER_CHANGED" />
-                <action android:name="com.android.deskclock.ENTER_ZENMODE" />
-                <action android:name="com.android.deskclock.EXIT_ZENMODE" />
-            </intent-filter>
-        </receiver>
-
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.HyperModes"
-            android:windowSoftInputMode="adjustResize">
+            android:theme="@style/Theme.HyperModes">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
