@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/miuix_appcompat_filter_sort_tab_view2_fg_normal_dark"/>
+</selector>

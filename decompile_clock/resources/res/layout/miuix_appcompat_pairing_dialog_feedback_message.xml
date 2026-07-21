@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pairingFeedbackContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/miuix_appcompat_pairing_dialog_content_padding_horizontal"
+    android:paddingEnd="@dimen/miuix_appcompat_pairing_dialog_content_padding_horizontal">
+    <TextView
+        android:textAppearance="@style/Miuix.AppCompat.TextAppearance.Widget.Button"
+        android:textSize="@dimen/miuix_font_size_headline1"
+        android:textColor="?attr/colorOnSurfaceSecondary"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:id="@+id/pairingDialogFeedback"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/miuix_appcompat_button_height"
+        android:fontFamily="@string/miuix_font_weight_headline1"
+        android:paddingStart="@dimen/miuix_appcompat_pairing_dialog_feedback_message_padding_horizontal"
+        android:paddingEnd="@dimen/miuix_appcompat_pairing_dialog_feedback_message_padding_horizontal"/>
+</LinearLayout>

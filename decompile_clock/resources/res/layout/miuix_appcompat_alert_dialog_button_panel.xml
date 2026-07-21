@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.appcompat.internal.widget.DialogButtonPanel xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:measureWithLargestChild="true"
+    android:paddingStart="@dimen/miuix_appcompat_dialog_button_panel_horizontal_margin"
+    android:paddingEnd="@dimen/miuix_appcompat_dialog_button_panel_horizontal_margin"
+    style="?android:attr/buttonBarStyle">
+    <miuix.internal.widget.GroupButton
+        android:gravity="center"
+        android:id="@android:id/button2"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/miuix_appcompat_button_height"
+        android:layout_weight="1"
+        style="?android:attr/buttonBarNegativeButtonStyle"/>
+    <miuix.internal.widget.GroupButton
+        android:gravity="center"
+        android:id="@android:id/button3"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/miuix_appcompat_button_height"
+        android:layout_weight="1"
+        style="?android:attr/buttonBarNeutralButtonStyle"/>
+    <miuix.internal.widget.GroupButton
+        android:gravity="center"
+        android:id="@android:id/button1"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/miuix_appcompat_button_height"
+        android:layout_weight="1"
+        style="?android:attr/buttonBarPositiveButtonStyle"/>
+</miuix.appcompat.internal.widget.DialogButtonPanel>

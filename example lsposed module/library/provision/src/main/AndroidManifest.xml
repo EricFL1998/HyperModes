@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
+
+    <application>
+        <activity
+            android:name=".activity.DefaultActivity"
+            android:exported="true"
+            android:theme="@style/ProvisionTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".activity.PermissionSettingsActivity"
+            android:exported="true"
+            android:theme="@style/ProvisionTheme" />
+
+        <activity
+            android:name=".activity.TermsAndStatementActivity"
+            android:exported="true"
+            android:theme="@style/ProvisionTheme" />
+
+        <activity
+            android:name=".activity.BasicSettingsActivity"
+            android:exported="true"
+            android:theme="@style/ProvisionTheme" />
+
+        <activity
+            android:name=".activity.CongratulationActivity"
+            android:exported="true"
+            android:theme="@style/ProvisionTheme" />
+
+        <service
+            android:name=".service.ProvisionAnimService"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="fan.intent.action.OOBSERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

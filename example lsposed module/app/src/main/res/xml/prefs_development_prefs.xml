@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory>
+
+    <fan.preference.DropDownPreference
+        android:defaultValue="0"
+        android:key="prefs_key_development_prefs_type"
+        android:title="@string/prefs_5"
+        app:entries="@array/development_prefs"
+        app:entryValues="@array/development_prefs_value" />
+
+    <Preference
+        android:key="prefs_key_development_prefs_check"
+        android:title="@string/prefs_6" />
+
+    <Preference
+        android:key="prefs_key_development_prefs_clean"
+        android:title="@string/prefs_7" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

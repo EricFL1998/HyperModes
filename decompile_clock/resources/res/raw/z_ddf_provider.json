@@ -1,0 +1,560 @@
+{
+  "type": "urn:aiot-spec-v3:com.mi.phones:device:phones:0:1.0",
+  "description": "",
+  "protocol-version": "3.0",
+  "class": "MiPhone",
+  "dynamic": 0,
+  "ddfid": 7274499,
+  "modules": {
+    "iid": 1,
+    "type": "urn:aiot-spec-v3:com.mi.phones:module:[com.android.deskclock]:0:1.0",
+    "description": "alarm",
+    "name": "com.android.deskclock",
+    "services": [
+      {
+        "iid": 1,
+        "type": "urn:aiot-spec-v3:com.mi.phones:service:[com.android.deskclock/alarm]:0:1.0",
+        "description": "alarm service",
+        "name": "alarm-service",
+        "actions": [
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/deskclock/alarm]:0:2.0",
+            "description": "alarm",
+            "in": [
+              {
+                "name":"alarmAction",
+                "description": "倒计时操作类型",
+                "format": "int32",
+                "value-list": [
+                  {"value": 0, "description": "新建闹钟"},
+                  {"value": 1, "description": "编辑闹钟"},
+                  {"value": 2, "description": "删除闹钟"},
+                  {"value": 3, "description": "关闭闹钟"}
+                ]
+              },
+              {
+                "name": "hour",
+                "description": "闹钟的小时",
+                "format": "int32"
+              },
+              {
+                "name": "minute",
+                "description": "闹钟的分钟",
+                "format": "int32"
+              },
+              {
+                "name": "newHour",
+                "description": "编辑之后的小时-只有当alarmAction = 1使用",
+                "format": "int32"
+              },
+              {
+                "name": "newMinute",
+                "description": "编辑之后的分钟-只有当alarmAction = 1使用",
+                "format": "int32"
+              }
+            ],
+            "out": [
+              {
+                "format": "int32",
+                "description": "result code",
+                "name":"status",
+                "value-list": [
+                  {"value": 0, "description": "success"},
+                  {"value": -1, "description": "更新闹钟失败"},
+                  {"value": -2, "description": "不存在该时间的闹钟"},
+                  {"value": -99, "description": "未知错误"}
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/alarm/createAlarm]:0:2.0",
+            "description": "create alarm",
+            "in": [
+              {
+                "name": "hour",
+                "description": "闹钟的小时",
+                "format": "int32"
+              },
+              {
+                "name": "minute",
+                "description": "闹钟的分钟",
+                "format": "int32"
+              }
+            ],
+            "out": [
+              {
+                "format": "int32",
+                "description": "创建闹钟结果",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "创建闹钟成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "创建闹钟失败"
+                  },
+                  {
+                    "value": -99,
+                    "description": "未知错误"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/alarm/updateAlarm]:0:2.0",
+            "description": "update alarm",
+            "int": [
+              {
+                "name": "newHour",
+                "description": "更新之后的小时",
+                "format": "int32"
+              },
+              {
+                "name": "newMinute",
+                "description": "更新之后的分钟",
+                "format": "int32"
+              }
+            ],
+            "out": [
+              {
+                "format": "int32",
+                "description": "更新闹钟结果",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "更新闹钟成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "更新闹钟失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "不存在该时间的闹钟"
+                  },
+                  {
+                    "value": -99,
+                    "description": "未知错误"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/alarm/deleteAlarm]:0:2.0",
+            "description": "delete alarm",
+            "in": [],
+            "out": [
+              {
+                "format": "int32",
+                "description": "删除闹钟结果",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "删除闹钟成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "删除闹钟失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "不存在该时间的闹钟"
+                  },
+                  {
+                    "value": -99,
+                    "description": "未知错误"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/alarm/closeAlarm]:0:2.0",
+            "description": "close alarm",
+            "in": [],
+            "out": [
+              {
+                "format": "int32",
+                "description": "关闭闹钟结果",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "关闭闹钟成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "关闭闹钟失败"
+                  },
+                  {
+                    "value": -99,
+                    "description": "未知错误"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/alarm/queryAlarm]:0:2.0",
+            "description": "query alarm",
+            "in": [],
+            "out": [
+              {
+                "format": "int32",
+                "description": "查询闹钟结果",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "查询闹钟成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "查询闹钟失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "不存在该时间的闹钟"
+                  },
+                  {
+                    "value": -99,
+                    "description": "未知错误"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "iid": 2,
+        "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer]:0:1.0",
+        "description": "timer service",
+        "name": "timer-service",
+        "actions": [
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/createTimer]:0:1.0",
+            "description": "create timer",
+            "in": [
+              {
+                "name": "offset",
+                "description": "倒计时的时分秒00:00:00",
+                "format": "string"
+              }
+            ],
+            "out": [
+              {
+                "format": "int32",
+                "description": "创建倒计时执行状态",
+                "name": "status",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "创建倒计时成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "创建倒计时失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "传递创建倒计时时间参数错误"
+                  },
+                  {
+                    "value": -208,
+                    "description": "不支持"
+                  }
+                ]
+              },
+              {
+                "name": "island",
+                "description": "是否上岛",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": -1,
+                    "description": "不上岛"
+                  },
+                  {
+                    "value": 1,
+                    "description": "岛摘要态"
+                  },
+                  {
+                    "value": 2,
+                    "description": "岛展开态"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/pauseTimer]:0:1.0",
+            "description": "pause timer",
+            "in": [],
+            "out": [
+              {
+                "name": "status",
+                "description": "暂停倒计时执行状态",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "执行成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "执行失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "当前无倒计时"
+                  },
+                  {
+                    "value": -3,
+                    "description": "当前倒计时已经是暂停状态"
+                  }
+                ]
+              },
+              {
+                "name": "island",
+                "description": "是否上岛",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": -1,
+                    "description": "不上岛"
+                  },
+                  {
+                    "value": 1,
+                    "description": "岛摘要态"
+                  },
+                  {
+                    "value": 2,
+                    "description": "岛展开态"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/continueTimer]:0:1.0",
+            "description": "continue timer",
+            "in": [],
+            "out": [
+              {
+                "name": "status",
+                "description": "继续倒计时执行状态",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "执行成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "执行失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "当前无倒计时"
+                  },
+                  {
+                    "value": -3,
+                    "description": "当前倒计时已经是运行状态"
+                  }
+                ]
+              },
+              {
+                "name": "island",
+                "description": "是否上岛",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": -1,
+                    "description": "不上岛"
+                  },
+                  {
+                    "value": 1,
+                    "description": "岛摘要态"
+                  },
+                  {
+                    "value": 2,
+                    "description": "岛展开态"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/cancelTimer]:0:1.0",
+            "description": "close timer",
+            "in": [],
+            "out": [
+              {
+                "name": "status",
+                "description": "取消倒计时执行状态",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "执行成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "执行失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "当前无倒计时"
+                  },
+                  {
+                    "value": 1,
+                    "description": "响铃时关闭成功"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/jumpToTimerPage]:0:1.0",
+            "description": "jump to timer page",
+            "in": [],
+            "out": [
+              {
+                "name": "status",
+                "description": "跳转到倒计时页面执行状态",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "执行成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "执行失败"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/timer/queryTimer]:0:1.0",
+            "description": "query timer",
+            "in": [],
+            "out": [
+              {
+                "name": "status",
+                "description": "查询倒计时执行状态",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "正在倒计时"
+                  },
+                  {
+                    "value": 1,
+                    "description": "倒计时暂停中"
+                  },
+                  {
+                    "value": -1,
+                    "description": "查询失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "无倒计时"
+                  }
+                ]
+              },
+              {
+                "name": "remainTimer",
+                "description": "倒计时剩余时间 单位ms",
+                "format": "string"
+              },
+              {
+                "name": "island",
+                "description": "是否上岛",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": -1,
+                    "description": "不上岛"
+                  },
+                  {
+                    "value": 1,
+                    "description": "岛摘要态"
+                  },
+                  {
+                    "value": 2,
+                    "description": "岛展开态"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "iid": 3,
+        "type": "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/settings]:0:1.0",
+        "description": "settings service",
+        "name": "setting-service",
+        "actions":[
+          {
+            "type" : "urn:aiot-spec-v3:com.mi.phones:action:[com.android.deskclock/settings/jumpToRingtonePicker]:0:2.0",
+            "description": "跳转闹钟铃声页面",
+            "in": [],
+            "out": [
+              {
+                "format": "int32",
+                "name": "status",
+                "description": "执行结果",
+                "value-list": [
+                  {
+                    "value": 0,
+                    "description": "跳转页面成功"
+                  },
+                  {
+                    "value": -1,
+                    "description": "跳转页面失败"
+                  },
+                  {
+                    "value": -2,
+                    "description": "当前设备不支持跳转该页面"
+                  }
+                ]
+              },
+              {
+                "name": "island",
+                "description": "是否上岛",
+                "format": "int32",
+                "value-list": [
+                  {
+                    "value": -1,
+                    "description": "不上岛"
+                  },
+                  {
+                    "value": 1,
+                    "description": "岛摘要态"
+                  },
+                  {
+                    "value": 2,
+                    "description": "岛展开态"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+

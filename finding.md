@@ -1,124 +1,326 @@
-To fully understand how to invoke and utilize these internal methods reliably in your LSPosed module, we need to break down each native Java method discovered in DeskClock's decompiled source code.
+# HyperOS DeskClock Bedtime API Reference
 
-Below is a detailed, parameter-by-parameter analysis of the internal methods, what they expect, what they return, and how to call them correctly via reflection.
+Complete reference for controlling HyperOS DeskClock's bedtime mode programmatically via LSPosed hooks.
 
-1. BedtimeUtil.getSleepAlarm(Context context)
-Purpose: Fetches the active sleep schedule configuration object (com.android.deskclock.Alarm) from the system's internal storage.
+---
 
-Parameters: context (usually the application or activity context).
+## Architecture Overview
 
-Return Type: com.android.deskclock.Alarm (or null if no bedtime has ever been initialized).
+**Sleep Alarm Storage:**
+- Sleep time → SharedPreferences (`BedtimeAlarm`, keys: `KEY_SLEEP_ALARM_HOUR`, `KEY_SLEEP_ALARM_MIN`)
+- Wake alarm → ContentProvider database (`content://com.android.deskclock/sleep_alarms`, id = `Integer.MIN_VALUE`)
 
-Why you need it: Before you can update a time, you need the underlying Alarm instance so you don't overwrite its unique database ID or custom flags.
+**Official Bedtime Start Sequence** (when sleep time arrives):
+1. `AlarmHelper.setSleepNotification(context)` - Schedule next sleep notification
+2. `AlarmHelper.setZenMode(context)` - Evaluate time and enter DND if in sleep window
+3. `MiHomeHelper.notifyBedtimeChanged()` - Sync with Mi Home IoT devices
 
-Reflection Invocation:
+**Official Bedtime Stop Sequence** (when wake time arrives):
+1. `SleepModeUtil.exitSleepMode(context)` - Exit powerkeeper sleep mode
+2. `AlarmHelper.setSleepNotification(context)` - Reschedule for next day
+3. `AlarmHelper.setZenMode(context)` - Exit DND (checks time)
 
-Kotlin
-val bedtimeUtilClass = XposedHelpers.findClass("com.android.deskclock.alarm.bedtime.BedtimeUtil", classLoader)
-val sleepAlarm = XposedHelpers.callStaticMethod(bedtimeUtilClass, "getSleepAlarm", context)
-2. BedtimeUtil.saveSleepAlarm(Context context, Alarm alarm)
-Purpose: Persists the modified Alarm object back into DeskClock's persistent storage layer.
+---
 
-Parameters:
+## Core Classes
 
-context (Context)
+### `com.android.deskclock.alarm.bedtime.BedtimeUtil`
 
-alarm (com.android.deskclock.Alarm)
+#### `getWakeAlarm(Context context): Alarm`
+Fetches the wake alarm object from the `sleep_alarms` table.
 
-Return Type: void (or internal status flags, but treated as a procedure).
+**Parameters:**
+- `context` - DeskClock application context
 
-Why you need it: Without calling this, your changes will only exist in temporary runtime memory and will revert the moment the clock process restarts.
+**Returns:** `com.android.deskclock.Alarm` with id = `Integer.MIN_VALUE`, or `null` if bedtime not initialized
 
-Reflection Invocation:
+**Usage:**
+```kotlin
+val wakeAlarm = Reflect.callStatic(bedtimeUtil, "getWakeAlarm", context)
+```
 
-Kotlin
-XposedHelpers.callStaticMethod(
-    bedtimeUtilClass, 
-    "saveSleepAlarm", 
-    context, 
-    sleepAlarm // The modified Alarm object
-)
-3. HealthDataUtil.updateSleepSchedule(Context context, int hour, int minutes)
-Purpose: Synchronizes the new sleep time with the system-level Mi Health provider (content://com.mi.health.provider.main/sleep/schedule) using the proper snake_case column mapping (sleep_hour).
+#### `saveSleepAlarm(Context context, Alarm alarm)`
+Saves sleep time to SharedPreferences.
 
-Parameters:
+**Parameters:**
+- `context` - Application context
+- `alarm` - Alarm object with `hour` and `minutes` fields set
 
-context (Context)
+**Usage:**
+```kotlin
+val alarm = Reflect.newInstance(alarmClass)
+Reflect.setIntField(alarm, "hour", 22)
+Reflect.setIntField(alarm, "minutes", 30)
+Reflect.callStatic(bedtimeUtil, "saveSleepAlarm", context, alarm)
+```
 
-hour (int - 24-hour format, e.g., 22)
+#### `getDisturbanceState(Context context): Boolean`
+Checks if DND integration is enabled in bedtime settings.
 
-minutes (int - e.g., 46)
+**Returns:** `true` if user enabled DND integration
 
-Return Type: int (Returns the number of rows updated, or an error code parsed from IllegalStateException).
+---
 
-Why you need it: This satisfies the ecosystem requirement so that Mi Health and system widgets recognize the new schedule.
+### `com.android.deskclock.util.AlarmHelper`
 
-Reflection Invocation:
+#### `setWakeAlarm(Context context, Alarm alarm): long`
+Saves wake alarm to the `sleep_alarms` ContentProvider table.
 
-Kotlin
-val healthUtilClass = XposedHelpers.findClass("com.android.deskclock.alarm.bedtime.HealthDataUtil", classLoader)
-XposedHelpers.callStaticMethod(
-    healthUtilClass, 
-    "updateSleepSchedule", 
-    context, 
-    22, // hour
-    46  // minutes
-)
-4. HealthDataUtil.updateWakeSchedule(Context context, int hour, int minutes)
-Purpose: Identical to the sleep schedule updater, but targets the wake-up schema (wake_hour / wake_min) in Mi Health.
+**Parameters:**
+- `context` - Application context
+- `alarm` - Wake alarm object with mutated time/repeat settings
 
-Parameters: Context, int (hour), int (minutes).
+**Returns:** Calculated next alarm time in milliseconds
 
-Return Type: int.
+**Usage:**
+```kotlin
+// Mutate wake alarm fields
+Reflect.setIntField(wakeAlarm, "hour", 7)
+Reflect.setIntField(wakeAlarm, "minutes", 30)
+Reflect.callStatic(alarmHelper, "setWakeAlarm", context, wakeAlarm)
+```
 
-Reflection Invocation:
+**Important:** Use `setWakeAlarm()` not `setAlarm()` - wake alarms use a different table!
 
-Kotlin
-XposedHelpers.callStaticMethod(
-    healthUtilClass, 
-    "updateWakeSchedule", 
-    context, 
-    7,  // hour
-    30  // minutes
-)
-5. MiHomeHelper.notifyBedtimeChanged()
-Purpose: Triggers Xiaomi's smart home ecosystem handler to pass the new schedule down to connected IoT devices (e.g., turning off smart lights at bedtime).
+#### `setSleepNotification(Context context)`
+Schedules/reschedules the bedtime reminder notification (shown 15 minutes before sleep time by default).
 
-Parameters: Instantiated with a Context.
+**Usage:**
+```kotlin
+Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+```
 
-Return Type: void.
+#### `setZenMode(Context context)`
+Intelligent DND manager that:
+- Checks if DND integration is enabled
+- Checks if current time is in sleep window
+- Enters DND if in sleep window
+- Exits DND if outside sleep window
+- Schedules future DND activation if before sleep time
 
-Why you need it: Essential for achieving true feature parity with official HyperOS bedtime automations.
+**Important:** Calling this during the day will EXIT DND and schedule it for later. For immediate manual activation, use `ZenModeUtil.enterZenMode()` instead.
 
-Reflection Invocation:
+**Usage:**
+```kotlin
+Reflect.callStatic(alarmHelper, "setZenMode", context)
+```
 
-Kotlin
-val miHomeHelperClass = XposedHelpers.findClass("com.android.deskclock.alarm.bedtime.MiHomeHelper", classLoader)
-val miHomeHelperInstance = XposedHelpers.newInstance(miHomeHelperClass, context)
-XposedHelpers.callMethod(miHomeHelperInstance, "notifyBedtimeChanged")
-6. AlarmHelper.setSleepNotification(Context context)
-Purpose: Instructs the Android AlarmManager to schedule the preemptive bedtime notification/reminder alerts.
+---
 
-Parameters: context (Context).
+### `com.android.deskclock.alarm.bedtime.ZenModeUtil`
 
-Return Type: Varies by internal implementation.
+#### `enterZenMode(Context context)`
+Immediately activates DND mode using MIUI-specific APIs.
 
-Reflection Invocation:
+**Implementation:**
+- Android R+ (API 30+): Uses `MiuiSettings.SoundMode.setZenModeOn()` via reflection
+- Older Android: Creates/updates `AutomaticZenRule` via `NotificationManager`
 
-Kotlin
-val alarmHelperClass = XposedHelpers.findClass("com.android.deskclock.util.AlarmHelper", classLoader)
-XposedHelpers.callStaticMethod(alarmHelperClass, "setSleepNotification", context)
-7. BedtimeUtil.getDisturbanceState(Context context) & AlarmHelper.setZenMode(Context context)
-Purpose:
+**Usage:**
+```kotlin
+Reflect.callStatic(zenModeUtil, "enterZenMode", context)
+```
 
-getDisturbanceState checks if the user has enabled the DND/Zen Mode integration toggle within the Bedtime settings.
+#### `exitZenMode(Context context)`
+Exits DND mode.
 
-setZenMode forces the system to enter Do Not Disturb matching the sleep duration parameters.
+**Usage:**
+```kotlin
+Reflect.callStatic(zenModeUtil, "exitZenMode", context)
+```
 
-Reflection Invocation:
+---
 
-Kotlin
-val isDndEnabled = XposedHelpers.callStaticMethod(bedtimeUtilClass, "getDisturbanceState", context) as Boolean
-if (isDndEnabled) {
-    XposedHelpers.callStaticMethod(alarmHelperClass, "setZenMode", context)
+### `com.android.deskclock.alarm.bedtime.HealthDataUtil`
+
+#### `updateSleepSchedule(Context context, int hour, int minutes): int`
+Syncs sleep time to Mi Health provider (`content://com.mi.health.provider.main/sleep/schedule`).
+
+**Parameters:**
+- `hour` - 24-hour format (0-23)
+- `minutes` - 0-59
+
+**Returns:** Number of rows updated
+
+**Usage:**
+```kotlin
+Reflect.callStatic(healthDataUtil, "updateSleepSchedule", context, 22, 30)
+```
+
+#### `updateWakeSchedule(Context context, int hour, int minutes): int`
+Syncs wake time to Mi Health provider.
+
+**Usage:**
+```kotlin
+Reflect.callStatic(healthDataUtil, "updateWakeSchedule", context, 7, 30)
+```
+
+---
+
+### `com.android.deskclock.alarm.bedtime.MiHomeHelper`
+
+#### `notifyBedtimeChanged()`
+Notifies Mi Home IoT ecosystem of schedule changes.
+
+**Usage:**
+```kotlin
+val miHomeHelper = Reflect.newInstance(miHomeHelperClass, context)
+Reflect.callMethod(miHomeHelper, "notifyBedtimeChanged")
+```
+
+---
+
+### `com.android.deskclock.util.NotificationUtil`
+
+#### `showSleepNotification(Context context)`
+Immediately displays the bedtime reminder notification (normally shown 15 min before sleep time).
+
+**Usage:**
+```kotlin
+val notificationUtil = Reflect.findClass("com.android.deskclock.util.NotificationUtil", classLoader)
+Reflect.callStatic(notificationUtil, "showSleepNotification", context)
+```
+
+---
+
+### `com.android.deskclock.util.SleepModeUtil`
+
+#### `exitSleepMode(Context context)`
+Sends broadcast to exit powerkeeper sleep mode.
+
+**Equivalent to:**
+```kotlin
+val intent = Intent("com.miui.powerkeeper_request_wake")
+intent.setPackage("com.miui.powerkeeper")
+intent.putExtra("reason", 1)
+context.sendBroadcast(intent)
+```
+
+#### `inSleepMode(Context context): Boolean`
+Queries current powerkeeper sleep mode state from `content://com.miui.powerkeeper.configure`.
+
+**Returns:** `true` if currently in sleep mode
+
+---
+
+## Complete Implementation Examples
+
+### Apply Schedule (Update Sleep/Wake Times)
+```kotlin
+fun applySchedule(
+    sleepHour: Int, sleepMin: Int,
+    wakeHour: Int, wakeMin: Int,
+    repeatDays: Int
+): List<StepResult> {
+    val results = mutableListOf<StepResult>()
+
+    // 1. Save sleep time to SharedPreferences
+    val sleepAlarm = Reflect.newInstance(alarmClass)
+    Reflect.setIntField(sleepAlarm, "hour", sleepHour)
+    Reflect.setIntField(sleepAlarm, "minutes", sleepMin)
+    Reflect.callStatic(bedtimeUtil, "saveSleepAlarm", context, sleepAlarm)
+
+    // 2. Sync to Mi Health
+    Reflect.callStatic(healthDataUtil, "updateSleepSchedule", context, sleepHour, sleepMin)
+
+    // 3. Fetch and mutate wake alarm
+    val wakeAlarm = Reflect.callStatic(bedtimeUtil, "getWakeAlarm", context)
+    Reflect.setIntField(wakeAlarm, "hour", wakeHour)
+    Reflect.setIntField(wakeAlarm, "minutes", wakeMin)
+    // Set repeat days via DaysOfWeek wrapper
+    val daysOfWeek = Reflect.getField(wakeAlarm, "daysOfWeek")
+    Reflect.callMethod(daysOfWeek, "setCoded", repeatDays)
+
+    // 4. Save wake alarm
+    Reflect.callStatic(alarmHelper, "setWakeAlarm", context, wakeAlarm)
+
+    // 5. Sync wake to Mi Health
+    Reflect.callStatic(healthDataUtil, "updateWakeSchedule", context, wakeHour, wakeMin)
+
+    // 6. Reschedule notification
+    Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+
+    // 7. Notify Mi Home
+    val miHomeHelper = Reflect.newInstance(miHomeHelperClass, context)
+    Reflect.callMethod(miHomeHelper, "notifyBedtimeChanged")
+
+    return results
 }
+```
+
+### Start Bedtime (Manual Entry)
+```kotlin
+fun startBedtime(): List<StepResult> {
+    val results = mutableListOf<StepResult>()
+
+    // 1. Schedule sleep notification
+    Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+
+    // 2. Force DND on immediately (bypass time checks)
+    Reflect.callStatic(zenModeUtil, "enterZenMode", context)
+
+    // 3. Notify Mi Home
+    val miHomeHelper = Reflect.newInstance(miHomeHelperClass, context)
+    Reflect.callMethod(miHomeHelper, "notifyBedtimeChanged")
+
+    return results
+}
+```
+
+### Stop Bedtime (Manual Exit)
+```kotlin
+fun stopBedtime(): List<StepResult> {
+    val results = mutableListOf<StepResult>()
+
+    // 1. Exit sleep mode
+    val intent = Intent("com.miui.powerkeeper_request_wake")
+    intent.setPackage("com.miui.powerkeeper")
+    intent.putExtra("reason", 1)
+    context.sendBroadcast(intent)
+
+    // 2. Reschedule notification for next day
+    Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+
+    // 3. Exit DND (evaluates time)
+    Reflect.callStatic(alarmHelper, "setZenMode", context)
+
+    // 4. Notify Mi Home
+    val miHomeHelper = Reflect.newInstance(miHomeHelperClass, context)
+    Reflect.callMethod(miHomeHelper, "notifyBedtimeChanged")
+
+    return results
+}
+```
+
+---
+
+## Key Findings
+
+1. **Two storage locations:** Sleep time in SharedPreferences, wake alarm in ContentProvider database
+2. **Use correct save method:** `setWakeAlarm()` for wake alarms (not `setAlarm()`)
+3. **setZenMode() is time-aware:** Will exit DND if called outside sleep window
+4. **Manual control needs direct calls:** Use `ZenModeUtil.enterZenMode()` for immediate activation
+5. **Complete sync required:** Must call both HealthDataUtil methods and MiHomeHelper for full ecosystem sync
+6. **Notification scheduling:** `setSleepNotification()` is part of both start and stop sequences
+
+---
+
+## Alarm Object Structure
+
+**Class:** `com.android.deskclock.Alarm`
+
+**Key fields:**
+- `id: int` - Database ID (wake alarm uses `Integer.MIN_VALUE`)
+- `hour: int` - 24-hour format (0-23)
+- `minutes: int` - 0-59
+- `enabled: boolean`
+- `daysOfWeek: Alarm.DaysOfWeek` - Repeat schedule wrapper
+- `vibrate: boolean`
+- `alert: Uri` - Ringtone
+- `skipTime: long` - Timestamp for skipped alarm
+- `time: long` - Next fire time (calculated, not persisted for repeating alarms)
+
+**DaysOfWeek encoding:**
+- Bit 0 = Monday, Bit 6 = Sunday
+- `127` (0b1111111) = every day
+- Access via `getCoded()` / `setCoded(int)` methods

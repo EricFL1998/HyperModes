@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.appcompat.app.ScrollBarAnimationDrawable xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:width="4dp"
+    android:radius="40dp"
+    app:solidColor="@color/miuix_appcompat_scrollbar_thumb_vertical_bg_dark"/>

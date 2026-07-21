@@ -1,0 +1,40 @@
+# Add project specific R8 rules here.
+# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+#
+# For more details, see
+#   https://d.android.com/r/tools/r8/keep-rules
+
+# === libxposed API 102 官方推荐规则 ===
+# 来源: https://github.com/libxposed/api#for-module-developers
+# 仅这三条 —— 其他生命周期方法的 keep 都是冗余的（framework 通过接口签名调用，不依赖方法名）。
+-dontwarn io.github.libxposed.annotation.**
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-keep,allowoptimization,allowobfuscation public class * extends io.github.libxposed.api.XposedModule {
+    public <init>();
+}
+
+# Hooker 实现类：framework 通过 XposedInterface$Hooker 接口签名调用，类名/字段名可混淆，
+# 但接口实现关系本身要保留（R8 默认会保留 implements 关系，这里只是额外保险）。
+-keep,allowshrinking,allowoptimization,allowobfuscation class ** implements io.github.libxposed.api.XposedInterface$Hooker
+
+# --- Other ---
+-keep class com.hchen.superlyricapi.** { *; }
+-keep class org.luckypray.dexkit.** { *; }
+-keep class org.lsposed.** { *; }
+-keep class io.github.lingqiqi5211.ezhooktool.* { *; }
+
+# --- HyperCeiler Core ---
+-keep class com.sevtinge.hyperceiler.libhook.app.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.rules.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.safecrash.** { *; }
+-keep class * extends com.sevtinge.hyperceiler.libhook.base.BaseHook { <init>(...); }
+
+# --- Tool ---
+-keep class com.sevtinge.hyperceiler.libhook.utils.hookapi.miuiStringToast.res.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.utils.hookapi.blur.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.utils.hookapi.dexkit.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.utils.hookapi.effect.** { *; }
+-keep class com.sevtinge.hyperceiler.libhook.utils.hookapi.tool.** { *; }
+
+# --- Warnning ---
+-dontwarn android.os.ServiceManager

@@ -1,0 +1,102 @@
+/*
+  * This file is part of HyperCeiler.
+
+  * HyperCeiler is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU Affero General Public License as
+  * published by the Free Software Foundation, either version 3 of the
+  * License.
+
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU Affero General Public License for more details.
+
+  * You should have received a copy of the GNU Affero General Public License
+  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  * Copyright (C) 2023-2026 HyperCeiler Contributions
+*/
+package com.sevtinge.hyperceiler.libhook.rules.various.clipboard
+
+import android.graphics.drawable.Drawable
+import android.view.View
+import android.view.View.OnClickListener
+import android.widget.ImageView
+import android.widget.PopupWindow
+import android.widget.TextView
+import com.sevtinge.hyperceiler.common.log.XposedLog
+import com.sevtinge.hyperceiler.libhook.R
+import com.sevtinge.hyperceiler.libhook.utils.api.DeviceHelper.System.isMoreSmallVersion
+import com.sevtinge.hyperceiler.libhook.utils.hookapi.tool.AppsTool
+import io.github.lingqiqi5211.ezhooktool.core.callMethod
+import io.github.lingqiqi5211.ezhooktool.core.callStaticMethod
+import io.github.lingqiqi5211.ezhooktool.core.findMethod
+import io.github.lingqiqi5211.ezhooktool.core.loadClass
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.createAfterHook
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.getObjectField
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.getObjectFieldAs
+import io.github.lingqiqi5211.ezhooktool.core.loadClassOrNull as findClassIfExists
+
+class ClearClipboard {
+
+    fun initLoader(classLoader: ClassLoader) {
+        if (isMoreSmallVersion(200, 2f)) return
+        createHook(classLoader)
+    }
+
+    private fun createHook(classLoader: ClassLoader) {
+        loadClass("com.miui.inputmethod.InputMethodClipboardPhrasePopupView", classLoader).findMethod { name("initPopupWindow") }
+            .createAfterHook {
+                val onClickAddButton: OnClickListener
+                val addButton: ImageView
+                val addButtonIcon: Drawable
+                val removeIcon: Drawable
+                val mPopWindow: PopupWindow = it.thisObject as PopupWindow
+                val mClipboardText: TextView = it.thisObject.getObjectFieldAs("mClipboardText")
+
+                it.thisObject.getObjectFieldAs<ImageView>("addButton").apply {
+                    addButton = this
+                    addButtonIcon = drawable
+                    removeIcon = AppsTool.getModuleRes(context)
+                        .getDrawable(R.drawable.ic_remove, context.theme)
+
+                    callMethod("setVisibility", 0)
+                    onClickAddButton = callMethod("getListenerInfo")!!.getObjectFieldAs("mOnClickListener")
+                    setOnClickListener { self ->
+                        XposedLog.d("use self OnClickListener")
+                        if (!mClipboardText.isSelected) {
+                            onClickAddButton.onClick(self)
+                            return@setOnClickListener
+                        }
+
+                        XposedLog.d("clean Clipboard")
+                        val mAllClipboardList = mPopWindow.getObjectFieldAs<ArrayList<*>>("mAllClipboardList")
+                        mAllClipboardList.forEach { arg -> mPopWindow.callMethod("deleteSavedFile", arg) }
+                        mAllClipboardList.clear()
+
+                        mPopWindow.getObjectField("mInputMethodClipboardAdapter")?.callMethod("clearClipboardListItem")
+                        findClassIfExists("com.miui.inputmethod.MiuiClipboardManager", classLoader)
+                            ?.callStaticMethod(
+                                "setClipboardModelList",
+                                mPopWindow.getObjectField("mContext"),
+                                mAllClipboardList
+                            )
+                        mPopWindow.callMethod(
+                            "maybeChangeEmptyViewAndClearButtonState",
+                            mPopWindow.getObjectField("mCurrentImeClipboardList")
+                        )
+                    }
+                    setImageDrawable(removeIcon)
+                }
+
+                loadClass("com.miui.inputmethod.InputMethodClipboardPhrasePopupView", classLoader).findMethod { name("onClick"); parameterTypes(View::class.java) }.createAfterHook {
+                        if (mClipboardText.isSelected) {
+                            addButton.setImageDrawable(removeIcon)
+                        } else {
+                            addButton.setImageDrawable(addButtonIcon)
+                        }
+                        addButton.callMethod("setVisibility", 0)
+                    }
+            }
+    }
+}

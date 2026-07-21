@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <group android:id="@+id/miuix_action_end_menu_group">
+        <item
+            android:icon="@drawable/add_clock_mutable_icon"
+            android:id="@+id/add_clock"
+            android:visible="false"
+            android:title="@string/add_clock"
+            android:showAsAction="always"/>
+        <item
+            android:id="@+id/bedtime"
+            android:title="@string/bedtime_manage"/>
+        <item
+            android:id="@+id/life_post"
+            android:title="@string/life_post_setting"/>
+        <item
+            android:id="@+id/settings"
+            android:title="@string/more_settings"/>
+    </group>
+</menu>

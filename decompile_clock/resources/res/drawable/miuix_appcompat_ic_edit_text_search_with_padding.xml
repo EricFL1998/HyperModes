@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:drawable="@drawable/miuix_appcompat_ic_edit_text_search_light"
+        android:start="@dimen/miuix_appcompat_edit_text_search_bg_icon_padding_start"
+        android:end="@dimen/miuix_appcompat_edit_text_search_bg_icon_padding_end"/>
+</layer-list>

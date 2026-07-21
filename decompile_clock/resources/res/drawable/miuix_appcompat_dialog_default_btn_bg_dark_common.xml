@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/miuix_appcompat_btn_bg_color_dark"/>
+    <size android:height="@dimen/miuix_appcompat_button_height"/>
+    <corners android:radius="@dimen/miuix_appcompat_capsule_button_bg_corner_radius"/>
+    <padding
+        android:left="@dimen/miuix_appcompat_button_content_safe_padding"
+        android:right="@dimen/miuix_appcompat_button_content_safe_padding"/>
+</shape>

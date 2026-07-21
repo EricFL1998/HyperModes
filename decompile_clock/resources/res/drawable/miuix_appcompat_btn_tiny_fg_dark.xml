@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.appcompat.app.ButtonForegroundDrawable xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:buttonCapsuleRadius="@dimen/miuix_appcompat_button_tiny_radius"
+    app:buttonRadius="@dimen/miuix_appcompat_button_tiny_radius"
+    app:hoveredAlpha="0.06"
+    app:miuixDrawableTintColor="@color/miuix_appcompat_tint_color_dark"
+    app:normalAlpha="0"
+    app:pressedAlpha="0.08"/>

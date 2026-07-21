@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/image_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/image_icon_margin_top"
+        android:src="@drawable/ic_no_cities"/>
+    <TextView
+        android:textSize="@dimen/blank_page_text_size"
+        android:textColor="@color/blank_page_text_color"
+        android:gravity="center_horizontal"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/worldclock_blank_list_text_margin_top"
+        android:layout_marginBottom="@dimen/tv_blank_list_show_margin_bottom"
+        android:maxWidth="@dimen/tv_blank_list_show_max_width"
+        android:text="@string/tv_blank_list_show_text"/>
+</LinearLayout>

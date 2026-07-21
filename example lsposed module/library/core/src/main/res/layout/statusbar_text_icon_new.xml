@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<com.android.systemui.statusbar.views.NetworkSpeedView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:tag="slot_text_icon"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    tools:ignore="MissingClass">
+    <TextView
+        android:tag="network_speed_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        android:singleLine="false"/>
+    <TextView
+        android:tag="network_speed_unit"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_gravity="start"
+        android:visibility="gone"
+        android:singleLine="true"/>
+</com.android.systemui.statusbar.views.NetworkSpeedView>

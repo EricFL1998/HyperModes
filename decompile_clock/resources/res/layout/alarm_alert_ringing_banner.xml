@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_gravity="center_horizontal"
+    android:background="@drawable/alarm_alert_ringing_banner_bg"
+    android:clickable="true"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/alarm_alert_ringing_view_height">
+    <ImageView
+        android:id="@+id/alarm_banner_image"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/alert_banner_image"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="@dimen/alarm_banner_image_margin_start"
+        android:layout_marginEnd="@dimen/alarm_banner_image_margin_end"/>
+    <TextView
+        android:textSize="@dimen/alarm_time_text_size"
+        android:textColor="@color/alarm_time_banner_color"
+        android:id="@+id/alarm_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/alarm_banner_image_margin_top"
+        android:fontFamily="sans-serif-medium"
+        android:layout_toEndOf="@+id/alarm_banner_image"/>
+    <TextView
+        android:textSize="@dimen/alarm_ringing_text_size"
+        android:textColor="@color/alarm_time_banner_color"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/alarm_banner_image_margin_top"
+        android:text="@string/alarm_permanent_alert"
+        android:layout_below="@+id/alarm_time"
+        android:layout_marginEnd="@dimen/alarm_banner_text_margin_end"
+        android:layout_toEndOf="@+id/alarm_banner_image"
+        app:typeface="mitype_mono_regular_res_0x7f0a0265"/>
+    <ImageView
+        android:id="@+id/alarm_alert_close_item"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/alert_banner_close_image"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="@dimen/alarm_alert_close_item_margin_end"
+        android:layout_alignParentEnd="true"/>
+</RelativeLayout>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  --><resources>
+    <!--Pop-up window/miuix part-->
+    <string name="miuix_appcompat_action_mode_select_all">すべて選択</string>
+    <string name="miuix_appcompat_cancel_description">キャンセル</string>
+    <string name="miuix_appcompat_confirm_description">確認</string>
+    <string name="miuix_appcompat_select_all_description">すべて選択</string>
+    <string name="miuix_appcompat_deselect_all_description">すべての選択を解除</string>
+    <string name="miuix_appcompat_delete_description">削除</string>
+    <string name="miuix_appcompat_search_action_mode_cancel">キャンセル</string>
+    <string name="miuix_appcompat_search_input_description">検索</string>
+    <string name="miuix_appcompat_actionbar_immersion_button_more_description">詳細</string>
+    <string name="miuix_appcompat_action_mode_inverse">すべての選択を解除</string>
+    <!--HyperCeiler Settings/About Page-->
+    <string name="tip">ヒント</string>
+    <string name="root">一部の機能は Root/Su 権限がないと利用できません</string>
+    <string name="soft_reboot">再起動</string>
+    <string name="restart_app_desc">%1$s を再起動してもよろしいですか？</string>
+    <string name="hyperceiler_restart_quick">アプリを素早く再起動</string>
+    <string name="hook_failed">HyperCeiler はまだ有効化されていません。LSPosed マネージャーで有効になっているか、また HyperCeiler の自動起動が許可されているかを確認してください。該当する場合はデバイスを再起動するか、モジュールを再度最適化してください。</string>
+    <string name="kill_failed">プロセスの終了に失敗しました。HyperCeiler に Root/Su 権限が付与されているか確認してください。</string>
+    <string name="start_failed">アクティビティの開始に失敗しました。HyperCeiler に Root/Su 権限を付与しているか確認してください。</string>
+    <string name="pid_failed">対象のアプリは現在実行されていないため、再起動する必要はありません。</string>
+    <string name="reboot_failed">再起動に失敗しました。HyperCeiler に Root/Su 権限が付与されているか確認してください。</string>
+    <string name="experimental_features">実験的な機能</string>
+    <!--HyperCeiler Tips-->
+    <string name="warn">警告</string>
+    <string name="module_title_1">基本的なメッセージ</string>
+    <string name="module_title_2">スタックメッセージ</string>
+    <string name="app_error_desc">HyperCeiler が予期せず閉じられました。この問題を解決するために、以下の情報を入力してください:\n\nメッセージを長押ししてすべてをコピーします。</string>
+    <string name="safe_mode_history">例外記録の表示</string>
+    <string name="safe_mode_cancel">セーフモードを無効にする</string>
+    <string name="safe_mode_ok">キャンセル</string>
+    <string name="safe_mode_later_title">ヒント</string>
+    <string name="safe_mode_recorder_title">例外記録</string>
+    <string name="safe_mode_recorder_file">ファイル</string>
+    <string name="safe_mode_recorder_class">クラス</string>
+    <string name="safe_mode_recorder_method">方式</string>
+    <string name="safe_mode_recorder_line">行</string>
+    <string name="safe_mode_recorder_msg">例外メッセージ</string>
+    <string name="safe_mode_recorder_st">スタックトレース</string>
+    <string name="error_message">例外メッセージ</string>
+    <string name="error_type">例外の種類</string>
+    <string name="error_file_name">ファイル名</string>
+    <string name="error_time">記録時間</string>
+    <string name="error_version_name">バージョン名</string>
+    <string name="error_git_hash">Git hash</string>
+    <string name="error_build_time">ビルド日時</string>
+    <string name="tip_default">ヒント: デフォルトのヒントはこちらです。このメッセージが出る場合は HyperCeiler に問題があることを意味します。タイムリーかつ効果的な方法で開発者に報告してください。</string>
+    <string name="headtip_tip_auto_safe_mode">セーフモードでは、セキュリティを確保するために複数回クラッシュすると、いくつかのアプリのフックを解除できます。 システムフレームワークのフックスコープを実行する必要があります。セーフモードをオンにするには、システムフレームワークのスコープを確認することを強くお勧めします。</string>
+    <string name="happy_birthday_hyperceiler">今日は HyperCeiler の誕生日です！\nこの1年間のご支援ありがとうございました。今年も一緒に頑張りましょう！</string>
+    <string name="headtip_tip_fuck_coolapk">今日は何の日: Sevtinge は 2022 年 7 月 14 日に重要なスピーチを行いました。</string>
+    <string name="headtip_notice_dead_logger_errcode">現在のデバイスのログサービスが異常なため、HyperCeiler の機能が制限されます。正常に動作するようにログサービスを復元してください。\nエラーコード: %1$s</string>
+    <string name="headtip_notice_dead_logger">現在のデバイスのログサービスが異常なため、HyperCeiler の機能が制限されます。正常に動作するようにログサービスを復元してください。</string>
+    <string name="unsupported_system_func">この機能は現在のシステムバージョンではサポートされていません</string>
+    <string name="supported_system_func">この機能は現在のシステムバージョンで正式にサポートされています</string>
+    <string name="feature_doing_func">現在の機能は開発中です。お楽しみに。</string>
+    <!--System UI-->
+    <string name="system_ui">システム UI</string>
+    <!--System launcher-->
+    <string name="mihome">システムランチャー</string>
+    <!--Settings-->
+    <string name="system_settings">設定</string>
+    <!--Security/Tablet security center-->
+    <string name="security_center_hyperos">セキュリティ</string>
+    <!--Other-->
+    <string name="exit">終了</string>
+    <string name="ignore">無視</string>
+    <string name="disable_suggest">サジェストを無効にする</string>
+    <string name="enable_suggest">サジェストを有効にする</string>
+    <string name="unsupported_func_tips">現在のターゲットスコープのソースは Xiaomi 公式ではない可能性があります。セキュリティ上の理由により、このスコープのすべての機能は無効になっています。Xiaomi がリリースしたアプリパッケージに切り替えるか、「HyperCeiler 設定 &gt; 開発者向けオプション &gt; デバッグモード」でマウントされているバージョンを指定して再度お試しください。</string>
+    <string name="debug_mode_running">現在はデバッグモードで実行中です。必要でなければ、無効にしてください。\n現在のアプリバージョン: %1$s\n選択したターゲットバージョン: %2$s\nフック成否: %3$s</string>
+    <string name="debug_mode_switch">デバッグバージョン</string>
+    <string name="search_apps_hint">%d 個のアプリを検索</string>
+    <string name="load_apps_failed">アプリリストの読み込みに失敗しました</string>
+    <string name="search_result_not_available">この機能は、お使いのデバイスではサポートされていないか、一部の設定の下に隠れている可能性があります</string>
+
+    <!--AICR-->
+    <string name="aicr_modify_browser_copy">直接コピーに使用するブラウザを変更する</string>
+</resources>

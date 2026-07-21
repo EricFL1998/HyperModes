@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory>
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.FreeFormSettings"
+            android:title="@string/floating_window" />
+
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.VolumeSettings"
+            android:title="@string/system_framework_volume_title" />
+
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.DisplaySettings"
+            android:title="@string/system_framework_display_title" />
+
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.OtherSettings"
+            android:title="@string/system_framework_other_title" />
+
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.MiPadSettings"
+            android:key="prefs_key_system_framework_mipad"
+            android:title="@string/various_mipad_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory>
+        <Preference
+            android:fragment="com.sevtinge.hyperceiler.hooker.framework.CorePatchSettings"
+            android:title="@string/system_framework_corepatch_title" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

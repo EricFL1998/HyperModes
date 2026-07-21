@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">Prieš 1 valandą</item>
+        <item quantity="few">Prieš 1 valandą</item>
+        <item quantity="many">Prieš 1 valandą</item>
+        <item quantity="other">Prieš 1 valandą</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">Prieš %d valandą</item>
+        <item quantity="few">Prieš %d valandas</item>
+        <item quantity="many">Prieš %d valandų</item>
+        <item quantity="other">Prieš %d valandų</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Prieš pusvalandį</item>
+        <item quantity="few">Prieš pusvalandį</item>
+        <item quantity="many">Prieš pusvalandį</item>
+        <item quantity="other">Prieš pusvalandį</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">Po %d valandos</item>
+        <item quantity="few">Po %d valandų</item>
+        <item quantity="many">Po %d valandų</item>
+        <item quantity="other">Po %d valandų</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Po pusvalandžio</item>
+        <item quantity="few">Po pusvalandžio</item>
+        <item quantity="many">Po pusvalandžio</item>
+        <item quantity="other">Po pusvalandžio</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Dabar</item>
+        <item quantity="few">Dabar</item>
+        <item quantity="many">Dabar</item>
+        <item quantity="other">Dabar</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">Po %d minutės</item>
+        <item quantity="few">Po %d minučių</item>
+        <item quantity="many">Po %d minučių</item>
+        <item quantity="other">Po %d minučių</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Ką tik</item>
+        <item quantity="few">Ką tik</item>
+        <item quantity="many">Ką tik</item>
+        <item quantity="other">Ką tik</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">Prieš %d minutę</item>
+        <item quantity="few">Prieš %d minutes</item>
+        <item quantity="many">Prieš %d minučių</item>
+        <item quantity="other">Prieš %d minučių</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Atidėta %d min.</item>
+        <item quantity="few">Atidėta %d min.</item>
+        <item quantity="many">Atidėta %d min.</item>
+        <item quantity="other">Atidėta %d min.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s pamaina</item>
+        <item quantity="few">%s pamainos</item>
+        <item quantity="many">%s pamainų</item>
+        <item quantity="other">%s pamainos</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d diena</item>
+        <item quantity="few">%d dienos</item>
+        <item quantity="many">%d dienos</item>
+        <item quantity="other">%d dienų</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Prieš pusvalandį</item>
+        <item quantity="few">Prieš pusvalandį</item>
+        <item quantity="many">Prieš pusvalandį</item>
+        <item quantity="other">Prieš pusvalandį</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d valanda</item>
+        <item quantity="few">%d valandos</item>
+        <item quantity="many">%d valandos</item>
+        <item quantity="other">%d valandų</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">Po 1 valandos</item>
+        <item quantity="few">Po 1 valandos</item>
+        <item quantity="many">Po 1 valandos</item>
+        <item quantity="other">Po 1 valandos</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Po pusvalandžio</item>
+        <item quantity="few">Po pusvalandžio</item>
+        <item quantity="many">Po pusvalandžio</item>
+        <item quantity="other">Po pusvalandžio</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Dabar</item>
+        <item quantity="few">Dabar</item>
+        <item quantity="many">Dabar</item>
+        <item quantity="other">Dabar</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">po 1 minutės</item>
+        <item quantity="few">po %d minučių</item>
+        <item quantity="many">po %d minučių</item>
+        <item quantity="other">po %d minučių</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">%s diena</item>
+        <item quantity="few">%s diena</item>
+        <item quantity="many">%s diena</item>
+        <item quantity="other">%s diena</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">%s pamainos diena</item>
+        <item quantity="few">%s pamainos diena</item>
+        <item quantity="many">%s pamainos diena</item>
+        <item quantity="other">%s pamainos diena</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Ką tik</item>
+        <item quantity="few">Ką tik</item>
+        <item quantity="many">Ką tik</item>
+        <item quantity="other">Ką tik</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d minutė</item>
+        <item quantity="few">%d minutės</item>
+        <item quantity="many">%d minučių</item>
+        <item quantity="other">%d minučių</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">Pasirinktas %d elementas</item>
+        <item quantity="few">Pasirinkti %d elementai</item>
+        <item quantity="many">Pasirinkti %d elementai</item>
+        <item quantity="other">Pasirinkta %d elementų</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="one">%d naujas pranešimas</item>
+        <item quantity="few">%d nauji pranešimai</item>
+        <item quantity="many">%d naujo pranešimo</item>
+        <item quantity="other">%d naujų pranešimų</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">Prieš 1 minutę</item>
+        <item quantity="few">Prieš %d minutes</item>
+        <item quantity="many">Prieš %d minutes</item>
+        <item quantity="other">Prieš %d minučių</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d sekundė</item>
+        <item quantity="few">%d sekundės</item>
+        <item quantity="many">%d sekundės</item>
+        <item quantity="other">%d sekundžių</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s diena</item>
+        <item quantity="few">%s dienos</item>
+        <item quantity="many">%s dienų</item>
+        <item quantity="other">%s dienos</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s valanda</item>
+        <item quantity="few">%1$s valandos</item>
+        <item quantity="many">%1$s valandos</item>
+        <item quantity="other">%1$s valandų</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s val.</item>
+        <item quantity="few">%1$s val.</item>
+        <item quantity="many">%1$s val.</item>
+        <item quantity="other">%1$s val.</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d valanda</item>
+        <item quantity="few">%1$d valandos</item>
+        <item quantity="many">%1$d valandų</item>
+        <item quantity="other">%1$d valandos</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s minutė</item>
+        <item quantity="few">%1$s minutės</item>
+        <item quantity="many">%1$s minutės</item>
+        <item quantity="other">%1$s minučių</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s min.</item>
+        <item quantity="few">%1$s min.</item>
+        <item quantity="many">%1$s min.</item>
+        <item quantity="other">%1$s min.</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d minutė</item>
+        <item quantity="few">%1$d minutės</item>
+        <item quantity="many">%1$d minučių</item>
+        <item quantity="other">%1$d minutės</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Priminimo intervalas pakeistas į %d minutę</item>
+        <item quantity="few">Priminimo intervalas pakeistas į %d minutes</item>
+        <item quantity="many">Priminimo intervalas pakeistas į %d minutes</item>
+        <item quantity="other">Priminimo intervalas pakeistas į %d minučių</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Skambės %1$s kartą</item>
+        <item quantity="few">Skambės %1$s kartus</item>
+        <item quantity="many">Skambės %1$s karto</item>
+        <item quantity="other">Skambės %1$s kartų</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Kas %1$s min.</item>
+        <item quantity="few">Kas %1$s min.</item>
+        <item quantity="many">Kas %1$s min.</item>
+        <item quantity="other">Kas %1$s min.</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Kas %1$d min.</item>
+        <item quantity="few">Kas %1$d min.</item>
+        <item quantity="many">Kas %1$d min.</item>
+        <item quantity="other">Kas %1$d min.</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Skambėti %1$d kartą</item>
+        <item quantity="few">Skambėti %1$d kartus (-ų)</item>
+        <item quantity="many">Skambėti %1$d kartus (-ų)</item>
+        <item quantity="other">Skambėti %1$d kartus (-ų)</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Priminti po %d min.</item>
+        <item quantity="few">Priminti po %d min.</item>
+        <item quantity="many">Priminti po %d min.</item>
+        <item quantity="other">Priminti po %d min.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Chronometras veikia %s dieną. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="few">Chronometras veikia %s dienas. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="many">Chronometras veikia %s dienas. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="other">Chronometras veikia %s dienų. Bakstelėkite, norėdami peržiūrėti.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Chronometras veikia %s valandą. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="few">Chronometras veikia %s valandas. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="many">Chronometras veikia %s valandas. Bakstelėkite, norėdami peržiūrėti.</item>
+        <item quantity="other">Chronometras veikia %s valandų Bakstelėkite, norėdami peržiūrėti.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d valanda </item>
+        <item quantity="few">%1$d valandos </item>
+        <item quantity="many">%1$d valandos </item>
+        <item quantity="other">%1$d valandų </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d minutė </item>
+        <item quantity="few">%1$d minutės </item>
+        <item quantity="many">%1$d minutės </item>
+        <item quantity="other">%1$d minučių </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d sekundė</item>
+        <item quantity="few">%1$d sekundės</item>
+        <item quantity="many">%1$d sekundės</item>
+        <item quantity="other">%1$d sekundžių</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s val.</item>
+        <item quantity="few">+%s val.</item>
+        <item quantity="many">+%s val.</item>
+        <item quantity="other">+%s val.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s val.</item>
+        <item quantity="few">+%1$s val.</item>
+        <item quantity="many">+%1$s val.</item>
+        <item quantity="other">+%1$s val.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s val.</item>
+        <item quantity="few">-%s val.</item>
+        <item quantity="many">-%s val.</item>
+        <item quantity="other">-%s val.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s val.</item>
+        <item quantity="few">-%1$s val.</item>
+        <item quantity="many">-%1$s val.</item>
+        <item quantity="other">-%1$s val.</item>
+    </plurals>
+</resources>

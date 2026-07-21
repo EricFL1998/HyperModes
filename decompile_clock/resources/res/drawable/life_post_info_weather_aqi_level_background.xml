@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <size android:height="@dimen/life_post_weather_api_level_background_height"/>
+    <size android:width="@dimen/life_post_weather_api_level_background_width"/>
+    <corners android:radius="@dimen/life_post_weather_api_level_radius"/>
+    <solid android:color="@color/life_post_info_weather_aqi_level_background_color"/>
+</shape>

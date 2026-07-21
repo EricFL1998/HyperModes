@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_selected="true"
+        android:color="@color/miuix_appcompat_dropdown_popup_foreground_color_light"/>
+    <item android:color="@color/miuix_color_transparent"/>
+</selector>

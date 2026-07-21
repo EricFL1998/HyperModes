@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:id="@+id/miuix_gallery_preference_layout_root"
+    android:background="?attr/galleryPreferenceItemBackground"
+    android:clickable="false"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:importantForAccessibility="no">
+    <TextView
+        android:id="@+id/miuix_gallery_preference_external_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/miuix_gallery_preference_layout_title_margin_top"
+        android:layout_marginStart="@dimen/miuix_gallery_preference_layout_title_and_summary_horizontal_margin"
+        android:layout_marginEnd="@dimen/miuix_gallery_preference_layout_title_and_summary_horizontal_margin"
+        style="@style/Widget.GalleryPreference.Title"/>
+    <TextView
+        android:id="@+id/miuix_gallery_preference_external_summary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/miuix_gallery_preference_layout_summary_margin_top"
+        android:layout_marginBottom="@dimen/miuix_gallery_preference_layout_summary_margin_bottom"
+        android:layout_marginStart="@dimen/miuix_gallery_preference_layout_title_and_summary_horizontal_margin"
+        android:layout_marginEnd="@dimen/miuix_gallery_preference_layout_title_and_summary_horizontal_margin"
+        style="@style/Widget.GalleryPreference.Summary"/>
+</LinearLayout>

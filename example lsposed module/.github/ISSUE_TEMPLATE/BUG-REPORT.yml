@@ -1,0 +1,84 @@
+name: "🐛 Bug"
+description: Report issue | 问题报告
+title: "🐛 [BUG] <标题>"
+labels: [
+  "bug"
+]
+
+body:
+  - type: checkboxes
+    id: check
+    attributes:
+      label: Notice | 须知
+      description: |
+        Make sure that all necessary options have been followed; otherwise, the issue will be closed without any reason.
+        Before submitting an issue, confirm that the latest CI version released by [HyperCeiler | Canary Test](https://t.me/cemiuiler_canary) is currently available.
+        Or the latest debug version from the main branch in the GitHub Actions of this project.
+        
+        请确认已经遵守所有必选项，否则将被无理由直接关闭 Issue。
+        提交 Issue 前请确认当前为[HyperCeiler | Canary Test](https://t.me/cemiuiler_canary)发布的最新版 CI。
+        或者本项目 GitHub Actions 下 main 分支最新构建的 Debug 版本。
+      options:
+        - label: |
+            I confirm that this issue still exists in the latest version | 
+            我确认最新版依然存在此问题
+          required: true
+
+        - label: |
+            I checked all installed modules and confirmed that this module is the cause | 
+            我已排查已安装的所有模块的可能性，确认由本模块造成
+          required: true
+
+        - label: |
+            I searched the Issue Tracker and couldn't find an issue that submitted the same issue | 
+            我已经搜索过 Issue Tracker，且并未查询到提交相同问题的 Issue
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Issue description | 问题描述"
+      description: |
+        Enter a clear and concise description of the issue.  
+        请输入简洁且明确的问题描述。
+      placeholder: e.g., The X feature isn't working properly
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: "HyperCeiler logs | HyperCeiler 日志"
+      description: |
+        Provide relevant logs from HyperCeiler. These logs are essential for identifying the issue. 
+        You can find it at HyperCeiler Settings - Log Viewer - ··· - Export Logs.
+        请提供来自 HyperCeiler 的相关日志。这些日志对于定位问题至关重要。
+        您可以在 HyperCeiler 设置 - 查看日志 - ··· - 导出日志 找到它。
+      placeholder: Paste logs from HyperCeiler or crash logs here
+    validations:
+      required: true
+
+  - type: textarea
+    id: reprod
+    attributes:
+      label: "Reproduction steps | 复现步骤"
+      description: |
+        Enter concise steps to reproduce the issue.  
+        输入简明的问题复现步骤。
+      value: |
+        1. Go to...
+        2. Click on...
+        3. Scroll down to...
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: "Screenshot of issue | 问题截图"
+      description: |
+        Upload a screenshot of the issue so we can quickly locate it.  
+        上传问题截图以便我们快速定位。
+    validations:
+      required: false
+

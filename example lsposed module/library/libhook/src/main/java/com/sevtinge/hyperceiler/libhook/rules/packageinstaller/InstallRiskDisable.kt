@@ -1,0 +1,74 @@
+/*
+  * This file is part of HyperCeiler.
+
+  * HyperCeiler is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU Affero General Public License as
+  * published by the Free Software Foundation, either version 3 of the
+  * License.
+
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU Affero General Public License for more details.
+
+  * You should have received a copy of the GNU Affero General Public License
+  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  * Copyright (C) 2023-2026 HyperCeiler Contributions
+*/
+package com.sevtinge.hyperceiler.libhook.rules.packageinstaller
+
+import com.sevtinge.hyperceiler.libhook.base.BaseHook
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.createHooks
+import org.luckypray.dexkit.query.enums.StringMatchType
+import java.lang.reflect.Method
+
+object InstallRiskDisable : BaseHook() {
+    override fun useDexKit() = true
+
+    override fun initDexKit(): Boolean {
+        a1
+        b2
+        c3
+        return true
+    }
+    private val a1 by lazy {
+        requiredMember("InstallRiskDisable1") {
+            it.findMethod {
+                matcher {
+                    addUsingString("secure_verify_enable", StringMatchType.Equals)
+                    returnType = "boolean"
+                }
+            }.single()
+        } as Method
+    }
+
+    private val b2 by lazy {
+        requiredMember("InstallRiskDisable2") {
+            it.findMethod {
+                matcher {
+                    addUsingString("installerOpenSafetyModel", StringMatchType.Equals)
+                    returnType = "boolean"
+                }
+            }.single()
+        } as Method
+    }
+
+    private val c3 by lazy {
+        requiredMember("InstallRiskDisable3") {
+            it.findMethod {
+                matcher {
+                    addUsingString($$"android.provider.MiuiSettings$Ad", StringMatchType.Equals)
+                    returnType = "boolean"
+                }
+            }.single()
+        } as Method
+    }
+
+    override fun init() {
+        listOf(a1, b2, c3).createHooks {
+            returnConstant(false)
+        }
+    }
+}
+

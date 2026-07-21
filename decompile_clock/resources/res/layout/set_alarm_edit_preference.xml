@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:forceDarkAllowed="false">
+    <miuix.androidbasewidget.widget.StateEditText
+        android:textSize="16sp"
+        android:ellipsize="end"
+        android:id="@+id/edit_summary"
+        android:background="@drawable/set_alarm_edit_label_bg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/enter_label"
+        android:inputType="text"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:miuixAppcompatLabel="@string/label_pref_summary"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 ora fa</item>
+        <item quantity="other">1 ora fa</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d ora fa</item>
+        <item quantity="other">%d ora fa</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Mezz&apos;ora fa</item>
+        <item quantity="other">Mezz&apos;ora fa</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">Fra %d ora</item>
+        <item quantity="other">Fra %d ora</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Tra mezz&apos;ora</item>
+        <item quantity="other">Tra mezz&apos;ora</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Adesso</item>
+        <item quantity="other">Adesso</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">Fra %d min</item>
+        <item quantity="other">Fra %d min</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Poco fa</item>
+        <item quantity="other">Poco fa</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d min fa</item>
+        <item quantity="other">%d min fa</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Sospeso per %d minuto.</item>
+        <item quantity="other">Sospeso per %d minuti.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s turno</item>
+        <item quantity="other">%s turni</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d giorno</item>
+        <item quantity="other">%d giorni</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Mezz&apos;ora fa</item>
+        <item quantity="other">Mezz&apos;ora fa</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d ora</item>
+        <item quantity="other">%d ore</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">Tra 1 ora</item>
+        <item quantity="other">Tra 1 ora</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Tra mezz&apos;ora</item>
+        <item quantity="other">Tra mezz&apos;ora</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Adesso</item>
+        <item quantity="other">Adesso</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">tra 1 minuto</item>
+        <item quantity="other">tra %d minuti</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Giorno %s</item>
+        <item quantity="other">Giorno %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Giorno di turno %s</item>
+        <item quantity="other">Giorno di turno %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Poco fa</item>
+        <item quantity="other">Poco fa</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d minuto</item>
+        <item quantity="other">%d minuti</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d elemento selezionato</item>
+        <item quantity="other">%d elementi selezionati</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="one">%d nuova notifica</item>
+        <item quantity="other">%d nuove notifiche</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 minuto fa</item>
+        <item quantity="other">%d minuti fa</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d secondo</item>
+        <item quantity="other">%d secondi</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s giorno</item>
+        <item quantity="other">%s giorni</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s ora</item>
+        <item quantity="other">%1$s ore</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s ora</item>
+        <item quantity="other">%1$s ore</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d ora</item>
+        <item quantity="other">%1$d ore</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s minuto</item>
+        <item quantity="other">%1$s minuti</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s min</item>
+        <item quantity="other">%1$s min</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="other">%1$d minuti</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Intervallo di sospensione modificato a %d minuto</item>
+        <item quantity="other">Intervallo di sospensione modificato a %d minuti</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Suona %1$s volta</item>
+        <item quantity="other">Suona %1$s volte</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Ogni %1$s min</item>
+        <item quantity="other">Ogni %1$s min</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Ogni %1$d minuto</item>
+        <item quantity="other">Ogni %1$d minuti</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Suona %1$d volta</item>
+        <item quantity="other">Suona %1$d volte</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Sospendi per %d min</item>
+        <item quantity="other">Sospendi per %d min</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Cronometro è stato in esecuzione per %s giorno. Tocca per visualizzare.</item>
+        <item quantity="other">Cronometro è stato in esecuzione per %s giorni. Tocca per visualizzare.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Cronometro è stato in esecuzione per %s ora. Tocca per visualizzare.</item>
+        <item quantity="other">Cronometro è stato in esecuzione per %s ore. Tocca per visualizzare.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d ora </item>
+        <item quantity="other">%1$d ore </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d minuto </item>
+        <item quantity="other">%1$d minuti </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d secondo</item>
+        <item quantity="other">%1$d secondi</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s ora</item>
+        <item quantity="other">+%s ore</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s ora</item>
+        <item quantity="other">+%1$s ore</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s ora</item>
+        <item quantity="other">-%s ore</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s ora</item>
+        <item quantity="other">-%1$s ore</item>
+    </plurals>
+</resources>

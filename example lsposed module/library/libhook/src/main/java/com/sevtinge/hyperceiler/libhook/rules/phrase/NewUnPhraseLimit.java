@@ -1,0 +1,194 @@
+/*
+ * This file is part of HyperCeiler.
+ *
+ * HyperCeiler is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Copyright (C) 2023-2026 HyperCeiler Contributions
+ */
+
+package com.sevtinge.hyperceiler.libhook.rules.phrase;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.text.InputFilter;
+import android.text.TextUtils;
+import android.view.View;
+import android.widget.EditText;
+
+import com.sevtinge.hyperceiler.libhook.base.BaseHook;
+import io.github.lingqiqi5211.ezhooktool.xposed.java.IMethodHook;
+import com.sevtinge.hyperceiler.libhook.utils.hookapi.dexkit.IDexKit;
+
+import org.json.JSONArray;
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindField;
+import org.luckypray.dexkit.query.FindMethod;
+import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.query.matchers.FieldMatcher;
+import org.luckypray.dexkit.query.matchers.MethodMatcher;
+import org.luckypray.dexkit.result.MethodData;
+import org.luckypray.dexkit.result.base.BaseData;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+import io.github.lingqiqi5211.ezhooktool.core.java.Fields;
+import io.github.lingqiqi5211.ezhooktool.xposed.common.HookParam;
+
+public class NewUnPhraseLimit extends BaseHook {
+    private Method mBuildClipboardJsonMethod;
+    private Method mPhraseMethod;
+    private Field mPhraseEditTextField;
+
+    @Override
+    protected boolean useDexKit() {
+        return true;
+    }
+
+    @Override
+    protected boolean initDexKit() {
+        mBuildClipboardJsonMethod = requiredMember("BuildClipboardJson", new IDexKit() {
+            @Override
+            public BaseData dexkit(DexKitBridge bridge) throws ReflectiveOperationException {
+                MethodData methodData = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create()
+                        .usingStrings("get savedList size :")
+                    )).singleOrNull();
+                return methodData;
+            }
+        });
+        mPhraseMethod = requiredMember("phrase$1", new IDexKit() {
+            @Override
+            public BaseData dexkit(DexKitBridge bridge) throws ReflectiveOperationException {
+                MethodData methodData = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create()
+                        .declaredClass(ClassMatcher.create()
+                            .usingStrings("phrase_list")
+                        )
+                        .usingStrings("layout_inflater")
+                    )).singleOrNull();
+                return methodData;
+            }
+        });
+        mPhraseEditTextField = requiredMember("phrase$2", new IDexKit() {
+            @Override
+            public BaseData dexkit(DexKitBridge bridge) throws ReflectiveOperationException {
+                return bridge.findField(FindField.create()
+                    .matcher(FieldMatcher.create()
+                        .declaredClass(ClassMatcher.create()
+                            .usingStrings("phrase_list")
+                        )
+                        .type(EditText.class)
+                    )
+                ).single();
+            }
+        });
+        return true;
+    }
+
+    @Override
+    public void init() {
+        hookBuildClipboardJson();
+        hookPhraseListLimit();
+        hookPhraseEditCharLimit();
+    }
+
+    /**
+     * Hook BuildClipboardJson 方法，移除 20 条剪贴板条目限制。
+     * <p>
+     * 原始方法会将超过 20 条的旧条目删除，这里重新实现为不限制条数，
+     * 但保留过期清理逻辑以避免剪贴板 JSON 无限膨胀。
+     */
+    private void hookBuildClipboardJson() {
+        hookMethod(mBuildClipboardJsonMethod, new IMethodHook() {
+            @Override
+            public void before(HookParam param) {
+                Object newModel = param.getArgs()[2];
+                String oldJson = (String) param.getArgs()[3];
+
+                JSONArray jsonArray = new JSONArray();
+                ArrayList<Object> list = new ArrayList<>();
+
+                if (newModel != null) {
+                    list.add(newModel);
+                }
+
+                if (!TextUtils.isEmpty(oldJson)) {
+                    Class<?> mgrCls = findClass("com.miui.inputmethod.MiuiClipboardManager", getClassLoader());
+                    List<?> oldList = (List<?>) callStaticMethod(mgrCls, "jsonToBeanList", oldJson);
+                    list.addAll(oldList);
+                }
+
+                for (int i = 0; i < list.size(); i++) {
+                    Object model = list.get(i);
+                    Object jsonObj = callMethod(model, "toJSONObject");
+                    jsonArray.put(jsonObj);
+                }
+
+                param.setResult(jsonArray.toString());
+            }
+        });
+    }
+
+    /**
+     * 解除常用语 20 条数量限制
+     */
+    private void hookPhraseListLimit() {
+        Class<?> InputMethodUtil = findClass("com.miui.inputmethod.InputMethodUtil");
+        setPhraseListSize(InputMethodUtil);
+        findAndHookMethod(InputMethodUtil, "queryPhrase", Context.class, new IMethodHook() {
+            @Override
+            public void after(HookParam param) {
+                setPhraseListSize(InputMethodUtil);
+            }
+        });
+
+        Class<?> AddPhraseActivity = findClass("com.miui.phrase.AddPhraseActivity");
+        findAndHookMethod("com.miui.phrase.PhraseEditActivity", "onClick", View.class, new IMethodHook() {
+            @Override
+            public void before(HookParam param) {
+                Activity activity = (Activity) param.getThisObject();
+                Intent intent = new Intent(activity, AddPhraseActivity);
+                intent.setAction("com.miui.intent.action.PHRASE_ADD");
+                activity.startActivityForResult(intent, 0);
+                param.setResult(null);
+            }
+        });
+    }
+
+    private void setPhraseListSize(Class<?> inputMethodUtil) {
+        try {
+            Fields.setStaticObjectField(inputMethodUtil, "sPhraseListSize", 0);
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+        }
+    }
+
+    /**
+     * 解除常用语字数限制
+     */
+    private void hookPhraseEditCharLimit() {
+        hookMethod(mPhraseMethod, new IMethodHook() {
+                @Override
+                public void after(HookParam param) {
+                    EditText editText = (EditText) getObjectField(param.getThisObject(), mPhraseEditTextField.getName());
+                    editText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(Integer.MAX_VALUE)});
+                }
+            }
+        );
+    }
+}

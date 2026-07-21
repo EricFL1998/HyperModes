@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <ImageView
+        android:id="@+id/empty_state_view_icon"
+        android:layout_width="@dimen/miuix_appcompat_empty_state_view_icon_size"
+        android:layout_height="@dimen/miuix_appcompat_empty_state_view_icon_size"
+        android:layout_marginBottom="@dimen/miuix_appcompat_empty_state_view_icon_margin_bottom"/>
+    <TextView
+        android:id="@+id/empty_state_view_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="?attr/emptyStateViewTitleStyle"/>
+    <TextView
+        android:id="@+id/empty_state_view_summary"
+        android:paddingTop="@dimen/miuix_appcompat_empty_state_view_summary_padding_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="?attr/emptyStateViewSummaryStyle"/>
+    <Button
+        android:id="@+id/empty_state_view_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/miuix_appcompat_empty_state_view_button_margin_top"
+        style="?attr/emptyStateViewButtonStyle"/>
+</merge>

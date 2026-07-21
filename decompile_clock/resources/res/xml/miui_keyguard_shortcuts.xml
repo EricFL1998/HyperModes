@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config xmlns:android="http://schemas.android.com/apk/res/android">
+    <intent
+        android:icon="@drawable/alarm_locked_screen_shortcut"
+        android:name="@string/alarm_list_title"
+        android:targetPackage="com.android.deskclock"
+        android:action="com.android.deskclock.ACTION_ALARM"
+        android:targetClass="com.android.deskclock.DeskClockTabActivity"
+        android:tag="ALARM_0"/>
+    <intent
+        android:icon="@drawable/stopwatch_locked_screen_shortcut"
+        android:name="@string/stopwatch_title"
+        android:targetPackage="com.android.deskclock"
+        android:action="com.android.deskclock.ACTION_STOPWATCH"
+        android:targetClass="com.android.deskclock.DeskClockTabActivity"
+        android:tag="STOPWATCH_2"/>
+    <intent
+        android:icon="@drawable/timer_locked_screen_shortcut"
+        android:name="@string/timer_title"
+        android:targetPackage="com.android.deskclock"
+        android:action="com.android.deskclock.ACTION_TIMER"
+        android:targetClass="com.android.deskclock.DeskClockTabActivity"
+        android:tag="TIMER_3"/>
+</config>

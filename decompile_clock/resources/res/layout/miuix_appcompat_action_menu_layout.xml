@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.appcompat.internal.view.menu.action.PhoneActionMenuView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:miuix="http://schemas.android.com/apk/res-auto"
+    android:background="?attr/actionBarSplitBackground"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    miuix:expandBackground="?attr/actionBarExpandBackground"
+    style="@style/Widget.ActionMenu"/>

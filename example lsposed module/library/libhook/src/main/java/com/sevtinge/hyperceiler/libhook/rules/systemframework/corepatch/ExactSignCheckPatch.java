@@ -1,0 +1,39 @@
+package com.sevtinge.hyperceiler.libhook.rules.systemframework.corepatch;
+
+import static com.sevtinge.hyperceiler.libhook.utils.api.DeviceHelper.System.isMoreAndroidVersion;
+import static com.sevtinge.hyperceiler.libhook.base.BaseHook.findClassIfExists;
+
+import com.sevtinge.hyperceiler.common.log.XposedLog;
+import io.github.lingqiqi5211.ezhooktool.xposed.java.IMethodHook;
+
+import io.github.lingqiqi5211.ezhooktool.xposed.common.HookParam;
+import io.github.libxposed.api.XposedModuleInterface;
+
+public class ExactSignCheckPatch extends CorePatchHelper {
+
+    private final String TAG = "ExactSignCheckPatch";
+
+    public void init(XposedModuleInterface.SystemServerStartingParam lpparam) {
+        // Android 11+
+        try {
+            Class<?> signingDetails = getSigningDetails(lpparam.getClassLoader());
+            // Allow apk splits with different signatures to be installed together
+            hookAllMethods(signingDetails, "signaturesMatchExactly", new IMethodHook() {
+                @Override
+                public void before(HookParam param) {
+                    if (CorePatchHelper.isFeatureEnabled(CorePatchHelper.PREF_EXACT_SIGNATURE_CHECK, false))
+                        param.setResult(true);
+                }
+            });
+        } catch (Throwable t) {
+            XposedLog.e(TAG, "system", "Android 11+ hook failed, crash: " + t);
+        }
+    }
+
+    Class<?> getSigningDetails(ClassLoader classLoader) {
+        if (isMoreAndroidVersion(33)) {
+            return findClassIfExists("android.content.pm.SigningDetails", classLoader);
+        }
+        return com.sevtinge.hyperceiler.libhook.base.BaseHook.findClass("android.content.pm.PackageParser.SigningDetails", classLoader);
+    }
+}

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Guards the command receiver inside DeskClock; only apps signed with
          our certificate (i.e. this app itself) can trigger it. -->
@@ -9,6 +10,10 @@
     <uses-permission android:name="com.banana.hypermodes.permission.CONTROL" />
 
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_LOGS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <package android:name="com.android.deskclock" />

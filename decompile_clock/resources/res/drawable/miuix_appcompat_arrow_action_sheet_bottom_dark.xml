@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="@dimen/miuix_appcompat_action_sheet_arrow_icon_short_side"
+    android:width="@dimen/miuix_appcompat_action_sheet_arrow_icon_long_side"
+    android:viewportWidth="36"
+    android:viewportHeight="12">
+    <path
+        android:fillColor="@color/miuix_default_color_surface_high_dark"
+        android:pathData="M0 0.00179949C1.31169 0.00179949 2.62301 -0.0060476 3.9347 0.0110314C5.19011 0.0276487 6.59523 0.05119 7.81695 0.606487C9.13668 1.20656 10.0104 2.25576 10.8894 3.49052C11.5223 4.37863 12.7655 6.27347 13.3708 7.18835C13.8662 7.93844 14.836 9.42108 15.3655 10.1384C16.0321 11.0408 16.856 12 18.0004 12C19.1448 12 19.9683 11.0408 20.6345 10.1393C21.164 9.42246 22.1338 7.9389 22.6296 7.18927C23.2341 6.27439 24.4773 4.37955 25.1106 3.49145C25.9912 2.25668 26.8633 1.20748 28.1827 0.60741C29.4048 0.053498 30.8103 0.0285719 32.0649 0.0119545C33.377 -0.00512441 34.6883 0.00272268 36 0.00272268"
+        android:fillType="evenOdd"/>
+</vector>

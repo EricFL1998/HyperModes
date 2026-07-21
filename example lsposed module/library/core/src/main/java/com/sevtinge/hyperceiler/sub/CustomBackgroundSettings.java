@@ -1,0 +1,163 @@
+/*
+  * This file is part of HyperCeiler.
+
+  * HyperCeiler is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU Affero General Public License as
+  * published by the Free Software Foundation, either version 3 of the
+  * License.
+
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU Affero General Public License for more details.
+
+  * You should have received a copy of the GNU Affero General Public License
+  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  * Copyright (C) 2023-2026 HyperCeiler Contributions
+*/
+package com.sevtinge.hyperceiler.sub;
+
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.preference.Preference;
+import androidx.preference.SwitchPreference;
+
+import com.sevtinge.hyperceiler.common.utils.PrefsBridge;
+import com.sevtinge.hyperceiler.core.R;
+import com.sevtinge.hyperceiler.dashboard.SettingsPreferenceFragment;
+
+import fan.pickerwidget.color.HSLColor;
+import fan.preference.ColorPickerPreference;
+import fan.preference.SeekBarPreferenceCompat;
+
+public class CustomBackgroundSettings extends SettingsPreferenceFragment implements Preference.OnPreferenceChangeListener {
+
+    private String mCustomBackgroundEnabledKey;
+    private String mColorKey;
+    private String mCornerRadiusKey;
+
+    private String mBlurEnabledKey;
+    private String mBlurRadiusKey;
+
+    private SwitchPreference mCustomEnabledPreference;
+
+    private ColorPickerPreference mColorPickerPreference;
+    private SeekBarPreferenceCompat mCornerRadiusPreference;
+
+    private SwitchPreference mBlurEnabledPreference;
+    private SeekBarPreferenceCompat mBlurRadiusPreference;
+
+    @Override
+    public int getPreferenceScreenResId() {
+        return R.xml.various_dialog_custom_background;
+    }
+
+    @Override
+    public void initPrefs() {
+        Bundle args = getArguments();
+
+        if (args != null) {
+            String mKey = args.getString("key");
+
+            mCustomBackgroundEnabledKey = mKey + "_custom_enable";
+
+            mColorKey = mKey + "_color";
+            mCornerRadiusKey = mKey + "_corner_radius";
+
+            mBlurEnabledKey = mKey + "_blur_enabled";
+            mBlurRadiusKey = mKey + "_blur_radius";
+        } else {
+            finish();
+        }
+
+        mCustomEnabledPreference = findPreference("prefs_key_custom_background_enabled");
+
+        mColorPickerPreference = findPreference("prefs_key_custom_background_color");
+        mCornerRadiusPreference = findPreference("prefs_key_custom_background_corner_radius");
+
+        mBlurEnabledPreference = findPreference("prefs_key_custom_background_blur_enabled");
+        mBlurRadiusPreference = findPreference("prefs_key_custom_background_blur_radius");
+
+        loadData();
+
+        mCustomEnabledPreference.setOnPreferenceChangeListener(this);
+
+        mColorPickerPreference.setOnPreferenceChangeListener(this);
+        mCornerRadiusPreference.setOnPreferenceChangeListener(this);
+
+        mBlurEnabledPreference.setOnPreferenceChangeListener(this);
+        mBlurRadiusPreference.setOnPreferenceChangeListener(this);
+    }
+
+
+    private void loadData() {
+        mCustomEnabledPreference.setChecked(isCustomEnabled());
+        mColorPickerPreference.setColor(getColor(-1));
+        mCornerRadiusPreference.setCurrentValue(getSeekBarValue(mCornerRadiusKey, 18));
+        mBlurEnabledPreference.setChecked(isBackgroundBlurEnabled());
+        mBlurRadiusPreference.setCurrentValue(getSeekBarValue(mBlurRadiusKey, 60));
+    }
+
+    private boolean isCustomEnabled() {
+        return hasKey(mCustomBackgroundEnabledKey) && PrefsBridge.getBoolean(mCustomBackgroundEnabledKey, false);
+    }
+
+    private void setColor() {
+        mColorPickerPreference.setColor(getColor(2113929215));
+    }
+
+    private int getColor(int defValue) {
+        return hasKey(mColorKey) ? PrefsBridge.getInt(mColorKey, defValue) : defValue;
+    }
+
+    private boolean isBackgroundBlurEnabled() {
+        return hasKey(mBlurEnabledKey) && PrefsBridge.getBoolean(mBlurEnabledKey, false);
+    }
+
+    private int getSeekBarValue(String key, int defValue) {
+        return hasKey(key) ? PrefsBridge.getInt(key, defValue) : defValue;
+    }
+
+    @Override
+    public boolean onPreferenceChange(@NonNull Preference preference, Object o) {
+        if (preference == mCustomEnabledPreference) {
+            setCustomEnable((Boolean) o);
+        } else if (preference == mColorPickerPreference) {
+            setBackgroundColor((HSLColor) o);
+        } else if (preference == mCornerRadiusPreference) {
+            setBackgroundCornerRadius((int) o);
+        } else if (preference == mBlurEnabledPreference) {
+            setBlurEnabled((Boolean) o);
+        } else if (preference == mBlurRadiusPreference) {
+            setBackgroundBlurRadius((int) o);
+        }
+        return false;
+    }
+
+    private void setCustomEnable(boolean isCustomEnabled) {
+        mCustomEnabledPreference.setChecked(isCustomEnabled);
+        PrefsBridge.putByApp(mCustomBackgroundEnabledKey, isCustomEnabled);
+    }
+
+    private void setBackgroundColor(HSLColor value) {
+        mColorPickerPreference.setColor(value.color);
+        PrefsBridge.putByApp(mColorKey, value.color);
+    }
+
+    private void setBackgroundCornerRadius(int value) {
+        mCornerRadiusPreference.setCurrentValue(value);
+        PrefsBridge.putByApp(mCornerRadiusKey, value);
+    }
+
+    private void setBlurEnabled(boolean isBlurEnabled) {
+        mBlurEnabledPreference.setChecked(isBlurEnabled);
+        PrefsBridge.putByApp(mBlurEnabledKey, isBlurEnabled);
+    }
+
+    private void setBackgroundBlurRadius(int value) {
+        mBlurRadiusPreference.setCurrentValue(value);
+        PrefsBridge.putByApp(mBlurRadiusKey, value);
+    }
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <FrameLayout
+        android:id="@+id/settings_life_post"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+    <View
+        android:id="@+id/divider_line"
+        style="@style/BedtimeSingleLine"/>
+    <TextView
+        android:id="@+id/wake_up_list_title"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/life_post_wake_up_list_title_height"
+        android:text="@string/life_post_setting_wake_up_list_title"
+        style="@style/LifePostWakeUpTitleStyle"/>
+    <miuix.recyclerview.widget.RecyclerView
+        android:id="@+id/wake_up_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+</LinearLayout>

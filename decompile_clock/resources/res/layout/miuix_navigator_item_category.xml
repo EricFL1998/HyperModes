@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:id="@+id/navigation_item_category"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="?attr/navigatorCategoryMinHeight"
+    android:paddingStart="@dimen/miuix_navigator_category_padding_start"
+    android:paddingEnd="@dimen/miuix_navigator_category_padding_end"
+    android:paddingVertical="@dimen/miuix_navigator_category_padding_vertical">
+    <TextView
+        android:id="@android:id/title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginEnd="@dimen/miuix_navigator_category_children_margin_end"
+        style="@style/Miuix.Navigator.TextAppearance.Header"/>
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+        <ImageView
+            android:id="@+id/navigation_item_category_arrow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="?attr/navigatorCategoryArrowIcon"/>
+        <ImageView
+            android:id="@+id/navigation_item_category_edit"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="?attr/navigatorCategoryEditIcon"/>
+    </FrameLayout>
+</LinearLayout>

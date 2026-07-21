@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory
+        android:title="@string/time_settings"
+        android:key="alarm_time_settings">
+        <Preference
+            android:title="@string/edit_systemtime"
+            android:key="edit_system_time"/>
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:title="@string/normal_settings"
+        android:key="normal_settings">
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/alert_ringtone"
+            android:key="default_alarm_alert"/>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/timer_ringtone"
+            android:key="default_timer_alert"/>
+        <com.android.deskclock.widget.ClockSeekBarPreference
+            android:title="@string/alert_volume"
+            android:key="alarm_volume"
+            app:showSeekBarValue="true"/>
+        <miuix.preference.DropDownPreference
+            android:title="@string/auto_silence_title"
+            android:key="auto_silence"
+            android:summary="@string/auto_silence_summary"/>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/more_alert_setting"
+            android:key="more_alert_settings"/>
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:title="@string/other_settings"
+        android:key="alarm_other_settings">
+        <com.android.deskclock.settings.pref.ClockUpdatePreference
+            android:title="@string/holiday_update_title"
+            android:key="holiday_update"/>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/privacy_policy_title"
+            android:key="privacy_policy"/>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/privacy_settings_title"
+            android:key="privacy_settings"/>
+    </PreferenceCategory>
+</PreferenceScreen>

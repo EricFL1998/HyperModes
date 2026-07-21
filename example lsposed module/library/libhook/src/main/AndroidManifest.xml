@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <application>
+        <provider
+            android:name=".provider.SharedPrefsProvider"
+            android:authorities="com.sevtinge.hyperceiler.provider.sharedprefs"
+            android:defaultToDeviceProtectedStorage="true"
+            android:directBootAware="true"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+
+    </application>
+</manifest>

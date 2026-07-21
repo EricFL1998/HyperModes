@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_enabled="false"
+        android:color="@color/miuix_appcompat_hyper_progress_seekbar_foreground_disabled_color_light"/>
+    <item android:color="@color/miuix_appcompat_hyper_progress_seekbar_foreground_normal_color_light"/>
+</selector>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="@dimen/miuix_theme_action_button_height"
+    android:width="@dimen/miuix_theme_action_button_width"
+    android:viewportWidth="28"
+    android:viewportHeight="28">
+    <path
+        android:fillColor="?attr/radioButtonOnDrawableBackgroundColor"
+        android:pathData="M21.4679 10.2873C21.9081 9.75551 21.8338 8.96755 21.302 8.52735C20.7702 8.08715 19.9822 8.16141 19.542 8.69322L12.9452 16.6629L9.53342 13.2512C9.04526 12.763 8.25381 12.763 7.76565 13.2512C7.2775 13.7393 7.2775 14.5308 7.76565 15.0189L12.1431 19.3964C12.5062 19.7594 13.037 19.8525 13.4861 19.6754C13.6817 19.6012 13.8614 19.4767 14.0043 19.304L21.4679 10.2873Z"
+        android:fillType="evenOdd"/>
+</vector>

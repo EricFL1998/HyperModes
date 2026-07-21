@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="other">ཆུ་ཚོད་%d གོང་།</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="other">དུས་ཚོད་ཕྱེད་ཀའི་སྔོན།</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="other">ཆུ་ཚོད་%d ཡི་རྗེས།</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="other">དུས་ཚོད་ཕྱེད་ཀའི་རྗེས།</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="other">མྱུར་ཏུ།</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="other">སྐར་མ%dརྗེས།</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="other">ད་གིན།</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="other">སྐར་མ%dསྔོན།</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="other">སྐར་མ %d རྗེས་སུ་སྒྲ་གྲགས་པ།</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="other">འཛིན་གྲྭ་%sཔ།</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="other">ཉིན་%d</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="other">ཆུ་ཚོད་%d</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="other">ཉིན་%sཔ།</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="other">རེས་འཁོར་ཉིན་%sབ།</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="other">སྐར་མ་%d</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="other">ཚན་པ%dབདམས་ཟིན།</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="other">%dསྐར་ཆ།</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="other">ཉིན་%s</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="other">ཆུ་ཚོད་%1$s</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="other">ཆུ་ཚོད་%1$s</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="other">ཆུ་ཚོད་%1$d</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="other">སྐར་མ་%1$s</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="other">སྐར་མ%1$s</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="other">སྐར་མ་%1$d</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="other">ཅུང་ཙམ་ནས་འབོད་པའི་དུས་ཚོད་སྐར་མ་%dལ་བཟོས་ཟིན།</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="other">དྲིལ་སྒྲ་སྒྲོག་ཐེངས་%1$s</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="other">སྐར་མ་%1$sམཚམས་སུ།</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="other">བར་ཐག་སྐར་མ%1$d</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="other">དྲིལ་སྒྲ་ཐེངས་%1$d</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="other">སྐར་མ%dརྗེས་སུ་དྲན་སྐུལ།</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="other">སྐར་ཆའི་ཆུ་ཚོད་འཁོར་བསྐྱོད་ལ་ཉིན་%sཕྱིན་ཚར་སོང་། གནན་ནས་ལྟ་བཤེར་གནང་རོགས།</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="other">སྐར་ཆའི་ཆུ་ཚོད་འཁོར་བསྐྱོད་ལ་ཆུ་ཚོད་%sཕྱིན་ཚར་སོང་། གནན་ནས་ལྟ་བཤེར་གནང་རོགས།</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="other">དུས་ཚོད%1$d</item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="other">སྐར་མ%1$d</item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="other">སྐར་ཆ%1$d</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="other">ཆུ་ཚོད་%sམགྱོགས།</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="other">ཆུ་ཚོད་%1$s ཡིས་མགྱོགས།</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="other">ཆུ་ཚོད་%sདལ།</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="other">ཆུ་ཚོད་%1$s ཡིས་དལ།</item>
+    </plurals>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:left="@dimen/miuix_preference_item_margin_start"
+        android:right="@dimen/miuix_preference_item_margin_end">
+        <drawable xmlns:app="http://schemas.android.com/apk/res-auto"
+            app:activatedAlpha="0.12"
+            app:hoveredAlpha="0.08"
+            app:normalAlpha="0"
+            app:pressedAlpha="0.14"
+            app:tintColor="@color/miuix_preference_item_tint_color_dark"
+            app:tintRadius="@dimen/miuix_preference_checkable_item_mask_radius"
+            class="com.miui.support.drawable.CardStateDrawable"/>
+    </item>
+</layer-list>

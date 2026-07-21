@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <drawable name="action_icon_back">@drawable/miuix_action_icon_back_light</drawable>
+    <drawable name="action_icon_cancel">@drawable/miuix_action_icon_cancel_light</drawable>
+    <drawable name="action_mode_button_delete">@drawable/miuix_action_icon_delete_light</drawable>
+    <drawable name="action_mode_title_button_cancel">@drawable/miuix_action_icon_cancel_light</drawable>
+    <drawable name="action_mode_title_button_confirm">@drawable/miuix_action_icon_confirm_light</drawable>
+    <drawable name="action_mode_title_button_deselect_all_new">@drawable/miuix_action_icon_deselect_all_light</drawable>
+    <drawable name="action_mode_title_button_select_all_new">@drawable/miuix_action_icon_select_all_light</drawable>
+    <drawable name="edit_mode_title_button_close">@drawable/miuix_action_icon_immersion_close_light</drawable>
+    <drawable name="edit_mode_title_button_confirm">@drawable/miuix_action_icon_immersion_confirm_light</drawable>
+    <drawable name="icon_settings">@drawable/miuix_action_icon_settings_light</drawable>
+    <drawable name="set_alarm_edit_label_bg">@drawable/miuix_appcompat_edit_text_pure_bg_light</drawable>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:paddingLeft="@dimen/miuix_appcompat_button_inline_content_safe_padding_horizontal"
+    android:paddingTop="@dimen/miuix_appcompat_button_inline_content_safe_padding_vertical"
+    android:paddingRight="@dimen/miuix_appcompat_button_inline_content_safe_padding_horizontal"
+    android:paddingBottom="@dimen/miuix_appcompat_button_inline_content_safe_padding_vertical">
+    <item android:drawable="@drawable/miuix_appcompat_btn_inline_accent_bg_dark_smooth"/>
+    <item android:drawable="@drawable/miuix_appcompat_btn_inline_fg_dark"/>
+</layer-list>

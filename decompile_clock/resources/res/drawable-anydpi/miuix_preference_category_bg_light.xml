@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:paddingTop="@dimen/miuix_preference_category_gap_height"
+    android:paddingStart="?attr/preferenceCategoryPaddingStart"
+    android:paddingEnd="?attr/preferenceCategoryPaddingEnd">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/miuix_appcompat_transparent"/>
+        </shape>
+    </item>
+    <item
+        android:gravity="top"
+        android:left="?attr/preferenceCategoryPaddingStart"
+        android:top="@dimen/miuix_preference_category_divider_gap_height"
+        android:right="?attr/preferenceCategoryPaddingEnd">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/miuix_preference_first_last_divider_line_light"/>
+            <size android:height="@dimen/miuix_preference_category_divider_height"/>
+        </shape>
+    </item>
+</layer-list>

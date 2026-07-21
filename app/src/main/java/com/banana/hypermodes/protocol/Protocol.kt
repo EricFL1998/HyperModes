@@ -8,6 +8,7 @@ package com.banana.hypermodes.protocol
 object Protocol {
     const val MODULE_PACKAGE = "com.banana.hypermodes"
     const val TARGET_PACKAGE = "com.android.deskclock"
+    const val DESKCLOCK_PACKAGE = "com.android.deskclock"
 
     /** Signature-level permission guarding the command receiver in DeskClock. */
     const val PERMISSION_CONTROL = "com.banana.hypermodes.permission.CONTROL"
@@ -17,6 +18,7 @@ object Protocol {
     const val ACTION_START_BEDTIME = "com.banana.hypermodes.START_BEDTIME"
     const val ACTION_STOP_BEDTIME = "com.banana.hypermodes.STOP_BEDTIME"
     const val ACTION_QUERY_STATE = "com.banana.hypermodes.QUERY_STATE"
+    const val ACTION_SHOW_SLEEP_NOTIFICATION = "com.banana.hypermodes.SHOW_SLEEP_NOTIFICATION"
 
     // Hook -> app
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"

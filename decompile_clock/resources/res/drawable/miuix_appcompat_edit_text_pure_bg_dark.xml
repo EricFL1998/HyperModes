@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item>
+        <miuix.smooth.SmoothContainerDrawable2 android:radius="@dimen/miuix_appcompat_edit_text_radius_size">
+            <child>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/miuix_appcompat_edit_text_pure_bg_color_dark"/>
+                </shape>
+            </child>
+        </miuix.smooth.SmoothContainerDrawable2>
+    </item>
+    <item>
+        <selector
+            android:enterFadeDuration="200"
+            android:exitFadeDuration="200">
+            <item android:state_focused="true">
+                <miuix.smooth.SmoothContainerDrawable2
+                    android:radius="@dimen/miuix_appcompat_edit_text_border_radius_size"
+                    app:miuix_strokeColor="@color/miuix_appcompat_edit_text_border_color_dark"
+                    app:miuix_strokeWidth="@dimen/miuix_appcompat_edit_text_border_stroke_width">
+                    <child>
+                        <shape android:shape="rectangle">
+                            <solid android:color="@color/miuix_appcompat_transparent"/>
+                            <padding
+                                android:top="@dimen/miuix_appcompat_edit_text_padding_vertical"
+                                android:bottom="@dimen/miuix_appcompat_edit_text_padding_vertical"/>
+                        </shape>
+                    </child>
+                </miuix.smooth.SmoothContainerDrawable2>
+            </item>
+        </selector>
+    </item>
+</layer-list>

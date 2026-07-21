@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:background="@drawable/default_alert_screen_bg"
+    android:clipChildren="false"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <FrameLayout
+        android:id="@+id/alarm_alert_fullscreen"
+        android:background="@color/alert_full_screen_mantle"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    <FrameLayout
+        android:id="@+id/timer_alert_fullscreen"
+        android:background="@color/alert_full_screen_mantle"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+</FrameLayout>

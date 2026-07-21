@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:color="@color/miuix_color_white_level1"
+        android:alpha="0.12"
+        android:state_hovered="true"/>
+    <item
+        android:state_pressed="true"
+        android:color="@color/miuix_color_white_level1"
+        android:alpha="0.15"/>
+    <item android:color="@color/miuix_color_transparent"/>
+</selector>

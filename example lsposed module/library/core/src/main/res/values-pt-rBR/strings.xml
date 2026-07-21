@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  --><resources>
+    <!--Pop-up window/miuix part-->
+    <string name="miuix_appcompat_action_mode_select_all">Selecionar todos</string>
+    <string name="miuix_appcompat_cancel_description">Cancelar</string>
+    <string name="miuix_appcompat_confirm_description">OK</string>
+    <string name="miuix_appcompat_select_all_description">Selecionar todos</string>
+    <string name="miuix_appcompat_deselect_all_description">Desmarcar todos</string>
+    <string name="miuix_appcompat_delete_description">Excluir</string>
+    <string name="miuix_appcompat_search_action_mode_cancel">Cancelar</string>
+    <string name="miuix_appcompat_search_input_description">Pesquisar</string>
+    <string name="miuix_appcompat_actionbar_immersion_button_more_description">Mais</string>
+    <string name="miuix_appcompat_action_mode_inverse">Desmarcar todos</string>
+    <!--HyperCeiler Settings/About Page-->
+    <string name="tip">Dica</string>
+    <string name="root">Alguns recursos não estão disponíveis sem permissão Root/Su</string>
+    <string name="soft_reboot">Reiniciar</string>
+    <string name="restart_app_desc">Você tem certeza que deseja reiniciar %1$s agora?</string>
+    <string name="hyperceiler_restart_quick">Reiniciar apps rapidamente</string>
+    <string name="hook_failed">O módulo ainda não está ativado. Por favor, verifique se o LSPosed está ativado. Nesse caso, por favor, reinicie ou re-otimize o módulo.</string>
+    <string name="kill_failed">Falha ao finalizar o processo. Por favor, verifique se o HyperCeiler recebeu permissões Root/Su.</string>
+    <string name="start_failed">Falha ao iniciar a atividade. Por favor, verifique se o HyperCeiler recebeu permissões Root/Su.</string>
+    <string name="pid_failed">O app de destino não está em execução e não precisa ser reiniciado.</string>
+    <string name="reboot_failed">Falha ao reiniciar. Por favor, verifique se o HyperCeiler recebeu permissões Root/Su.</string>
+    <string name="experimental_features">Recursos experimentais</string>
+    <!--HyperCeiler Tips-->
+    <string name="warn">Atenção!</string>
+    <string name="module_title_1">Mensagem básica</string>
+    <string name="module_title_2">Mensagem de erro</string>
+    <string name="app_error_desc">O HyperCeiler foi encerrado de forma inesperada. Para que possamos corrigir isso, envie as informações abaixo:\n\nPressione e segure qualquer mensagem para copiar tudo.</string>
+    <string name="safe_mode_history">Ver registros de exceção</string>
+    <string name="safe_mode_cancel">Desativar Modo seguro</string>
+    <string name="safe_mode_ok">Cancelar</string>
+    <string name="safe_mode_later_title">Dica</string>
+    <string name="safe_mode_recorder_title">Registros de exceção</string>
+    <string name="safe_mode_recorder_file">Arquivo</string>
+    <string name="safe_mode_recorder_class">Classe</string>
+    <string name="safe_mode_recorder_method">Método</string>
+    <string name="safe_mode_recorder_line">Linha</string>
+    <string name="safe_mode_recorder_msg">Mensagem de exceção</string>
+    <string name="safe_mode_recorder_st">Rastreamento de erros</string>
+    <string name="error_message">Mensagem de exceção</string>
+    <string name="error_type">Tipo de exceção</string>
+    <string name="error_file_name">Nome do arquivo</string>
+    <string name="error_time">Hora do registro</string>
+    <string name="error_version_name">Nome da versão</string>
+    <string name="error_git_hash">Git hash</string>
+    <string name="error_build_time">Hora da compilação</string>
+    <string name="tip_default">Dica: Aqui está a dica padrão. Se você puder me ver, significa que há um problema com o HyperCeiler. Por favor, informe o desenvolvedor de maneira oportuna e eficaz.</string>
+    <string name="headtip_tip_auto_safe_mode">O Modo seguro pode desconectar alguns apps a tempo quando eles travam várias vezes para garantir a segurança. Esse recurso requer que o escopo Framework do Sistema seja executado. Recomendamos fortemente verificar o escopo Framework do Sistema para ativar o Modo seguro.</string>
+    <string name="happy_birthday_hyperceiler">Hoje é o aniversário do HyperCeiler!\nObrigado pelo seu apoio durante o ano passado e vamos continuar trabalhando juntos este ano!</string>
+    <string name="headtip_tip_fuck_coolapk">Hoje na história: Sevtinge fez um discurso importante em 14 de julho de 2022.</string>
+    <string name="headtip_notice_dead_logger_errcode">O serviço de log do dispositivo atual está anormal e os recursos do HyperCeiler serão limitados. Por favor, restaure o serviço de log para que ele possa funcionar normalmente.\nCódigo de erro: %1$s</string>
+    <string name="headtip_notice_dead_logger">O serviço de log do dispositivo atual está anormal e os recursos do HyperCeiler serão limitados. Por favor, restaure o serviço de log para que ele possa funcionar normalmente.</string>
+    <string name="unsupported_system_func">Este recurso não é suportado na versão atual do sistema</string>
+    <string name="supported_system_func">Este recurso é oficialmente suportado na versão atual do sistema</string>
+    <string name="feature_doing_func">O recurso atual está em desenvolvimento, fique ligado.</string>
+    <!--System UI-->
+    <string name="system_ui">UI do Sistema</string>
+    <!--System launcher-->
+    <string name="mihome">Launcher do sistema</string>
+    <!--Settings-->
+    <string name="system_settings">Configurações</string>
+    <!--Security/Tablet security center-->
+    <string name="security_center_hyperos">Segurança</string>
+    <!--Other-->
+    <string name="exit">Sair</string>
+    <string name="ignore">Ignorar</string>
+    <string name="disable_suggest">Desativar sugestão</string>
+    <string name="enable_suggest">Ativar sugestão</string>
+    <string name="unsupported_func_tips">O app de destino parece ser uma versão modificada. Esse módulo não consegue fornecer serviços de hook para ele. Tente usar uma versão diferente do app ou ative o Modo de depuração e tente novamente.</string>
+    <string name="debug_mode_running">O app de destino está sendo depurado!\nVersão atual do app: %1$s\nVersão de destino selecionada: %2$s\nHook aplicado com sucesso: %3$s</string>
+</resources>

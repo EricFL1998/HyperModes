@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:start="@dimen/miuix_appcompat_spinner_bg_padding"
+        android:end="@dimen/miuix_appcompat_spinner_bg_padding">
+        <miuix.appcompat.app.AlphaBlendingDrawable
+            app:activatedAlpha="0.08"
+            app:miuixDrawableTintColor="@color/miuix_appcompat_tint_color_light"
+            app:miuixDrawableTintRadius="@dimen/miuix_appcompat_spinner_round_corner_radius"/>
+    </item>
+</layer-list>

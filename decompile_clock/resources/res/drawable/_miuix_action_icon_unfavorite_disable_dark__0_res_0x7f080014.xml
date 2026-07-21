@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:name="unlike"
+    android:height="@dimen/miuix_theme_action_button_height"
+    android:width="@dimen/miuix_theme_action_button_width"
+    android:viewportWidth="26"
+    android:viewportHeight="26">
+    <group
+        android:name="group"
+        android:pivotX="13"
+        android:pivotY="13">
+        <path
+            android:name="path_2"
+            android:fillColor="@color/miuix_color_red_light_primary_default"
+            android:pathData="M21.9482,13.9362L13.4026,22.7729C13.1825,23.0005 12.8176,23.0005 12.5975,22.7729L4.0533,13.9376C4.0096,13.8937 3.9666,13.8492 3.9243,13.8041L3.9047,13.7839C2.8702,12.6721 2.2382,11.1816 2.2382,9.5433C2.2382,6.1045 5.0259,3.3167 8.4647,3.3167C10.2526,3.3167 11.8644,4.0703 13.0001,5.277C14.1357,4.0703 15.7475,3.3167 17.5354,3.3167C20.9742,3.3167 23.762,6.1045 23.762,9.5433C23.762,11.1816 23.1292,12.6721 22.0948,13.7839L22.0745,13.8056C22.033,13.8497 21.9909,13.8932 21.9482,13.9362Z"
+            android:fillAlpha="0.5"
+            android:fillType="evenOdd"/>
+    </group>
+</vector>

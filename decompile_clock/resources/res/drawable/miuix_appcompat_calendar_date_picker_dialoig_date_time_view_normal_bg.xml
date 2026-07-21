@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@dimen/miuix_appcompat_calendar_date_picker_dialog_date_time_view_bg_radius"/>
+    <solid android:color="?attr/colorTertiary"/>
+</shape>

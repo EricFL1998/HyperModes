@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:textAppearance="@style/Miuix.AppCompat.TextAppearance.AlertDialogListItem"
+    android:ellipsize="marquee"
+    android:gravity="center_vertical"
+    android:id="@android:id/text1"
+    android:background="?attr/dialogListItemBackground"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/miuix_appcompat_dialog_list_preferred_item_height"
+    android:singleLine="false"
+    android:textDirection="locale"
+    android:paddingStart="@dimen/miuix_appcompat_select_dialog_item_padding_horizontal"
+    android:paddingEnd="@dimen/miuix_appcompat_select_dialog_item_padding_horizontal"/>

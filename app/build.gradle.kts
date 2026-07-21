@@ -43,6 +43,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.libsu.core)
+    implementation("top.yukonga.miuix.kmp:miuix-core")
+    implementation("top.yukonga.miuix.kmp:miuix-ui")
     compileOnly("io.github.libxposed:api:101.0.1")
     compileOnly("io.github.libxposed:api:101.0.1:sources")
     testImplementation(libs.junit)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.smooth.SmoothContainerDrawable2 xmlns:android="http://schemas.android.com/apk/res/android" android:radius="@dimen/miuix_appcompat_filter_sort_tab_view_corner">
+    <child>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/miuix_appcompat_filter_sort_tab_view_bg_color_light"/>
+            <size android:height="@dimen/miuix_appcompat_filter_sort_tab_view_height"/>
+        </shape>
+    </child>
+</miuix.smooth.SmoothContainerDrawable2>

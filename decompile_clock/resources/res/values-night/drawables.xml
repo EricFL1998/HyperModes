@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <drawable name="miuix_appcompat_action_bar_navigator_switch">@drawable/miuix_action_icon_navigator_switch_dark</drawable>
+    <drawable name="miuix_appcompat_action_mode_title_button_cancel">@drawable/miuix_action_icon_cancel_dark</drawable>
+    <drawable name="miuix_appcompat_action_mode_title_button_confirm">@drawable/miuix_action_icon_immersion_confirm_dark</drawable>
+    <drawable name="miuix_appcompat_action_mode_title_button_delete">@drawable/miuix_action_icon_immersion_delete_dark</drawable>
+    <drawable name="miuix_appcompat_action_mode_title_button_deselect_all">@drawable/miuix_action_icon_deselect_all_dark</drawable>
+    <drawable name="miuix_appcompat_action_mode_title_button_select_all">@drawable/miuix_action_icon_select_all_dark</drawable>
+    <drawable name="miuix_appcompat_pairing_dialog_closable_icon">@drawable/miuix_appcompat_circle_closable_icon_dark</drawable>
+    <drawable name="miuix_appcompat_window_bg">@drawable/miuix_appcompat_window_bg_dark</drawable>
+    <drawable name="miuix_popup_window_list_item_fg">@drawable/miuix_appcompat_list_item_fg_dropdown_popup_dark</drawable>
+</resources>

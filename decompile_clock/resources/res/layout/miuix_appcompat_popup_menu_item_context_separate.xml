@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.smooth.SmoothFrameLayout2 xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:radius="@dimen/miuix_appcompat_immersion_menu_background_radius">
+    <LinearLayout
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:id="@+id/separate_item_menu"
+        android:layout_width="match_parent"
+        style="@style/Widget.ListView.Item.ContextSeparate">
+        <ImageView
+            android:id="@android:id/icon"
+            android:visibility="gone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/miuix_appcompat_immersion_menu_icon_margin_end"/>
+        <TextView
+            android:id="@android:id/text1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="viewStart"
+            style="@style/Widget.PopupMenu.MenuItem.Title"/>
+    </LinearLayout>
+</miuix.smooth.SmoothFrameLayout2>

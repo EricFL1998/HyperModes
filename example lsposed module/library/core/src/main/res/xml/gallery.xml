@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/gallery"
+    app:quick_restart="com.miui.gallery">
+    <PreferenceCategory android:title="@string/settings">
+        <fan.preference.DropDownPreference
+            android:defaultValue="0"
+            android:key="prefs_key_gallery_backup_server"
+            android:title="@string/gallery_backup_server"
+            app:entries="@array/gallery_backup_server_entries"
+            app:entryValues="@array/gallery_backup_server_values" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_hdr_enhanced"
+            android:title="@string/gallery_enable_hdr_enhanced" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/feature">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_pdf"
+            android:title="@string/gallery_enable_pdf" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_ocr"
+            android:title="@string/gallery_enable_ocr" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_ocr_form"
+            android:title="@string/gallery_enable_ocr_form" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_longer_trashbin_time"
+            android:summary="@string/gallery_longer_trashbin_time_desc"
+            android:title="@string/gallery_longer_trashbin_time" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/recommend">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_id_photo"
+            android:title="@string/gallery_enable_id_photo" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_photo_movie"
+            android:title="@string/gallery_enable_photo_movie" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_video_post"
+            android:title="@string/gallery_enable_video_post" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_video_editor"
+            android:title="@string/gallery_enable_video_editor" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/editor">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_un_privacy_watermark"
+            android:summary="@string/gallery_enable_un_privacy_watermark_more"
+            android:title="@string/gallery_enable_un_privacy_watermark" />
+
+        <com.sevtinge.hyperceiler.prefs.SeekBarPreferenceNoTitle
+            android:defaultValue="14"
+            android:dependency="prefs_key_gallery_enable_un_privacy_watermark"
+            android:key="prefs_key_gallery_enable_un_privacy_watermark_value"
+            android:layout="@layout/miuix_preference_widget_seekbar_compat_no_title"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s"
+            app:maxValue="50"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_gallery_enable_magic_matting"
+            android:title="@string/gallery_enable_magic_matting" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

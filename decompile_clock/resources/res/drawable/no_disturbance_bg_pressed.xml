@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/no_disturbance_bg_color"/>
+    <size android:height="@dimen/no_disturbance_bg_height"/>
+</shape>

@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 ժամ առաջ</item>
+        <item quantity="other">1 ժամ առաջ</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d ժամ առաջ</item>
+        <item quantity="other">%d ժամ առաջ</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Կես ժամ առաջ</item>
+        <item quantity="other">Կես ժամ առաջ</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">In %d ժամ</item>
+        <item quantity="other">In %d ժամ</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Կես ժամից</item>
+        <item quantity="other">Կես ժամից</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Անմիջապես</item>
+        <item quantity="other">Անմիջապես</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">in %d րոպեից</item>
+        <item quantity="other">%d րոպեից</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Հենց հիմա</item>
+        <item quantity="other">Հենց հիմա</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d րոպե առաջ</item>
+        <item quantity="other">%d րոպե առաջ</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Հետաձգել %d րոպեով։</item>
+        <item quantity="other">Հետաձգել %d րոպեով։</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s հերթափոխ</item>
+        <item quantity="other">%s հերթափոխ</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d օր</item>
+        <item quantity="other">%d օր</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Կես ժամ առաջ</item>
+        <item quantity="other">Կես ժամ առաջ</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d ժամ</item>
+        <item quantity="other">%d ժամ</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">1 ժամում</item>
+        <item quantity="other">1 ժամում</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Կես ժամից</item>
+        <item quantity="other">Կես ժամից</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Անմիջապես</item>
+        <item quantity="other">Անմիջապես</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">1 րոպեից</item>
+        <item quantity="other">%d րոպեից</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Օր %s</item>
+        <item quantity="other">Օր %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Հերթափոխի օր %s</item>
+        <item quantity="other">Հերթափոխի օր %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Հենց հիմա</item>
+        <item quantity="other">Հենց հիմա</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d րոպե</item>
+        <item quantity="other">%d րոպե</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d ընտրված օբյեկտ</item>
+        <item quantity="other">%d ընտրված օբյեկտներ</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 րոպե առաջ</item>
+        <item quantity="other">%d րոպե առաջ</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d վայրկյան</item>
+        <item quantity="other">%d վայրկյան</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s օր</item>
+        <item quantity="other">%s օր</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s ժամ</item>
+        <item quantity="other">%1$s ժամ</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s ժամ</item>
+        <item quantity="other">%1$s ժամ</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d ժամ</item>
+        <item quantity="other">%1$d ժամ</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s րոպե</item>
+        <item quantity="other">%1$s րոպեներ</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s րոպե</item>
+        <item quantity="other">%1$s րոպե</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d րոպե</item>
+        <item quantity="other">%1$d րոպե</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Կրկնվող միջակայքը փոխվել է %d րոպե</item>
+        <item quantity="other">Կրկնվող միջակայքը փոխվել է %d րոպե</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Կհնչի %1$s անգամ</item>
+        <item quantity="other">Կհնչի %1$s անգամ</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Ամեն %1$s րոպե</item>
+        <item quantity="other">Ամեն %1$s րոպե</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Ամեն %1$d րոպե</item>
+        <item quantity="other">Ամեն %1$d րոպե</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Կհնչի %1$d անգամ</item>
+        <item quantity="other">Կհնչի %1$d անգամ</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Հետաձգել %d րոպեով</item>
+        <item quantity="other">Հետաձգել %d րոպեով</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Ժամացույցը վազում էր %s օր: Հպեք՝ դիտելու համար:</item>
+        <item quantity="other">Ժամացույցը վազում էր %s օր: Հպեք՝ դիտելու համար:</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Ժամացույցը վազում էր %s ժամ: Հպեք՝ դիտելու համար:</item>
+        <item quantity="other">Ժամացույցը վազում էր %s ժամ: Հպեք՝ դիտելու համար:</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d ժամ </item>
+        <item quantity="other">%1$d ժամեր </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d րոպե </item>
+        <item quantity="other">%1$d րոպեներ </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d վայրկյան</item>
+        <item quantity="other">%1$d վայրկյան</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s ժամ</item>
+        <item quantity="other">+%s ժամ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s ժամ</item>
+        <item quantity="other">+%1$s ժամեր</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s ժամ</item>
+        <item quantity="other">-%s ժամ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">%1$s ժամ</item>
+        <item quantity="other">%1$sժամեր</item>
+    </plurals>
+</resources>

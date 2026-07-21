@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:height="705px"
+    android:width="1px"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="@drawable/_number_picker_divider__0_res_0x7f08004d"
+        android:pathData="M0,0 100,0 100,100 0,100z"/>
+</vector>

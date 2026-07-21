@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <size
+        android:height="@dimen/miuix_theme_action_button_width"
+        android:width="@dimen/miuix_theme_action_button_width"/>
+    <solid android:color="@android:color/transparent"/>
+</shape>

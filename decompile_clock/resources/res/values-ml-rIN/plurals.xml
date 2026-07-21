@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 മണിക്കൂര്‍ മുമ്പ്</item>
+        <item quantity="other">1 മണിക്കൂര്‍ മുമ്പ്</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d മണിക്കൂർ മുമ്പ്</item>
+        <item quantity="other">%d മണിക്കൂർ മുമ്പ്</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">അര മണിക്കൂര്‍ മുമ്പ്</item>
+        <item quantity="other">അര മണിക്കൂര്‍ മുമ്പ്</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">%d മണിക്കൂറിൽ</item>
+        <item quantity="other">%d മണിക്കൂറിൽ</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">അര മണിക്കൂറില്‍</item>
+        <item quantity="other">അര മണിക്കൂറില്‍</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">ഉടനടി</item>
+        <item quantity="other">ഉടനടി</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">%d മിനിറ്റിൽ</item>
+        <item quantity="other">%d മിനിറ്റിൽ</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">ഇപ്പോൾ</item>
+        <item quantity="other">ഇപ്പോൾ</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d മിനിറ്റ് മുമ്പ്</item>
+        <item quantity="other">%d മിനിറ്റ് മുമ്പ്</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">%d മിനിറ്റ് സ്നൂസ് ചെയ്യുന്നു.</item>
+        <item quantity="other">%d മിനിറ്റ് സ്നൂസ് ചെയ്യുന്നു.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s ഷിഫ്റ്റ്</item>
+        <item quantity="other">%s ഷിഫ്റ്റുകൾ</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d ദിവസം</item>
+        <item quantity="other">%d ദിവസം</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">അര മണിക്കൂര്‍ മുമ്പ്</item>
+        <item quantity="other">അര മണിക്കൂര്‍ മുമ്പ്</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d മണിക്കൂർ</item>
+        <item quantity="other">%d മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">1 മണിക്കൂറില്‍</item>
+        <item quantity="other">1 മണിക്കൂറില്‍</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">അര മണിക്കൂറില്‍</item>
+        <item quantity="other">അര മണിക്കൂറില്‍</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">ഉടനടി</item>
+        <item quantity="other">ഉടനടി</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">1 മിനിറ്റില്‍</item>
+        <item quantity="other">%d മിനിറ്റില്‍</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">ദിവസം %s</item>
+        <item quantity="other">ദിവസം %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">ഷിഫ്റ്റ് ദിവസം %s</item>
+        <item quantity="other">ഷിഫ്റ്റ് ദിവസം %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">ഇപ്പോൾ</item>
+        <item quantity="other">ഇപ്പോൾ</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d മിനിറ്റ്</item>
+        <item quantity="other">%d മിനിറ്റ്</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d ഇനം തിരഞ്ഞെടുത്തു</item>
+        <item quantity="other">%d ഇനങ്ങള്‍ തിരഞ്ഞെടുത്തു</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 മിനിറ്റ് മുമ്പ്</item>
+        <item quantity="other">%d മിനിറ്റ് മുമ്പ്</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d സെക്കന്റ്</item>
+        <item quantity="other">%d സെക്കന്റ്</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s ദിവസം</item>
+        <item quantity="other">%s ദിവസം</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s മണിക്കൂർ</item>
+        <item quantity="other">%1$s മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s മണിക്കൂർ</item>
+        <item quantity="other">%1$s മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d മണിക്കൂർ</item>
+        <item quantity="other">%1$d മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s മിനിറ്റ്</item>
+        <item quantity="other">%1$s മിനിറ്റ്</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s മിനിറ്റ്</item>
+        <item quantity="other">%1$s മിനിറ്റ്</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d മിനിറ്റ്</item>
+        <item quantity="other">%1$d മിനിറ്റ്</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">സ്‌നൂസ് ഇടവേള %d മിനിറ്റിലേക്ക് മാറ്റി</item>
+        <item quantity="other">സ്‌നൂസ് ഇടവേള %d മിനിറ്റിലേക്ക് മാറ്റി</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">%1$s തവണ അടിക്കുക</item>
+        <item quantity="other">%1$s തവണ അടിക്കുക</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">ഓരോ %1$s മിനിറ്റും</item>
+        <item quantity="other">ഓരോ %1$s മിനിറ്റും</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">ഓരോ %1$d മിനിറ്റിലും</item>
+        <item quantity="other">ഓരോ %1$d മിനിറ്റിലും</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">%1$d തവണ അടിക്കുക</item>
+        <item quantity="other">%1$d തവണ അടിക്കുക</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">%d മിനിറ്റ് സ്നൂസ് ചെയ്യുക</item>
+        <item quantity="other">%d മിനിറ്റ് സ്നൂസ് ചെയ്യുക</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">സ്റ്റോപ്പ് വാച്ച് %s ദിവസമായി പ്രവർത്തിക്കുന്നു. കാണാൻ ടാപ്പുചെയ്യുക.</item>
+        <item quantity="other">സ്റ്റോപ്പ് വാച്ച് %s ദിവസമായി പ്രവർത്തിക്കുന്നു. കാണാൻ ടാപ്പുചെയ്യുക.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">സ്റ്റോപ്പ്‌വാച്ച് %s മണിക്കൂറായി പ്രവർത്തിക്കുന്നു. കാണാൻ ടാപ്പുചെയ്യുക.</item>
+        <item quantity="other">സ്റ്റോപ്പ്‌വാച്ച് %s മണിക്കൂറായി പ്രവർത്തിക്കുന്നു. കാണാൻ ടാപ്പുചെയ്യുക.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d മണിക്കൂർ </item>
+        <item quantity="other">%1$d മണിക്കൂർ </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d മിനിറ്റ് </item>
+        <item quantity="other">%1$d മിനിറ്റ് </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d സെക്കന്റ്</item>
+        <item quantity="other">%1$d സെക്കന്റ്</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s മണിക്കൂർ</item>
+        <item quantity="other">+%s മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s മണിക്കൂർ</item>
+        <item quantity="other">+%1$s മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s മണിക്കൂർ</item>
+        <item quantity="other">-%s മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s മണിക്കൂർ</item>
+        <item quantity="other">-%1$s മണിക്കൂർ</item>
+    </plurals>
+</resources>

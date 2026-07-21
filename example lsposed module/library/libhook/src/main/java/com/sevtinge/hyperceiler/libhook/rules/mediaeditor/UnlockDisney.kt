@@ -1,0 +1,107 @@
+/*
+  * This file is part of HyperCeiler.
+
+  * HyperCeiler is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU Affero General Public License as
+  * published by the Free Software Foundation, either version 3 of the
+  * License.
+
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU Affero General Public License for more details.
+
+  * You should have received a copy of the GNU Affero General Public License
+  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  * Copyright (C) 2023-2026 HyperCeiler Contributions
+*/
+package com.sevtinge.hyperceiler.libhook.rules.mediaeditor
+
+import com.sevtinge.hyperceiler.common.utils.PrefsBridge
+import com.sevtinge.hyperceiler.libhook.base.BaseHook
+import io.github.lingqiqi5211.ezhooktool.core.findMethod
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.createHook
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+
+object UnlockDisney : BaseHook() {
+    override fun useDexKit() = true
+
+    override fun initDexKit(): Boolean {
+        mickey
+        bear
+        princess
+        return true
+    }
+    private val mickey by lazy<Method> {
+        requiredMember("UnlockDisneyMickey") {
+            it.findMethod {
+                matcher {
+                    addCaller {
+                        usingStrings("magic_recycler_matting_0", "magic_recycler_clear_icon")
+                        // returnType = "java.util.List" // 你米 1.6.5.10.2 改成了 java.util.ArrayList，所以找不到
+                        paramCount = 0
+                    }
+                    modifiers = Modifier.STATIC
+                    returnType = "boolean"
+                    paramCount = 0
+                }
+            }.single()
+        }
+    }
+
+    private val bear by lazy<Method> {
+        requiredMember("UnlockDisneyBear") {
+            it.findMethod {
+                matcher {
+                    declaredClass = mickey.declaringClass.name
+                    modifiers = Modifier.STATIC
+                    returnType = "boolean"
+                    paramCount = 0
+                }
+            }.last()
+        }
+    }
+
+    private val princess by lazy<Field> {
+        // 2.0 改成了内联，只能拿字段去解析了
+        // .field public static final n:Lak/a$i;
+        // 里面的 method public final c(Ljava/lang/Object;)Ljava/lang/Object; 返回 true 即可解锁
+        requiredMember("UnlockDisneyPrincess") {
+            it.findField {
+                matcher {
+                    declaredClass = mickey.declaringClass.name
+                    modifiers = Modifier.STATIC or Modifier.FINAL
+                }
+            }.last()
+        }
+    }
+
+    private val isMickey by lazy {
+        PrefsBridge.getBoolean("mediaeditor_unlock_mickey_some_func")
+    }
+    private val isBear by lazy {
+        PrefsBridge.getBoolean("mediaeditor_unlock_bear_some_func")
+    }
+    private val isPrincess by lazy {
+        PrefsBridge.getBoolean("mediaeditor_unlock_princess_some_func")
+    }
+
+    override fun init() {
+        isHook(mickey, isMickey)
+        isHook(bear, isBear)
+        isHook(
+            princess.type.findMethod { returnType(Object::class.java) },
+            isPrincess
+        )
+    }
+
+    private fun isHook(method: Method, bool: Boolean) {
+        method.createHook {
+            returnConstant(bool)
+        }
+    }
+}
+

@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">Siegħa ilu</item>
+        <item quantity="few">Sigħat ilu</item>
+        <item quantity="many">(-il) siegħa ilu</item>
+        <item quantity="other">(-il) siegħa ilu</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">Siegħa %d ilu</item>
+        <item quantity="few">Siegħa %d ilu</item>
+        <item quantity="many">Siegħa %d ilu</item>
+        <item quantity="other">Siegħa %d ilu</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Nofs siegħa ilu</item>
+        <item quantity="few">Nofs siegħa ilu</item>
+        <item quantity="many">Nofs siegħa ilu</item>
+        <item quantity="other">Nofs siegħa ilu</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">Fi żmien siegħa %d</item>
+        <item quantity="few">Fi żmien siegħa %d</item>
+        <item quantity="many">Fi żmien siegħa %d</item>
+        <item quantity="other">Fi żmien siegħa %d</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Nofs siegħa oħra</item>
+        <item quantity="few">Nofs siegħa oħra</item>
+        <item quantity="many">Nofs siegħa oħra</item>
+        <item quantity="other">Nofs siegħa oħra</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Minnufih</item>
+        <item quantity="few">Minnufih</item>
+        <item quantity="many">Minnufih</item>
+        <item quantity="other">Minnufih</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">Fi żmien minuta %d</item>
+        <item quantity="few">Fi żmien %d minuti</item>
+        <item quantity="many">Fi żmien %d-il minuta</item>
+        <item quantity="other">Fi żmien %d minuta</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Issa</item>
+        <item quantity="few">Issa</item>
+        <item quantity="many">Issa</item>
+        <item quantity="other">Issa</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">Minuta %d ilu</item>
+        <item quantity="few">%d minuti ilu</item>
+        <item quantity="many">%d-il minuta ilu</item>
+        <item quantity="other">%d minuta ilu</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Imsikket għal minuta.</item>
+        <item quantity="few">Imsikket għal %d minuti.</item>
+        <item quantity="many">Imsikket għal %d-il minuta.</item>
+        <item quantity="other">Imsikket għal %d minuta.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">shift %s</item>
+        <item quantity="few">%s shiftijiet</item>
+        <item quantity="many">%s-il shift</item>
+        <item quantity="other">%s shift</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">jum</item>
+        <item quantity="few">%d ijiem</item>
+        <item quantity="many">%d-il jum</item>
+        <item quantity="other">%d jum</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Nofs siegħa ilu</item>
+        <item quantity="few">Nofs siegħa ilu</item>
+        <item quantity="many">Nofs siegħa ilu</item>
+        <item quantity="other">Nofs siegħa ilu</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">siegħa</item>
+        <item quantity="few">%d sigħat</item>
+        <item quantity="many">%d-il siegħa</item>
+        <item quantity="other">%d siegħa</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">Siegħa oħra</item>
+        <item quantity="few">Siegħa oħra</item>
+        <item quantity="many">Siegħa oħra</item>
+        <item quantity="other">Siegħa oħra</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Nofs siegħa oħra</item>
+        <item quantity="few">Nofs siegħa oħra</item>
+        <item quantity="many">Nofs siegħa oħra</item>
+        <item quantity="other">Nofs siegħa oħra</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Minnufih</item>
+        <item quantity="few">Minnufih</item>
+        <item quantity="many">Minnufih</item>
+        <item quantity="other">Minnufih</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">minuta oħra</item>
+        <item quantity="few">%d minuti oħra</item>
+        <item quantity="many">%d(-il) minuta oħra</item>
+        <item quantity="other">%d(-il) minuta oħra</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Jum numru %s</item>
+        <item quantity="few">Jum numru %s</item>
+        <item quantity="many">Jum numru %s</item>
+        <item quantity="other">Jum numru %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Jum numru %s tax-shift</item>
+        <item quantity="few">Jum numru %s tax-shift</item>
+        <item quantity="many">Jum numru %s tax-shift</item>
+        <item quantity="other">Jum numru %s tax-shift</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Issa</item>
+        <item quantity="few">Issa</item>
+        <item quantity="many">Issa</item>
+        <item quantity="other">Issa</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">minuta</item>
+        <item quantity="few">%d minuti</item>
+        <item quantity="many">%d-il minuta</item>
+        <item quantity="other">%d minuta</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">Ħaġa waħda magħżula</item>
+        <item quantity="few">%d iħwejjeġ magħżulin</item>
+        <item quantity="many">%d-il ħaġa magħżula</item>
+        <item quantity="other">%d ħaġa magħżula</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">Minuta ilu</item>
+        <item quantity="few">%d minuti ilu</item>
+        <item quantity="many">%d(-il) minuta ilu</item>
+        <item quantity="other">%d(-il) minuta ilu</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">sekonda</item>
+        <item quantity="few">%d sekondi</item>
+        <item quantity="many">%d sekondi</item>
+        <item quantity="other">%d sekondi</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">jum %s</item>
+        <item quantity="few">%s ijiem</item>
+        <item quantity="many">%s-il jum</item>
+        <item quantity="other">%s jum</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">Siegħa</item>
+        <item quantity="few">%1$s sigħat</item>
+        <item quantity="many">%1$s-il siegħa</item>
+        <item quantity="other">%1$s siegħa</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">sgħ</item>
+        <item quantity="few">%1$s sgħ</item>
+        <item quantity="many">%1$s-il sgħ</item>
+        <item quantity="other">%1$s sgħ</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">siegħa</item>
+        <item quantity="few">%1$d sigħat</item>
+        <item quantity="many">%1$d-il siegħa</item>
+        <item quantity="other">%1$d siegħa</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">Minuta</item>
+        <item quantity="few">%1$s minuti</item>
+        <item quantity="many">%1$s-il minuta</item>
+        <item quantity="other">%1$s minuta</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">Minuta</item>
+        <item quantity="few">%1$s min</item>
+        <item quantity="many">%1$s-il min</item>
+        <item quantity="other">%1$s min</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">minuta</item>
+        <item quantity="few">%1$d minuti</item>
+        <item quantity="many">%1$d-il minuta</item>
+        <item quantity="other">%1$d minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Bdilt il-waqfa bejn l-iżveljarini għal minuta</item>
+        <item quantity="few">Bdilt il-waqfa bejn l-iżveljarini għal %d minuti</item>
+        <item quantity="many">Bdilt il-waqfa bejn l-iżveljarini għal %d-il minuta</item>
+        <item quantity="other">Bdilt il-waqfa bejn l-iżveljarini għal %d minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Doqq darba</item>
+        <item quantity="few">Doqq %1$s darbiet</item>
+        <item quantity="many">Doqq %1$s-il darba</item>
+        <item quantity="other">Doqq %1$s darba</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Kull min</item>
+        <item quantity="few">Kull %1$s min</item>
+        <item quantity="many">Kull %1$s-il min</item>
+        <item quantity="other">Kull %1$s min</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Kull min</item>
+        <item quantity="few">Kull %1$d min</item>
+        <item quantity="many">Kull %1$d-il min</item>
+        <item quantity="other">Kull %1$d min</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Doqq darba</item>
+        <item quantity="few">Doqq %1$d darbiet</item>
+        <item quantity="many">Doqq %1$d-il darba</item>
+        <item quantity="other">Doqq %1$d darba</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Sikket għal minuta</item>
+        <item quantity="few">Sikket għal %d minuti</item>
+        <item quantity="many">Sikket għal %d-il minuta</item>
+        <item quantity="other">Sikket għal %d minuta</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Stopwatch ilha taħdem għal jum. Agħfas biex tiftaħ.</item>
+        <item quantity="few">Stopwatch ilha taħdem għal %s ijiem. Agħfas biex tiftaħ.</item>
+        <item quantity="many">Stopwatch ilha taħdem għal %s-il jum. Agħfas biex tiftaħ.</item>
+        <item quantity="other">Stopwatch ilha taħdem għal %s jum. Agħfas biex tiftaħ.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Stopwatch ilha taħdem għal siegħa. Agħfas biex tiftħu.</item>
+        <item quantity="few">Stopwatch ilha taħdem għal %s sigħat. Agħfas biex tiftaħ.</item>
+        <item quantity="many">Stopwatch ilha taħdem għal %s-il siegħa. Agħfas biex tiftaħ.</item>
+        <item quantity="other">Stopwatch ilha taħdem għal %s siegħa. Agħfas biex tiftaħ.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">siegħa </item>
+        <item quantity="few">%1$d siegħat </item>
+        <item quantity="many">%1$d siegħa </item>
+        <item quantity="other">%1$d sigħat </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">minuta </item>
+        <item quantity="few">%1$d minuti </item>
+        <item quantity="many">%1$d-il minuta </item>
+        <item quantity="other">%1$d minuta </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">sekonda</item>
+        <item quantity="few">%1$d sekondi</item>
+        <item quantity="many">%1$d-il sekonda</item>
+        <item quantity="other">%1$d sekonda</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+siegħa</item>
+        <item quantity="few">+%s sigħat</item>
+        <item quantity="many">+%s-il siegħa</item>
+        <item quantity="other">+%s siegħa</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+siegħa</item>
+        <item quantity="few">+%1$s sgħt</item>
+        <item quantity="many">+%1$s-il sgħ</item>
+        <item quantity="other">+%1$s sgħ</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-siegħa</item>
+        <item quantity="few">-%s sigħat</item>
+        <item quantity="many">-%s-il siegħa</item>
+        <item quantity="other">-%s siegħa</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-siegħa</item>
+        <item quantity="few">-%1$s sgħt</item>
+        <item quantity="many">-%1$s-il sgħ</item>
+        <item quantity="other">-%1$s sgħ</item>
+    </plurals>
+</resources>

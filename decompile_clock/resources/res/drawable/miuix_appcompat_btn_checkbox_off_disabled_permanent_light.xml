@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="@dimen/miuix_appcompat_check_widget_height"
+    android:width="@dimen/miuix_appcompat_check_widget_width"
+    android:alpha="0.5"
+    android:viewportWidth="22"
+    android:viewportHeight="22">
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11 0.799805C16.6333 0.799805 21.2002 5.3667 21.2002 11C21.2002 16.6333 16.6333 21.2002 11 21.2002C5.3667 21.2002 0.799805 16.6333 0.799805 11C0.799805 5.3667 5.3667 0.799805 11 0.799805Z"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.6"
+        android:fillAlpha="0.2"/>
+</vector>

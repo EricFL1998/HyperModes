@@ -1,0 +1,91 @@
+<!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Base.Theme.HyperCeiler.DayNight" parent="Base.Theme.HyperCeiler">
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+
+        <item name="endActionMenuEnabled">true</item>
+    </style>
+
+    <style name="AprilFoolsTheme" parent="Base.Theme.HyperCeiler.DayNight">
+        <item name="slidingButtonStyle">@style/Widget.AprilFoolsSlidingButton.DayNight</item>
+        <item name="preferenceTheme">@style/AprilFoolsPreferenceTheme</item>
+    </style>
+
+    <style name="CrashTheme" parent="Base.Theme.HyperCeiler.DayNight">
+        <item name="android:windowBackground">@color/miuix_design_default_color_surface_variant_light</item>
+        <item name="android:colorBackground">@color/miuix_design_default_color_surface_variant_light</item>
+        <item name="miuixColorPrimary">@color/miuix_design_default_color_surface_variant_light</item>
+        <item name="actionBarBackground">@color/miuix_design_default_color_surface_variant_light</item>
+    </style>
+
+    <style name="Base.Theme.HyperCeiler" parent="Theme.AppCompat.DayNight">
+        <item name="android:actionBarItemBackground">@android:color/transparent</item>
+        <item name="rebootIconColor">@color/black</item>
+        <item name="SeekBarPreferenceCompatStyle">@style/Preference.SeekBarPreferenceCompat</item>
+    </style>
+
+    <style name="Base.Theme.HyperCeiler.AprilFools" parent="Theme.AppCompat.DayNight">
+        <item name="rebootIconColor">@color/black</item>
+        <item name="SeekBarPreferenceCompatStyle">@style/Preference.SeekBarPreferenceCompat</item>
+    </style>
+
+    <style name="Theme.HyperCeiler.Translucent" parent="Base.Theme.HyperCeiler">
+        <item name="android:windowBackground">@color/miuix_color_transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+    </style>
+
+    <style name="Theme.HyperCeiler.Translucent.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowActionBarOverlay">false</item>
+    </style>
+
+    <style name="Theme.HyperCeiler.Translucent.NoActionBar.NoAnimation">
+        <item name="android:windowAnimationStyle">@style/Animation</item>
+    </style>
+
+    <style name="Animation">
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+        <item name="android:windowShowAnimation">@null</item>
+        <item name="android:windowHideAnimation">@null</item>
+        <item name="android:activityOpenEnterAnimation">@null</item>
+        <item name="android:activityOpenExitAnimation">@null</item>
+        <item name="android:activityCloseEnterAnimation">@null</item>
+        <item name="android:activityCloseExitAnimation">@null</item>
+    </style>
+
+    <style name="Preference.SeekBarPreferenceCompat" parent="@style/Preference" tools:ignore="PrivateResource">
+
+    </style>
+
+    <style name="AprilFoolspreSwitchPreference" parent="@style/Preference.SwitchPreference">
+        <item name="android:widgetLayout">@layout/miuix_preference_widget_switch_mirror</item>
+    </style>
+</resources>

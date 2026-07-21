@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 orë më parë</item>
+        <item quantity="other">1 orë më parë</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d ore më parë</item>
+        <item quantity="other">%d ore më parë</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Gjysmë ore më parë</item>
+        <item quantity="other">Gjysmë ore më parë</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">Në %d orë</item>
+        <item quantity="other">Në %d orë</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Për gjysmë ore</item>
+        <item quantity="other">Për gjysmë ore</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Menjëherë</item>
+        <item quantity="other">Menjëherë</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">në %d minut</item>
+        <item quantity="other">në %d minuta</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Tani</item>
+        <item quantity="other">Tani</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d minut më parë</item>
+        <item quantity="other">%d minuta më parë</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Duke shtyrë për %d minutë.</item>
+        <item quantity="other">Duke shtyrë për %d minuta.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s ndërrim</item>
+        <item quantity="other">%s ndërrime</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d ditë</item>
+        <item quantity="other">%d ditë</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Gjysmë ore më parë</item>
+        <item quantity="other">Gjysmë ore më parë</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d orë</item>
+        <item quantity="other">%d orë</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">Për 1 orë</item>
+        <item quantity="other">Për 1 orë</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Për gjysmë ore</item>
+        <item quantity="other">Për gjysmë ore</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Menjëherë</item>
+        <item quantity="other">Menjëherë</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">për 1 minutë</item>
+        <item quantity="other">për %d minuta</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Dita %s</item>
+        <item quantity="other">Dita %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Nërro ditën %s</item>
+        <item quantity="other">Nërro ditën %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Tani</item>
+        <item quantity="other">Tani</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d minutë</item>
+        <item quantity="other">%d minuta</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d artikull i zgjedhur</item>
+        <item quantity="other">%d artikuj të përzgjedhur</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 minutë më parë</item>
+        <item quantity="other">%d minuta më parë</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d sekondë</item>
+        <item quantity="other">%d sekonda</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s dita</item>
+        <item quantity="other">%s ditë</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s orë</item>
+        <item quantity="other">%1$s orët</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s orë</item>
+        <item quantity="other">%1$s oret</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d ore</item>
+        <item quantity="other">%1$d oret</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s minutë</item>
+        <item quantity="other">%1$s minuta</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s min</item>
+        <item quantity="other">%1$s min</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="other">%1$d minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Ndryshoi intervalin e shtyrjes së gjumit në %d minut</item>
+        <item quantity="other">Ndryshoi intervalin e shtyrjes së gjumit në %d minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Bie %1$s herë</item>
+        <item quantity="other">Bie %1$s herë</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Çdo %1$s minutë</item>
+        <item quantity="other">Çdo %1$s minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Cdo %1$d minut</item>
+        <item quantity="other">Cdo %1$d minuta</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Koha e %1$d rënies së alarmit</item>
+        <item quantity="other">Kohët e %1$d rënies së alarmit</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Shtyr për %d min</item>
+        <item quantity="other">Shtyr për %d minutë</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Kronometri ka qenë duke kërkuar për %s ditë. Takoni për të parë.</item>
+        <item quantity="other">Kronometri ka qenë duke kërkuar për %s ditët. Takoni për të parë.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Kronometri ka qenë duke kërkuar për %s orë. Takoni për të parë.</item>
+        <item quantity="other">Kronometri ka qenë duke kërkuar për %s orë. Takoni për të parë.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d orë </item>
+        <item quantity="other">%1$d orë </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d minutë </item>
+        <item quantity="other">%1$d minuta </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d sekondë</item>
+        <item quantity="other">%1$d sekonda</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s orë</item>
+        <item quantity="other">+%s orë</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s orë</item>
+        <item quantity="other">+%1$s orë</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s orë</item>
+        <item quantity="other">-%s orë</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s orë</item>
+        <item quantity="other">-%1$s orë</item>
+    </plurals>
+</resources>

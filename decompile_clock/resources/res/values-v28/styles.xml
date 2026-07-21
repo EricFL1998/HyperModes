@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AlarmAlertFullScreenTheme" parent="@style/Theme.Dark.NoTitle">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Base.Theme.AppCompat" parent="@style/Base.V28.Theme.AppCompat">
+    </style>
+    <style name="Base.Theme.AppCompat.Light" parent="@style/Base.V28.Theme.AppCompat.Light">
+    </style>
+    <style name="Base.V14.ThemeOverlay.MaterialComponents.MaterialAlertDialog" parent="@style/ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:backgroundDimAmount">@dimen/m3_comp_scrim_container_opacity</item>
+        <item name="android:checkedTextViewStyle">@style/Widget.MaterialComponents.CheckedTextView</item>
+        <item name="android:dialogCornerRadius">@null</item>
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.MaterialComponents</item>
+        <item name="buttonBarButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog.Flush</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.MaterialComponents.Body.Text</item>
+        <item name="materialAlertDialogButtonSpacerVisibility">@integer/mtrl_view_invisible</item>
+    </style>
+    <style name="Base.V28.Theme.AppCompat" parent="@style/Base.V26.Theme.AppCompat">
+        <item name="dialogCornerRadius">?android:attr/dialogCornerRadius</item>
+    </style>
+    <style name="Base.V28.Theme.AppCompat.Light" parent="@style/Base.V26.Theme.AppCompat.Light">
+        <item name="dialogCornerRadius">?android:attr/dialogCornerRadius</item>
+    </style>
+    <style name="BaseTheme" parent="@style/Theme.DayNight">
+        <item name="android:windowBackground">@color/main_bg</item>
+        <item name="android:cacheColorHint">@color/main_bg</item>
+        <item name="android:actionModeBackground">@color/main_bg</item>
+        <item name="android:navigationBarColor">@color/navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="actionBarTitleEnableEllipsis">true</item>
+        <item name="startingWindowOverlay">@null</item>
+        <item name="windowExtraPaddingHorizontalEnable">true</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="BaseThemeForPad" parent="@style/Theme.DayNight.FloatingWindow">
+        <item name="android:navigationBarColor">@color/navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="startingWindowOverlay">@null</item>
+        <item name="windowExtraPaddingHorizontalEnable">true</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="BaseThemeForWidget" parent="@style/Theme.DayNight">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/set_alarm_navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="startingWindowOverlay">@null</item>
+        <item name="windowExtraPaddingHorizontalEnable">true</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="CardView.DayNight" parent="@style/CardView.Light">
+        <item name="android:outlineSpotShadowColor">#000000</item>
+        <item name="outlineStyle">@style/BackgroundOutline.Light</item>
+    </style>
+    <style name="MainActivityTheme" parent="@style/Theme.DayNight.Navigator">
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="bgBlurOptions">splitActionBar</item>
+        <item name="bottomSheetStyle">@style/BottomSheetModalStyle</item>
+        <item name="contentAutoFitSystemWindow">false</item>
+        <item name="miuixBottomTabColorOnContainer">@color/mutable_icon_general_color_selected</item>
+        <item name="miuixBottomTabColorOnContainerUnchecked">@color/mutable_icon_general_color</item>
+        <item name="miuixColorBottomSurface">@color/main_bg</item>
+        <item name="recyclerViewCardStyle">@style/RecyclerViewCardStyles</item>
+        <item name="windowActionBarOverlay">false</item>
+    </style>
+    <style name="MainActivityThemeTiny" parent="@style/Theme.DayNight.Navigator">
+        <item name="android:navigationBarColor">@color/navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="bottomSheetStyle">@style/BottomSheetModalStyle</item>
+        <item name="contentAutoFitSystemWindow">false</item>
+        <item name="miuixBottomNavigationDividerColor">#00000000</item>
+        <item name="miuixColorBottomSurface">@color/main_bg</item>
+        <item name="recyclerViewCardStyle">@style/RecyclerViewCardStyles</item>
+        <item name="windowActionBarOverlay">false</item>
+    </style>
+    <style name="Miuix.AppCompat.TextAppearance.CommentPreference" parent="@style/Miuix.AppCompat.TextAppearance">
+        <item name="android:textSize">@dimen/miuix_preference_commnet_text_size</item>
+        <item name="android:textColor">?attr/preferenceCommentTextColor</item>
+        <item name="android:lineHeight">@dimen/miuix_preference_commnet_line_height</item>
+    </style>
+    <style name="OrdinaryTheme" parent="@style/BaseThemeForPad">
+        <item name="android:actionBarStyle">@style/OrdinaryActionBarStyle</item>
+        <item name="android:navigationBarColor">@color/navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+    </style>
+    <style name="PreferenceTheme" parent="@style/Theme.DayNight.FloatingWindow">
+        <item name="android:navigationBarColor">@color/set_alarm_navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="bottomSheetStyle">@style/BottomSheetModalStyle</item>
+        <item name="preferenceTheme">@style/Theme.PreferenceOverlay.Floating.DayNight</item>
+        <item name="recyclerViewCardStyle">@style/RecyclerViewCardStyles</item>
+    </style>
+    <style name="SetAlarmTheme" parent="@style/BaseThemeForPad">
+        <item name="android:navigationBarColor">@color/set_alarm_navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="arrowRightFillColor">@color/miuix_appcompat_arrow_right_fill_color</item>
+        <item name="arrowRightStrokeColor">@color/miuix_preference_arrow_right_stroke_color</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.BodyLarge" parent="@style/TextAppearance.AppCompat.Body2">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="android:letterSpacing">0.0312</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.BodyMedium" parent="@style/TextAppearance.AppCompat.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="android:letterSpacing">0.0179</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="lineHeight">20sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.BodySmall" parent="@style/TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="android:letterSpacing">0.0333</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_regular</item>
+        <item name="lineHeight">16sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.DisplayLarge" parent="@style/TextAppearance.AppCompat.Display3">
+        <item name="android:textSize">57sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">-0.0044</item>
+        <item name="android:lineHeight">64sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">64sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.DisplayMedium" parent="@style/TextAppearance.AppCompat.Display2">
+        <item name="android:textSize">45sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">52sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">52sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.DisplaySmall" parent="@style/TextAppearance.AppCompat.Display1">
+        <item name="android:textSize">36sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">44sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">44sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.HeadlineLarge" parent="@style/TextAppearance.AppCompat.Display1">
+        <item name="android:textSize">32sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">40sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">40sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.HeadlineMedium" parent="@style/TextAppearance.AppCompat.Headline">
+        <item name="android:textSize">28sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">36sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">36sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.HeadlineSmall" parent="@style/TextAppearance.AppCompat.Title">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">32sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">32sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.LabelLarge" parent="@style/TextAppearance.AppCompat.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="android:letterSpacing">0.0071</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="lineHeight">20sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.LabelMedium" parent="@style/TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="android:letterSpacing">0.0417</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="lineHeight">16sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.LabelSmall" parent="@style/TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="android:letterSpacing">0.0455</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="lineHeight">16sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.TitleLarge" parent="@style/TextAppearance.AppCompat.Title">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">28sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_brand_regular</item>
+        <item name="lineHeight">28sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.TitleMedium" parent="@style/TextAppearance.AppCompat.Subhead">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="android:letterSpacing">0.0094</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+    <style name="TextAppearance.M3.Sys.Typescale.TitleSmall" parent="@style/TextAppearance.AppCompat.Subhead">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="android:letterSpacing">0.0071</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="fontFamily">@string/m3_ref_typeface_plain_medium</item>
+        <item name="lineHeight">20sp</item>
+    </style>
+    <style name="Theme.Dark.FloatingWindow" parent="@style/Theme.Dark">
+        <item name="android:windowBackground">@drawable/miuix_appcompat_floating_window_bg_dark</item>
+        <item name="android:windowIsTranslucent">@bool/miuix_appcompat_floating_window_is_translucent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:actionModeBackground">@drawable/miuix_appcompat_floating_action_mode_bg_dark</item>
+        <item name="android:actionBarSize">@dimen/miuix_appcompat_action_bar_floating_height</item>
+        <item name="android:actionModeSplitBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_dark</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="actionBarExpandBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_expanded_dark</item>
+        <item name="actionBarSplitBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_dark</item>
+        <item name="actionbarSearchMaskColor">@color/miuix_appcompat_floating_action_bar_search_mask_color_dark</item>
+        <item name="isMiuixFloatingTheme">true</item>
+        <item name="listMenuBackground">@drawable/miuix_appcompat_floating_list_menu_bg_dark</item>
+        <item name="miuixAppcompatColorPrimary">@color/miuix_appcompat_floating_primary_color_dark</item>
+        <item name="miuixAppcompatFloatingWindowBorderColor">@color/miuix_appcompat_floating_window_border_color_dark</item>
+        <item name="windowFixedHeightMajor">@dimen/miuix_appcompat_floating_window_fixed_height_major</item>
+        <item name="windowFixedHeightMinor">@dimen/miuix_appcompat_floating_window_fixed_height_minor</item>
+        <item name="windowFixedWidthMajor">@dimen/miuix_appcompat_floating_window_fixed_width_major</item>
+        <item name="windowFixedWidthMinor">@dimen/miuix_appcompat_floating_window_fixed_width_minor</item>
+        <item name="windowFloating">@bool/miuix_appcompat_window_floating</item>
+        <item name="windowFullHeightMajor">@dimen/miuix_appcompat_dialog_full_height_major</item>
+        <item name="windowMaxHeightMajor">@dimen/miuix_appcompat_dialog_max_height_major</item>
+        <item name="windowMaxHeightMinor">@dimen/miuix_appcompat_dialog_max_height_minor</item>
+        <item name="windowMaxWidthMajor">@dimen/miuix_appcompat_dialog_max_width_major</item>
+        <item name="windowMaxWidthMinor">@dimen/miuix_appcompat_dialog_max_width_minor</item>
+        <item name="windowTranslucentStatus">opaque</item>
+    </style>
+    <style name="Theme.Light.FloatingWindow" parent="@style/Theme.Light">
+        <item name="android:windowBackground">@drawable/miuix_appcompat_floating_window_bg_light</item>
+        <item name="android:windowIsTranslucent">@bool/miuix_appcompat_floating_window_is_translucent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:actionModeBackground">@drawable/miuix_appcompat_floating_action_mode_bg_light</item>
+        <item name="android:actionBarSize">@dimen/miuix_appcompat_action_bar_floating_height</item>
+        <item name="android:actionModeSplitBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_light</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="actionBarExpandBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_expanded_light</item>
+        <item name="actionBarSplitBackground">@drawable/miuix_appcompat_floating_action_bar_split_bg_light</item>
+        <item name="actionbarSearchMaskColor">@color/miuix_appcompat_floating_action_bar_search_mask_color_light</item>
+        <item name="isMiuixFloatingTheme">true</item>
+        <item name="listMenuBackground">@drawable/miuix_appcompat_floating_list_menu_bg_light</item>
+        <item name="miuixAppcompatColorPrimary">@color/miuix_appcompat_floating_primary_color_light</item>
+        <item name="miuixAppcompatFloatingWindowBorderColor">@color/miuix_appcompat_floating_window_border_color_light</item>
+        <item name="windowFixedHeightMajor">@dimen/miuix_appcompat_floating_window_fixed_height_major</item>
+        <item name="windowFixedHeightMinor">@dimen/miuix_appcompat_floating_window_fixed_height_minor</item>
+        <item name="windowFixedWidthMajor">@dimen/miuix_appcompat_floating_window_fixed_width_major</item>
+        <item name="windowFixedWidthMinor">@dimen/miuix_appcompat_floating_window_fixed_width_minor</item>
+        <item name="windowFloating">@bool/miuix_appcompat_window_floating</item>
+        <item name="windowFullHeightMajor">@dimen/miuix_appcompat_dialog_full_height_major</item>
+        <item name="windowMaxHeightMajor">@dimen/miuix_appcompat_dialog_max_height_major</item>
+        <item name="windowMaxHeightMinor">@dimen/miuix_appcompat_dialog_max_height_minor</item>
+        <item name="windowMaxWidthMajor">@dimen/miuix_appcompat_dialog_max_width_major</item>
+        <item name="windowMaxWidthMinor">@dimen/miuix_appcompat_dialog_max_width_minor</item>
+        <item name="windowTranslucentStatus">opaque</item>
+    </style>
+    <style name="TimezoneSearchEditTheme" parent="@style/BaseThemeForPad">
+        <item name="android:actionBarStyle">@style/SearchActionBarStyle</item>
+        <item name="android:actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="android:navigationBarColor">@color/set_alarm_navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="miuixAppcompatColorPrimary">@color/action_bar_color</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+        <item name="searchActionModeInputBackground">@color/set_alarm_navation_bar_bg</item>
+    </style>
+    <style name="TimezoneSearchEditThemeForWeight" parent="@style/Theme.DayNight">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:actionBarStyle">@style/SearchActionBarStyle</item>
+        <item name="android:actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="actionBarBackground">@color/main_bg</item>
+        <item name="actionBarExpandState">collapse</item>
+        <item name="actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="customViewAutoFitSystemWindow">true</item>
+        <item name="miuixAppcompatColorPrimary">@color/action_bar_color</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+        <item name="searchActionModeInputBackground">@color/main_bg</item>
+        <item name="startingWindowOverlay">@null</item>
+        <item name="windowExtraPaddingHorizontalEnable">true</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowSplitActionBar">true</item>
+    </style>
+    <style name="TimezoneSearchTheme" parent="@style/BaseThemeForPad">
+        <item name="android:actionBarStyle">@style/SearchActionBarStyle</item>
+        <item name="android:actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="android:navigationBarColor">@color/set_alarm_navation_bar_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="actionBarBackground">@color/search_action_bar_bg</item>
+        <item name="actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="miuixAppcompatColorPrimary">@color/action_bar_color</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+    </style>
+    <style name="TimezoneSearchThemeForPad" parent="@style/BaseThemeForPad">
+        <item name="android:actionBarStyle">@style/SearchActionBarStyle</item>
+        <item name="android:actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="actionBarBackground">@color/search_action_bar_bg_float</item>
+        <item name="actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+        <item name="searchActionModeInputBackground">@color/search_action_bar_bg_float</item>
+    </style>
+    <style name="TimezoneSearchThemeForWidget" parent="@style/Theme.DayNight">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:actionBarStyle">@style/SearchActionBarStyle</item>
+        <item name="android:actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">1</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="actionBarBackground">@color/search_action_bar_bg</item>
+        <item name="actionBarExpandState">collapse</item>
+        <item name="actionBarSize">@dimen/timezone_search_actionbar_height</item>
+        <item name="customViewAutoFitSystemWindow">true</item>
+        <item name="preferencePrimaryTextColor">@color/miuix_preference_primary_text</item>
+        <item name="preferenceRightTextColor">@color/miuix_preference_right_text_color</item>
+        <item name="preferenceSecondaryTextColor">@color/miuix_preference_secondary_text</item>
+        <item name="searchActionModeInputBackground">@color/search_action_bar_bg</item>
+        <item name="startingWindowOverlay">@null</item>
+        <item name="windowExtraPaddingHorizontalEnable">true</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowSplitActionBar">true</item>
+    </style>
+    <style name="Widget.BottomNavigationView" parent="@style/Base.Widget.BottomNavigationView">
+        <item name="android:outlineSpotShadowColor">@android:color/transparent</item>
+        <item name="android:outlineAmbientShadowColor">@android:color/transparent</item>
+    </style>
+    <style name="Widget.Material3.AppBarLayout" parent="@style/Widget.MaterialComponents.AppBarLayout.Surface">
+        <item name="android:background">?attr/colorSurface</item>
+        <item name="android:stateListAnimator">@animator/m3_appbar_state_list_animator</item>
+        <item name="android:outlineSpotShadowColor">@android:color/transparent</item>
+        <item name="android:outlineAmbientShadowColor">@android:color/transparent</item>
+        <item name="liftOnScroll">true</item>
+        <item name="liftOnScrollColor">?attr/colorSurfaceContainer</item>
+    </style>
+    <style name="Widget.Material3.BottomNavigationView" parent="@style/Base.Widget.Material3.BottomNavigationView">
+        <item name="android:outlineSpotShadowColor">@android:color/transparent</item>
+        <item name="android:outlineAmbientShadowColor">@android:color/transparent</item>
+    </style>
+    <style name="Widget.Material3.SearchBar" parent="@android:style/Widget">
+        <item name="android:textAppearance">@style/TextAppearance.Material3.SearchBar</item>
+        <item name="android:minHeight">@dimen/m3_searchbar_height</item>
+        <item name="android:paddingStart">@dimen/m3_searchbar_padding_start</item>
+        <item name="android:outlineSpotShadowColor">@android:color/transparent</item>
+        <item name="android:outlineAmbientShadowColor">@android:color/transparent</item>
+        <item name="backgroundTint">?attr/colorSurfaceContainerHigh</item>
+        <item name="defaultMarginsEnabled">true</item>
+        <item name="defaultScrollFlagsEnabled">true</item>
+        <item name="elevation">@dimen/m3_searchbar_elevation</item>
+        <item name="enforceMaterialTheme">true</item>
+        <item name="hideNavigationIcon">false</item>
+        <item name="materialThemeOverlay">@style/ThemeOverlay.Material3.Search</item>
+        <item name="maxButtonHeight">@dimen/m3_searchbar_height</item>
+        <item name="shapeAppearance">?attr/shapeAppearanceMediumComponent</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Material3.SearchBar</item>
+    </style>
+    <style name="Widget.Material3.Toolbar" parent="@style/Widget.AppCompat.Toolbar">
+        <item name="android:outlineSpotShadowColor">@android:color/transparent</item>
+        <item name="android:outlineAmbientShadowColor">@android:color/transparent</item>
+        <item name="contentInsetStartWithNavigation">0dp</item>
+        <item name="subtitleTextAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="titleTextAppearance">?attr/textAppearanceTitleLarge</item>
+    </style>
+</resources>

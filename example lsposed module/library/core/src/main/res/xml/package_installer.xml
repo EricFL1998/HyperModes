@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/package_installer"
+    app:quick_restart="com.miui.packageinstaller">
+    <PreferenceCategory>
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_modify"
+            android:title="@string/miui_package_installer_modify"
+            android:defaultValue="false"
+            app:isPreferenceVisible="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_disable_ad"
+            android:title="@string/miui_package_installer_disable_ad"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_install_risk"
+            android:title="@string/miui_package_installer_install_risk"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_disable_cloud_check"
+            android:title="@string/miui_package_installer_disable_cloud_check"
+            android:summary="@string/miui_package_installer_disable_cloud_check_desc"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_safe_model_tip"
+            android:title="@string/miui_package_installer_safe_model_tip"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_count_checking"
+            android:title="@string/miui_package_installer_count_checking"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_apk_info"
+            android:title="@string/miui_package_installer_apk_info"
+            android:summary="@string/miui_package_installer_apk_info_desc"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_update_system_app"
+            android:title="@string/miui_package_installer_update_system_app"
+            android:summary="@string/miui_package_installer_update_system_app_desc"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:key="prefs_key_miui_package_installer_upload_appinfo"
+            android:title="@string/miui_package_installer_upload_appinfo"
+            android:summary="@string/miui_package_installer_upload_appinfo_desc"
+            android:defaultValue="false" />
+
+        <EditTextPreference
+            android:title="@string/miui_package_installer_install_source"
+            android:key="prefs_key_miui_package_installer_install_source"
+            android:defaultValue="com.android.fileexplorer" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

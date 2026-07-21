@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 soat oldin</item>
+        <item quantity="other">1 soat oldin</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d soat oldin</item>
+        <item quantity="other">%d soat oldin</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Yarim soat oldin</item>
+        <item quantity="other">Yarim soat oldin</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">%d soatdan keyin</item>
+        <item quantity="other">%d soatdan keyin</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Yarim soat ichida</item>
+        <item quantity="other">Yarim soat ichida</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Darhol</item>
+        <item quantity="other">Darhol</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">%d daqiqadan keyin</item>
+        <item quantity="other">%d daqiqadan keyin</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Hozirgina</item>
+        <item quantity="other">Hozirgina</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d daqiqa oldin</item>
+        <item quantity="other">%d daqiqa oldin</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">%d daqiqaga qoldirildi.</item>
+        <item quantity="other">%d daqiqaga qoldirildi.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s ta smena</item>
+        <item quantity="other">%s ta smena</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d kun</item>
+        <item quantity="other">%d kun</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Yarim soat oldin</item>
+        <item quantity="other">Yarim soat oldin</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d soat</item>
+        <item quantity="other">%d soat</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">1 soat ichida</item>
+        <item quantity="other">1 soat ichida</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Yarim soat ichida</item>
+        <item quantity="other">Yarim soat ichida</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Darhol</item>
+        <item quantity="other">Darhol</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">1 daqiqa ichida</item>
+        <item quantity="other">%d daqiqa ichida</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">%s-kun</item>
+        <item quantity="other">%s-kun</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Smena kuni %s</item>
+        <item quantity="other">Smena kuni %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Hozirgina</item>
+        <item quantity="other">Hozirgina</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d daqiqa</item>
+        <item quantity="other">%d daqiqa</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d ta element tanlandi</item>
+        <item quantity="other">%d ta element tanlandi</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 daqiqa oldin</item>
+        <item quantity="other">%d daqiqa oldin</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d soniya</item>
+        <item quantity="other">%d soniya</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s kun</item>
+        <item quantity="other">%s kun</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s soat</item>
+        <item quantity="other">%1$s soat</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s soat</item>
+        <item quantity="other">%1$s soat</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d soat</item>
+        <item quantity="other">%1$d soat</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s daqiqa</item>
+        <item quantity="other">%1$s daqiqa</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s daq</item>
+        <item quantity="other">%1$s daq</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d daqiqa</item>
+        <item quantity="other">%1$d daqiqa</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Qoldirish intervali %d daqiqa</item>
+        <item quantity="other">Qoldirish intervali %d daqiqa</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">%1$s marta takrorlash</item>
+        <item quantity="other">%1$s marta takrorlash</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Har %1$s daqiqada</item>
+        <item quantity="other">Har %1$s daqiqada</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Har %1$d daqiqada</item>
+        <item quantity="other">Har %1$d daqiqada</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">%1$d marta jiringlaydi</item>
+        <item quantity="other">%1$d marta jiringlaydi</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">%d daqiqaga qoldirish</item>
+        <item quantity="other">%d daqiqaga qoldirish</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Sekundomer %s kun davomida ishlamoqda. Ko‘rish uchun bosing.</item>
+        <item quantity="other">Sekundomer %s kun davomida ishlamoqda. Ko‘rish uchun bosing.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Sekundomer %s soat davomida ishlamoqda. Ko‘rish uchun bosing.</item>
+        <item quantity="other">Sekundomer %s soat davomida ishlamoqda. Ko‘rish uchun bosing.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d soat </item>
+        <item quantity="other">%1$d soat </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d daqiqa </item>
+        <item quantity="other">%1$d daqiqa </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d soniya</item>
+        <item quantity="other">%1$d soniya</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s soat</item>
+        <item quantity="other">+%s soat</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s soat</item>
+        <item quantity="other">+%1$s soat</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s soat</item>
+        <item quantity="other">-%s soat</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s soat</item>
+        <item quantity="other">-%1$s soat</item>
+    </plurals>
+</resources>

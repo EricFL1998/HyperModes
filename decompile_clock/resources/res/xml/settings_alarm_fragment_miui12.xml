@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/more_settings"
+    android:key="more_settings">
+    <PreferenceCategory android:key="settings">
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/alert_vibrate_enable_summary"
+            android:key="alert_vibrate_state"
+            android:defaultValue="true"/>
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/shutdown_alarm_alert_title"
+            android:key="shutdown_alarm"
+            android:defaultValue="true"/>
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/alarm_ascending_mode_title"
+            android:key="alarm_ascending_mode"
+            android:summary="@string/alarm_ascending_mode_summary"
+            android:defaultValue="true"/>
+        <miuix.preference.DropDownPreference
+            android:title="@string/snooze_duration_title"
+            android:key="snooze_duration"/>
+        <miuix.preference.DropDownPreference
+            android:title="@string/snooze_duration_count"
+            android:key="snooze_repeat_count"/>
+        <miuix.preference.DropDownPreference
+            android:title="@string/volume_button_setting_title"
+            android:key="volume_button_setting"
+            android:summary="@string/volume_button_setting_desc"/>
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/show_life_post_lable"
+            android:key="life_post_state"
+            android:summary="@string/show_life_post_desc"
+            android:defaultValue="true"/>
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/setting_alarm_arriving_title"
+            android:key="alarm_arriving_notification"
+            android:summary="@string/setting_alarm_arriving_subtitle"
+            android:defaultValue="true"/>
+        <miuix.preference.CheckBoxPreference
+            android:title="@string/locked_show_arriving_alarm_title"
+            android:key="locked_show_alarm_arriving_state"
+            android:defaultValue="true"/>
+    </PreferenceCategory>
+</PreferenceScreen>

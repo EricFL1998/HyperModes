@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/life_post_info_bg"
+    android:visibility="gone"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@string/click_listen_news_container"
+    android:paddingStart="@dimen/life_post_weather_news_content_iv_margin_left">
+    <com.android.deskclock.widget.CircleImageView
+        android:id="@+id/weather_info_news_content_iv"
+        android:layout_width="@dimen/life_post_weather_news_content_iv_width"
+        android:layout_height="@dimen/life_post_weather_news_content_iv_width"
+        android:src="@drawable/news_content_default_iv"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="@dimen/life_post_weather_news_content_iv_margin_right"/>
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="@dimen/life_post_weather_news_text_container_width"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_toEndOf="@+id/weather_info_news_content_iv">
+        <TextView
+            android:id="@+id/news_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:typeface="mipro_medium_res_0x7f0a025c"
+            style="@style/LifePostWakeNewsTitleTextStyle"/>
+        <TextView
+            android:ellipsize="end"
+            android:id="@+id/news_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            app:typeface="mipro_regular_res_0x7f0a025e"
+            style="@style/LifePostWakeNewsDetailsTextStyle"/>
+    </LinearLayout>
+    <ImageView
+        android:id="@+id/weather_info_news_start_iv"
+        android:layout_width="@dimen/life_post_weather_news_start_iv_width"
+        android:layout_height="@dimen/life_post_weather_news_start_iv_width"
+        android:src="@drawable/news_start_icon"
+        android:layout_centerVertical="true"
+        android:importantForAccessibility="no"
+        android:layout_marginEnd="@dimen/life_post_weather_news_content_iv_margin_left"
+        android:layout_alignParentEnd="true"/>
+</RelativeLayout>

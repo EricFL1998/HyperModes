@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 saat önce</item>
+        <item quantity="other">1 saat önce</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d saat önce</item>
+        <item quantity="other">%d saat önce</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Yarım saat önce</item>
+        <item quantity="other">Yarım saat önce</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">%d saat içinde</item>
+        <item quantity="other">%d saat içinde</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Yarım saat içerisinde</item>
+        <item quantity="other">Yarım saat içerisinde</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Hemen</item>
+        <item quantity="other">Hemen</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">%d dk. içerisinde</item>
+        <item quantity="other">%d dk. içerisinde</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Şimdi</item>
+        <item quantity="other">Şimdi</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d dk. önce</item>
+        <item quantity="other">%d dk. önce</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">%d dakika boyunca erteleniyor.</item>
+        <item quantity="other">%d dakika boyunca erteleniyor.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s vardiya</item>
+        <item quantity="other">%s vardiya</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d gün</item>
+        <item quantity="other">%d gün</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Yarım saat önce</item>
+        <item quantity="other">Yarım saat önce</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d saat</item>
+        <item quantity="other">%d saat</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">1 saat içerisinde</item>
+        <item quantity="other">1 saat içerisinde</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Yarım saat içerisinde</item>
+        <item quantity="other">Yarım saat içerisinde</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Hemen</item>
+        <item quantity="other">Hemen</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">1 dakika içerisinde</item>
+        <item quantity="other">%d dakika içerisinde</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Gün %s</item>
+        <item quantity="other">Gün %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Vardiya günü %s</item>
+        <item quantity="other">Vardiya günü %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Şimdi</item>
+        <item quantity="other">Şimdi</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d dakika</item>
+        <item quantity="other">%d dakika</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d öge seçildi</item>
+        <item quantity="other">%d öge seçildi</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="one">%d yeni bildirim</item>
+        <item quantity="other">%d yeni bildirim</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">1 dakika önce</item>
+        <item quantity="other"> %d dakika önce</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d saniye</item>
+        <item quantity="other">%d saniye</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s gün</item>
+        <item quantity="other">%s gün</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s saat</item>
+        <item quantity="other">%1$s saat</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s sa</item>
+        <item quantity="other">%1$s sa</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d saat</item>
+        <item quantity="other">%1$d saat</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s dakika</item>
+        <item quantity="other">%1$s dakika</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s dk</item>
+        <item quantity="other">%1$s dk</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d dakika</item>
+        <item quantity="other">%1$d dakika</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Erteleme aralığı %d dakika olarak değiştirildi</item>
+        <item quantity="other">Erteleme aralığı %d dakika olarak değiştirildi</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">%1$s kez çal</item>
+        <item quantity="other">%1$s kez çal</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Her %1$s dakikada</item>
+        <item quantity="other">Her %1$s dakikada</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Her %1$d dakikada</item>
+        <item quantity="other">Her %1$d dakikada</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">%1$d kez çal</item>
+        <item quantity="other">%1$d kez çal</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">%d dakika ertele</item>
+        <item quantity="other">%d dakika ertele</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Kronometre %s gündür çalışıyor. Görüntülemek için dokunun.</item>
+        <item quantity="other">Kronometre %s gündür çalışıyor. Görüntülemek için dokunun.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Kronometre %s saattir çalışıyor. Görüntülemek için dokunun.</item>
+        <item quantity="other">Kronometre %s saattir çalışıyor. Görüntülemek için dokunun.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d saat </item>
+        <item quantity="other">%1$d saat </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d dakika </item>
+        <item quantity="other">%1$d dakika </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d saniye</item>
+        <item quantity="other">%1$d saniye</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s sa.</item>
+        <item quantity="other">+%s sa.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s sa.</item>
+        <item quantity="other">+%1$s sa.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s sa.</item>
+        <item quantity="other">-%s sa.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s sa.</item>
+        <item quantity="other">-%1$s sa.</item>
+    </plurals>
+</resources>

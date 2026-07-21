@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">1 तासापूर्वी</item>
+        <item quantity="other">1 तासापूर्वी</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">%d तासापूर्वी</item>
+        <item quantity="other">%d तासांपूर्वी</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">अर्ध्या तासापूर्वी</item>
+        <item quantity="other">अर्ध्या तासापूर्वी</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">%d तासात</item>
+        <item quantity="other">%d तासांत</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">अर्ध्या तासात</item>
+        <item quantity="other">अर्ध्या तासात</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">तात्काळ</item>
+        <item quantity="other">तात्काळ</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">%d मिनिटात</item>
+        <item quantity="other">%d मिनिटात</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">आत्ताच</item>
+        <item quantity="other">आत्ताच</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">%d मिनिटापूर्वी</item>
+        <item quantity="other">%d मिनिटापूर्वी</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">%d मिनिटासाठी स्नूझ केले.</item>
+        <item quantity="other">%d मिनिटांसाठी स्नूझ केले.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s शिफ्ट</item>
+        <item quantity="other">%s शिफ्ट</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d दिवस</item>
+        <item quantity="other">%d दिवस</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">अर्ध्या तासापूर्वी</item>
+        <item quantity="other">अर्ध्या तासापूर्वी</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d तास</item>
+        <item quantity="other">%d तास</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">1 तासात</item>
+        <item quantity="other">1 तासात</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">अर्ध्या तासात</item>
+        <item quantity="other">अर्ध्या तासात</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">तात्काळ</item>
+        <item quantity="other">तात्काळ</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">१ मिनिटात</item>
+        <item quantity="other">in %d मिनिटांत</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">दिवस %s</item>
+        <item quantity="other">दिवस %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">शिफ्ट दिवस %s</item>
+        <item quantity="other">शिफ्ट दिवस %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">आत्ताच</item>
+        <item quantity="other">आत्ताच</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d मिनिटे</item>
+        <item quantity="other">%d मिनिटे</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">%d आयटम निवडला</item>
+        <item quantity="other">%d आयटम्स निवडले</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">१ मिनिटापूर्वी</item>
+        <item quantity="other">%d मिनिटांपूर्वी</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d सेकंद</item>
+        <item quantity="other">%d सेकंद</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s दिवस</item>
+        <item quantity="other">%s दिवस</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s तास</item>
+        <item quantity="other">%1$s तास</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s तास</item>
+        <item quantity="other">%1$s तास</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d तास</item>
+        <item quantity="other">%1$d तास</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s मिनिट</item>
+        <item quantity="other">%1$s मिनिटे</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s मिनिट</item>
+        <item quantity="other">%1$s मिनिटे</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d मिनिट</item>
+        <item quantity="other">%1$d मिनिटे</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">स्नूझचे मध्यंतर %d मिनिट बदलले</item>
+        <item quantity="other">स्नूझचे मध्यंतर %d मिनिट बदलले</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">%1$s वेळा वाजेल</item>
+        <item quantity="other">%1$s वेळा वाजेल</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">प्रत्येक %1$s मिनिटाला</item>
+        <item quantity="other">प्रत्येक %1$s मिनिटांनी</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">प्रत्येक %1$d मिनिटाने</item>
+        <item quantity="other">प्रत्येक %1$d मिनिटांनी</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">वाजला %1$d वेळा</item>
+        <item quantity="other">वाजला %1$d वेळा</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">%d मिनिटासाठी स्नूझ करा</item>
+        <item quantity="other">%d मिनिटांसाठी स्नूझ करा</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">स्टॉपवॉच %s दिवस चालत आहे. पाहण्यासाठी टॅप करा.</item>
+        <item quantity="other">स्टॉपवॉच %s दिवस चालत आहे. पाहण्यासाठी टॅप करा.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">स्टॉपवॉच %s तास चालत आहे. पाहण्यासाठी टॅप करा.</item>
+        <item quantity="other">स्टॉपवॉच %s तास चालत आहे. पाहण्यासाठी टॅप करा.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d तास </item>
+        <item quantity="other">%1$d तास </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d मिनिट </item>
+        <item quantity="other">%1$d मिनिटे </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d सेकंद</item>
+        <item quantity="other">%1$d सेकंद</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s तास</item>
+        <item quantity="other">+%s तास</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s तास</item>
+        <item quantity="other">+%1$s तास</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s तास</item>
+        <item quantity="other">-%s तास</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s तास</item>
+        <item quantity="other">-%1$s तास</item>
+    </plurals>
+</resources>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<resources>
+
+    <!--Pop-up window/miuix part-->
+    <string name="miuix_appcompat_action_mode_select_all">Select all</string>
+    <string name="miuix_appcompat_cancel_description">Cancel</string>
+    <string name="miuix_appcompat_confirm_description">OK</string>
+    <string name="miuix_appcompat_select_all_description">Select all</string>
+    <string name="miuix_appcompat_deselect_all_description">Deselect all</string>
+    <string name="miuix_appcompat_delete_description">Delete</string>
+    <string name="miuix_appcompat_search_action_mode_cancel">Cancel</string>
+    <string name="miuix_appcompat_search_input_description">Search</string>
+    <string name="miuix_appcompat_actionbar_immersion_button_more_description">More</string>
+    <string name="miuix_appcompat_action_mode_inverse">Deselect all</string>
+    <!--HyperCeiler Settings/About Page-->
+    <string name="tip">Tip</string>
+    <string name="root">Some features aren\'t available without Root/Su permission</string>
+    <string name="soft_reboot">Reboot </string>
+    <string name="restart_app_desc">Are you sure you want to restart now %1$s?</string>
+    <string name="hyperceiler_restart_quick">Quickly restart apps</string>
+    <string name="hook_failed">HyperCeiler isn\'t activated yet. Please check if LSPosed is enabled and if allow HyperCeiler to start automatically. If so, please restart or re-optimize the module.</string>
+    <string name="kill_failed">Failed to end process. Please check if HyperCeiler has been granted Root/Su permissions.</string>
+    <string name="start_failed">Failed to start activity. Please check if HyperCeiler has been granted Root/Su permissions.</string>
+    <string name="pid_failed">The target app isn\'t running and doesn\'t need to be restarted.</string>
+    <string name="reboot_failed">Reboot failed. Please check if HyperCeiler has been granted Root/Su permission.</string>
+    <string name="experimental_features">Experimental features</string>
+    <!--HyperCeiler Tips-->
+    <string name="warn">Attention</string>
+    <string name="module_title_1">Basic message</string>
+    <string name="module_title_2">Stack message</string>
+    <string name="app_error_desc">HyperCeiler was unexpectedly closed. To help us fix this, provide the information below:\n\nPress and hold any message to copy everything.</string>
+    <string name="safe_mode_history">View exception records</string>
+    <string name="safe_mode_cancel">Disable Safe mode</string>
+    <string name="safe_mode_ok">Cancel</string>
+    <string name="safe_mode_later_title">Tip</string>
+    <string name="safe_mode_recorder_title">Exception records</string>
+    <string name="safe_mode_recorder_file">File</string>
+    <string name="safe_mode_recorder_class">Class</string>
+    <string name="safe_mode_recorder_method">Method</string>
+    <string name="safe_mode_recorder_line">Line</string>
+    <string name="safe_mode_recorder_msg">Exception message</string>
+    <string name="safe_mode_recorder_st">Stack trace</string>
+    <string name="error_message">Exception message</string>
+    <string name="error_type">Exception type</string>
+    <string name="error_file_name">File name</string>
+    <string name="error_time">Record time</string>
+    <string name="error_version_name">Version name</string>
+    <string name="error_git_hash">Git hash</string>
+    <string name="error_build_time">Build time</string>
+    <string name="tip_default">Tip: Here is the default tip. If you can see me, it means that there\'s a problem with HyperCeiler. Please report it to the developer in a timely and effective manner.</string>
+    <string name="headtip_tip_auto_safe_mode">Safe mode can unhook some apps in time when they crash multiple times to ensure security. This feature requires the System Framework hook scope to run. We strongly recommend checking the System Framework scope to turn on Safe mode.</string>
+    <string name="happy_birthday_hyperceiler">Today is HyperCeiler\'s birthday!\nThank you for your support over the past year, and let\'s continue to work together this year!</string>
+    <string name="headtip_tip_fuck_coolapk">Today in history: Sevtinge delivered an important speech on July 14, 2022.</string>
+    <string name="headtip_notice_dead_logger_errcode">The current device log service is abnormal and HyperCeiler features will be limited. Please restore the log service so that it can run normally.\nError code: %1$s</string>
+    <string name="headtip_notice_dead_logger">The current device log service is abnormal and HyperCeiler features will be limited. Please restore the log service so that it can run normally.</string>
+    <string name="unsupported_system_func">This feature isn\'t supported in the current system version</string>
+    <string name="supported_system_func">This feature is officially supported in the current system version</string>
+    <string name="unsupported_app_version_func">The current app version doesn\'t support this feature</string>
+    <string name="supported_app_version_func">The current app version supports this feature</string>
+    <string name="app_version_unavailable_warning_banner">The app version couldn\'t be read. To ensure Hook safety, all features for this app have been disabled.</string>
+    <string name="feature_doing_func">The current feature is under development, stay tuned.</string>
+    <string name="search_result_not_available">This feature may not be supported on this device or is hidden under some options</string>
+    <!--System UI-->
+    <string name="system_ui">System UI</string>
+    <!--System launcher-->
+    <string name="mihome">System launcher</string>
+    <!--Settings-->
+    <string name="system_settings">Settings</string>
+    <!--Security/Tablet security center-->
+    <string name="security_center_hyperos">Security</string>
+    <!--Other-->
+    <string name="exit">Exit</string>
+    <string name="ignore">Ignore</string>
+    <string name="disable_suggest">Disable suggest</string>
+    <string name="enable_suggest">Enable suggest</string>
+    <string name="search_apps_hint">Search %d apps</string>
+    <string name="load_apps_failed">Failed to load application list</string>
+    <string name="unsupported_func_tips">The current target scope source may not be official Xiaomi. For security reasons, all functions of this scope have been disabled. Please try switching to an app package released by official Xiaomi, or go to "HyperCeiler Settings - Developer options - Debug mode" to specify the mounted version and try again.</string>
+    <string name="debug_mode_running">The current target scope is in debug mode. If not necessary, please go and turn it off.\nCurrent app version: %1$s\nSelected target version: %2$s\nSuccessfully hooked: %3$s</string>
+    <string name="debug_mode_switch">Debug version</string>
+
+    <!--AICR-->
+    <string name="aicr_modify_browser_copy">Change the browser used for direct copy</string>
+    <string name="aicr_preferred_browser">Preferred browser</string>
+    <string name="aicr_default_browser">Default browser</string>
+
+</resources>

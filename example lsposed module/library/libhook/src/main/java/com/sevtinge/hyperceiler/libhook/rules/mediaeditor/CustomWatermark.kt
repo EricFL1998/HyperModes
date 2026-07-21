@@ -1,0 +1,98 @@
+/*
+  * This file is part of HyperCeiler.
+
+  * HyperCeiler is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU Affero General Public License as
+  * published by the Free Software Foundation, either version 3 of the
+  * License.
+
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU Affero General Public License for more details.
+
+  * You should have received a copy of the GNU Affero General Public License
+  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  * Copyright (C) 2023-2026 HyperCeiler Contributions
+*/
+package com.sevtinge.hyperceiler.libhook.rules.mediaeditor
+
+import com.sevtinge.hyperceiler.common.utils.PrefsBridge
+import com.sevtinge.hyperceiler.libhook.base.BaseHook
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.createHook
+import org.luckypray.dexkit.query.enums.StringMatchType
+import java.lang.reflect.Method
+
+object CustomWatermark : BaseHook() {
+    override fun useDexKit() = true
+
+    override fun initDexKit(): Boolean {
+        search
+        searchNew
+        return true
+    }
+    private val name by lazy {
+        PrefsBridge.getString("mediaeditor_custom_watermark", "")
+    }
+
+    // by StarVoyager
+    private val search by lazy<Method> {
+        requiredMember("CustomWatermark") {
+            it.findMethod {
+                matcher {
+                    addUsingString("K30 Pro Zoom E", StringMatchType.Equals)
+                    // modifiers = Modifier.FINAL // 1.6.5.10.2 改成了 STATIC，所以寄了
+                    returnType = "java.lang.String"
+                    // paramCount = 2 // 2.0.9.0.6 多了一个 boolean 参数
+                }
+            }.single()
+        }
+    }
+
+    private val searchNew by lazy<Method> {
+        // 2.2.0.1.6 开始混淆类名和字符串
+        requiredMember("CustomWatermarkNew") {
+            it.findClass {
+                matcher {
+                    addUsingString("check geocode selectable", StringMatchType.Contains)
+                }
+            }.findMethod {
+                matcher {
+                    addInvoke("Ljava/lang/String;->hashCode()I")
+                    returnType = "java.lang.String"
+                    paramCount = 3
+                }
+            }.single()
+        }
+    }
+
+    override fun init() {
+        runCatching {
+            search.createHook {
+                returnConstant(name)
+            }
+        }.onFailure {
+            searchNew.createHook {
+                returnConstant(name)
+            }
+        }
+
+        /*SystemProperties.findAllMethods { paramCount(2); parameterTypes(String::class.java, String::class.java); }.createHooks {
+                before {
+                    if (it.args[0] == "ro.product.marketname") {
+                        it.args[1] = name
+                    }
+                }
+            }
+
+        SystemProperties.findAllMethods { name("get"); parameterTypes(String::class.java) }.createHooks {
+                before {
+                    if (it.args[0] == "ro.product.marketname") {
+                        it.result = name
+                    }
+                }
+            }*/
+    }
+}
+

@@ -1,0 +1,830 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:versionCode="1305004100"
+    android:versionName="17.41.0"
+    android:compileSdkVersion="35"
+    android:compileSdkVersionCodename="15"
+    package="com.android.deskclock"
+    platformBuildVersionCode="35"
+    platformBuildVersionName="15">
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="35"/>
+    <original-package android:name="com.android.alarmclock"/>
+    <original-package android:name="com.android.deskclock"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
+    <uses-permission android:name="android.permission.DEVICE_POWER"/>
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"/>
+    <uses-permission android:name="android.permission.STATUS_BAR"/>
+    <uses-permission android:name="android.permission.UPDATE_DEVICE_STATS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_CACHE_FILESYSTEM"/>
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="com.miui.permission.MANAGE_BOOT_TIME"/>
+    <uses-permission android:name="miui.permission.BLE_IMMEDIATE_ALERT"/>
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
+    <uses-permission android:name="miui.permission.USE_INTERNAL_GENERAL_API"/>
+    <uses-permission android:name="android.permission.MANAGE_USERS"/>
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS_FULL"/>
+    <uses-permission android:name="android.permission.ACCESS_THEME"/>
+    <uses-permission android:name="com.miui.weather2.permission.WRITE_DB"/>
+    <uses-permission android:name="com.miui.securitycenter.permission.PERM_USE_INFO"/>
+    <uses-permission android:name="com.miui.powerkeeper.permission.REQUEST_WAKE"/>
+    <uses-permission android:name="miui.permission.powerkeeper.HIDDEN_MODE_PROVIDER"/>
+    <uses-permission android:name="com.miui.securitycenter.permission.SYSTEM_PERMISSION_DECLARE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="com.mi.health.permission.DEFAULT_READ_DATA"/>
+    <uses-permission android:name="com.mi.health.permission.DEFAULT_WRITE_DATA"/>
+    <uses-permission android:name="android.permission.STATUS_BAR_SERVICE"/>
+    <uses-permission android:name="com.xiaomi.wearable.permission.CONSOLE_ALARM_RECEIVE"/>
+    <uses-permission android:name="com.mi.fitness.permission.CONSOLE_ALARM_RECEIVE"/>
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission android:name="com.huaqin.circleflash.permission.CIRCLE_FLASH"/>
+    <uses-permission android:name="android.permission.LAUNCH_MULTI_PANE_SETTINGS_DEEP_LINK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"/>
+    <uses-permission android:name="com.miui.permission.ACCESS_SET_LIGHTS"/>
+    <permission
+        android:name="miui.permission.ACCESS_ALARM_PROVIDER"
+        android:protectionLevel="signatureOrSystem"/>
+    <permission
+        android:name="miui.permission.ALARM_RINGTONE_PICKER"
+        android:protectionLevel="signatureOrSystem"/>
+    <permission
+        android:name="miui.permission.ACCESS_ALARM_RECEIVER"
+        android:protectionLevel="signatureOrSystem"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-permission android:name="com.xiaomi.market.sdk.UPDATE"/>
+    <uses-permission android:name="miui.permission.ALARM_RINGTONE_PICKER"/>
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+    <uses-permission android:name="android.permission.MANAGE_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON"/>
+    <uses-permission android:name="com.xiaomi.mihomemanager.permission.receiveBroadcast"/>
+    <uses-permission android:name="android.permission.START_ACTIVITIES_FROM_BACKGROUND"/>
+    <queries>
+        <package android:name="com.miui.weather2"/>
+        <package android:name="com.miui.player"/>
+        <package android:name="com.xiaomi.smarthome"/>
+        <package android:name="com.lbe.security.miui"/>
+        <package android:name="com.android.thememanager"/>
+        <package android:name="com.mi.health"/>
+        <package android:name="com.miui.voiceassist"/>
+        <package android:name="com.xiaomi.wearable"/>
+        <package android:name="com.miui.rom"/>
+        <package android:name="com.huaqin.circleflash"/>
+    </queries>
+    <meta-data
+        android:name="miui.focusNotificationVersion"
+        android:value="1"/>
+    <uses-permission android:name="android.permission.SET_WALLPAPER"/>
+    <permission
+        android:name="com.android.deskclock.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature"/>
+    <uses-permission android:name="com.android.deskclock.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
+    <uses-permission android:name="com.miui.bugreport.permission.DUMP_CACHED_LOG"/>
+    <application
+        android:label="@string/app_label"
+        android:icon="@drawable/clock_icon"
+        android:name="com.android.deskclock.DeskClockApp"
+        android:backupAgent="com.android.deskclock.addition.backup.DeskClockBackupAgent"
+        android:allowBackup="true"
+        android:uiOptions="splitActionBarWhenNarrow"
+        android:supportsRtl="true"
+        android:extractNativeLibs="true"
+        android:directBootAware="true"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        android:requestLegacyExternalStorage="true">
+        <uses-library android:name="gson.jar"/>
+        <uses-library
+            android:name="com.miui.system"
+            android:required="false"/>
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="2.2"/>
+        <meta-data
+            android:name="com.android.deskclock.voiceclock"
+            android:value="true"/>
+        <meta-data
+            android:name="support_xiao_ai_ringtone"
+            android:value="true"/>
+        <meta-data
+            android:name="support_xiao_ai_close_alarm"
+            android:value="true"/>
+        <meta-data
+            android:name="support_xiao_ai_close_timer"
+            android:value="true"/>
+        <meta-data
+            android:name="support_tiny_screen_ringtone_picker"
+            android:value="1"/>
+        <meta-data
+            android:name="support_xiao_ai_update_ringtone"
+            android:value="true"/>
+        <meta-data
+            android:name="required_permissions"
+            android:value="@string/required_permissions"/>
+        <meta-data
+            android:name="com.android.thememanager.PRIV_PATH_RES"
+            android:value="true"/>
+        <meta-data
+            android:name="miui.supportAppContinuity"
+            android:value="true"/>
+        <meta-data
+            android:name="miui.dynamic_dpi_relaunch"
+            android:value="true"/>
+        <meta-data
+            android:name="miui.screenOrientation"
+            android:value="1.unspecified,2.portrait,3.unspecified"/>
+        <meta-data
+            android:name="app_description_title"
+            android:resource="@string/xiaomi_deskclock_uninstall_description_title"/>
+        <meta-data
+            android:name="app_description_content"
+            android:resource="@string/xiaomi_deskclock_uninstall_description_content"/>
+        <meta-data
+            android:name="adapt_force_start"
+            android:value="true"/>
+        <meta-data
+            android:name="required_permissions"
+            android:value="@string/required_permissions"/>
+        <property
+            android:name="android.view.PROPERTY_MIUI_SMOOTH_CORNER_ENABLED"
+            android:value="true"/>
+        <property
+            android:name="miui.continuity.policy"
+            android:value="5"/>
+        <meta-data
+            android:name="miui.supportFlipFullScreen"
+            android:value="1"/>
+        <meta-data
+            android:name="com.hyperos.AI_ACTION_DESCRIPTION"
+            android:resource="@raw/z_ddf_provider"/>
+        <meta-data
+            android:name="miui_keyguard_shortcuts"
+            android:resource="@xml/miui_keyguard_shortcuts"/>
+        <meta-data
+            android:name="com.xiaomi.xms.APP_ID"
+            android:value="2882303761517449452"/>
+        <meta-data
+            android:name="com.xiaomi.xms.BUILD_TYPE_DEBUG"
+            android:value="false"/>
+        <activity
+            android:theme="@style/MainActivityTheme"
+            android:label="@string/app_label"
+            android:name="com.android.deskclock.DeskClockTabActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"
+            android:hardwareAccelerated="@bool/config_hardwareAccelerated">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data
+                    android:scheme="deskclock"
+                    android:host="deskclock.android.com"
+                    android:path="/main"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="mi.quicksearch.intent.action.RETRIEVE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.android.deskclock.REQUEST_NET_PERMISSION"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <meta-data
+                android:name="mi.quicksearch.hints"
+                android:resource="@xml/mi_quicksearch_hints"/>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts"/>
+        </activity>
+        <activity-alias
+            android:name="com.android.deskclock.AlarmClock"
+            android:exported="true"
+            android:targetActivity="com.android.deskclock.DeskClockTabActivity"/>
+        <activity-alias
+            android:name="com.android.alarmclock.AlarmClock"
+            android:exported="true"
+            android:targetActivity="com.android.deskclock.DeskClockTabActivity"/>
+        <activity-alias
+            android:name="com.android.deskclock.MyAiActionActivity"
+            android:exported="true"
+            android:authorities="com.android.deskclock.MyAiActionActivity"
+            android:targetActivity="com.android.deskclock.DeskClockTabActivity">
+            <meta-data
+                android:name="com.hyperos.AI_ACTION_PROPERTY"
+                android:resource="@xml/aiaction_data_activity"/>
+            <intent-filter>
+                <action android:name="hyperos.action.AIACTION_ACTIVITY"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity-alias>
+        <activity
+            android:theme="@style/Theme.NoDisplay"
+            android:name="com.android.deskclock.ShortcutTrampolineActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="com.android.deskclock.shortcut.NEW_ALARM"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.android.deskclock.shortcut.START_TIMER"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.android.deskclock.shortcut.STOP_WATCH"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/TimezoneSearchBSTheme"
+            android:label=""
+            android:name="com.android.deskclock.worldclock.TimezoneSearchBSActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"
+            android:windowSoftInputMode="adjustNothing|stateVisible"/>
+        <activity
+            android:theme="@style/TimezoneSearchThemeForWidget"
+            android:label="@string/worldclock_search_city"
+            android:name="com.android.deskclock.worldclock.TimezoneSearchActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"
+            android:windowSoftInputMode="adjustNothing|stateVisible">
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data
+                    android:scheme="deskclock"
+                    android:host="details"
+                    android:path="/search"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/TimezoneSearchEditThemeForWeight"
+            android:label="@string/worldclock_edit_label"
+            android:name="com.android.deskclock.worldclock.WorldClockEditActivity"
+            android:exported="true"
+            android:launchMode="singleInstance"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.EDIT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data
+                    android:scheme="deskclock"
+                    android:host="details"
+                    android:path="/edit"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.android.deskclock.CITIES_EDIT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/more_settings"
+            android:name="com.android.deskclock.settings.SettingsActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data
+                    android:scheme="deskclock"
+                    android:host="deskclock.android.com"
+                    android:path="/main/SettingsActivity"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/more_alert_setting"
+            android:name="com.android.deskclock.settings.AlarmSettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"/>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/privacy_settings_title"
+            android:name="com.android.deskclock.settings.PrivacySettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"/>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/permission_desc"
+            android:name="com.android.deskclock.settings.PermissionDescActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"/>
+        <activity
+            android:theme="@style/BaseTheme"
+            android:name="com.android.deskclock.addition.monitor.MonitorTestActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"/>
+        <activity
+            android:theme="@style/BaseTheme"
+            android:name="com.android.deskclock.addition.monitor.TestActivity"
+            android:screenOrientation="portrait"/>
+        <activity
+            android:theme="@style/AlarmAlertFullScreenTheme"
+            android:name="com.android.deskclock.alarm.alert.AlarmAlertFullScreenActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"
+            android:resizeableActivity="false"
+            android:directBootAware="true"
+            android:maxAspectRatio="2.4">
+            <property
+                android:name="miui.window.DOT_ENABLED"
+                android:value="false"/>
+            <meta-data
+                android:name="miui.dynamic_dpi_relaunch"
+                android:value="false"/>
+            <meta-data
+                android:name="miui.supportFlipFullScreen"
+                android:value="0"/>
+        </activity>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/life_post_setting"
+            android:name="com.android.deskclock.alarm.lifepost.LifePostSettingActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data
+                    android:scheme="deskclock"
+                    android:host="deskclock.android.com"
+                    android:path="/main/LifePostSettingActivity"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/Theme.NoDisplay"
+            android:name="com.android.deskclock.HandleSetAlarmActivity"
+            android:permission="com.android.alarm.permission.SET_ALARM"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="miui.intent.action.DISMISS_TIMER"/>
+                <action android:name="android.intent.action.SET_ALARM"/>
+                <action android:name="android.intent.action.SHOW_ALARMS"/>
+                <action android:name="android.intent.action.SET_TIMER"/>
+                <action android:name="android.intent.action.SHOW_TIMERS"/>
+                <action android:name="android.intent.action.DISMISS_ALARM"/>
+                <action android:name="android.intent.action.SNOOZE_ALARM"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.VOICE"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/Theme.NoDisplay"
+            android:name="com.android.deskclock.HandleActivityIntent"
+            android:permission="com.android.alarm.permission.SET_ALARM"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="com.android.deskclock.BEDTIME_MANAGE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:label="@string/alarm_ringtone_picker"
+            android:name="com.android.deskclock.settings.AlarmRingtonePickerActivity"
+            android:permission="miui.permission.ALARM_RINGTONE_PICKER"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden">
+            <property
+                android:name="miui.continuity.policy"
+                android:value="4"/>
+            <intent-filter>
+                <action android:name="miui.intent.action.ALARM_RINGTONE_PICKER"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:theme="@style/OrdinaryTheme"
+            android:label="@string/bedtime"
+            android:name="com.android.deskclock.alarm.bedtime.BedtimeManageActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden">
+            <property
+                android:name="miui.continuity.policy"
+                android:value="4"/>
+        </activity>
+        <activity
+            android:theme="@style/BedtimeGuideTheme"
+            android:label=""
+            android:name="com.android.deskclock.alarm.bedtime.BedtimeGuideActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"/>
+        <activity
+            android:theme="@style/PreferenceTheme"
+            android:label="@string/bedtime_settings"
+            android:name="com.android.deskclock.alarm.bedtime.BedtimeSettingsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout|orientation|keyboardHidden"/>
+        <activity
+            android:theme="@style/OrdinaryTheme"
+            android:name="com.android.deskclock.alarm.shiftalarm.ShiftAlarmEditEmptyActivity"
+            android:exported="false">
+            <property
+                android:name="miui.continuity.policy"
+                android:value="4"/>
+        </activity>
+        <service
+            android:name="com.android.deskclock.alarm.alert.AlarmService"
+            android:exported="false"
+            android:description="@string/alarm_klaxon_service_desc"
+            android:directBootAware="true"
+            android:foregroundServiceType="systemExempted">
+            <intent-filter>
+                <action android:name="com.android.deskclock.ALARM_ALERT"/>
+            </intent-filter>
+        </service>
+        <service
+            android:name="com.android.deskclock.alarm.lifepost.RecommendIntentService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="dataSync"/>
+        <service
+            android:name="com.android.deskclock.settings.RingtonePlayService"
+            android:exported="false"
+            android:directBootAware="true"/>
+        <service
+            android:name="com.android.deskclock.addition.resource.ResourceLoadService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="dataSync"/>
+        <service
+            android:name="com.android.deskclock.addition.monitor.MonitorJobScheduler"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false"
+            android:directBootAware="true"/>
+        <service
+            android:name="com.android.deskclock.addition.backup.ClockBackupService"
+            android:permission="com.xiaomi.permission.CLOUD_MANAGER"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="miui.action.CLOUD_BACKUP_SETTINGS"/>
+                <action android:name="miui.action.CLOUD_RESTORE_SETTINGS"/>
+            </intent-filter>
+        </service>
+        <service
+            android:name="com.android.deskclock.KeepLiveService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="systemExempted"/>
+        <service
+            android:name="com.android.deskclock.timer.TimerService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="systemExempted"/>
+        <service
+            android:name="com.android.deskclock.stopwatch.StopWatchService"
+            android:exported="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="systemExempted"/>
+        <service
+            android:name="com.android.deskclock.JobSchedulerService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false"
+            android:directBootAware="true"/>
+        <service
+            android:name="miuix.appcompat.app.floatingactivity.multiapp.FloatingService"
+            android:exported="true"
+            android:process=":remote"/>
+        <receiver
+            android:name="com.android.deskclock.AlarmReceiver"
+            android:permission="miui.permission.ACCESS_ALARM_RECEIVER"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.android.deskclock.ALARM_ARRIVING"/>
+                <action android:name="com.android.deskclock.ALARM_ARRIVING_TRANSPARENT"/>
+                <action android:name="com.android.deskclock.ALARM_DATA_PREPARE"/>
+                <action android:name="com.android.deskclock.SLEEP_ALARM_NOTIFICATION"/>
+                <action android:name="com.android.deskclock.ENTER_ZENMODE"/>
+                <action android:name="com.android.deskclock.REACH_WAKE_TIME"/>
+                <action android:name="com.android.deskclock.XIAOAI_RINGTONE_QUERY_ACTION"/>
+                <action android:name="com.android.deskclock.ALARM_ARRIVING_TRANSPARENT_FOR_XIAOAI"/>
+                <action android:name="com.android.deskclock.HANDLE_NOT_SURE_ALERT"/>
+                <action android:name="action.alarm_cancel"/>
+                <action android:name="action.snooze_cancel"/>
+                <action android:name="action.alarm_cancel_sub_back_screen"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.android.deskclock.AlarmInitReceiver"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter android:priority="@integer/max_priority">
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+                <action android:name="miui.intent.action.ALARM_CHANGED"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.android.deskclock.AlarmBootInitReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter android:priority="@integer/max_priority">
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+                <action android:name="miui.action.WAKE_CLOCK"/>
+                <action android:name="miui.action.LOCKED_WAKE_CLOCK"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.miui.voiceassist.mvs.client.MvsClientReceiver"
+            android:permission="com.miui.voiceassist.MVS_BROADCAST"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.miui.voiceassist.mvs.client.ACTION_RESGISTER_MVS"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.android.deskclock.MiShowReceiver"
+            android:permission="com.xiaomi.mihomemanager.permission.receiveBroadcast"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.xiaomi.mihomemanager.getPresetData"/>
+                <action android:name="com.xiaomi.mihomemanager.resetAppDataOrSetting"/>
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name="com.android.deskclock.AlarmProvider"
+            android:permission="miui.permission.ACCESS_ALARM_PROVIDER"
+            android:exported="true"
+            android:authorities="com.android.deskclock"
+            android:directBootAware="true"/>
+        <provider
+            android:name="com.android.deskclock.alarm.bedtime.BedtimeProvider"
+            android:exported="true"
+            android:authorities="com.android.deskclock.bedtimeProvider"
+            android:directBootAware="true"/>
+        <provider
+            android:name="com.android.deskclock.addition.AdditionProvider"
+            android:exported="true"
+            android:authorities="com.android.deskclock.additionProvider"
+            android:directBootAware="true"/>
+        <provider
+            android:name="com.android.deskclock.alarm.lifepost.model.LifePostProvider"
+            android:exported="false"
+            android:authorities="com.android.deskclock.lifepost"
+            android:directBootAware="true"/>
+        <provider
+            android:name="com.android.deskclock.settings.ClockSettingSearchProvider"
+            android:exported="true"
+            android:multiprocess="false"
+            android:authorities="com.android.deskclock.settings.ClockSettingSearchProvider"
+            android:grantUriPermissions="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="miui.intent.action.SETTINGS_SEARCH_PROVIDER"/>
+            </intent-filter>
+        </provider>
+        <provider
+            android:name="com.android.deskclock.MyAiActionProvider"
+            android:exported="true"
+            android:authorities="com.android.deskclock.MyAiActionProvider">
+            <meta-data
+                android:name="com.hyperos.AI_ACTION_PROPERTY"
+                android:resource="@xml/aiaction_data_provider"/>
+            <intent-filter>
+                <action android:name="hyperos.action.AIACTION_PROVIDER"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </provider>
+        <property
+            android:name="android.view.PROPERTY_MIUI_LARGE_FONT_ENABLED"
+            android:value="true"/>
+        <meta-data
+            android:name="navigator"
+            android:value="1"/>
+        <meta-data
+            android:name="os_private_label"
+            android:value="PRIVATE_OS030"/>
+        <meta-data
+            android:name="miuixpreference"
+            android:value="3.1"/>
+        <meta-data
+            android:name="recyclerview.layoutmanager"
+            android:value="2"/>
+        <meta-data
+            android:name="appcompat"
+            android:value="3.1"/>
+        <meta-data
+            android:name="flexible"
+            android:value="1"/>
+        <meta-data
+            android:name="miuixbasewidget"
+            android:value="1"/>
+        <meta-data
+            android:name="bottomsheet"
+            android:value="3"/>
+        <meta-data
+            android:name="miuixstretchablewidget"
+            android:value="1"/>
+        <meta-data
+            android:name="slidingwidget"
+            android:value="1"/>
+        <meta-data
+            android:name="popupwidget"
+            android:value="1"/>
+        <meta-data
+            android:name="pickerwidget"
+            android:value="1"/>
+        <meta-data
+            android:name="androidbasewidget"
+            android:value="1"/>
+        <meta-data
+            android:name="viewpager2"
+            android:value="2"/>
+        <meta-data
+            android:name="transition"
+            android:value="1"/>
+        <meta-data
+            android:name="navigation"
+            android:value="1"/>
+        <meta-data
+            android:name="viewpager"
+            android:value="2"/>
+        <meta-data
+            android:name="nestedheader"
+            android:value="3.1"/>
+        <meta-data
+            android:name="pinyin"
+            android:value="1"/>
+        <meta-data
+            android:name="log"
+            android:value="1"/>
+        <meta-data
+            android:name="springback"
+            android:value="3.1"/>
+        <meta-data
+            android:name="recyclerview"
+            android:value="2"/>
+        <meta-data
+            android:name="nest"
+            android:value="2"/>
+        <meta-data
+            android:name="haptic"
+            android:value="1"/>
+        <meta-data
+            android:name="recyclerview_card"
+            android:value="1"/>
+        <meta-data
+            android:name="cardview"
+            android:value="1"/>
+        <meta-data
+            android:name="graphics"
+            android:value="2"/>
+        <meta-data
+            android:name="smooth"
+            android:value="1"/>
+        <meta-data
+            android:name="core"
+            android:value="2"/>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:exported="false"
+            android:authorities="com.android.deskclock.androidx-startup">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup"/>
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup"/>
+            <meta-data
+                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                android:value="androidx.startup"/>
+        </provider>
+        <meta-data
+            android:name="theme"
+            android:value="1"/>
+        <meta-data
+            android:name="recyclerview_animator"
+            android:value="2"/>
+        <meta-data
+            android:name="spring"
+            android:value="1"/>
+        <uses-library
+            android:name="androidx.window.extensions"
+            android:required="false"/>
+        <uses-library
+            android:name="androidx.window.sidecar"
+            android:required="false"/>
+        <meta-data
+            android:name="dynamicoverscroller"
+            android:value="2"/>
+        <meta-data
+            android:name="folme"
+            android:value="2"/>
+        <meta-data
+            android:name="com.miui.bugreport.DEFAULT_LOG_DIR"
+            android:resource="@xml/default_log_paths"/>
+        <provider
+            android:name="com.miui.bugreport.logprovider.DumpLogProvider"
+            android:permission="com.miui.bugreport.permission.DUMP_CACHED_LOG"
+            android:exported="true"
+            android:authorities="com.android.deskclock.provider.bugreport">
+            <intent-filter>
+                <action android:name="com.miui.bugreport.intent.ACTION_DUMP_CACHED_LOG"/>
+            </intent-filter>
+        </provider>
+        <receiver
+            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+            android:permission="android.permission.DUMP"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SKIP_FILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION"/>
+            </intent-filter>
+        </receiver>
+        <meta-data
+            android:name="animation"
+            android:value="1"/>
+        <service
+            android:name="com.xiaomi.smarthome.ClockService"
+            android:enabled="true"
+            android:exported="true"/>
+        <receiver
+            android:name="miui.settings.commonlib.ApplicationReceiverStub"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="miui.intent.action.RESTART_APP_STUB"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </receiver>
+        <meta-data
+            android:name="devicebaseinfo"
+            android:value="1"/>
+    </application>
+</manifest>

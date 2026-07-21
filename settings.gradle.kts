@@ -26,4 +26,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "HyperModes"
 include(":app")
- 
+includeBuild("miuix")

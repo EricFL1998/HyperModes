@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <CheckBoxPreference
+        android:title="@string/life_post_setting_open_title"
+        android:key="key_open_alarm_life_post"
+        android:defaultValue="true"/>
+    <CheckBoxPreference
+        android:title="@string/life_post_setting_open_listen_news_title"
+        android:key="key_open_alarm_life_post_news"
+        android:summary="@string/life_post_setting_open_listen_news_summary"
+        android:dependency="key_open_alarm_life_post"
+        android:defaultValue="true"/>
+</PreferenceScreen>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_columnWeight="1">
+    <FrameLayout
+        android:layout_gravity="center"
+        android:id="@+id/calendar_date_picker_child_container"
+        android:padding="@dimen/miuix_appcompat_calendar_grid_layout_child_padding"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <miuix.pickerwidget.widget.Calendar.CalendarSingleDateContainer
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:id="@+id/calendar_date_picker_single_date_container"
+            android:background="@drawable/miuix_appcompat_calendar_date_picker_children_bg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:id="@+id/calendar_date_picker_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.CalendarDatePicker.Date"/>
+            <TextView
+                android:id="@+id/calendar_date_picker_lunar_message"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.CalendarDatePicker.LunarMessage"/>
+        </miuix.pickerwidget.widget.Calendar.CalendarSingleDateContainer>
+    </FrameLayout>
+</FrameLayout>

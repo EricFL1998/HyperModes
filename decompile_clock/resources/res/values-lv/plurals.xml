@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="zero">Pirms 1 stundas</item>
+        <item quantity="one">Pirms 1 stundas</item>
+        <item quantity="other">Pirms 1 stundas</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="zero">Pirms %d stundām</item>
+        <item quantity="one">Pirms %d stundas</item>
+        <item quantity="other">Pirms %d stundām</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="zero">Pirms pusstundas</item>
+        <item quantity="one">Pirms pusstundas</item>
+        <item quantity="other">Pirms pusstundas</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="zero">Pēc %d stundām</item>
+        <item quantity="one">Pēc %d stundas</item>
+        <item quantity="other">Pēc %d stundām</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="zero">Pēc pusstundas</item>
+        <item quantity="one">Pēc pusstundas</item>
+        <item quantity="other">Pēc pusstundas</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="zero">Nekavējoties</item>
+        <item quantity="one">Nekavējoties</item>
+        <item quantity="other">Nekavējoties</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="zero">Pēc %d min</item>
+        <item quantity="one">Pēc %d min</item>
+        <item quantity="other">Pēc %d min</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="zero">Tikko</item>
+        <item quantity="one">Tikko</item>
+        <item quantity="other">Tikko</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="zero">Pirms %d min.</item>
+        <item quantity="one">Pirms %d min.</item>
+        <item quantity="other">Pirms %d min.</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="zero">Atlikts uz %d minūtēm.</item>
+        <item quantity="one">Atlikts uz %d minūti.</item>
+        <item quantity="other">Atlikts uz %d minūtēm.</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="zero">%s maiņas</item>
+        <item quantity="one">%s maiņa</item>
+        <item quantity="other">%s maiņas</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="zero">%d dienas</item>
+        <item quantity="one">%d diena</item>
+        <item quantity="other">%d dienas</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="zero">Pirms pusstundas</item>
+        <item quantity="one">Pirms pusstundas</item>
+        <item quantity="other">Pirms pusstundas</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="zero">%d stundas</item>
+        <item quantity="one">%d stunda</item>
+        <item quantity="other">%d stundas</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="zero">Pēc 1 stundas</item>
+        <item quantity="one">Pēc 1 stundas</item>
+        <item quantity="other">Pēc 1 stundas</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="zero">Pēc pusstundas</item>
+        <item quantity="one">Pēc pusstundas</item>
+        <item quantity="other">Pēc pusstundas</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="zero">Nekavējoties</item>
+        <item quantity="one">Nekavējoties</item>
+        <item quantity="other">Nekavējoties</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="zero">pēc %d minūtēm</item>
+        <item quantity="one">pēc 1 minūtes</item>
+        <item quantity="other">pēc %d minūtēm</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="zero">%s diena</item>
+        <item quantity="one">%s diena</item>
+        <item quantity="other">%s diena</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="zero">%s maiņas diena</item>
+        <item quantity="one">%s maiņas diena</item>
+        <item quantity="other">%s maiņas diena</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="zero">Tikko</item>
+        <item quantity="one">Tikko</item>
+        <item quantity="other">Tikko</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="zero">%d minūtes</item>
+        <item quantity="one">%d minūte</item>
+        <item quantity="other">%d minūtes</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="zero">Izvēlēti %d vienumi</item>
+        <item quantity="one">Izvēlēts %d vienums</item>
+        <item quantity="other">Izvēlēti %d vienumi</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="zero">%d jaunu paziņojumu</item>
+        <item quantity="one">%d jauns paziņojums</item>
+        <item quantity="other">%d jauni paziņojumi</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="zero">Pirms %d minūtēm</item>
+        <item quantity="one">Pirms 1 minūtes</item>
+        <item quantity="other">Pirms %d minūtēm</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="zero">%d sekundes</item>
+        <item quantity="one">%d sekunde</item>
+        <item quantity="other">%d sekundes</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="zero">%s dienas</item>
+        <item quantity="one">%s diena</item>
+        <item quantity="other">%s dienas</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="zero">%1$s stundas</item>
+        <item quantity="one">%1$s stundu</item>
+        <item quantity="other">%1$s stundas</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="zero">%1$s st</item>
+        <item quantity="one">%1$s st</item>
+        <item quantity="other">%1$s st</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="zero">%1$d stundas</item>
+        <item quantity="one">%1$d stunda</item>
+        <item quantity="other">%1$d stundas</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="zero">%1$s minūtes</item>
+        <item quantity="one">%1$s minūti</item>
+        <item quantity="other">%1$s minūtes</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="zero">%1$s min.</item>
+        <item quantity="one">%1$s min.</item>
+        <item quantity="other">%1$s min.</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="zero">%1$d minūtes</item>
+        <item quantity="one">%1$d minūte</item>
+        <item quantity="other">%1$d minūtes</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="zero">Mainīts atlikšanas intervāls uz %d minūtēm</item>
+        <item quantity="one">Mainīts atlikšanas intervāls uz %d minūti</item>
+        <item quantity="other">Mainīts atlikšanas intervāls uz %d minūtēm</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="zero">Skanēs %1$s reizes</item>
+        <item quantity="one">Skanēs %1$s reizi</item>
+        <item quantity="other">Skanēs %1$s reizes</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="zero">Katras %1$s min</item>
+        <item quantity="one">Katru %1$s min</item>
+        <item quantity="other">Katras %1$s min</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="zero">Katras %1$d min.</item>
+        <item quantity="one">Katru %1$d min.</item>
+        <item quantity="other">Katras %1$d min.</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="zero">Skanēs %1$d reizes</item>
+        <item quantity="one">Skanēs %1$d reizi</item>
+        <item quantity="other">Skanēs %1$d reizes</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="zero">Atlikt uz %d minūtēm</item>
+        <item quantity="one">Atlikt uz %d minūti</item>
+        <item quantity="other">Atlikt uz %d minūtēm</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="zero">Hronometrs darbojas %s dienas. Pieskarieties, lai skatītu.</item>
+        <item quantity="one">Hronometrs darbojas %s dienu. Pieskarieties, lai skatītu.</item>
+        <item quantity="other">Hronometrs darbojas %s dienas. Pieskarieties, lai skatītu.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="zero">Hronometrs darbojas %s stundas. Pieskarieties, lai skatītu.</item>
+        <item quantity="one">Hronometrs darbojas %s stundu. Pieskarieties, lai skatītu.</item>
+        <item quantity="other">Hronometrs darbojas %s stundas. Pieskarieties, lai skatītu.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="zero">%1$d stundas </item>
+        <item quantity="one">%1$d stunda </item>
+        <item quantity="other">%1$d stundas </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="zero">%1$d minūtes </item>
+        <item quantity="one">%1$d minūte </item>
+        <item quantity="other">%1$d minūtes </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="zero">%1$d sekundes</item>
+        <item quantity="one">%1$d sekunde</item>
+        <item quantity="other">%1$d sekundes</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="zero">+%s stundas</item>
+        <item quantity="one">+%s stunda</item>
+        <item quantity="other">+%s stundas</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="zero">+%1$s st.</item>
+        <item quantity="one">+%1$s st.</item>
+        <item quantity="other">+%1$s st.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="zero">-%s stundas</item>
+        <item quantity="one">-%s stunda</item>
+        <item quantity="other">-%s stundas</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="zero">-%1$s st.</item>
+        <item quantity="one">-%1$s st.</item>
+        <item quantity="other">-%1$s st.</item>
+    </plurals>
+</resources>

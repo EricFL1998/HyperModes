@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory>
+        <Preference android:title="Preference" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:title="SwitchPreference" />
+
+        <EditTextPreference
+            android:key="prefs_key_development_ui_test_edit_text"
+            android:title="EditTextPreference" />
+
+        <DropDownPreference
+            android:defaultValue="0"
+            android:title="DropDownPreference"
+            app:entries="@array/development_test"
+            app:entryValues="@array/development_test_value" />
+
+        <ColorPickerPreference
+            android:defaultValue="-1"
+            android:key="prefs_key_development_ui_test_color_picker"
+            android:persistent="false"
+            android:title="ColorPickerPreferencer" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="PreferenceCategory">
+        <com.sevtinge.hyperceiler.prefs.PreferenceHeader
+            android:icon="@drawable/ic_hyperceiler_settings_v140"
+            android:title="PreferenceHeader" />
+
+        <SeekBarPreference
+            android:defaultValue="50"
+            android:format="%d"
+            android:title="SeekBarPreference"
+            app:maxValue="100"
+            app:showSeekBarValue="true" />
+
+        <SeekBarPreferenceCompat
+            android:title="SeekBarPreferenceCompat"
+            android:key="prefs_key_development_ui_test_seekbar_compat"
+            app:defaultValue="50"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s"
+            app:maxValue="100"
+            app:stepValue="1" />
+
+    </PreferenceCategory>
+
+    <fan.preference.RadioButtonPreferenceCategory>
+        <fan.preference.RadioButtonPreference
+            android:persistent="false"
+            android:title="RadioButtonPreference" />
+
+        <fan.preference.RadioSetPreferenceCategory>
+            <fan.preference.RadioButtonPreference
+                android:persistent="false"
+                android:title="RadioButtonPreference2" />
+
+        </fan.preference.RadioSetPreferenceCategory>
+    </fan.preference.RadioButtonPreferenceCategory>
+
+</PreferenceScreen>

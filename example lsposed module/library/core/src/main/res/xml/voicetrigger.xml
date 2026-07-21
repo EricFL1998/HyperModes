@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/voicetrigger"
+    app:quick_restart="com.miui.voicetrigger">
+    <PreferenceCategory>
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_bypass_voicetrigger_udk_legalcheck"
+            android:title="@string/bypass_udk_word_legal_check_caption"
+            android:summary="@string/bypass_udk_word_legal_check_description"/>
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="70"
+            android:dependency="prefs_key_bypass_voicetrigger_udk_legalcheck"
+            android:key="prefs_key_voicetrigger_accuracy_percent"
+            android:title="@string/voicetrigger_accuracy_percent_caption"
+            app:format="%s %%"
+            app:defaultValueTitle="@string/array_default"
+            app:maxValue="100"
+            app:minValue="0"
+            app:stepValue="1"
+            android:summary="@string/voicetrigger_accuracy_percent_description"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>

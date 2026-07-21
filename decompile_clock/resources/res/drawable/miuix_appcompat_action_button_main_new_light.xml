@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android" android:variablePadding="true">
+    <item
+        android:state_pressed="true"
+        android:drawable="@drawable/miuix_appcompat_action_button_main_new_pressed_light"/>
+    <item
+        android:state_selected="true"
+        android:drawable="@drawable/miuix_appcompat_action_button_main_new_pressed_light"/>
+    <item android:drawable="@drawable/miuix_appcompat_action_button_main_new_normal_light"/>
+</selector>

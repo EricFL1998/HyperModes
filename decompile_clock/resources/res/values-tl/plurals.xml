@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="alarms_count">
+        <item quantity="one">%s shift</item>
+        <item quantity="other">%s shifts</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Day %s</item>
+        <item quantity="other">Day %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Shift day %s</item>
+        <item quantity="other">Shift day %s</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="one">%d bagong notification</item>
+        <item quantity="other">%d na bagong notification</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s day</item>
+        <item quantity="other">%s days</item>
+    </plurals>
+</resources>

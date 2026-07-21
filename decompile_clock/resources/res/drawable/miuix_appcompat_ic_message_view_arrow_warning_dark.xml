@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="@dimen/miuix_appcompat_message_view_icon_height"
+    android:width="@dimen/miuix_appcompat_message_view_icon_width"
+    android:viewportWidth="26"
+    android:viewportHeight="26">
+    <path
+        android:fillColor="@color/miuix_appcompat_message_view_text_color_dark"
+        android:pathData="M9.71632 7.42436C10.1394 7.00129 10.8253 7.00129 11.2484 7.42436L16.0354 12.2114C16.3151 12.491 16.4099 12.8855 16.3198 13.2431C16.2784 13.443 16.1802 13.6334 16.0251 13.7886L11.238 18.5756C10.815 18.9987 10.129 18.9987 9.70597 18.5756C9.2829 18.1525 9.2829 17.4666 9.70597 17.0435L13.7547 12.9948L9.71632 8.95642C9.29325 8.53335 9.29325 7.84742 9.71632 7.42436Z"
+        android:fillType="evenOdd"/>
+</vector>

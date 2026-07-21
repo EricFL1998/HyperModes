@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:gravity="center"
+        android:id="@android:id/background"
+        android:drawable="@drawable/miuix_appcompat_seekbar_progress_bg_custom_dark"/>
+    <item
+        android:gravity="center"
+        android:id="@android:id/progress">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/miuix_appcompat_progress_primary_colors_dark"/>
+            <corners android:radius="@dimen/miuix_appcompat_seekbar_progress_custom_bg_radius"/>
+        </shape>
+    </item>
+</layer-list>

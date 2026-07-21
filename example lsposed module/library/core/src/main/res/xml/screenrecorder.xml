@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/screenrecorder"
+    app:quick_restart="com.miui.screenrecorder">
+    <PreferenceCategory>
+
+        <SwitchPreference
+            android:title="@string/screen_recorder_config"
+            android:summary="@string/screen_recorder_config_desc"
+            android:key="prefs_key_screenrecorder_config"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/screen_recorder_more_volume"
+            android:summary="@string/screen_recorder_more_volume_desc"
+            android:key="prefs_key_screenrecorder_more_volume"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/screen_recorder_force_support_playback_capture"
+            android:summary="@string/screen_recorder_force_support_playback_capture_desc"
+            android:key="prefs_key_screenrecorder_force_support_playback_capture"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/save_to_screen_title"
+            android:summary="@string/screen_recorder_save_to_movies_desc"
+            android:key="prefs_key_screenrecorder_save_to_movies"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.miui.support.drawable.CardStateDrawable xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:activatedAlpha="0.12"
+    app:hoveredAlpha="0.08"
+    app:normalAlpha="0"
+    app:pressedAlpha="0.14"
+    app:tintColor="@color/miuix_recyclerview_card_tint_color_dark"/>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TextView
+        android:textSize="@dimen/bedtime_guide_primary_textsize"
+        android:textStyle="normal"
+        android:textColor="@color/bedtime_guide_title_color"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/welcome_title"
+        android:focusable="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/bedtime_guide_title_margin_top"
+        android:layout_marginBottom="@dimen/bedtime_guide_title_margin_bottom"
+        android:text="@string/bedtime_welcome"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginStart="@dimen/bedtime_guide_text_view_margin_space"
+        android:layout_marginEnd="@dimen/bedtime_guide_text_view_margin_space"/>
+    <TextView
+        android:textSize="@dimen/bedtime_guide_secondary_textsize"
+        android:textStyle="normal"
+        android:textColor="@color/bedtime_guide_title_color"
+        android:id="@+id/welcome_text"
+        android:focusable="true"
+        android:scrollbars="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/bedtime_welcome_desc"
+        android:fontFamily="sans-serif"
+        android:layout_marginStart="@dimen/bedtime_guide_text_view_margin_space"
+        android:layout_marginEnd="@dimen/bedtime_guide_text_view_margin_space"/>
+</LinearLayout>

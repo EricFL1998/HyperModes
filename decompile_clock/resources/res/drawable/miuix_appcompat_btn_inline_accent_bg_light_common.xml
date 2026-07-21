@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="?attr/colorSecondary"/>
+    <size android:height="@dimen/miuix_appcompat_button_inline_min_height"/>
+    <corners android:radius="@dimen/miuix_appcompat_button_inline_radius"/>
+    <padding
+        android:left="@dimen/miuix_appcompat_button_inline_content_safe_padding_horizontal"
+        android:top="@dimen/miuix_appcompat_button_inline_content_safe_padding_vertical"
+        android:right="@dimen/miuix_appcompat_button_inline_content_safe_padding_horizontal"
+        android:bottom="@dimen/miuix_appcompat_button_inline_content_safe_padding_vertical"/>
+</shape>

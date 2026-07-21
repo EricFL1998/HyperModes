@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/home_folder"
+    app:quick_restart="com.miui.home">
+    <PreferenceCategory android:title="@string/home_small_folder_title">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_small_folder_icon_bg"
+            android:title="@string/home_small_folder_icon_bg" />
+
+        <Preference
+            android:dependency="prefs_key_home_small_folder_icon_bg"
+            android:fragment="com.sevtinge.hyperceiler.sub.CustomBackgroundSettings"
+            android:key="prefs_key_home_small_folder_icon_bg_custom"
+            android:title="@string/home_small_folder_icon_bg_custom" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="56"
+            android:dependency="prefs_key_home_small_folder_icon_bg"
+            android:key="prefs_key_home_small_folder_icon_bg_size"
+            android:title="@string/home_small_folder_icon_bg_size"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="100"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/home_big_folder_title">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_big_folder_icon_bg_2x1"
+            android:title="@string/home_big_folder_icon_bg_2x1" />
+
+        <Preference
+            android:dependency="prefs_key_home_big_folder_icon_bg_2x1"
+            android:fragment="com.sevtinge.hyperceiler.sub.CustomBackgroundSettings"
+            android:key="prefs_key_home_big_folder_icon_bg_2x1_custom"
+            android:title="@string/home_big_folder_icon_bg_2x1_custom" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="145"
+            android:dependency="prefs_key_home_big_folder_icon_bg_2x1"
+            android:key="prefs_key_home_big_folder_icon_bg_width_2x1"
+            android:title="@string/home_big_folder_icon_bg_width_2x1"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="62"
+            android:dependency="prefs_key_home_big_folder_icon_bg_2x1"
+            android:key="prefs_key_home_big_folder_icon_bg_height_2x1"
+            android:title="@string/home_big_folder_icon_bg_height_2x1"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_big_folder_icon_bg_1x2"
+            android:title="@string/home_big_folder_icon_bg_1x2" />
+
+        <Preference
+            android:dependency="prefs_key_home_big_folder_icon_bg_1x2"
+            android:fragment="com.sevtinge.hyperceiler.sub.CustomBackgroundSettings"
+            android:key="prefs_key_home_big_folder_icon_bg_1x2_custom"
+            android:title="@string/home_big_folder_icon_bg_1x2_custom" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="62"
+            android:dependency="prefs_key_home_big_folder_icon_bg_1x2"
+            android:key="prefs_key_home_big_folder_icon_bg_width_1x2"
+            android:title="@string/home_big_folder_icon_bg_width_1x2"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="145"
+            android:dependency="prefs_key_home_big_folder_icon_bg_1x2"
+            android:key="prefs_key_home_big_folder_icon_bg_height_1x2"
+            android:title="@string/home_big_folder_icon_bg_height_1x2"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_big_folder_icon_bg"
+            android:title="@string/home_big_folder_icon_bg" />
+
+        <Preference
+            android:dependency="prefs_key_home_big_folder_icon_bg"
+            android:fragment="com.sevtinge.hyperceiler.sub.CustomBackgroundSettings"
+            android:key="prefs_key_home_big_folder_icon_bg_custom"
+            android:title="@string/home_big_folder_icon_bg_custom" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="145"
+            android:dependency="prefs_key_home_big_folder_icon_bg"
+            android:key="prefs_key_home_big_folder_icon_bg_width"
+            android:title="@string/home_big_folder_icon_bg_width"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="145"
+            android:dependency="prefs_key_home_big_folder_icon_bg"
+            android:key="prefs_key_home_big_folder_icon_bg_height"
+            android:title="@string/home_big_folder_icon_bg_height"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="200"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_big_folder_item_max_count"
+            android:title="@string/home_big_folder_item_max_count" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory>
+        <fan.preference.DropDownPreference
+            android:defaultValue="0"
+            android:key="prefs_key_home_folder_shade"
+            android:summary="@string/home_folder_shade_summary"
+            android:title="@string/home_folder_shade_title"
+            app:entries="@array/folder_shade"
+            app:entryValues="@array/folder_shade_value" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="0"
+            android:key="prefs_key_home_folder_shade_level"
+            android:title="@string/home_folder_shade_level_title"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s %%"
+            app:maxValue="100"
+            app:minValue="0"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_folder_animation"
+            android:title="@string/home_folder_anim_title" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="110"
+            android:dependency="prefs_key_home_folder_animation"
+            android:key="prefs_key_home_folder_anim_1"
+            android:title="@string/home_folder_anim_1"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s / 100 f"
+            app:maxValue="150"
+            app:minValue="50"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="30"
+            android:dependency="prefs_key_home_folder_animation"
+            android:key="prefs_key_home_folder_anim_2"
+            android:title="@string/home_folder_anim_2"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s / 30 f"
+            app:maxValue="60"
+            app:minValue="10"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="101"
+            android:dependency="prefs_key_home_folder_animation"
+            android:key="prefs_key_home_folder_anim_3"
+            android:title="@string/home_folder_anim_3"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s / 100 f"
+            app:maxValue="150"
+            app:minValue="50"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            app:defaultValue="24"
+            android:dependency="prefs_key_home_folder_animation"
+            android:key="prefs_key_home_folder_anim_4"
+            android:title="@string/home_folder_anim_4"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s / 30 f"
+            app:maxValue="60"
+            app:minValue="10"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_folder_auto_close"
+            android:summary="@string/home_auto_close_folder_summary"
+            android:title="@string/home_auto_close_folder_title" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_folder_blur"
+            android:title="@string/home_folder_blur_title" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_folder_recommend_apps_switch"
+            android:title="@string/home_folder_recommend_apps_switch" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_home_folder_unlock_blur_supported"
+            android:summary="@string/home_folder_unlock_blur_supported_summary"
+            android:title="@string/home_folder_unlock_blur_supported" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

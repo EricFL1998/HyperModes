@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.appcompat.app.AdaptRoundButtonDrawable xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:buttonCapsuleRadius="@dimen/miuix_appcompat_button_tiny_radius"
+    app:buttonRadius="@dimen/miuix_appcompat_button_tiny_radius"
+    app:miuix_useSmooth="true">
+    <child>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/miuix_appcompat_btn_bg_color_dark"/>
+            <size android:height="@dimen/miuix_appcompat_button_tiny_min_height"/>
+        </shape>
+    </child>
+</miuix.appcompat.app.AdaptRoundButtonDrawable>

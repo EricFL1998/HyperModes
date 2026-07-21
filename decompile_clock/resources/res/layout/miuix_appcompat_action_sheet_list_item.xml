@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:textSize="@dimen/miuix_appcompat_action_sheet_content_list_item_font_size"
+    android:textColor="?android:attr/textColorAlertDialogListItem"
+    android:gravity="center"
+    android:id="@android:id/text1"
+    android:background="?attr/colorSurfaceHigh"
+    android:paddingTop="@dimen/miuix_appcompat_action_sheet_content_list_item_safe_vertical_padding"
+    android:paddingBottom="@dimen/miuix_appcompat_action_sheet_content_list_item_safe_vertical_padding"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/miuix_appcompat_action_sheet_content_list_item_min_height"
+    android:singleLine="false"
+    android:fontFamily="@string/miuix_font_weight_headline1"
+    android:textDirection="locale"
+    android:paddingStart="@dimen/miuix_appcompat_action_sheet_content_list_item_horizontal_padding"
+    android:paddingEnd="@dimen/miuix_appcompat_action_sheet_content_list_item_horizontal_padding"/>

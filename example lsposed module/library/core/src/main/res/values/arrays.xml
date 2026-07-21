@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<resources>
+    <string-array name="restart_apps_name_hyperos">
+        <item>@string/system_ui</item>
+        <item>@string/mihome</item>
+        <item>@string/system_settings</item>
+        <item>@string/security_center_hyperos</item>
+        <!--<item>@string/personal_assistant</item>
+        <item>@string/notes</item>
+        <item>@string/powerkeeper</item>
+        <item>@string/joyose</item>
+        <item>@string/networkboost</item>-->
+    </string-array>
+
+    <string-array name="restart_apps_packagename">
+        <item>com.android.systemui</item>
+        <item>com.miui.home</item>
+        <item>com.android.settings</item>
+        <item>com.miui.securitycenter</item>
+        <!--<item>com.miui.personalassistant</item>
+        <item>com.miui.notes</item>
+        <item>com.miui.powerkeeper</item>
+        <item>com.xiaomi.joyose</item>
+        <item>com.xiaomi.NetworkBoost</item>-->
+    </string-array>
+
+    <string-array name="multi_action_title">
+        <item>@string/array_global_actions_none</item>
+        <item>@string/array_global_actions_notif</item>
+        <item>@string/array_global_actions_control_center</item>
+        <item>@string/array_global_actions_clear_memory</item>
+        <item>@string/array_global_actions_invert_colors</item>
+        <item>@string/array_global_actions_powermenu</item>
+        <item>@string/array_global_actions_lock</item>
+        <item>@string/array_global_actions_recents</item>
+        <item>@string/array_global_actions_home</item>
+        <item>@string/array_global_actions_screenshot</item>
+        <item>@string/array_global_actions_volume</item>
+        <item>@string/array_global_actions_super_xiaoai</item>
+        <item>@string/array_global_actions_super_xiaoai_circle_search</item>
+        <item>@string/array_global_actions_google_circle_to_search</item>
+        <item>@string/array_global_actions_google_voice_assistant</item>
+        <item>@string/array_global_actions_force_stop_current_app</item>
+        <item>@string/array_global_actions_launch</item>
+    </string-array>
+
+    <string-array name="multi_action_key">
+        <item>prefs_key_no_action</item>
+        <item>prefs_key_open_notification_center</item>
+        <item>prefs_key_open_control_center</item>
+        <item>prefs_key_clear_memory</item>
+        <item>prefs_key_invert_colors</item>
+        <item>prefs_key_open_powermenu</item>
+        <item>prefs_key_screen_lock</item>
+        <item>prefs_key_screen_recents</item>
+        <item>prefs_key_go_home</item>
+        <item>prefs_key_screen_capture</item>
+        <item>prefs_key_volume_dialog</item>
+        <item>prefs_key_super_xiaoai</item>
+        <item>prefs_key_super_xiaoai_circle_search</item>
+        <item>prefs_key_google_circle_to_search</item>
+        <item>prefs_key_google_voice_assistant</item>
+        <item>prefs_key_force_stop_current_app</item>
+        <item>prefs_key_open_app</item>
+    </string-array>
+
+    <integer-array name="multi_action_value">
+        <item>0</item>
+        <item>1</item>
+        <item>15</item>
+        <item>2</item>
+        <item>3</item>
+        <item>12</item>
+        <item>4</item>
+        <item>7</item>
+        <item>14</item>
+        <item>6</item>
+        <item>8</item>
+        <item>16</item>
+        <item>17</item>
+        <item>18</item>
+        <item>20</item>
+        <item>19</item>
+        <item>13</item>
+    </integer-array>
+
+    <!-- AICR 复制直达浏览器候选；运行时由 AicrFragment 重新填充。 -->
+    <string-array name="aicr_browser_entries">
+        <item>@string/aicr_default_browser</item>
+    </string-array>
+
+    <string-array name="aicr_browser_values">
+        <item></item>
+    </string-array>
+</resources>

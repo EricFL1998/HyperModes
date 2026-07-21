@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.internal.widget.ActionSheetRootView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/action_sheet_root_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:importantForAccessibility="no">
+    <include layout="@layout/miuix_appcompat_action_sheet_dim_bg"/>
+</miuix.internal.widget.ActionSheetRootView>

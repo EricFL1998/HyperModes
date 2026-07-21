@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/miuix_appcompat_transparent"/>
+    <padding
+        android:left="@dimen/miuix_appcompat_context_menu_separate_item_horizontal_padding"
+        android:right="@dimen/miuix_appcompat_context_menu_separate_item_horizontal_padding"/>
+</shape>

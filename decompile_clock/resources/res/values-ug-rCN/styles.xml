@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Widget.DialogTitle" parent="@style/Widget">
+        <item name="android:textAppearance">@style/Miuix.AppCompat.TextAppearance.DialogTitle</item>
+        <item name="android:textColor">?attr/dialogTitleTextColor</item>
+        <item name="android:gravity">0x11</item>
+        <item name="android:fontFamily">@string/miuix_font_style_misans_medium_font_family</item>
+        <item name="android:breakStrategy">2</item>
+    </style>
+</resources>

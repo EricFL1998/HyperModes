@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="miuix_appcompat_window_extra_padding_horizontal_huge">128dp</dimen>
+    <dimen name="miuix_appcompat_window_extra_padding_horizontal_large">72dp</dimen>
+    <dimen name="miuix_appcompat_window_extra_padding_horizontal_small">44dp</dimen>
+</resources>

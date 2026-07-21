@@ -1,0 +1,71 @@
+/*
+ * This file is part of HyperCeiler.
+
+ * HyperCeiler is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+ * Copyright (C) 2023-2026 HyperCeiler Contributions
+ */
+package com.sevtinge.hyperceiler.hooker;
+
+
+import static com.sevtinge.hyperceiler.libhook.utils.api.DeviceHelper.Miui.isPad;
+
+import androidx.preference.SwitchPreference;
+
+import com.sevtinge.hyperceiler.core.R;
+import com.sevtinge.hyperceiler.dashboard.DashboardFragment;
+import com.sevtinge.hyperceiler.prefs.LayoutPreference;
+
+public class CameraNewFragment extends DashboardFragment {
+
+    SwitchPreference mThemeColor;
+    SwitchPreference mBlackLeica;
+    SwitchPreference mCloudWatermark;
+    SwitchPreference mLeica;
+    SwitchPreference mHighQuality;
+    LayoutPreference mHeader;
+
+    @Override
+    public int getPreferenceScreenResId() {
+        return R.xml.camera_new;
+    }
+
+    @Override
+    public void initPrefs() {
+        mThemeColor = findPreference("prefs_key_camera_custom_theme_color");
+        mBlackLeica = findPreference("prefs_key_camera_black_leica");
+        mCloudWatermark = findPreference("prefs_key_camera_cloud_watermark");
+        mLeica = findPreference("prefs_key_camera_unlock_leica");
+        mHighQuality = findPreference("prefs_key_camera_super_high_quality");
+
+        // 别问，问就是平板连方法都砍掉了，连支持都不行
+        if (isPad()) {
+            setFuncHint(mBlackLeica, 1);
+            setFuncHint(mLeica, 1);
+            setFuncHint(mHighQuality, 1);
+        }
+
+        // 版本范围判断
+        setFuncHints("com.android.camera",
+            rule(mThemeColor, APP_HINT_SUPPORTED, APP_MATCH_OUT_OF_RANGE, atMost(620000000)),
+            rule(mBlackLeica, APP_HINT_SUPPORTED, APP_MATCH_OUT_OF_RANGE, atMost(630000000)),
+            rule(mCloudWatermark, APP_HINT_UNSUPPORTED, APP_MATCH_OUT_OF_RANGE, range(620000000, 700000000)),
+            rule(mHighQuality, APP_HINT_UNSUPPORTED, APP_MATCH_IN_RANGE, range(630000000, 640000000))
+        );
+
+        mHeader = findPreference("prefs_key_camera_unsupported");
+
+        setAppModWarn(mHeader, "com.android.camera");
+    }
+}

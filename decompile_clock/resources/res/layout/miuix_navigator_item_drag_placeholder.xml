@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/navigation_item_drag_placeholder"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <LinearLayout
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:minHeight="?attr/navigatorItemMinHeight"
+        android:alpha="0.3"
+        android:paddingStart="@dimen/miuix_navigator_item_padding_start"
+        android:paddingEnd="@dimen/miuix_navigator_item_padding_end"
+        android:layout_marginVertical="@dimen/miuix_navigator_item_margin_vertical">
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@android:id/icon"
+            android:layout_width="@dimen/miuix_navigator_item_icon_width"
+            android:layout_height="@dimen/miuix_navigator_item_icon_height"
+            android:layout_marginEnd="@dimen/miuix_navigator_item_widget_margin_start"/>
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingVertical="@dimen/miuix_navigator_item_title_padding_vertical"
+            style="@style/Miuix.Navigator.TextAppearance"/>
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/milink_hyperos"
+    app:quick_restart="com.milink.service">
+    <PreferenceCategory>
+        <SwitchPreference
+            android:title="@string/milink_unlock_mishare"
+            android:key="prefs_key_milink_unlock_mishare"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:summary="@string/milink_unlock_send_app_desc"
+            android:title="@string/milink_unlock_send_app"
+            android:key="prefs_key_milink_unlock_send_app"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:summary="@string/milink_disable_pc_clipboard_region_check_desc"
+            android:title="@string/milink_disable_pc_clipboard_region_check"
+            android:key="prefs_key_milink_disable_pc_clipboard_region_check"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/milink_allow_camera_devices"
+            android:key="prefs_key_milink_allow_camera_devices"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/milink_fuck_hpplay"
+            android:key="prefs_key_milink_fuck_hpplay"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

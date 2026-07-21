@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/phone"
+    app:quick_restart="com.android.phone">
+    <PreferenceCategory>
+        <!--<com.sevtinge.hyperceiler.common.prefs.StartActivityWithRootPreference
+            android:key="prefs_key_phone_additional_network_settings"
+            android:title="@string/phone_additional_network_settings"
+            app:targetActivityClass="com.android.phone/.SwitchDebugActivity" />-->
+
+        <Preference
+            android:key="prefs_key_phone_additional_network_settings"
+            android:title="@string/phone_additional_network_settings" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_phone_smart_dual_sim"
+            android:title="@string/phone_smart_dual_sim" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_phone_disable_remove_network_mode"
+            android:title="@string/phone_disable_remove_network_mode" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_phone_vice_slot_volte"
+            android:summary="@string/phone_vice_slot_volte_desc"
+            android:title="@string/phone_vice_slot_volte" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_phone_unlock_voice_link"
+            android:title="@string/phone_unlock_voice_link"
+            android:summary="@string/phone_unlock_voice_link_desc" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

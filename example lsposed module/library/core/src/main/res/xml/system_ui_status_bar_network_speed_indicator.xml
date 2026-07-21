@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/system_ui_statusbar_network_speed_indicator_title"
+    app:quick_restart="com.android.systemui">
+    <PreferenceCategory>
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_system_ui_statusbar_network_speed_all_status_enable"
+            android:title="@string/system_ui_statusbar_network_speed_all_status" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:dependency="prefs_key_system_ui_statusbar_network_speed_all_status_enable"
+        android:title="@string/system_ui_statusbar_indicator_default_title">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_system_ui_statusbar_network_speed_font_size_enable"
+            android:title="@string/system_ui_statusbar_network_speed_font_size" />
+
+        <SeekBarPreferenceCompat
+            android:dependency="prefs_key_system_ui_statusbar_network_speed_font_size_enable"
+            android:key="prefs_key_system_ui_statusbar_network_speed_font_size"
+            android:layout="@layout/miuix_preference_widget_seekbar_compat_no_title"
+            app:defaultValue="13"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.1f dp"
+            app:maxValue="40"
+            app:minValue="8"
+            app:dividerValue="2"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <fan.preference.DropDownPreference
+            android:defaultValue="0"
+            android:key="prefs_key_system_ui_statusbar_network_speed_font_style"
+            android:title="@string/system_ui_statusbar_network_speed_font_style"
+            app:entries="@array/network_speed_font_style"
+            app:entryValues="@array/network_speed_font_style_value" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_system_ui_statusbar_network_speed_sec_unit"
+            android:title="@string/system_ui_statusbar_network_speed_sec_unit" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_system_ui_statusbar_network_speed_hide"
+            android:summary="@string/system_ui_statusbar_network_speed_hide_desc"
+            android:title="@string/system_ui_statusbar_network_speed_hide" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:dependency="prefs_key_system_ui_statusbar_network_speed_hide"
+            android:key="prefs_key_system_ui_statusbar_network_speed_hide_all"
+            android:title="@string/system_ui_statusbar_network_speed_hide_all" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_hide_slow"
+            android:summary="@string/system_ui_statusbar_network_speed_hide_slow_desc"
+            android:title="@string/system_ui_statusbar_network_speed_hide_slow"
+            app:defaultValue="64"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s KB/s"
+            app:maxValue="2048"
+            app:minValue="1"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_update_spacings"
+            android:title="@string/system_ui_statusbar_network_speed_update_spacing"
+            app:defaultValue="40"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.1f s"
+            app:maxValue="100"
+            app:minValue="10"
+            app:dividerValue="10"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:dependency="prefs_key_system_ui_statusbar_network_speed_all_status_enable"
+        android:title="@string/system_ui_statusbar_indicator_expand_title">
+        <fan.preference.DropDownPreference
+            android:defaultValue="0"
+            android:key="prefs_key_system_ui_statusbar_network_speed_style"
+            android:title="@string/system_ui_statusbar_network_speed_style"
+            app:entries="@array/network_speed_style"
+            app:entryValues="@array/network_speed_style_value" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_system_ui_statusbar_network_speed_swap_places"
+            android:title="@string/system_ui_statusbar_network_speed_swap_places" />
+
+        <fan.preference.DropDownPreference
+            android:defaultValue="2"
+            android:key="prefs_key_system_ui_statusbar_network_speed_icon"
+            android:title="@string/system_ui_statusbar_network_speed_icon"
+            app:entries="@array/system_ui_status_bar_network_icon"
+            app:entryValues="@array/system_ui_status_bar_network_icon_value" />
+
+        <fan.preference.DropDownPreference
+            android:defaultValue="1"
+            android:key="prefs_key_system_ui_statusbar_network_speed_align"
+            android:title="@string/horizontal_alignment"
+            app:entries="@array/system_ui_status_bar_horizontal_align"
+            app:entryValues="@array/system_ui_status_bar_horizontal_align_value" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_fixedcontent_width"
+            android:summary="@string/system_ui_statusbar_indicator_fixedcontent_width_desc"
+            android:title="@string/system_ui_statusbar_indicator_fixedcontent_width"
+            app:defaultValue="10"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%s dp"
+            app:maxValue="150"
+            app:minValue="10"
+            app:showSeekBarValue="true"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_spacing_margin"
+            android:title="@string/spacing_margin"
+            app:defaultValue="16"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.2f dp"
+            app:maxValue="22"
+            app:minValue="14"
+            app:dividerValue="20"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_left_margin"
+            android:title="@string/left_margin"
+            app:defaultValue="0"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.1f dp"
+            app:maxValue="16"
+            app:dividerValue="2"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_right_margin"
+            android:title="@string/right_margin"
+            app:defaultValue="0"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.1f dp"
+            app:maxValue="16"
+            app:dividerValue="2"
+            app:stepValue="1" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_system_ui_statusbar_network_speed_vertical_offset"
+            android:title="@string/vertical_offset"
+            app:defaultValue="40"
+            app:defaultValueTitle="@string/array_default"
+            app:format="%.1f dp"
+            app:maxValue="80"
+            app:minValue="0"
+            app:negativeShift="40"
+            app:dividerValue="10"
+            app:stepValue="1" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

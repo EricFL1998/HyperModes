@@ -55,7 +55,11 @@ class DeskClockHook(private val module: XposedModule) {
                     )
                     Protocol.ACTION_START_BEDTIME -> controller.startBedtime()
                     Protocol.ACTION_STOP_BEDTIME -> controller.stopBedtime()
+                    Protocol.ACTION_SHOW_SLEEP_NOTIFICATION -> controller.showSleepNotification()
                     Protocol.ACTION_QUERY_STATE -> emptyList()
+                    android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
+                        handleZenModeChange(context, controller)
+                    }
                     else -> return
                 }
                 log("${intent.action} -> ${results.joinToString { it.format() }}")
@@ -67,7 +71,9 @@ class DeskClockHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_APPLY_SCHEDULE)
             addAction(Protocol.ACTION_START_BEDTIME)
             addAction(Protocol.ACTION_STOP_BEDTIME)
+            addAction(Protocol.ACTION_SHOW_SLEEP_NOTIFICATION)
             addAction(Protocol.ACTION_QUERY_STATE)
+            addAction(android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         }
         app.registerReceiver(
             receiver, filter,
@@ -75,6 +81,40 @@ class DeskClockHook(private val module: XposedModule) {
             Context.RECEIVER_EXPORTED
         )
         log("command receiver registered in DeskClock")
+    }
+
+    /**
+     * Handle Android ZenMode changes from other apps (Google Bedtime, Samsung Modes, etc.)
+     * When Android bedtime is activated externally, trigger DeskClock bedtime.
+     */
+    private fun handleZenModeChange(context: Context, controller: BedtimeController): List<StepResult> {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
+            as? android.app.NotificationManager ?: return emptyList()
+
+        // Check if any AutomaticZenRule with "bedtime" in name is active
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            val rules = notificationManager.automaticZenRules ?: return emptyList()
+            val bedtimeActive = rules.values.any { rule ->
+                rule.isEnabled &&
+                rule.name.contains("bedtime", ignoreCase = true) &&
+                rule.conditionId != null
+            }
+
+            val currentlyInSleep = controller.querySleepModeState()
+
+            // Sync state: if Android bedtime is on but DeskClock is off, start it
+            if (bedtimeActive && !currentlyInSleep) {
+                log("Android bedtime activated externally, starting DeskClock bedtime")
+                return controller.startBedtime()
+            }
+            // If Android bedtime is off but DeskClock is on, stop it
+            else if (!bedtimeActive && currentlyInSleep) {
+                log("Android bedtime deactivated externally, stopping DeskClock bedtime")
+                return controller.stopBedtime()
+            }
+        }
+
+        return emptyList()
     }
 
     private fun sendResult(context: Context, results: List<StepResult>, inSleepMode: Boolean) {

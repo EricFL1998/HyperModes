@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/permission_desc"
+    android:key="more_settings">
+    <PreferenceCategory>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/read_device_internal_storage"
+            android:key="key_read_external_permission"
+            android:summary="@string/read_external_storage_permission_desc"/>
+        <com.android.deskclock.settings.pref.ClockValuePreference
+            android:title="@string/force_start_permission_title"
+            android:key="key_force_start_permission"
+            android:summary="@string/force_start_permission_desc"/>
+    </PreferenceCategory>
+</PreferenceScreen>

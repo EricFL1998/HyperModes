@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="CardView.DayNight" parent="@style/CardView.Dark">
+        <item name="android:outlineSpotShadowColor">#000000</item>
+        <item name="outlineStyle">@style/BackgroundOutline.Dark</item>
+    </style>
+</resources>

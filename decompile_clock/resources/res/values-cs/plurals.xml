@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="a_hour_ago">
+        <item quantity="one">Před hodinou</item>
+        <item quantity="few">Před hodinou</item>
+        <item quantity="many">Před hodinou</item>
+        <item quantity="other">Před hodinou</item>
+    </plurals>
+    <plurals name="abbrev_a_hour_ago">
+        <item quantity="one">Před %d hodinou</item>
+        <item quantity="few">Před %d hodinami</item>
+        <item quantity="many">Před %d hodinou</item>
+        <item quantity="other">Před %d hodinami</item>
+    </plurals>
+    <plurals name="abbrev_half_hour_ago">
+        <item quantity="one">Před půl hodinou</item>
+        <item quantity="few">Před půl hodinou</item>
+        <item quantity="many">Před půl hodinou</item>
+        <item quantity="other">Před půl hodinou</item>
+    </plurals>
+    <plurals name="abbrev_in_a_hour">
+        <item quantity="one">Za %d hodinu</item>
+        <item quantity="few">Za %d hodiny</item>
+        <item quantity="many">Za %d hodiny</item>
+        <item quantity="other">Za %d hodin</item>
+    </plurals>
+    <plurals name="abbrev_in_half_hour">
+        <item quantity="one">Za půl hodiny</item>
+        <item quantity="few">Za půl hodiny</item>
+        <item quantity="many">Za půl hodiny</item>
+        <item quantity="other">Za půl hodiny</item>
+    </plurals>
+    <plurals name="abbrev_in_less_than_one_minute">
+        <item quantity="one">Okamžitě</item>
+        <item quantity="few">Okamžitě</item>
+        <item quantity="many">Okamžitě</item>
+        <item quantity="other">Okamžitě</item>
+    </plurals>
+    <plurals name="abbrev_in_num_minutes">
+        <item quantity="one">Za %d min.</item>
+        <item quantity="few">Za %d min.</item>
+        <item quantity="many">Za %d min.</item>
+        <item quantity="other">Za %d min.</item>
+    </plurals>
+    <plurals name="abbrev_less_than_one_minute_ago">
+        <item quantity="one">Právě teď</item>
+        <item quantity="few">Právě teď</item>
+        <item quantity="many">Právě teď</item>
+        <item quantity="other">Právě teď</item>
+    </plurals>
+    <plurals name="abbrev_num_minutes_ago">
+        <item quantity="one">Před %d min.</item>
+        <item quantity="few">Před %d min.</item>
+        <item quantity="many">Před %d min.</item>
+        <item quantity="other">Před %d min.</item>
+    </plurals>
+    <plurals name="alarm_alert_snooze_set">
+        <item quantity="one">Odloženo o %d minutu</item>
+        <item quantity="few">Odloženo o %d minuty</item>
+        <item quantity="many">Odloženo o %d minuty</item>
+        <item quantity="other">Odloženo o %d minut</item>
+    </plurals>
+    <plurals name="alarms_count">
+        <item quantity="one">%s směna</item>
+        <item quantity="few">%s směny</item>
+        <item quantity="many">%s směn</item>
+        <item quantity="other">%s směn</item>
+    </plurals>
+    <plurals name="day">
+        <item quantity="one">%d den</item>
+        <item quantity="few">%d dny</item>
+        <item quantity="many">%d dne</item>
+        <item quantity="other">%d dní</item>
+    </plurals>
+    <plurals name="half_hour_ago">
+        <item quantity="one">Před půl hodinou</item>
+        <item quantity="few">Před půl hodinou</item>
+        <item quantity="many">Před půl hodinou</item>
+        <item quantity="other">Před půl hodinou</item>
+    </plurals>
+    <plurals name="hour">
+        <item quantity="one">%d hodina</item>
+        <item quantity="few">%d hodiny</item>
+        <item quantity="many">%d hodiny</item>
+        <item quantity="other">%d hodin</item>
+    </plurals>
+    <plurals name="in_a_hour">
+        <item quantity="one">Za hodinu</item>
+        <item quantity="few">Za hodinu</item>
+        <item quantity="many">Za hodinu</item>
+        <item quantity="other">Za hodinu</item>
+    </plurals>
+    <plurals name="in_half_hour">
+        <item quantity="one">Za půl hodiny</item>
+        <item quantity="few">Za půl hodiny</item>
+        <item quantity="many">Za půl hodiny</item>
+        <item quantity="other">Za půl hodiny</item>
+    </plurals>
+    <plurals name="in_less_than_one_minute">
+        <item quantity="one">Okamžitě</item>
+        <item quantity="few">Okamžitě</item>
+        <item quantity="many">Okamžitě</item>
+        <item quantity="other">Okamžitě</item>
+    </plurals>
+    <plurals name="in_num_minutes">
+        <item quantity="one">Za 1 minutu</item>
+        <item quantity="few">Za %d minuty</item>
+        <item quantity="many">Za %d minuty</item>
+        <item quantity="other">Za %d minut</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms">
+        <item quantity="one">Den %s</item>
+        <item quantity="few">Den %s</item>
+        <item quantity="many">Den %s</item>
+        <item quantity="other">Den %s</item>
+    </plurals>
+    <plurals name="index_in_shift_alarms_des">
+        <item quantity="one">Den směny %s</item>
+        <item quantity="few">Den směny %s</item>
+        <item quantity="many">Den směny %s</item>
+        <item quantity="other">Den směny %s</item>
+    </plurals>
+    <plurals name="less_than_one_minute_ago">
+        <item quantity="one">Právě teď</item>
+        <item quantity="few">Právě teď</item>
+        <item quantity="many">Právě teď</item>
+        <item quantity="other">Právě teď</item>
+    </plurals>
+    <plurals name="minute">
+        <item quantity="one">%d minuta</item>
+        <item quantity="few">%d minuty</item>
+        <item quantity="many">%d minuty</item>
+        <item quantity="other">%d minut</item>
+    </plurals>
+    <plurals name="miuix_appcompat_items_selected">
+        <item quantity="one">Vybrána %d položka</item>
+        <item quantity="few">Vybrány %d položky</item>
+        <item quantity="many">Vybráno %d položky</item>
+        <item quantity="other">Vybráno %d položek</item>
+    </plurals>
+    <plurals name="mtrl_badge_content_description">
+        <item quantity="one">%d nové oznámení</item>
+        <item quantity="few">%d nová oznámení</item>
+        <item quantity="many">%d nového oznámení</item>
+        <item quantity="other">%d nových oznámení</item>
+    </plurals>
+    <plurals name="num_minutes_ago">
+        <item quantity="one">Před minutou</item>
+        <item quantity="few">Před %d minutami</item>
+        <item quantity="many">Před %d minutou</item>
+        <item quantity="other">Před %d minutami</item>
+    </plurals>
+    <plurals name="second">
+        <item quantity="one">%d sekunda</item>
+        <item quantity="few">%d sekundy</item>
+        <item quantity="many">%d sekundy</item>
+        <item quantity="other">%d sekund</item>
+    </plurals>
+    <plurals name="shift_alarm_duration">
+        <item quantity="one">%s den</item>
+        <item quantity="few">%s dny</item>
+        <item quantity="many">%s dní</item>
+        <item quantity="other">%s dní</item>
+    </plurals>
+    <plurals name="sleep_duration_hour">
+        <item quantity="one">%1$s hodina</item>
+        <item quantity="few">%1$s hodiny</item>
+        <item quantity="many">%1$s hodiny</item>
+        <item quantity="other">%1$s hodin</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_avg">
+        <item quantity="one">%1$s hod.</item>
+        <item quantity="few">%1$s hod.</item>
+        <item quantity="many">%1$s hod.</item>
+        <item quantity="other">%1$s hod.</item>
+    </plurals>
+    <plurals name="sleep_duration_hour_new">
+        <item quantity="one">%1$d hodina</item>
+        <item quantity="few">%1$d hodiny</item>
+        <item quantity="many">%1$d hodin</item>
+        <item quantity="other">%1$d hodin</item>
+    </plurals>
+    <plurals name="sleep_duration_min">
+        <item quantity="one">%1$s minuta</item>
+        <item quantity="few">%1$s minuty</item>
+        <item quantity="many">%1$s minuty</item>
+        <item quantity="other">%1$s minut</item>
+    </plurals>
+    <plurals name="sleep_duration_min_avg">
+        <item quantity="one">%1$s min.</item>
+        <item quantity="few">%1$s min.</item>
+        <item quantity="many">%1$s min.</item>
+        <item quantity="other">%1$s min.</item>
+    </plurals>
+    <plurals name="sleep_duration_min_new">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="many">%1$d minut</item>
+        <item quantity="other">%1$d minut</item>
+    </plurals>
+    <plurals name="snooze_duration_changed_info">
+        <item quantity="one">Odložení budíku změněno na %d minutu</item>
+        <item quantity="few">Odložení budíku změněno na %d minuty</item>
+        <item quantity="many">Odložení budíku změněno na %d minuty</item>
+        <item quantity="other">Odložení budíku změněno na %d minut</item>
+    </plurals>
+    <plurals name="snooze_duration_count">
+        <item quantity="one">Spustit %1$skrát</item>
+        <item quantity="few">Spustit %1$skrát</item>
+        <item quantity="many">Spustit %1$skrát</item>
+        <item quantity="other">Spustit %1$skrát</item>
+    </plurals>
+    <plurals name="snooze_duration_min">
+        <item quantity="one">Každou %1$s minutu</item>
+        <item quantity="few">Každé %1$s minuty</item>
+        <item quantity="many">Každé %1$s minuty</item>
+        <item quantity="other">Každých %1$s minut</item>
+    </plurals>
+    <plurals name="snooze_duration_minute">
+        <item quantity="one">Každou %1$d minutu</item>
+        <item quantity="few">Každé %1$d minuty</item>
+        <item quantity="many">Každých %1$d minut</item>
+        <item quantity="other">Každých %1$d minut</item>
+    </plurals>
+    <plurals name="snooze_duration_time">
+        <item quantity="one">Spustit %1$dkrát</item>
+        <item quantity="few">Spustit %1$dkrát</item>
+        <item quantity="many">Spustit %1$dkrát</item>
+        <item quantity="other">Spustit %1$dkrát</item>
+    </plurals>
+    <plurals name="snooze_message">
+        <item quantity="one">Odložit o %d minutu</item>
+        <item quantity="few">Odložit o %d minuty</item>
+        <item quantity="many">Odložit o %d minuty</item>
+        <item quantity="other">Odložit o %d minut</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_day">
+        <item quantity="one">Stopky jsou již spuštěny %s den. Klepněte pro zobrazení.</item>
+        <item quantity="few">Stopky jsou již spuštěny %s dny. Klepněte pro zobrazení.</item>
+        <item quantity="many">Stopky jsou již spuštěny %s dne. Klepněte pro zobrazení.</item>
+        <item quantity="other">Stopky jsou již spuštěny %s dní. Klepněte pro zobrazení.</item>
+    </plurals>
+    <plurals name="stopwatch_running_notification_hour">
+        <item quantity="one">Stopky jsou již spuštěny %s hodinu. Klepněte pro zobrazení.</item>
+        <item quantity="few">Stopky jsou již spuštěny %s hodiny. Klepněte pro zobrazení.</item>
+        <item quantity="many">Stopky jsou již spuštěny %s hodiny. Klepněte pro zobrazení.</item>
+        <item quantity="other">Stopky jsou již spuštěny %s hodin. Klepněte pro zobrazení.</item>
+    </plurals>
+    <plurals name="timer_message_hour">
+        <item quantity="one">%1$d hodina </item>
+        <item quantity="few">%1$d hodiny </item>
+        <item quantity="many">%1$d hodiny </item>
+        <item quantity="other">%1$d hodin </item>
+    </plurals>
+    <plurals name="timer_message_minute">
+        <item quantity="one">%1$d minuta </item>
+        <item quantity="few">%1$d minuty </item>
+        <item quantity="many">%1$d minuty </item>
+        <item quantity="other">%1$d minut </item>
+    </plurals>
+    <plurals name="timer_message_second">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekundy</item>
+        <item quantity="many">%1$d sekundy</item>
+        <item quantity="other">%1$d sekund</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast">
+        <item quantity="one">+%s hod.</item>
+        <item quantity="few">+%s hod.</item>
+        <item quantity="many">+%s hod.</item>
+        <item quantity="other">+%s hod.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_fast_new">
+        <item quantity="one">+%1$s h</item>
+        <item quantity="few">+%1$s h</item>
+        <item quantity="many">+%1$s h</item>
+        <item quantity="other">+%1$s h</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow">
+        <item quantity="one">-%s hod.</item>
+        <item quantity="few">-%s hod.</item>
+        <item quantity="many">-%s hod.</item>
+        <item quantity="other">-%s hod.</item>
+    </plurals>
+    <plurals name="worldcolock_timezone_gap_slow_new">
+        <item quantity="one">-%1$s h</item>
+        <item quantity="few">-%1$s h</item>
+        <item quantity="many">-%1$s h</item>
+        <item quantity="other">-%1$s h</item>
+    </plurals>
+</resources>

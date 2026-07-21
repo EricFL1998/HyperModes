@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/security_center_app_title"
+    app:quick_restart="com.miui.securitycenter">
+    <PreferenceCategory>
+        <fan.preference.DropDownPreference
+            android:defaultValue="0"
+            android:key="prefs_key_security_center_app_default_sort"
+            android:summary="@string/security_app_sort_summary"
+            android:title="@string/security_app_sort_title"
+            app:entries="@array/app_sort"
+            app:entryValues="@array/app_sort_value" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_disable_ban"
+            android:title="@string/security_center_disable_ban" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_app_restrict"
+            android:summary="@string/security_restrict_app_summary"
+            android:title="@string/security_restrict_app_title" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_app_default_setting"
+            android:summary="@string/security_disable_app_url_summary"
+            android:title="@string/security_disable_app_url_title" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_aosp_app_info"
+            android:title="@string/security_center_aosp_app_info"
+            app:isPreferenceVisible="false"/>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_aosp_app_manager"
+            android:title="@string/security_center_aosp_app_manager"
+            app:isPreferenceVisible="false"/>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_app_disable"
+            android:summary="@string/security_disable_app_summary"
+            android:title="@string/security_disable_app_title" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="prefs_key_security_center_app_details"
+            android:summary="@string/security_app_summary"
+            android:title="@string/security_app_title" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

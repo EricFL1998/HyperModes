@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_sliding_button_state_description_off">av</string>
+    <string name="accessibility_sliding_button_state_description_on">på</string>
+    <string name="accessibility_tab_state_description_unselect">Ikke valgt</string>
+    <string name="miuix_bottom_sheet_accessibility_scroll_down_to_close">Rull ned for å lukke</string>
+    <string name="miuix_bottom_sheet_accessibility_scroll_down_to_half_screen">Rull ned for å bytte til halvskjermmodus</string>
+    <string name="miuix_bottom_sheet_accessibility_scroll_down_to_minimized">Rull ned for å minimere</string>
+    <string name="miuix_bottom_sheet_accessibility_scroll_up_to_half_screen">Rull opp for å bytte til halvskjermmodus</string>
+    <string name="miuix_bottom_sheet_accessibility_scroll_up_to_maximized">Rull opp for å maksimalisere</string>
+    <string name="miuix_bottom_sheet_accessibility_state_half_screen">Halvskjerm</string>
+    <string name="miuix_bottom_sheet_accessibility_state_maximized">Maksimalisert</string>
+    <string name="miuix_bottom_sheet_accessibility_state_minimized">Minimert</string>
+    <string name="miuix_bottom_sheet_accessibility_switch_to_half_screen">Bytt til halvskjermmodus</string>
+    <string name="miuix_bottom_sheet_accessibility_switch_to_maximized">Bytt til maksimalisert modus</string>
+    <string name="miuix_bottom_sheet_accessibility_switch_to_minimized">Bytt til minimert modus</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AlarmBottomMenuBackground" parent="">
+        <item name="bottomMenuBackground">@color/bottom_menu_bg</item>
+        <item name="suspendMenuBackground">@drawable/miuix_appcompat_suspend_menu_bg_light</item>
+    </style>
+    <style name="TimezoneSearchAlphabetIndexerStyle" parent="@style/Widget.AlphabetIndexer">
+        <item name="android:layout_marginTop">@dimen/timezone_item_fast_indexer_margin</item>
+    </style>
+</resources>

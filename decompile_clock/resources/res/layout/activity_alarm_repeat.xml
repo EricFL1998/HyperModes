@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <include
+        android:id="@+id/repeat_alarm_actionbar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/repeat_bottom_sheet_dialog_title_height"
+        android:layout_marginTop="@dimen/bottom_sheet_dialog_title_margin_top"
+        android:layout_alignParentTop="true"
+        layout="@layout/repeat_alarm_title"/>
+    <miuix.core.widget.NestedScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <miuix.springback.view.SpringBackLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:scrollOrientation="vertical"
+            app:scrollableView="@+id/scroll_holder">
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/scroll_holder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:paddingBottom="@dimen/alarm_repeat_padding_bottom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <com.android.deskclock.view.list.AlarmRecyclerView
+                        android:id="@android:id/list"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:nestedScrollingEnabled="false"/>
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+        </miuix.springback.view.SpringBackLayout>
+    </miuix.core.widget.NestedScrollView>
+</LinearLayout>

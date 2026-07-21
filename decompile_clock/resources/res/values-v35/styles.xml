@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Widget.EditText" parent="@style/Widget.AppCompat.EditText">
+        <item name="android:textAppearance">@style/Miuix.AppCompat.TextAppearance.Widget.EditText</item>
+        <item name="android:textColor">?android:attr/editTextColor</item>
+        <item name="android:textColorHint">?attr/editTextColorHint</item>
+        <item name="android:gravity">0x800013</item>
+        <item name="android:background">@drawable/miuix_appcompat_edit_text_bg_light</item>
+        <item name="android:paddingLeft">@dimen/miuix_appcompat_edit_text_padding_horizontal</item>
+        <item name="android:paddingRight">@dimen/miuix_appcompat_edit_text_padding_horizontal</item>
+        <item name="android:minHeight">@dimen/miuix_appcompat_edit_text_min_height</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textSelectHandleLeft">@drawable/miuix_appcompat_text_select_handle_left_light</item>
+        <item name="android:textSelectHandleRight">@drawable/miuix_appcompat_text_select_handle_right_light</item>
+        <item name="android:textSelectHandle">@drawable/miuix_appcompat_text_select_handle_middle_light</item>
+        <item name="android:textAlignment">5</item>
+        <item name="android:useLocalePreferredLineHeightForMinimum">false</item>
+        <item name="textHandleAndCursorColor">@color/miuix_appcompat_handle_and_cursor_color_light</item>
+    </style>
+</resources>

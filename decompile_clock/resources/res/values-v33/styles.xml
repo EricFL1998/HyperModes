@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Miuix.AppCompat.TextAppearance.WindowTitle" parent="@style/Miuix.AppCompat.TextAppearance">
+        <item name="android:textSize">@dimen/miuix_appcompat_title_text_size</item>
+        <item name="android:textColor">?attr/actionBarTitleColor</item>
+        <item name="android:fontFamily">@string/miuix_font_style_misans_medium_font_family</item>
+        <item name="android:fallbackLineSpacing">true</item>
+    </style>
+    <style name="Widget.ActionBarButtonTextStyle" parent="@style/Widget">
+        <item name="android:textAppearance">@style/Miuix.AppCompat.TextAppearance.Widget.ActionButton</item>
+        <item name="android:textSize">@dimen/miuix_appcompat_small_fixed_text_size</item>
+        <item name="android:ellipsize">3</item>
+        <item name="android:gravity">0x31</item>
+        <item name="android:scrollbars">0x0</item>
+        <item name="android:layout_width">-2</item>
+        <item name="android:layout_height">-2</item>
+        <item name="android:layout_marginBottom">0dp</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:singleLine">false</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">1</item>
+        <item name="android:hyphenationFrequency">4</item>
+    </style>
+</resources>

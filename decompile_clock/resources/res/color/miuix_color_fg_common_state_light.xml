@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_selected="true"
+        android:state_pressed="true"
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.2"/>
+    <item
+        android:state_pressed="true"
+        android:color="@color/miuix_color_black_level1"
+        android:state_activated="true"
+        android:alpha="0.2"/>
+    <item
+        android:state_pressed="true"
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.16"
+        android:state_hovered="true"/>
+    <item
+        android:color="@color/miuix_color_black_level1"
+        android:state_activated="true"
+        android:alpha="0.14"
+        android:state_hovered="true"/>
+    <item
+        android:state_selected="true"
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.14"
+        android:state_hovered="true"/>
+    <item
+        android:color="@color/miuix_color_black_level1"
+        android:state_activated="true"
+        android:alpha="0.08"/>
+    <item
+        android:state_selected="true"
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.08"/>
+    <item
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.06"
+        android:state_hovered="true"/>
+    <item
+        android:state_pressed="true"
+        android:color="@color/miuix_color_black_level1"
+        android:alpha="0.12"/>
+    <item android:color="@color/miuix_color_transparent"/>
+</selector>

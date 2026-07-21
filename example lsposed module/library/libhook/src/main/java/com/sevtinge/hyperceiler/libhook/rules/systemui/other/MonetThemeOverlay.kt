@@ -1,0 +1,56 @@
+/*
+ * This file is part of HyperCeiler.
+
+ * HyperCeiler is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+ * Copyright (C) 2023-2026 HyperCeiler Contributions
+ */
+package com.sevtinge.hyperceiler.libhook.rules.systemui.other
+
+import android.content.Context
+import android.os.Handler
+import com.sevtinge.hyperceiler.common.utils.PrefsBridge
+import com.sevtinge.hyperceiler.common.utils.prefs.PrefType
+import com.sevtinge.hyperceiler.common.utils.prefs.PrefsChangeObserver
+import com.sevtinge.hyperceiler.libhook.base.BaseHook
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.hookAllConstructors
+import io.github.lingqiqi5211.ezhooktool.xposed.dsl.hookAllMethods
+
+class MonetThemeOverlay : BaseHook() {
+    var mContext: Context? = null
+    var mHandler: Handler? = null
+
+    override fun init() {
+        findClassIfExists("com.android.systemui.theme.ThemeOverlayController").apply {
+            hookAllConstructors {
+                before {
+                    mContext = it.args[0] as Context
+                }
+            }
+
+            hookAllMethods("createOverlays") {
+                before {
+                    val color = PrefsBridge.getInt("system_ui_monet_overlay_custom_color", -1)
+                    it.args[0] = color
+
+                    mHandler = Handler(mContext!!.mainLooper)
+                    PrefsChangeObserver(
+                        mContext, mHandler, true, PrefType.Integer,
+                        "prefs_key_system_ui_monet_overlay_custom_color", -1
+                    )
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:drawable="@drawable/_miuix_action_icon_favorite_normal_light__0_res_0x7f080011">
+    <target
+        android:name="path_2"
+        android:animation="@drawable/_miuix_action_icon_favorite_normal_light__1_res_0x7f080012"/>
+    <target
+        android:name="group"
+        android:animation="@drawable/_miuix_action_icon_favorite_normal_light__2_res_0x7f080013"/>
+</animated-vector>

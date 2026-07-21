@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="@dimen/miuix_appcompat_drop_down_menu_padding_small"
+    android:paddingBottom="@dimen/miuix_appcompat_drop_down_menu_padding_small"
+    android:layout_width="match_parent"
+    style="@style/Widget.ListView.Item.Immersion">
+    <ImageView
+        android:id="@android:id/icon"
+        android:visibility="gone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"/>
+    <miuix.androidbasewidget.widget.CheckedTextView
+        android:gravity="center_vertical"
+        android:id="@android:id/text1"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        app:checkMarkCompat="?android:attr/listChoiceIndicatorSingle"
+        style="@style/Widget.PopupMenu.MenuItem.Title"/>
+    <ImageView
+        android:gravity="center"
+        android:layout_gravity="end|center_vertical"
+        android:id="@+id/arrow"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/miuix_appcompat_secondary_menu_header_arrow_right"/>
+</LinearLayout>

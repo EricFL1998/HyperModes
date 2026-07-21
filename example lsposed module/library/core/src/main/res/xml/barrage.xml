@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of HyperCeiler.
+  ~
+  ~ HyperCeiler is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2023-2026 HyperCeiler Contributions
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:myLocation="@string/barrage"
+    app:quick_restart="com.xiaomi.barrage">
+
+    <PreferenceCategory>
+        <SwitchPreference
+            android:title="@string/barrage_any_barrage"
+            android:key="prefs_key_barrage_any_barrage"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/barrage_global_enable"
+            android:key="prefs_key_barrage_global_enable"
+            android:defaultValue="false" />
+
+        <SwitchPreference
+            android:title="@string/barrage_not_touchable"
+            android:key="prefs_key_barrage_not_touchable"
+            android:defaultValue="false" />
+
+        <SeekBarPreferenceCompat
+            android:key="prefs_key_barrage_custom_barrage_length"
+            android:title="@string/barrage_custom_barrage_length"
+            android:defaultValue="36"
+            app:format="%s dp"
+            app:defaultValueTitle="@string/array_default"
+            app:maxValue="108"
+            app:minValue="12" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

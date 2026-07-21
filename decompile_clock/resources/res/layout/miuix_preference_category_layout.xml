@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<miuix.preference.PreferenceCategoryLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:background="?attr/preferenceCategoryBackground"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="1px"
+    android:importantForAccessibility="no">
+    <TextView
+        android:layout_gravity="start|center_vertical"
+        android:id="@android:id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAlignment="viewStart"
+        style="@style/Miuix.AppCompat.TextAppearance.PreferenceCategory"/>
+</miuix.preference.PreferenceCategoryLayout>
