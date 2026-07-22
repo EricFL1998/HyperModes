@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <stroke
-        android:width="1.33dp"
-        android:color="@color/bottom_round_button_normal_full_screen_color"/>
-    <solid android:color="@android:color/transparent"/>
-    <corners android:radius="360dp"/>
-</shape>

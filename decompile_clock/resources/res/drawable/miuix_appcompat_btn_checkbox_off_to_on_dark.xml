@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:drawable="@drawable/_miuix_appcompat_btn_checkbox_off_to_on_dark__0_res_0x7f08001c">
-    <target
-        android:name="arrow"
-        android:animation="@drawable/_miuix_appcompat_btn_checkbox_off_to_on_dark__1_res_0x7f08001d"/>
-</animated-vector>

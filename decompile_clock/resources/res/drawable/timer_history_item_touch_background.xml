@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <corners android:radius="@dimen/bedtime_guide_banner_radius"/>
-            <solid android:color="@color/timer_history_touch_background"/>
-        </shape>
-    </item>
-</layer-list>

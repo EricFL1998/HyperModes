@@ -33,6 +33,85 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         allowAutoStart(classLoader)
         surviveSwipeFromRecents(classLoader)
         exemptFromStandbyBuckets(classLoader)
+        alwaysAllowExactAlarm(classLoader)
+        exemptFromGreezer(classLoader)
+    }
+
+    /**
+     * MIUI Greezer freezes cached apps, and BroadcastQueueImpl.shouldSkipReceiver
+     * then denies them ALL broadcast delivery ("Greezer Denial ... need cached
+     * broadcast") — including our AlarmManager mode triggers. The check
+     * funnels through BroadcastQueueModernStubImpl.checkReceiverIfRestricted
+     * (miui-services.jar) -> GreezeManagerInternal.isRestrictReceiver.
+     * Returning false for our package exempts it like a system app: the
+     * broadcast is delivered, which wakes (unfreezes) our process to run the
+     * engine. No process needs to stay resident — delivery itself is the wake.
+     */
+    private fun exemptFromGreezer(classLoader: ClassLoader) {
+        val method = try {
+            val stub = classLoader.loadClass(BROADCAST_STUB)
+            val queue = classLoader.loadClass(BROADCAST_QUEUE)
+            val record = classLoader.loadClass(BROADCAST_RECORD)
+            val process = classLoader.loadClass(PROCESS_RECORD)
+            stub.getDeclaredMethod(
+                "checkReceiverIfRestricted", queue, record, process,
+                Boolean::class.javaPrimitiveType
+            ).apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("checkReceiverIfRestricted not found: ${t.message}")
+            return
+        }
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val app = chain.getArg(2) ?: return chain.proceed()
+                    val pkg = try {
+                        val info = app.javaClass.getField("info").get(app)
+                        (info?.javaClass?.getField("packageName")?.get(info) as? String)
+                            ?: app.javaClass.getField("processName").get(app) as? String
+                    } catch (t: Throwable) {
+                        null
+                    }
+                    if (pkg == Protocol.MODULE_PACKAGE) {
+                        log("Greezer: exempting broadcast delivery to $pkg")
+                        return false // false = not restricted, deliver normally
+                    }
+                    return chain.proceed()
+                }
+            })
+        log("checkReceiverIfRestricted hooked")
+    }
+
+    /**
+     * Apps targeting S+ normally need the user-grantable SCHEDULE_EXACT_ALARM
+     * app-op to call setExactAndAllowWhileIdle; AlarmManagerService throws
+     * SecurityException otherwise (verified in services.jar:
+     * AlarmManagerService.set -> hasScheduleExactAlarmInternal). System apps
+     * are exempt via the DeviceIdle whitelist — give HyperModes the same
+     * treatment by forcing the check to pass for our package, so the engine's
+     * mode-schedule alarms work without the manual grant.
+     */
+    private fun alwaysAllowExactAlarm(classLoader: ClassLoader) {
+        val method = try {
+            classLoader.loadClass(ALARM_MANAGER_SERVICE)
+                .getDeclaredMethod(
+                    "hasScheduleExactAlarmInternal",
+                    String::class.java, Int::class.javaPrimitiveType
+                ).apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("hasScheduleExactAlarmInternal not found: ${t.message}")
+            return
+        }
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    if (chain.getArg(0) == Protocol.MODULE_PACKAGE) return true
+                    return chain.proceed()
+                }
+            })
+        log("hasScheduleExactAlarmInternal hooked")
     }
 
     /**
@@ -179,8 +258,10 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         private const val BROADCAST_STUB = "com.android.server.am.BroadcastQueueModernStubImpl"
         private const val BROADCAST_QUEUE = "com.android.server.am.BroadcastQueue"
         private const val BROADCAST_RECORD = "com.android.server.am.BroadcastRecord"
+        private const val PROCESS_RECORD = "com.android.server.am.ProcessRecord"
         private const val TASK_SUPERVISOR = "com.android.server.wm.ActivityTaskSupervisor"
         private const val TASK = "com.android.server.wm.Task"
         private const val APP_STANDBY_CONTROLLER = "com.android.server.usage.AppStandbyController"
+        private const val ALARM_MANAGER_SERVICE = "com.android.server.alarm.AlarmManagerService"
     }
 }

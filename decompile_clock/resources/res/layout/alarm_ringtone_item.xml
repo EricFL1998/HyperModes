@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<com.android.deskclock.addition.ringtone.RingtoneItem xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/alarm_ringtone_item"
-    android:layout_width="match_parent"
-    android:layout_height="0dp"
-    app:original_height="@dimen/ringtone_picker_item_height"
-    app:original_width="@dimen/ringtone_picker_item_width"
-    app:ratio_mode="by_width"/>

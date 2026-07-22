@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<miuix.pickerwidget.widget.Calendar.CalendarGridLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/calendar_grid_layout"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:paddingHorizontal="@dimen/miuix_appcompat_calendar_grid_layout_horizontal_padding"/>
