@@ -123,6 +123,7 @@ class RoutineCoreEngine private constructor() {
      * Activate a mode by ID.
      * Deactivates current mode first if one is active.
      * Updates Settings.Global to persist active mode.
+     * Reschedules alarms after activation.
      *
      * @param modeId Mode identifier to activate
      */
@@ -152,12 +153,17 @@ class RoutineCoreEngine private constructor() {
 
         // Persist active mode to Settings.Global
         updateActiveModeInSettings(modeId)
+
+        // Reschedule alarms (next occurrence after activation)
+        scheduledModeManager?.updateSchedules(allModes)
+
         log("Mode activated successfully: ${mode.name}")
     }
 
     /**
      * Deactivate a mode by ID.
      * Reverts mode actions and clears active mode from Settings.Global.
+     * Reschedules alarms after deactivation.
      *
      * @param modeId Mode identifier to deactivate
      */
@@ -177,6 +183,10 @@ class RoutineCoreEngine private constructor() {
 
         // Clear active mode from Settings.Global
         updateActiveModeInSettings(null)
+
+        // Reschedule alarms (next occurrence after deactivation)
+        scheduledModeManager?.updateSchedules(allModes)
+
         log("Mode deactivated successfully: ${mode.name}")
     }
 
@@ -209,6 +219,16 @@ class RoutineCoreEngine private constructor() {
      * Get the currently active mode, or null if no mode is active.
      */
     fun getCurrentActiveMode(): ModeConfig? = currentActiveMode
+
+    /**
+     * Reschedule all alarms.
+     * Called when time/timezone changes or when external events require rescheduling.
+     */
+    fun rescheduleAllAlarms() {
+        log("Rescheduling all alarms...")
+        scheduledModeManager?.updateSchedules(allModes)
+        log("All alarms rescheduled")
+    }
 
     private fun log(msg: String) {
         Log.i(TAG, msg)
