@@ -1,0 +1,99 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Release APK
+      run: ./gradlew assembleRelease --stacktrace
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace
+
+    - name: Get version info
+      id: version
+      run: |
+        VERSION_NAME=$(grep "versionName" app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        VERSION_CODE=$(grep "versionCode" app/build.gradle.kts | head -1 | sed 's/[^0-9]*//g')
+        echo "name=$VERSION_NAME" >> $GITHUB_OUTPUT
+        echo "code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+    - name: Rename APKs
+      run: |
+        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/HyperModes-${{ steps.version.outputs.name }}-debug.apk
+        mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/HyperModes-${{ steps.version.outputs.name }}-release-unsigned.apk
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          app/build/outputs/apk/debug/HyperModes-${{ steps.version.outputs.name }}-debug.apk
+          app/build/outputs/apk/release/HyperModes-${{ steps.version.outputs.name }}-release-unsigned.apk
+        body: |
+          ## 🎉 HyperModes v${{ steps.version.outputs.name }}
+
+          ### ✨ Features
+          - **Zero-process architecture**: All logic runs in system_server
+          - **Mode Controllers**: DND, App Suspension, Display Settings
+          - **Notification Filtering**: Whitelist-based notification control
+          - **Triggers**: Scheduled, Driving (Bluetooth), Bedtime
+
+          ### 📦 Installation
+
+          #### Requirements
+          - Android 13+ (API 33+)
+          - LSPosed Framework installed
+          - Root access
+
+          #### Steps
+          1. Download `HyperModes-${{ steps.version.outputs.name }}-debug.apk`
+          2. Install: `adb install -r HyperModes-*.apk`
+          3. Open **LSPosed Manager**
+          4. Enable **HyperModes** module
+          5. Select scope: **System Framework** (android)
+          6. Reboot device
+          7. Open HyperModes app and configure modes
+
+          ### 📖 Documentation
+          - [Implementation Summary](docs/implementation-summary.md)
+          - [Integration Test Plan](docs/testing/integration-test-plan.md)
+          - [Performance Notes](docs/testing/performance-notes.md)
+
+          ### ⚙️ Technical Details
+          - Version Code: ${{ steps.version.outputs.code }}
+          - Min SDK: 33 (Android 13)
+          - Target SDK: 35 (Android 15)
+
+          ### 🐛 Known Issues
+          - Motion detection not yet implemented
+          - `dimWallpaper` and `keepScreenOff` not supported
+
+          ---
+          Built with ❤️ using Claude Code
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
