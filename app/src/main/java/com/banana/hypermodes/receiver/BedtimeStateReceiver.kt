@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.ModeStore
+import com.banana.hypermodes.engine.ModeEngine
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.DeskClockState
 
@@ -14,9 +15,14 @@ import com.banana.hypermodes.ui.DeskClockState
  * app). Manifest-registered so it works even when our UI isn't running —
  * the system_server keep-alive hooks allow this broadcast to cold-start us.
  *
- * Syncs both the live compose state (DeskClockState.bedtimeActive) and the
- * persisted mode list, so the home page shows 已启用 and the detail page's
- * 立即开启 button flips to 关闭 the moment bedtime officially starts.
+ * Beyond syncing the toggle, this is where bedtime's EXTRA settings
+ * (DND policy, grayscale, ...) get applied on scheduled activation:
+ * the engine runs with skipBedtimeTrigger = true (DeskClock is already
+ * driving the bedtime itself — re-sending START_BEDTIME would loop).
+ *
+ * Idempotency: if ModeStore already shows the same enabled flag, we
+ * initiated the change ourselves (manual toggle already ran the engine)
+ * and there is nothing to do.
  */
 class BedtimeStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -25,12 +31,23 @@ class BedtimeStateReceiver : BroadcastReceiver() {
 
         DeskClockState.updateBedtimeActive(context, active)
 
-        // Persist into the mode list so a cold-started UI is already correct.
         val modes = ModeStore.load(context) { DefaultModes.get() }.toMutableList()
         val idx = modes.indexOfFirst { it.id == "bedtime" }
-        if (idx >= 0 && modes[idx].enabled != active) {
-            modes[idx] = modes[idx].copy(enabled = active)
-            ModeStore.save(context, modes)
+        if (idx < 0) return
+        if (modes[idx].enabled == active) return // we initiated this ourselves
+
+        val updated = modes[idx].copy(enabled = active)
+        modes[idx] = updated
+        ModeStore.save(context, modes)
+
+        val engine = ModeEngine(context)
+        if (active) {
+            engine.activate(updated, skipBedtimeTrigger = true)
+        } else {
+            engine.deactivate(updated, skipBedtimeTrigger = true)
         }
+        context.sendBroadcast(
+            Intent(Protocol.ACTION_MODE_STATE).setPackage(context.packageName)
+        )
     }
 }

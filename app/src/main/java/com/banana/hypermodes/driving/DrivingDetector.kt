@@ -11,7 +11,6 @@ import com.banana.hypermodes.data.DRIVING_DETECT_BLUETOOTH
 import com.banana.hypermodes.data.DRIVING_DETECT_MOTION_BLUETOOTH
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
-import com.banana.hypermodes.manager.ModeManager
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
@@ -73,8 +72,8 @@ object DrivingDetector {
         val updated = mode.copy(enabled = active)
         val modes = ModeStore.load(context) { DefaultModes.get() }
         ModeStore.save(context, modes.map { if (it.id == "driving") updated else it })
-        if (active) ModeManager(context).activateMode(updated)
-        else ModeManager(context).deactivateMode(updated)
+        val engine = com.banana.hypermodes.engine.ModeEngine(context)
+        if (active) engine.activate(updated) else engine.deactivate(updated)
     }
 
     /** Register/unregister IN_VEHICLE transitions per current settings. */
