@@ -21,9 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
+import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
-import com.banana.hypermodes.manager.ModeManager
 import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -124,7 +124,7 @@ fun HyperModesApp() {
     LaunchedEffect(Unit) {
         // Official ordering: DND, Bedtime, Driving, then custom modes by name.
         modes = ModeStore.load(context) {
-            ModeManager.getDefaultModes()
+            DefaultModes.get()
         }.map {
             // Bedtime's enabled flag mirrors the official DeskClock state
             // (BedtimeStateReceiver may have updated ModeStore already; the
@@ -239,7 +239,7 @@ fun HyperModesApp() {
                         onSetup = {
                             prefs.edit().putBoolean(KEY_DRIVING_SETUP, true).apply()
                             val driving = modes.firstOrNull { it.id == "driving" }
-                                ?: ModeManager.getDefaultModes().first { it.id == "driving" }
+                                ?: DefaultModes.get().first { it.id == "driving" }
                             editingMode = driving
                             currentScreen = Screen.ModeDetail(driving)
                         }
@@ -622,7 +622,7 @@ fun ModesListScreen(
                     onClick = {
                         // Only show the chooser popup when deleted built-ins can be
                         // restored; otherwise go straight to the custom-mode editor.
-                        val deleted = ModeManager.getDefaultModes()
+                        val deleted = DefaultModes.get()
                             .filter { builtIn -> modes.none { it.id == builtIn.id } }
                         if (deleted.isEmpty()) onCreateCustom() else showCreateDialog = true
                     }
@@ -655,7 +655,7 @@ fun ModesListScreen(
         // LocalDialogStates, which only the Scaffold provides.
         CreateModeDialog(
             show = showCreateDialog,
-            deletedBuiltIns = ModeManager.getDefaultModes()
+            deletedBuiltIns = DefaultModes.get()
                 .filter { builtIn -> modes.none { it.id == builtIn.id } },
             onDismiss = { showCreateDialog = false },
             onCreateCustom = {

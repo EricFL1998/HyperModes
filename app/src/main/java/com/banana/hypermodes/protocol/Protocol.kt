@@ -9,6 +9,9 @@ object Protocol {
     const val MODULE_PACKAGE = "com.banana.hypermodes"
     const val TARGET_PACKAGE = "com.android.deskclock"
     const val DESKCLOCK_PACKAGE = "com.android.deskclock"
+    const val SETTINGS_PACKAGE = "com.android.settings"
+    /** system_server scope (LSPosed "系统框架"). */
+    const val FRAMEWORK_PACKAGE = "android"
 
     /** Signature-level permission guarding the command receiver in DeskClock. */
     const val PERMISSION_CONTROL = "com.banana.hypermodes.permission.CONTROL"
@@ -18,10 +21,34 @@ object Protocol {
     const val ACTION_START_BEDTIME = "com.banana.hypermodes.START_BEDTIME"
     const val ACTION_STOP_BEDTIME = "com.banana.hypermodes.STOP_BEDTIME"
     const val ACTION_QUERY_STATE = "com.banana.hypermodes.QUERY_STATE"
+    const val ACTION_QUERY_SCHEDULE = "com.banana.hypermodes.QUERY_SCHEDULE"
     const val ACTION_SHOW_SLEEP_NOTIFICATION = "com.banana.hypermodes.SHOW_SLEEP_NOTIFICATION"
+    const val ACTION_ENABLE_WAKE_ALARM = "com.banana.hypermodes.ENABLE_WAKE_ALARM"
+    const val ACTION_DISABLE_WAKE_ALARM = "com.banana.hypermodes.DISABLE_WAKE_ALARM"
+    const val ACTION_SKIP_WAKE_ALARM_ONCE = "com.banana.hypermodes.SKIP_WAKE_ALARM_ONCE"
+    const val ACTION_SET_SLEEP_REMINDER = "com.banana.hypermodes.SET_SLEEP_REMINDER"
+    const val ACTION_DISABLE_BEDTIME = "com.banana.hypermodes.DISABLE_BEDTIME"
 
-    // Hook -> app
+    // Engine (own process, manifest receivers)
+    const val ACTION_RESCHEDULE = "com.banana.hypermodes.RESCHEDULE"
+    const val ACTION_ALARM_TRIGGER = "com.banana.hypermodes.ALARM_TRIGGER"
+    /** Engine -> UI: a mode was activated/deactivated by the engine. */
+    const val ACTION_MODE_STATE = "com.banana.hypermodes.MODE_STATE"
+
+    // App -> system_server hook (SystemModeHook bridge)
+    const val ACTION_SET_PACKAGES_SUSPENDED = "com.banana.hypermodes.SET_PACKAGES_SUSPENDED"
+    const val ACTION_SET_CHANNELS_BYPASS_DND = "com.banana.hypermodes.SET_CHANNELS_BYPASS_DND"
+
+    // Engine extras
+    const val EXTRA_MODE_ID = "modeId"
+    const val EXTRA_TRIGGER = "trigger" // "start" | "end"
+    const val EXTRA_PACKAGES = "packages"
+    const val EXTRA_SUSPENDED = "suspended"
+    const val EXTRA_BYPASS = "bypass"
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"
+    /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
+     * (scheduled sleep/wake alarms or the Clock app's own toggle). */
+    const val ACTION_BEDTIME_ACTIVE = "com.banana.hypermodes.BEDTIME_ACTIVE"
 
     // Extras
     const val EXTRA_SLEEP_HOUR = "sleepHour"
@@ -31,6 +58,9 @@ object Protocol {
     const val EXTRA_REPEAT_DAYS = "repeatDays"
     const val EXTRA_STEPS = "steps"
     const val EXTRA_IN_SLEEP_MODE = "inSleepMode"
+    const val EXTRA_WAKE_ENABLED = "wakeEnabled"
+    const val EXTRA_BEDTIME_CONFIGURED = "bedtimeConfigured"
+    const val EXTRA_REMINDER_MINUTES = "reminderMinutes"
 
     /** Bit 0 = Monday ... bit 6 = Sunday. 127 = every day. */
     const val EVERY_DAY = 0b1111111
