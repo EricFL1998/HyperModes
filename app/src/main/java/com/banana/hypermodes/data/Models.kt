@@ -161,16 +161,17 @@ fun Mode.toModeConfig(): ModeConfig {
         repeatDays = repeatDays,
         triggers = triggers,
         notification = NotificationConfig(
-            allowAll = !s.hideNotifications,
+            dndLevel = dndLevel,
             allowedApps = s.allowedApps.toList()
         ),
         display = DisplayConfig(
             darkMode = s.enableDarkMode,
-            grayscale = s.enableGrayscale
+            grayscale = s.enableGrayscale,
+            dimWallpaper = s.dimWallpaper,
+            keepScreenOff = s.keepScreenOff
         ),
         pausedApps = s.pausedApps.toList(),
-        contactFilter = contactFilter,
-        dndEnabled = s.enableDnd
+        contactFilter = contactFilter
     )
 }
 
@@ -202,9 +203,12 @@ fun ModeConfig.toMode(): Mode {
         ContactFilter.NONE -> CONTACT_FILTER_NONE
     }
 
-    // Map DndLevel - need to infer from notification settings since DndLevel is not in ModeConfig
-    // Default to PRIORITY as that's the most common setting
-    val dndLevel = DndLevel.PRIORITY
+    // Map DndLevel - extract from notification.dndLevel
+    val dndLevel = when (notification.dndLevel) {
+        com.banana.hypermodes.systemserver.config.DndLevel.NONE -> DndLevel.NONE
+        com.banana.hypermodes.systemserver.config.DndLevel.PRIORITY -> DndLevel.PRIORITY
+        com.banana.hypermodes.systemserver.config.DndLevel.ALARMS -> DndLevel.ALARMS
+    }
 
     // Build schedule for SCHEDULED and BEDTIME types
     val schedule = if (type == ModeType.SCHEDULED || type == ModeType.BEDTIME) {
@@ -225,18 +229,18 @@ fun ModeConfig.toMode(): Mode {
         description = "",
         enabled = true,
         settings = ModeSettings(
-            enableDnd = dndEnabled,
+            enableDnd = true,
             dndLevel = dndLevel,
             enableGrayscale = display.grayscale,
             enableDarkMode = display.darkMode,
-            dimWallpaper = false,
-            keepScreenOff = false,
+            dimWallpaper = display.dimWallpaper,
+            keepScreenOff = display.keepScreenOff,
             pausedApps = pausedApps.toSet(),
             allowedContacts = emptySet(),
             contactFilter = contactFilterValue,
             allowedApps = notification.allowedApps.toSet(),
             keepScreenOn = false,
-            hideNotifications = !notification.allowAll,
+            hideNotifications = false,
             drivingAutoDetect = drivingAutoDetect,
             drivingDetectMode = drivingDetectMode,
             schedule = schedule

@@ -20,16 +20,17 @@ class ConfigParserTest {
                     "endTime": "17:00",
                     "repeatDays": [1, 2, 3, 4, 5],
                     "notification": {
-                        "allowAll": false,
+                        "dndLevel": "PRIORITY",
                         "allowedApps": ["com.android.messaging", "com.google.android.apps.messaging"]
                     },
                     "display": {
                         "darkMode": false,
-                        "grayscale": true
+                        "grayscale": true,
+                        "dimWallpaper": false,
+                        "keepScreenOff": false
                     },
                     "pausedApps": ["com.facebook.katana", "com.instagram.android"],
-                    "contactFilter": "STARRED",
-                    "dndEnabled": true
+                    "contactFilter": "STARRED"
                 }
             ]
         }
@@ -51,15 +52,16 @@ class ConfigParserTest {
         assertNotNull(mode.repeatDays)
         assertEquals(listOf(1, 2, 3, 4, 5), mode.repeatDays)
 
-        assertEquals(false, mode.notification.allowAll)
+        assertEquals(DndLevel.PRIORITY, mode.notification.dndLevel)
         assertEquals(2, mode.notification.allowedApps.size)
 
         assertEquals(false, mode.display.darkMode)
         assertEquals(true, mode.display.grayscale)
+        assertEquals(false, mode.display.dimWallpaper)
+        assertEquals(false, mode.display.keepScreenOff)
 
         assertEquals(2, mode.pausedApps.size)
         assertEquals(ContactFilter.STARRED, mode.contactFilter)
-        assertEquals(true, mode.dndEnabled)
     }
 
     @Test
@@ -74,7 +76,7 @@ class ConfigParserTest {
                     "icon": "work",
                     "type": "SCHEDULED",
                     "notification": {
-                        "allowAll": false,
+                        "dndLevel": "PRIORITY",
                         "allowedApps": []
                     },
                     "display": {
@@ -110,16 +112,17 @@ class ConfigParserTest {
                     repeatDays = listOf(1, 2, 3, 4, 5, 6, 7),
                     triggers = null,
                     notification = NotificationConfig(
-                        allowAll = false,
+                        dndLevel = DndLevel.PRIORITY,
                         allowedApps = emptyList()
                     ),
                     display = DisplayConfig(
                         darkMode = true,
-                        grayscale = true
+                        grayscale = true,
+                        dimWallpaper = false,
+                        keepScreenOff = false
                     ),
                     pausedApps = emptyList(),
-                    contactFilter = ContactFilter.STARRED,
-                    dndEnabled = true
+                    contactFilter = ContactFilter.STARRED
                 )
             )
         )
@@ -148,16 +151,17 @@ class ConfigParserTest {
                     "endTime": "07:00",
                     "repeatDays": [1, 2, 3, 4, 5, 6, 7],
                     "notification": {
-                        "allowAll": false,
+                        "dndLevel": "PRIORITY",
                         "allowedApps": []
                     },
                     "display": {
                         "darkMode": true,
-                        "grayscale": true
+                        "grayscale": true,
+                        "dimWallpaper": false,
+                        "keepScreenOff": false
                     },
                     "pausedApps": [],
-                    "contactFilter": "STARRED",
-                    "dndEnabled": true
+                    "contactFilter": "STARRED"
                 }
             ]
         }

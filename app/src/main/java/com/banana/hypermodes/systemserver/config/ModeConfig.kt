@@ -31,10 +31,7 @@ data class ModeConfig(
     val pausedApps: List<String>,
 
     // Contact filter
-    val contactFilter: ContactFilter = ContactFilter.ALL,
-
-    // DND settings
-    val dndEnabled: Boolean = true
+    val contactFilter: ContactFilter = ContactFilter.ALL
 )
 
 @Serializable
@@ -65,8 +62,8 @@ data class MotionTrigger(
 
 @Serializable
 data class NotificationConfig(
-    val allowAll: Boolean,
-    val allowedApps: List<String>
+    val dndLevel: DndLevel,
+    val allowedApps: List<String> = emptyList()
 )
 
 @Serializable
@@ -78,8 +75,10 @@ enum class DndLevel {
 
 @Serializable
 data class DisplayConfig(
-    val darkMode: Boolean,
-    val grayscale: Boolean
+    val darkMode: Boolean = false,
+    val grayscale: Boolean = false,
+    val dimWallpaper: Boolean = false,
+    val keepScreenOff: Boolean = false
 )
 
 @Serializable

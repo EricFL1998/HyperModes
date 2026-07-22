@@ -27,11 +27,11 @@ class ModeActionExecutor(
      */
     fun applyMode(mode: ModeConfig) {
         log("applyMode: ${mode.name} (id=${mode.id})")
-        log("  - DND: ${mode.dndEnabled}")
-        log("  - Display: darkMode=${mode.display.darkMode}, grayscale=${mode.display.grayscale}")
+        log("  - DND level: ${mode.notification.dndLevel}")
+        log("  - Display: darkMode=${mode.display.darkMode}, grayscale=${mode.display.grayscale}, dimWallpaper=${mode.display.dimWallpaper}, keepScreenOff=${mode.display.keepScreenOff}")
         log("  - Paused apps: ${mode.pausedApps.size} apps")
         log("  - Contact filter: ${mode.contactFilter}")
-        log("  - Notification: allowAll=${mode.notification.allowAll}, allowed=${mode.notification.allowedApps.size} apps")
+        log("  - Notification: allowed=${mode.notification.allowedApps.size} apps")
         // TODO: Implement actual mode application in later tasks
     }
 
