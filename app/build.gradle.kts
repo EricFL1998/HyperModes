@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -43,6 +44,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.libsu.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("top.yukonga.miuix.kmp:miuix-core")
     implementation("top.yukonga.miuix.kmp:miuix-ui")
