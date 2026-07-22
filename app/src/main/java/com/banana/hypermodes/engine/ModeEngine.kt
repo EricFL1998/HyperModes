@@ -81,7 +81,8 @@ class ModeEngine(private val context: Context) {
                 "categories" to p.priorityCategories,
                 "callSenders" to p.priorityCallSenders,
                 "messageSenders" to p.priorityMessageSenders,
-                "conversationSenders" to p.priorityConversationSenders
+                "conversationSenders" to p.priorityConversationSenders,
+                "visualEffects" to p.suppressedVisualEffects
             ))
             runStep(results, "dnd policy") {
                 notificationManager.notificationPolicy = buildPolicy(contactFilter)
@@ -111,6 +112,7 @@ class ModeEngine(private val context: Context) {
                         context, EngineState.KEY_DND, "messageSenders",
                         NotificationManager.Policy.PRIORITY_SENDERS_ANY
                     ),
+                    EngineState.getSnapshot(context, EngineState.KEY_DND, "visualEffects", 0),
                     EngineState.getSnapshot(
                         context, EngineState.KEY_DND, "conversationSenders",
                         NotificationManager.Policy.CONVERSATION_SENDERS_ANYONE
@@ -135,6 +137,7 @@ class ModeEngine(private val context: Context) {
                     NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS,
             NotificationManager.Policy.PRIORITY_SENDERS_ANY,
             NotificationManager.Policy.PRIORITY_SENDERS_ANY,
+            0,
             NotificationManager.Policy.CONVERSATION_SENDERS_ANYONE
         )
         CONTACT_FILTER_STARRED -> NotificationManager.Policy(
@@ -144,12 +147,14 @@ class ModeEngine(private val context: Context) {
                     NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS,
             NotificationManager.Policy.PRIORITY_SENDERS_STARRED,
             NotificationManager.Policy.PRIORITY_SENDERS_STARRED,
+            0,
             NotificationManager.Policy.CONVERSATION_SENDERS_IMPORTANT
         )
         else -> NotificationManager.Policy(
             NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS,
             NotificationManager.Policy.PRIORITY_SENDERS_ANY,
             NotificationManager.Policy.PRIORITY_SENDERS_ANY,
+            0,
             NotificationManager.Policy.CONVERSATION_SENDERS_NONE
         )
     }
