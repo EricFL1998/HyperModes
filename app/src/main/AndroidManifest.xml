@@ -97,7 +97,7 @@
         <!-- Mode engine: alarm triggers + reschedule (our own app only) -->
         <receiver
             android:name=".engine.EngineReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.banana.hypermodes.ALARM_TRIGGER" />
                 <action android:name="com.banana.hypermodes.RESCHEDULE" />
@@ -113,6 +113,16 @@
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.intent.action.DATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Scheduled mode triggers: AlarmManager fires these at configured times -->
+        <receiver
+            android:name=".systemserver.trigger.ModeAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.banana.hypermodes.START_MODE" />
+                <action android:name="com.banana.hypermodes.END_MODE" />
             </intent-filter>
         </receiver>
     </application>

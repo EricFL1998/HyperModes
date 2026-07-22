@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.protocol.Protocol
@@ -26,6 +27,7 @@ import kotlin.concurrent.thread
 class EngineReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        Log.i(TAG, "onReceive: action=${intent.action}")
         when (intent.action) {
             Protocol.ACTION_RESCHEDULE -> rescheduleAll(context)
             Protocol.ACTION_ALARM_TRIGGER -> {
@@ -47,6 +49,7 @@ class EngineReceiver : BroadcastReceiver() {
     private fun onAlarmTrigger(context: Context, intent: Intent) {
         val modeId = intent.getStringExtra(Protocol.EXTRA_MODE_ID) ?: return
         val isStart = intent.getStringExtra(Protocol.EXTRA_TRIGGER) == TRIGGER_START
+        Log.i(TAG, "onAlarmTrigger: modeId=$modeId isStart=$isStart")
         val modes = ModeStore.load(context) { DefaultModes.get() }.toMutableList()
         val idx = modes.indexOfFirst { it.id == modeId }
         if (idx < 0) {
@@ -58,11 +61,13 @@ class EngineReceiver : BroadcastReceiver() {
         val engine = ModeEngine(context)
         when {
             isStart && !mode.enabled -> {
+                Log.i(TAG, "activating mode $modeId")
                 engine.activate(mode)
                 modes[idx] = mode.copy(enabled = true)
                 ModeStore.save(context, modes)
             }
             !isStart && mode.enabled -> {
+                Log.i(TAG, "deactivating mode $modeId")
                 engine.deactivate(mode)
                 modes[idx] = mode.copy(enabled = false)
                 ModeStore.save(context, modes)
@@ -75,6 +80,7 @@ class EngineReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "EngineReceiver"
         const val TRIGGER_START = "start"
         const val TRIGGER_END = "end"
         private const val PREFS = "engine_alarms"
@@ -83,6 +89,7 @@ class EngineReceiver : BroadcastReceiver() {
         /** Re-arm the next alarm for every scheduled mode (except bedtime,
          *  which is driven by DeskClock's own alarms). */
         fun rescheduleAll(context: Context) {
+            Log.i(TAG, "rescheduleAll called")
             val alarmManager =
                 context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -111,6 +118,7 @@ class EngineReceiver : BroadcastReceiver() {
                         AlarmManager.RTC_WAKEUP, next.epochMillis, pi
                     )
                 }
+                Log.i(TAG, "armed ${mode.id} $trigger at ${java.util.Date(next.epochMillis)}")
                 armed += mode.id
             }
 
@@ -118,8 +126,10 @@ class EngineReceiver : BroadcastReceiver() {
             // or schedule disabled).
             (previouslyArmed - armed).forEach { id ->
                 alarmManager.cancel(pendingIntent(context, id, null))
+                Log.i(TAG, "cancelled alarm for $id")
             }
             prefs.edit().putStringSet(KEY_ARMED, armed).apply()
+            Log.i(TAG, "rescheduleAll complete: armed=$armed")
         }
 
         private fun canScheduleExact(alarmManager: AlarmManager): Boolean =
