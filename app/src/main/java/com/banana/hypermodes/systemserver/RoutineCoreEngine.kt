@@ -102,6 +102,9 @@ class RoutineCoreEngine private constructor() {
             // Update schedulers with new mode list
             scheduledModeManager?.updateSchedules(config.modes)
 
+            // Update driving trigger manager with new mode list
+            drivingTriggerManager?.init(config.modes)
+
             // Restore active mode if one is specified
             config.activeModeId?.let { modeId ->
                 val mode = allModes.find { it.id == modeId }
