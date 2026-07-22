@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.os.IBinder
 import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
+import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
@@ -26,8 +27,7 @@ import io.github.libxposed.api.XposedModule
  *   of the given packages via the "notification" binder. Original per-channel
  *   bypass flags are remembered in memory and restored on clear.
  *
- * All binder calls are name-matched reflectively and best-effort: a renamed
- * method on a MIUI update logs a failure instead of crashing system_server.
+ * Also initializes RoutineCoreEngine which runs entirely in system_server.
  */
 class SystemModeHook(private val module: XposedModule) {
 
@@ -52,14 +52,54 @@ class SystemModeHook(private val module: XposedModule) {
                         val context = ams.getDeclaredField("mContext")
                             .apply { isAccessible = true }
                             .get(chain.thisObject) as Context
+                        clearStoppedState(context)
                         registerBridge(context)
+                        initRoutineCoreEngine(context, classLoader)
                     } catch (t: Throwable) {
                         log("bridge registration failed: $t")
                     }
                     return result
                 }
             })
-        log("systemReady hooked for mode bridge")
+        log("systemReady hooked for mode bridge and RoutineCoreEngine")
+    }
+
+    /**
+     * Clear the "stopped" state on boot so BOOT_COMPLETED and alarm broadcasts
+     * can reach our manifest receivers. On MIUI, swiping from recents sets
+     * stopped=true, which blocks ALL broadcasts until the user launches the app.
+     */
+    private fun clearStoppedState(context: Context) {
+        try {
+            val pm = context.packageManager
+            val pmService = pm.javaClass.getDeclaredField("mPM")
+                .apply { isAccessible = true }
+                .get(pm)
+            val method = pmService.javaClass.getDeclaredMethod(
+                "setPackageStoppedState",
+                String::class.java,
+                Boolean::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType
+            )
+            method.invoke(pmService, Protocol.MODULE_PACKAGE, false, 0)
+            log("cleared stopped state for ${Protocol.MODULE_PACKAGE}")
+        } catch (t: Throwable) {
+            log("failed to clear stopped state: ${t.message}")
+        }
+    }
+
+    /**
+     * Initialize RoutineCoreEngine in system_server context.
+     * This engine will handle all mode logic independently of the app process.
+     */
+    private fun initRoutineCoreEngine(context: Context, classLoader: ClassLoader) {
+        try {
+            val engine = RoutineCoreEngine.getInstance()
+            engine.init(context, classLoader)
+            log("RoutineCoreEngine initialized")
+        } catch (t: Throwable) {
+            log("RoutineCoreEngine initialization failed: $t")
+        }
     }
 
     private fun registerBridge(context: Context) {
@@ -171,7 +211,7 @@ class SystemModeHook(private val module: XposedModule) {
             .invoke(null, service) as IBinder
         return Class.forName(stubClass)
             .getMethod("asInterface", IBinder::class.java)
-            .invoke(null, binder)
+            .invoke(null, binder)!!
     }
 
     private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
