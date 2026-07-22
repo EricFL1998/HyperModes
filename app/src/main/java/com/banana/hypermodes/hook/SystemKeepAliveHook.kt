@@ -22,12 +22,14 @@ import io.github.libxposed.api.XposedModule
 class SystemKeepAliveHook(private val module: XposedModule) {
 
     fun install(classLoader: ClassLoader) {
+        log("SystemKeepAliveHook.install starting")
         val ams = try {
             classLoader.loadClass(AMS)
         } catch (t: Throwable) {
             log("ActivityManagerService not found: ${t.message}")
             return
         }
+        log("AMS found, installing hooks")
         skipForOurPackage(ams, "forceStopPackage")
         skipForOurPackage(ams, "killBackgroundProcesses")
         allowAutoStart(classLoader)
@@ -35,6 +37,147 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         exemptFromStandbyBuckets(classLoader)
         alwaysAllowExactAlarm(classLoader)
         exemptFromGreezer(classLoader)
+        exemptFromCachedAlarm(classLoader)
+        log("About to call forceIncludeStoppedPackages")
+        forceIncludeStoppedPackages(classLoader)
+        log("SystemKeepAliveHook.install complete")
+    }
+
+    /**
+     * Force FLAG_INCLUDE_STOPPED_PACKAGES on broadcasts destined for our package.
+     * This bypasses the PMS stopped-state check entirely — the system will deliver
+     * the broadcast even if stopped=true, waking our process if needed.
+     *
+     * Theory 1 from theory.md: "降维打击" — give our broadcasts the exemption flag
+     * that system broadcasts use to reach stopped apps.
+     *
+     * MIUI uses BroadcastController.broadcastIntentLocked instead of AMS directly.
+     */
+    private fun forceIncludeStoppedPackages(classLoader: ClassLoader) {
+        try {
+            log("forceIncludeStoppedPackages: starting")
+
+            // Try BroadcastController first (MIUI)
+            val broadcastController = try {
+                classLoader.loadClass("com.android.server.am.BroadcastController")
+            } catch (t: Throwable) {
+                log("BroadcastController not found: ${t.message}")
+                null
+            }
+
+            if (broadcastController != null) {
+                log("BroadcastController found, searching for broadcastIntentLocked method")
+
+                // Find the method - Intent is at parameter index 3, not 1!
+                // Signature: broadcastIntentLocked(ProcessRecord, String, String, Intent, ...)
+                val method = broadcastController.declaredMethods.firstOrNull {
+                    it.name == "broadcastIntentLocked" &&
+                    it.parameterTypes.size > 3 &&
+                    it.parameterTypes[3] == android.content.Intent::class.java
+                }
+
+                if (method != null) {
+                    log("Found broadcastIntentLocked with Intent at index 3")
+                    hookBroadcastMethod(method, 3) // Pass the Intent parameter index
+                    log("BroadcastController.broadcastIntentLocked hooked successfully")
+                    return
+                } else {
+                    log("broadcastIntentLocked method not found with correct signature")
+                }
+            }
+
+            // Fallback to AMS (unlikely on MIUI but try anyway)
+            log("Trying AMS.broadcastIntentLocked as fallback")
+            val ams = try {
+                classLoader.loadClass(AMS)
+            } catch (t: Throwable) {
+                log("AMS not found for broadcast hook: ${t.message}")
+                return
+            }
+
+            val method = ams.declaredMethods.firstOrNull {
+                it.name == "broadcastIntentLocked" &&
+                it.parameterTypes.any { param -> param == android.content.Intent::class.java }
+            }
+
+            if (method == null) {
+                log("broadcastIntentLocked not found in AMS")
+                return
+            }
+
+            // Find Intent parameter index in AMS method
+            val intentIndex = method.parameterTypes.indexOfFirst { it == android.content.Intent::class.java }
+            hookBroadcastMethod(method, intentIndex)
+            log("AMS.broadcastIntentLocked hooked")
+        } catch (t: Throwable) {
+            log("forceIncludeStoppedPackages failed with exception: ${t.message}")
+            t.printStackTrace()
+        }
+    }
+
+    private fun hookBroadcastMethod(method: java.lang.reflect.Method, intentParamIndex: Int) {
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    // Get Intent from the correct parameter index
+                    val intent = chain.args.getOrNull(intentParamIndex) as? android.content.Intent
+
+                    if (intent != null) {
+                        val targetPkg = intent.`package` ?: intent.component?.packageName
+
+                        if (targetPkg == Protocol.MODULE_PACKAGE) {
+                            // Force the flag that bypasses stopped-state filtering
+                            val FLAG_INCLUDE_STOPPED_PACKAGES = 0x00000020
+                            val oldFlags = intent.flags
+                            intent.addFlags(FLAG_INCLUDE_STOPPED_PACKAGES)
+                            log("forced FLAG_INCLUDE_STOPPED_PACKAGES for ${intent.action} -> $targetPkg (flags: 0x${oldFlags.toString(16)} -> 0x${intent.flags.toString(16)})")
+                        }
+                    }
+
+                    return chain.proceed()
+                }
+            })
+    }
+
+    /**
+     * MIUI "Aurogon" (Greezer v2) delays alarm delivery to frozen apps via
+     * GreezeManagerService.isNeedCachedAlarmForAurogonInner — returning true
+     * queues the alarm until the app is unfrozen. System apps and packages
+     * containing "xiaomi"/"miui" or in mAurogonAlarmAllowList are exempt.
+     * Force false for our package so alarms fire on time even when frozen.
+     */
+    private fun exemptFromCachedAlarm(classLoader: ClassLoader) {
+        val method = try {
+            classLoader.loadClass(GREEZE_MANAGER_SERVICE)
+                .getDeclaredMethod("isNeedCachedAlarmForAurogonInner", Int::class.javaPrimitiveType)
+                .apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("isNeedCachedAlarmForAurogonInner not found: ${t.message}")
+            return
+        }
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val uid = chain.getArg(0) as? Int ?: return chain.proceed()
+                    val myUid = android.os.Process.myUid()  // system_server uid
+                    // Can't directly get our app's uid here, check package name instead
+                    try {
+                        val svc = chain.thisObject
+                        val pkg = svc.javaClass.getDeclaredMethod("getPackageNameFromUid", Int::class.javaPrimitiveType)
+                            .invoke(svc, uid) as? String
+                        if (pkg == Protocol.MODULE_PACKAGE) {
+                            log("cached alarm: exempting $pkg")
+                            return false  // false = don't cache, send immediately
+                        }
+                    } catch (t: Throwable) {
+                        // Fall through to original logic
+                    }
+                    return chain.proceed()
+                }
+            })
+        log("isNeedCachedAlarmForAurogonInner hooked")
     }
 
     /**
@@ -263,5 +406,6 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         private const val TASK = "com.android.server.wm.Task"
         private const val APP_STANDBY_CONTROLLER = "com.android.server.usage.AppStandbyController"
         private const val ALARM_MANAGER_SERVICE = "com.android.server.alarm.AlarmManagerService"
+        private const val GREEZE_MANAGER_SERVICE = "com.miui.server.greeze.GreezeManagerService"
     }
 }

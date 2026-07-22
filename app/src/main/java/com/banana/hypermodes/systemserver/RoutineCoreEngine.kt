@@ -10,6 +10,7 @@ import android.util.Log
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
+import com.banana.hypermodes.systemserver.trigger.BedtimeListener
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
 
@@ -33,6 +34,7 @@ class RoutineCoreEngine private constructor() {
 
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
+    private var bedtimeListener: BedtimeListener? = null
     private var modeActionExecutor: ModeActionExecutor? = null
 
     private var mainHandler: Handler? = null
@@ -54,6 +56,7 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
+        bedtimeListener = BedtimeListener(context, this)
 
         // Watch for config changes in Settings.Global
         observeConfigChanges(context)
@@ -104,6 +107,9 @@ class RoutineCoreEngine private constructor() {
 
             // Update driving trigger manager with new mode list
             drivingTriggerManager?.init(config.modes)
+
+            // Update bedtime listener with new mode list
+            bedtimeListener?.updateModes(config.modes)
 
             // Restore active mode if one is specified
             config.activeModeId?.let { modeId ->
@@ -232,6 +238,12 @@ class RoutineCoreEngine private constructor() {
         scheduledModeManager?.updateSchedules(allModes)
         log("All alarms rescheduled")
     }
+
+    /**
+     * Get the BedtimeListener instance for external bedtime control.
+     * Used by system_server hooks to manually trigger bedtime activation/deactivation.
+     */
+    fun getBedtimeListener(): BedtimeListener? = bedtimeListener
 
     private fun log(msg: String) {
         Log.i(TAG, msg)
