@@ -1,23 +1,48 @@
-*.iml
-.gradle/
-/local.properties
-/.idea/
-.DS_Store
-/build/
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-**/build/
-.kotlin/
+# Ignore everything by default
+*
 
-# Local reverse-engineering scratch (jadx output, pulled jars, reference modules)
-decompile_clock/
-ServicesJar_decompiler/
-miui-services_decompiler/
-Settings_decompiler/
-example lsposed module/
-.tmp_fw/
-.tmp_*.xml
-.artifacts/
-logs/
+# Allow app source code
+!app/
+!app/src/
+!app/src/main/
+!app/src/main/java/
+!app/src/main/java/**
+!app/src/main/res/
+!app/src/main/res/**
+!app/src/main/AndroidManifest.xml
+!app/build.gradle.kts
+!app/proguard-rules.pro
+
+# Allow test code
+!app/src/test/
+!app/src/test/java/
+!app/src/test/java/**
+!app/src/androidTest/
+!app/src/androidTest/java/
+!app/src/androidTest/java/**
+
+# Allow documentation
+!docs/
+!docs/**
+!README.md
+!LICENSE
+
+# Allow root project files
+!.gitignore
+!settings.gradle.kts
+!build.gradle.kts
+!gradle.properties
+!gradle/
+!gradle/**
+!gradlew
+!gradlew.bat
+
+# Still ignore build outputs
+app/build/
+build/
+.gradle/
+*.iml
+.idea/
+.DS_Store
+local.properties
+.kotlin/
