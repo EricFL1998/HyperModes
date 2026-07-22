@@ -1,0 +1,63 @@
+<resources>
+    <string name="app_name">HyperModes</string>
+    <string name="xposed_description">HyperOS 睡眠模式控制 - 修改时钟应用内的就寝计划，并支持完整的健康/米家/专注模式同步功能。</string>
+
+    <!-- Navigation -->
+    <string name="back">返回</string>
+    <string name="welcome">欢迎</string>
+    <string name="modes">模式</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_title">欢迎使用 HyperModes</string>
+    <string name="welcome_desc">通过睡眠、工作、驾驶等多种模式，减少干扰并掌控您的注意力。</string>
+    <string name="setup_required">需要设置</string>
+    <string name="setup_desc">要激活模块，请强行停止“时钟”应用并重新打开它。</string>
+    <string name="reload_deskclock">重启时钟应用</string>
+    <string name="open_deskclock_settings">打开时钟设置</string>
+    <string name="continue_button">继续</string>
+
+    <!-- Modes List -->
+    <string name="create_own_mode">创建自定义模式</string>
+
+    <!-- Mode Names & Descriptions -->
+    <string name="mode_dnd">勿扰模式</string>
+    <string name="mode_dnd_desc">静音通知和来电</string>
+    <string name="mode_bedtime">睡眠模式</string>
+    <string name="mode_bedtime_desc">11:00 pm - 7:00 am</string>
+    <string name="mode_driving">驾驶模式</string>
+    <string name="mode_driving_desc">利用设备运动状态和蓝牙连接自动开启</string>
+
+    <!-- Detail Screen -->
+    <string name="use_mode">使用%1$s</string>
+    <string name="schedule">作息</string>
+    <string name="what_to_customize">设置项</string>
+
+    <!-- Settings -->
+    <string name="setting_dnd">勿扰模式</string>
+    <string name="dnd_none">不干扰</string>
+    <string name="dnd_priority">仅限优先打扰</string>
+    <string name="dnd_alarms">仅限闹钟</string>
+
+    <string name="setting_grayscale">深色模式</string>
+    <string name="setting_grayscale_desc">黑白屏幕，减少眼睛疲劳</string>
+
+    <string name="setting_dim_wallpaper">调暗壁纸</string>
+    <string name="setting_dim_wallpaper_desc">降低壁纸亮度</string>
+
+    <string name="setting_hide_notifications">隐藏通知</string>
+    <string name="setting_hide_notifications_desc">锁屏上不显示通知内容</string>
+
+    <string name="setting_pause_apps">暂停应用</string>
+    <string name="no_apps_paused">未选择应用</string>
+    <string name="apps_paused">已选择 %1$d 个应用</string>
+
+    <!-- Bedtime specific -->
+    <string name="bedtime_alarm">起床响铃</string>
+    <string name="bedtime_alarm_desc">开启后，起床时间将会响铃</string>
+    <string name="sleep_time">就寝时间</string>
+    <string name="wake_time">起床时间</string>
+    <string name="cancel">取消</string>
+    <string name="done">完成</string>
+    <string name="hour_label">时</string>
+    <string name="minute_label">分</string>
+</resources>
