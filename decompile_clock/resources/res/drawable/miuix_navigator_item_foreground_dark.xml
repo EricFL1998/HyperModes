@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<drawable xmlns:app="http://schemas.android.com/apk/res-auto"
-    app:activatedAlpha="0.14"
-    app:hoveredAlpha="0.12"
-    app:miuixDrawableTintColor="@color/miuix_navigator_item_tint_color_dark"
-    app:miuixDrawableTintRadius="@dimen/miuix_navigator_item_round_corner"
-    app:normalAlpha="0"
-    app:pressedAlpha="0.2"
-    class="miuix.appcompat.app.AlphaBlendingDrawable"/>

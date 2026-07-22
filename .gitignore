@@ -10,3 +10,14 @@
 local.properties
 **/build/
 .kotlin/
+
+# Local reverse-engineering scratch (jadx output, pulled jars, reference modules)
+decompile_clock/
+ServicesJar_decompiler/
+miui-services_decompiler/
+Settings_decompiler/
+example lsposed module/
+.tmp_fw/
+.tmp_*.xml
+.artifacts/
+logs/

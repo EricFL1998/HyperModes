@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<com.miui.support.drawable.CardDrawable xmlns:app="http://schemas.android.com/apk/res-auto"
-    app:backgroundColor="@color/miuix_default_card_drawable_color_dark"
-    app:cardRadius="@dimen/miuix_default_card_drawable_radius"
-    app:hoveredAlpha="0.08"
-    app:normalAlpha="0"
-    app:paddingLeft="0dp"
-    app:pressedAlpha="0.14"
-    app:tintColor="@color/miuix_default_card_drawable_color_tint_dark"/>

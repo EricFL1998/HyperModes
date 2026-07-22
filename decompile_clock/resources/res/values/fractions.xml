@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <fraction name="drop_down_anim_pivot_x">0%</fraction>
-    <fraction name="immersion_menu_anim_pivot_x">100%</fraction>
-    <fraction name="miuix_default_card_stroke_gradient_color_end_position">100%</fraction>
-    <fraction name="miuix_default_card_stroke_gradient_color_start_position">0%</fraction>
-</resources>

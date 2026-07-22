@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="accessibilityActionPageLeft" type="id" />
-    <item name="accessibilityActionPageRight" type="id" />
-    <item name="accessibilityActionPageUp" type="id" />
-    <item name="accessibilityActionPageDown" type="id" />
-</resources>
