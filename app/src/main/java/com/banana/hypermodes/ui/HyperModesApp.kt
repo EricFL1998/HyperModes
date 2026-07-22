@@ -24,7 +24,7 @@ import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
-import com.banana.hypermodes.engine.ModeEngine
+import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -300,7 +300,7 @@ fun HyperModesApp() {
                         },
                         onDelete = { deleted ->
                             if (deleted.enabled) {
-                                ModeEngine(context).deactivate(deleted)
+                                ModeControlBridge.deactivateMode(context, deleted.id)
                             }
                             persistModes(modes.filterNot { it.id == deleted.id })
                             when (deleted.id) {

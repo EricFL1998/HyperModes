@@ -55,67 +55,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Driving detection: car Bluetooth connect/disconnect (system broadcast) -->
-        <receiver
-            android:name=".driving.BluetoothDrivingReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
-                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Driving detection: Activity Recognition IN_VEHICLE transitions -->
-        <receiver
-            android:name=".driving.ActivityTransitionReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.banana.hypermodes.DRIVING_ACTIVITY_TRANSITION" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Re-register driving detection after reboot -->
-        <receiver
-            android:name=".driving.BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Official bedtime state pushes from the DeskClock hook (sender is
-             DeskClock's uid, so this must be exported; no signature permission
-             is possible since DeskClock can't hold ours). -->
-        <receiver
-            android:name=".receiver.BedtimeStateReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.banana.hypermodes.BEDTIME_ACTIVE" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Mode engine: alarm triggers + reschedule (our own app only) -->
-        <receiver
-            android:name=".engine.EngineReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.banana.hypermodes.ALARM_TRIGGER" />
-                <action android:name="com.banana.hypermodes.RESCHEDULE" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Re-arm schedule alarms when the wall clock changes (protected
-             broadcasts — only the system can send them). -->
-        <receiver
-            android:name=".engine.TimeChangedReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-                <action android:name="android.intent.action.DATE_CHANGED" />
-            </intent-filter>
-        </receiver>
-
         <!-- Scheduled mode triggers: AlarmManager fires these at configured times -->
         <receiver
             android:name=".systemserver.trigger.ModeAlarmReceiver"

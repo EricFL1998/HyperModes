@@ -19,7 +19,6 @@ import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DRIVING_DETECT_BLUETOOTH
 import com.banana.hypermodes.data.DRIVING_DETECT_MOTION_BLUETOOTH
 import com.banana.hypermodes.data.Mode
-import com.banana.hypermodes.driving.DrivingDetector
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -47,7 +46,7 @@ fun DrivingDetectScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
-        DrivingDetector.ensureActivityRecognition(context)
+        // TODO: Activity Recognition now handled by DrivingTriggerManager in system_server
     }
 
     fun select(detectMode: Int) {
@@ -67,7 +66,7 @@ fun DrivingDetectScreen(
     }
 
     LaunchedEffect(Unit) {
-        DrivingDetector.ensureActivityRecognition(context)
+        // TODO: Activity Recognition now handled by DrivingTriggerManager in system_server
         // The default option (使用蓝牙) is pre-selected — request its runtime
         // permissions on page entry instead of waiting for a redundant tap.
         if (editedMode.settings.drivingAutoDetect) {

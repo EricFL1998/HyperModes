@@ -9,14 +9,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
-import com.banana.hypermodes.driving.DrivingDetector
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // (Re)register driving motion detection per saved settings.
-        DrivingDetector.ensureActivityRecognition(applicationContext)
+        // TODO: Activity Recognition now handled by DrivingTriggerManager in system_server
 
         setContent {
             val darkMode = isSystemInDarkTheme()

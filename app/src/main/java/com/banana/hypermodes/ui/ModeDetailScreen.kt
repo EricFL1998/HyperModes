@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.*
-import com.banana.hypermodes.engine.ModeEngine
+import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.TimePickerDialog
 import top.yukonga.miuix.kmp.basic.*
@@ -208,11 +208,10 @@ fun ModeDetailScreen(
                         onClick = {
                             val enabled = !editedMode.enabled
                             editedMode = editedMode.copy(enabled = enabled)
-                            val engine = ModeEngine(context)
                             if (enabled) {
-                                engine.activate(editedMode)
+                                ModeControlBridge.activateMode(context, editedMode.id)
                             } else {
-                                engine.deactivate(editedMode)
+                                ModeControlBridge.deactivateMode(context, editedMode.id)
                             }
                             onSave(editedMode)
                         }
@@ -317,8 +316,7 @@ fun ModeDetailScreen(
                                         settings = editedMode.settings.copy(drivingAutoDetect = on)
                                     )
                                     onSave(editedMode)
-                                    com.banana.hypermodes.driving.DrivingDetector
-                                        .ensureActivityRecognition(context)
+                                    // TODO: Activity Recognition now handled by DrivingTriggerManager in system_server
                                 }
                             )
                         }
