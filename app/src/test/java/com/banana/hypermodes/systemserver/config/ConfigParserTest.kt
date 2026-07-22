@@ -28,7 +28,7 @@ class ConfigParserTest {
                         "grayscale": true
                     },
                     "pausedApps": ["com.facebook.katana", "com.instagram.android"],
-                    "contactFilter": "STARRED_ONLY",
+                    "contactFilter": "STARRED",
                     "dndEnabled": true
                 }
             ]
@@ -58,7 +58,7 @@ class ConfigParserTest {
         assertEquals(true, mode.display.grayscale)
 
         assertEquals(2, mode.pausedApps.size)
-        assertEquals(ContactFilter.STARRED_ONLY, mode.contactFilter)
+        assertEquals(ContactFilter.STARRED, mode.contactFilter)
         assertEquals(true, mode.dndEnabled)
     }
 
@@ -118,7 +118,7 @@ class ConfigParserTest {
                         grayscale = true
                     ),
                     pausedApps = emptyList(),
-                    contactFilter = ContactFilter.STARRED_ONLY,
+                    contactFilter = ContactFilter.STARRED,
                     dndEnabled = true
                 )
             )
@@ -131,5 +131,50 @@ class ConfigParserTest {
         assertEquals(config.modes.size, parsed.modes.size)
         assertEquals(config.modes[0].id, parsed.modes[0].id)
         assertEquals(config.modes[0].name, parsed.modes[0].name)
+    }
+
+    @Test
+    fun testBedtimeModeType() {
+        val json = """
+        {
+            "activeModeId": "bedtime_mode",
+            "modes": [
+                {
+                    "id": "bedtime_mode",
+                    "name": "Bedtime",
+                    "icon": "bedtime",
+                    "type": "BEDTIME",
+                    "startTime": "22:00",
+                    "endTime": "07:00",
+                    "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+                    "notification": {
+                        "allowAll": false,
+                        "allowedApps": []
+                    },
+                    "display": {
+                        "darkMode": true,
+                        "grayscale": true
+                    },
+                    "pausedApps": [],
+                    "contactFilter": "STARRED",
+                    "dndEnabled": true
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val config = ConfigParser.parseConfig(json)
+
+        assertNotNull(config)
+        assertEquals("bedtime_mode", config.activeModeId)
+        assertEquals(1, config.modes.size)
+
+        val mode = config.modes[0]
+        assertEquals("bedtime_mode", mode.id)
+        assertEquals("Bedtime", mode.name)
+        assertEquals(ModeType.BEDTIME, mode.type)
+        assertEquals("22:00", mode.startTime)
+        assertEquals("07:00", mode.endTime)
+        assertEquals(ContactFilter.STARRED, mode.contactFilter)
     }
 }

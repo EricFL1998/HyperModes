@@ -40,7 +40,8 @@ data class ModeConfig(
 @Serializable
 enum class ModeType {
     SCHEDULED,
-    DYNAMIC_TRIGGER
+    DYNAMIC_TRIGGER,
+    BEDTIME
 }
 
 @Serializable
@@ -69,6 +70,13 @@ data class NotificationConfig(
 )
 
 @Serializable
+enum class DndLevel {
+    NONE,
+    PRIORITY,
+    ALARMS
+}
+
+@Serializable
 data class DisplayConfig(
     val darkMode: Boolean,
     val grayscale: Boolean
@@ -77,7 +85,7 @@ data class DisplayConfig(
 @Serializable
 enum class ContactFilter {
     ALL,
-    STARRED_ONLY,
+    STARRED,
     NONE
 }
 
