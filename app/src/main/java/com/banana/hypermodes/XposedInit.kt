@@ -2,6 +2,9 @@ package com.banana.hypermodes
 
 import android.util.Log
 import com.banana.hypermodes.hook.DeskClockHook
+import com.banana.hypermodes.hook.SettingsHook
+import com.banana.hypermodes.hook.SystemKeepAliveHook
+import com.banana.hypermodes.hook.SystemModeHook
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
@@ -18,14 +21,30 @@ class XposedInit : XposedModule() {
     }
 
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
-        if (param.packageName != Protocol.TARGET_PACKAGE) return
-        if (processName != null && processName != param.packageName) {
+        // Only hook in each app's main process. system_server is exempt: its
+        // process name doesn't match the "android" package name.
+        if (param.packageName != Protocol.FRAMEWORK_PACKAGE &&
+            processName != null && processName != param.packageName
+        ) {
             log(Log.INFO, TAG, "skipping hook install in secondary process: $processName")
             return
         }
         try {
-            DeskClockHook(this).install(param.classLoader)
-            log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+            when (param.packageName) {
+                Protocol.TARGET_PACKAGE -> {
+                    DeskClockHook(this).install(param.classLoader)
+                    log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+                }
+                Protocol.SETTINGS_PACKAGE -> {
+                    SettingsHook(this).install(param.classLoader)
+                    log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+                }
+                Protocol.FRAMEWORK_PACKAGE -> {
+                    SystemKeepAliveHook(this).install(param.classLoader)
+                    SystemModeHook(this).install(param.classLoader)
+                    log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+                }
+            }
         } catch (t: Throwable) {
             log(Log.ERROR, TAG, "failed to install hook", t)
         }
