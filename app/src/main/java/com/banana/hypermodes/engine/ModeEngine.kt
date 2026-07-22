@@ -199,7 +199,7 @@ class ModeEngine(private val context: Context) {
         default
     }
 
-    /** Direct write first; fall back to root shell (libsu) like the old ModeManager. */
+    /** Direct write first; fall back to root shell (libsu) if the caller lacks permission. */
     private fun putSecureInt(name: String, value: Int) {
         try {
             Settings.Secure.putInt(context.contentResolver, name, value)

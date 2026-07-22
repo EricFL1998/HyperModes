@@ -24,6 +24,7 @@ import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
+import com.banana.hypermodes.engine.ModeEngine
 import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -43,9 +44,17 @@ sealed class Screen {
     data class Repeat(val mode: Mode) : Screen()
     data class CustomRepeat(val mode: Mode) : Screen()
     data class DrivingDetect(val mode: Mode) : Screen()
-    data class AppPicker(val mode: Mode) : Screen()
+    data class AppPicker(val mode: Mode, val paused: Boolean = false) : Screen()
     data class EditMode(val mode: Mode, val isNew: Boolean) : Screen()
 }
+
+/** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
+private fun sortModes(list: List<Mode>): List<Mode> = list.sortedWith(
+    compareBy(
+        { when (it.id) { "dnd" -> 0; "bedtime" -> 1; "driving" -> 2; else -> 3 } },
+        { it.name }
+    )
+)
 
 @Composable
 fun HyperModesApp() {
@@ -122,25 +131,20 @@ fun HyperModesApp() {
     // persisted via ModeStore. Bedtime always sorts first.
     var modes by remember { mutableStateOf<List<Mode>>(emptyList()) }
     LaunchedEffect(Unit) {
-        // Official ordering: DND, Bedtime, Driving, then custom modes by name.
-        modes = ModeStore.load(context) {
-            DefaultModes.get()
-        }.map {
-            // Bedtime's enabled flag mirrors the official DeskClock state
-            // (BedtimeStateReceiver may have updated ModeStore already; the
-            // live compose state wins if they disagree).
-            if (it.id == "bedtime") it.copy(enabled = DeskClockState.bedtimeActive) else it
-        }.sortedWith(
-            compareBy(
-                { when (it.id) { "dnd" -> 0; "bedtime" -> 1; "driving" -> 2; else -> 3 } },
-                { it.name }
-            )
+        modes = sortModes(
+            ModeStore.load(context) { DefaultModes.get() }.map {
+                // Bedtime's enabled flag mirrors the official DeskClock state
+                if (it.id == "bedtime") it.copy(enabled = DeskClockState.bedtimeActive) else it
+            }
         )
     }
 
     fun persistModes(updated: List<Mode>) {
         modes = updated
         ModeStore.save(context, updated)
+        context.sendBroadcast(
+            Intent(Protocol.ACTION_RESCHEDULE).setPackage(context.packageName)
+        )
     }
 
     // Live-sync the bedtime card when the official state changes while the
@@ -161,6 +165,28 @@ fun HyperModesApp() {
             if (idx >= 0) modes.toMutableList().apply { set(idx, mode) }
             else modes + mode
         )
+    }
+
+    // Refresh the mode list when the engine activates/deactivates a mode
+    // (scheduled trigger, bedtime push) while the UI is alive.
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: android.content.Intent) {
+                modes = sortModes(
+                    ModeStore.load(context) { DefaultModes.get() }.map {
+                        if (it.id == "bedtime") {
+                            it.copy(enabled = DeskClockState.bedtimeActive)
+                        } else it
+                    }
+                )
+            }
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context, receiver,
+            android.content.IntentFilter(Protocol.ACTION_MODE_STATE),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose { context.unregisterReceiver(receiver) }
     }
 
     // Always follow the system's dark mode (no in-app toggle).
@@ -261,6 +287,10 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.AppPicker(updated)
                         },
+                        onOpenPausedApps = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.AppPicker(updated, paused = true)
+                        },
                         onOpenDrivingDetect = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DrivingDetect(updated)
@@ -269,6 +299,9 @@ fun HyperModesApp() {
                             currentScreen = Screen.EditMode(updated, isNew = false)
                         },
                         onDelete = { deleted ->
+                            if (deleted.enabled) {
+                                ModeEngine(context).deactivate(deleted)
+                            }
                             persistModes(modes.filterNot { it.id == deleted.id })
                             when (deleted.id) {
                                 // Re-adding driving shows the landing page again.
@@ -345,6 +378,7 @@ fun HyperModesApp() {
                 is Screen.AppPicker -> {
                     AppPickerScreen(
                         mode = editingMode ?: screen.mode,
+                        paused = screen.paused,
                         onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
                         onSave = { updatedMode ->
                             editingMode = updatedMode
@@ -514,6 +548,14 @@ fun ModesListScreen(
     val listPrefs = remember { context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE) }
     val drivingSetUp = listPrefs.getBoolean(KEY_DRIVING_SETUP, false)
 
+    // Exact-alarm nudge: without it, scheduled modes may fire late.
+    val alarmManager = remember {
+        context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+    }
+    val exactAlarmsMissing = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms() &&
+            modes.any { it.settings.schedule?.enabled == true && it.id != "bedtime" }
+
     // Format like "23:00" (24-hour)
     fun formatTime(hour: Int, minute: Int): String = "%02d:%02d".format(hour, minute)
 
@@ -543,6 +585,45 @@ fun ModesListScreen(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp)
                 )
+            }
+
+            if (exactAlarmsMissing) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp),
+                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.exact_alarm_title),
+                                style = MiuixTheme.textStyles.body1
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.exact_alarm_desc),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                text = stringResource(R.string.grant_permission),
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            android.provider.Settings
+                                                .ACTION_REQUEST_SCHEDULE_EXACT_ALARM
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
             }
 
             // Top spacer for breathing room before first card

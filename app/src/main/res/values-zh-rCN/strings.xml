@@ -9,7 +9,7 @@
 
     <!-- Welcome Screen -->
     <string name="welcome_title">欢迎使用 HyperModes</string>
-    <string name="welcome_desc">通过睡眠、工作、驾驶等多种模式，减少干扰并掌控您的注意力。</string>
+    <string name="welcome_desc">利用适合睡眠、工作、驾车等场景的各种模式，减少干扰、保持专注</string>
     <string name="setup_required">需要设置</string>
     <string name="setup_desc">要激活模块，请强行停止“时钟”应用并重新打开它。</string>
     <string name="reload_deskclock">重启时钟应用</string>
@@ -22,8 +22,9 @@
     <!-- Mode Names & Descriptions -->
     <string name="mode_dnd">勿扰模式</string>
     <string name="mode_dnd_desc">静音通知和来电</string>
+    <string name="mode_dnd_hero_desc">仅允许来自重要联系人和应用的通知，尽量减少干扰</string>
     <string name="mode_bedtime">睡眠模式</string>
-    <string name="mode_bedtime_desc">11:00 pm - 7:00 am</string>
+    <string name="mode_bedtime_desc">23:00 - 07:00</string>
     <string name="mode_driving">驾驶模式</string>
     <string name="mode_driving_desc">利用设备运动状态和蓝牙连接自动开启</string>
 
@@ -47,9 +48,14 @@
     <string name="setting_hide_notifications">隐藏通知</string>
     <string name="setting_hide_notifications_desc">锁屏上不显示通知内容</string>
 
+    <string name="paused_apps">暂停应用</string>
     <string name="setting_pause_apps">暂停应用</string>
-    <string name="no_apps_paused">未选择应用</string>
-    <string name="apps_paused">已选择 %1$d 个应用</string>
+    <string name="no_apps_paused">未暂停任何应用</string>
+    <string name="apps_paused">已暂停 %1$d 个</string>
+
+    <string name="exact_alarm_title">允许精确闹钟</string>
+    <string name="exact_alarm_desc">未授权精确闹钟，定时模式可能延迟触发。</string>
+    <string name="grant_permission">去授权</string>
 
     <!-- Bedtime specific -->
     <string name="bedtime_alarm">起床响铃</string>
@@ -60,4 +66,110 @@
     <string name="done">完成</string>
     <string name="hour_label">时</string>
     <string name="minute_label">分</string>
+
+    <!-- Wake alarm turn-off dialog -->
+    <string name="turn_off_alarm_title">关闭起床响铃？</string>
+    <string name="turn_off_once">仅关闭一次</string>
+    <string name="turn_off_always">永久关闭</string>
+
+    <!-- Bedtime range on main page -->
+    <string name="bedtime_range">从 %1$s - %2$s</string>
+
+    <!-- Bedtime intro (never configured in Clock) -->
+    <string name="intro_title">睡眠</string>
+    <string name="intro_subtitle">醒来时活力满满</string>
+    <string name="setup_sleep">设置睡眠</string>
+    <string name="health_missing">未安装小米健康。安装后可记录睡眠数据并保持作息同步。</string>
+    <string name="download_health">下载小米健康</string>
+
+    <!-- Notification filters -->
+    <string name="notif_filter">通知过滤条件</string>
+    <string name="allow_all_notifications">允许所有通知</string>
+    <string name="contacts">联系人</string>
+    <string name="some_contacts_except">部分联系人例外</string>
+    <string name="apps">应用</string>
+    <string name="no_apps_except">无应用例外</string>
+    <string name="apps_except">%1$d 个应用例外</string>
+
+    <!-- More settings / display options -->
+    <string name="more_settings">更多设置</string>
+    <string name="display_settings">显示设置</string>
+    <string name="display_options">显示选项</string>
+    <string name="display_when_filtered">过滤通知时的显示选项</string>
+    <string name="grayscale_mode">灰度模式</string>
+    <string name="grayscale_mode_desc">将屏幕调成黑白色</string>
+    <string name="keep_screen_off">让屏幕保持关闭状态</string>
+    <string name="keep_screen_off_desc">停用屏幕常亮</string>
+    <string name="dim_wallpaper_option">调暗壁纸</string>
+    <string name="dim_wallpaper_option_desc">调整壁纸亮度</string>
+    <string name="dark_theme_option">启用深色主题</string>
+    <string name="dark_theme_option_desc">将设备主题切换为深色背景，让眼睛更舒适</string>
+    <string name="and_n_more">%1$s、%2$s和另外 %3$d 个</string>
+    <string name="create_mode">创建模式</string>
+    <string name="custom">自定义</string>
+    <string name="custom_mode_default">自定义模式</string>
+    <string name="edit_mode">修改模式</string>
+    <string name="mode_name">模式名称</string>
+    <string name="choose_icon">选择一个图标</string>
+    <string name="rename">重命名</string>
+    <string name="delete">删除</string>
+    <string name="turn_on_now">立即开启</string>
+    <string name="turn_off">关闭</string>
+    <string name="driving_intro_subtitle">行车时安全第一，驾驶途中不分心</string>
+    <string name="driving_when_driving">驾车时</string>
+    <string name="driving_dnd">驾车勿扰</string>
+    <string name="use_bluetooth">使用蓝牙</string>
+    <string name="use_bluetooth_desc">连接车载蓝牙时自动开启</string>
+    <string name="use_motion_bluetooth">使用运动状态和蓝牙</string>
+    <string name="use_motion_bluetooth_desc">当设备检测到您在移动的车辆中，或连接车载蓝牙时自动开启</string>
+    <string name="driving_dnd_info">驾车勿扰会在检测到驾驶时自动静音来电、短信和通知，帮助您减少干扰。当您是移动车辆中的乘客时，该模式有时也可能会激活。</string>
+    <string name="modes_settings_summary">勿扰、睡眠、自定义模式</string>
+    <string name="mode_on">已启用</string>
+    <string name="mode_off">已停用</string>
+    <string name="set_schedule">设置时间表</string>
+    <string name="start_time">开始时间</string>
+    <string name="end_time">结束时间</string>
+    <string name="delete_mode_confirm">要删除“%1$s”模式吗？</string>
+    <string name="setup_driving">设置驾驶模式</string>
+    <string name="setup_mode">设置%1$s</string>
+    <string name="not_set_up">未设置</string>
+    <string name="when_to_turn_on">何时自动开启</string>
+    <string name="sleep_reminder">就寝提醒</string>
+    <string name="reminder_on_time">准时</string>
+    <string name="reminder_minutes_before">提前%1$d分钟</string>
+    <string name="reminder_hour_before">提前1小时</string>
+    <string name="reminder_none">无</string>
+    <string name="repeat_cycle">重复周期</string>
+    <string name="repeat_cycle_desc">将按时提醒就寝，响铃唤醒起床</string>
+    <string name="bedtime_hero_desc">设计安睡日常安排。设置闹钟、调暗屏幕并屏蔽通知。</string>
+    <string name="repeat">重复</string>
+    <string name="repeat_every_day">每天</string>
+    <string name="repeat_workday">法定工作日（智能跳过节假日）</string>
+    <string name="repeat_holiday">法定节假日（智能跳过工作日）</string>
+    <string name="repeat_mon_fri">周一至周五</string>
+    <string name="repeat_custom">自定义</string>
+    <string name="day_mon">周一</string>
+    <string name="day_tue">周二</string>
+    <string name="day_wed">周三</string>
+    <string name="day_thu">周四</string>
+    <string name="day_fri">周五</string>
+    <string name="day_sat">周六</string>
+    <string name="day_sun">周日</string>
+    <string name="day_mon_short">一</string>
+    <string name="day_tue_short">二</string>
+    <string name="day_wed_short">三</string>
+    <string name="day_thu_short">四</string>
+    <string name="day_fri_short">五</string>
+    <string name="day_sat_short">六</string>
+    <string name="day_sun_short">日</string>
+    <string name="never">从不</string>
+    <string name="select_contacts">选择联系人</string>
+    <string name="all_contacts">所有联系人</string>
+    <string name="starred_contacts">已标记星标的联系人</string>
+    <string name="no_contacts">无联系人例外</string>
+    <string name="select_apps">选择应用</string>
+    <string name="search_apps">搜索应用</string>
+    <string name="custom_mode_hero_desc">在此模式下减少干扰、保持专注</string>
+    <string name="list_separator">、</string>
+    <string name="options_none">未启用任何选项</string>
 </resources>

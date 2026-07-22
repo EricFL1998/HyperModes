@@ -1,4 +1,175 @@
 <resources>
     <string name="app_name">HyperModes</string>
     <string name="xposed_description">HyperOS Bedtime control - edit the DeskClock bedtime schedule and manually start/stop bedtime mode with full Mi Health / Mi Home / Zen Mode sync</string>
+
+    <!-- Navigation -->
+    <string name="back">Back</string>
+    <string name="welcome">Welcome</string>
+    <string name="modes">Modes</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_title">Welcome to HyperModes</string>
+    <string name="welcome_desc">Minimize distractions and take control of your attention with modes for sleep, work, driving, and everything in between</string>
+    <string name="setup_required">Setup Required</string>
+    <string name="setup_desc">To activate the module, please force-stop DeskClock and reopen it.</string>
+    <string name="reload_deskclock">Reload DeskClock</string>
+    <string name="open_deskclock_settings">Open DeskClock Settings</string>
+    <string name="continue_button">Continue</string>
+
+    <!-- Modes List -->
+    <string name="create_own_mode">Create your own mode</string>
+
+    <!-- Mode Names & Descriptions -->
+    <string name="mode_dnd">Do Not Disturb</string>
+    <string name="mode_dnd_desc">Silence notifications and calls</string>
+    <string name="mode_dnd_hero_desc">Only allow notifications from important contacts and apps to minimize interruptions</string>
+    <string name="mode_bedtime">Bedtime</string>
+    <string name="mode_bedtime_desc">23:00 - 07:00</string>
+    <string name="mode_driving">Driving</string>
+    <string name="mode_driving_desc">Using device’s motion and Bluetooth connection</string>
+
+    <!-- Detail Screen -->
+    <string name="use_mode">Use %1$s</string>
+    <string name="schedule">Schedule</string>
+    <string name="what_to_customize">What to customize</string>
+
+    <!-- Settings -->
+    <string name="setting_dnd">Do Not Disturb</string>
+    <string name="dnd_none">No interruptions</string>
+    <string name="dnd_priority">Priority only</string>
+    <string name="dnd_alarms">Alarms only</string>
+
+    <string name="setting_grayscale">Grayscale</string>
+    <string name="setting_grayscale_desc">Reduce eye strain with black and white screen</string>
+
+    <string name="setting_dim_wallpaper">Dim wallpaper</string>
+    <string name="setting_dim_wallpaper_desc">Reduce brightness of wallpaper</string>
+
+    <string name="setting_hide_notifications">Hide notifications</string>
+    <string name="setting_hide_notifications_desc">Don’t show notification content on lock screen</string>
+
+    <string name="paused_apps">Paused apps</string>
+    <string name="setting_pause_apps">Pause apps</string>
+    <string name="no_apps_paused">No apps paused</string>
+    <string name="apps_paused">%1$d paused</string>
+
+    <string name="exact_alarm_title">Allow exact alarms</string>
+    <string name="exact_alarm_desc">Scheduled modes may fire late until exact alarms are allowed.</string>
+    <string name="grant_permission">Allow</string>
+
+    <!-- Bedtime specific -->
+    <string name="bedtime_alarm">Wake-up ringtone</string>
+    <string name="bedtime_alarm_desc">When on, a ringtone will sound at wake-up time</string>
+    <string name="sleep_time">Sleep time</string>
+    <string name="wake_time">Wake time</string>
+    <string name="cancel">Cancel</string>
+    <string name="done">Done</string>
+    <string name="hour_label">h</string>
+    <string name="minute_label">m</string>
+
+    <!-- Wake alarm turn-off dialog -->
+    <string name="turn_off_alarm_title">Turn off wake alarm?</string>
+    <string name="turn_off_once">Just once</string>
+    <string name="turn_off_always">Always</string>
+
+    <!-- Bedtime range on main page -->
+    <string name="bedtime_range">From %1$s - %2$s</string>
+
+    <!-- Bedtime intro (never configured in Clock) -->
+    <string name="intro_title">Sleep</string>
+    <string name="intro_subtitle">Wake up refreshed</string>
+    <string name="setup_sleep">Set up sleep</string>
+    <string name="health_missing">Mi Health is not installed. Install it to track your sleep and keep bedtime in sync.</string>
+    <string name="download_health">Download Mi Health</string>
+
+    <!-- Notification filters -->
+    <string name="notif_filter">Notification filters</string>
+    <string name="allow_all_notifications">Allow all notifications</string>
+    <string name="contacts">Contacts</string>
+    <string name="some_contacts_except">Some contacts can interrupt</string>
+    <string name="apps">Apps</string>
+    <string name="no_apps_except">No apps can interrupt</string>
+    <string name="apps_except">%1$d apps can interrupt</string>
+
+    <!-- More settings / display options -->
+    <string name="more_settings">More settings</string>
+    <string name="display_settings">Display settings</string>
+    <string name="display_options">Display options</string>
+    <string name="display_when_filtered">Display options for filtered notifications</string>
+    <string name="grayscale_mode">Grayscale</string>
+    <string name="grayscale_mode_desc">Turn the screen to black and white</string>
+    <string name="keep_screen_off">Keep screen off</string>
+    <string name="keep_screen_off_desc">Disable always-on display</string>
+    <string name="dim_wallpaper_option">Dim wallpaper</string>
+    <string name="dim_wallpaper_option_desc">Adjust wallpaper brightness</string>
+    <string name="dark_theme_option">Enable dark theme</string>
+    <string name="dark_theme_option_desc">Switch the device theme to a dark background</string>
+    <string name="and_n_more">%1$s, %2$s and %3$d more</string>
+    <string name="create_mode">Create mode</string>
+    <string name="custom">Custom</string>
+    <string name="custom_mode_default">Custom mode</string>
+    <string name="edit_mode">Edit mode</string>
+    <string name="mode_name">Mode name</string>
+    <string name="choose_icon">Choose an icon</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="turn_on_now">Turn on now</string>
+    <string name="turn_off">Turn off</string>
+    <string name="driving_intro_subtitle">Safety first while driving — no distractions behind the wheel</string>
+    <string name="driving_when_driving">While driving</string>
+    <string name="driving_dnd">Do Not Disturb while driving</string>
+    <string name="use_bluetooth">Use Bluetooth</string>
+    <string name="use_bluetooth_desc">Turns on automatically while connected to vehicle Bluetooth</string>
+    <string name="use_motion_bluetooth">Use motion and Bluetooth</string>
+    <string name="use_motion_bluetooth_desc">Turns on automatically when the device detects you’re in a moving vehicle, or while connected to vehicle Bluetooth</string>
+    <string name="driving_dnd_info">Do Not Disturb while driving helps minimize distractions by automatically silencing incoming calls, texts, and notifications when driving is detected. It may sometimes activate when you’re a passenger in a moving vehicle.</string>
+    <string name="modes_settings_summary">Do Not Disturb, Bedtime, custom modes</string>
+    <string name="mode_on">ON</string>
+    <string name="mode_off">Disabled</string>
+    <string name="set_schedule">Set a schedule</string>
+    <string name="start_time">Start time</string>
+    <string name="end_time">End time</string>
+    <string name="delete_mode_confirm">Delete \"%1$s\" mode?</string>
+    <string name="setup_driving">Set up Driving</string>
+    <string name="setup_mode">Set up %1$s</string>
+    <string name="not_set_up">Not set up</string>
+    <string name="when_to_turn_on">When to turn on automatically</string>
+    <string name="sleep_reminder">Bedtime reminder</string>
+    <string name="reminder_on_time">At set time</string>
+    <string name="reminder_minutes_before">%1$d minutes in advance</string>
+    <string name="reminder_hour_before">1 hour in advance</string>
+    <string name="reminder_none">None</string>
+    <string name="repeat_cycle">Repeat cycle</string>
+    <string name="repeat_cycle_desc">Reminds you to sleep and rings to wake you up on time</string>
+    <string name="bedtime_hero_desc">Design a restful nightly routine. Set alarms, dim the screen and block notifications.</string>
+    <string name="repeat">Repeat</string>
+    <string name="repeat_every_day">Every day</string>
+    <string name="repeat_workday">Legal workdays (skip holidays)</string>
+    <string name="repeat_holiday">Legal holidays (skip workdays)</string>
+    <string name="repeat_mon_fri">Monday to Friday</string>
+    <string name="repeat_custom">Custom</string>
+    <string name="day_mon">Monday</string>
+    <string name="day_tue">Tuesday</string>
+    <string name="day_wed">Wednesday</string>
+    <string name="day_thu">Thursday</string>
+    <string name="day_fri">Friday</string>
+    <string name="day_sat">Saturday</string>
+    <string name="day_sun">Sunday</string>
+    <string name="day_mon_short">Mon</string>
+    <string name="day_tue_short">Tue</string>
+    <string name="day_wed_short">Wed</string>
+    <string name="day_thu_short">Thu</string>
+    <string name="day_fri_short">Fri</string>
+    <string name="day_sat_short">Sat</string>
+    <string name="day_sun_short">Sun</string>
+    <string name="never">Never</string>
+    <string name="select_contacts">Select contacts</string>
+    <string name="all_contacts">All contacts</string>
+    <string name="starred_contacts">Starred contacts</string>
+    <string name="no_contacts">No contacts</string>
+    <string name="select_apps">Select apps</string>
+    <string name="search_apps">Search apps</string>
+    <string name="custom_mode_hero_desc">Minimize interruptions and stay focused in this mode</string>
+    <string name="list_separator">, </string>
+    <string name="options_none">No options enabled</string>
 </resources>
