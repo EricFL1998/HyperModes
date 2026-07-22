@@ -51,7 +51,7 @@ class RoutineCoreEngine private constructor() {
         mainHandler = Handler(Looper.getMainLooper())
 
         // Initialize components
-        modeActionExecutor = ModeActionExecutor(context)
+        modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
 
