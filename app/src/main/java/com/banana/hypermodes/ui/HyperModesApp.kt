@@ -2,29 +2,49 @@ package com.banana.hypermodes.ui
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
+import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.manager.ModeManager
-import com.topjohnwu.superuser.Shell
+import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.icons.ImmersionMore
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 private const val PREF_NAME = "hypermodes_prefs"
-private const val KEY_FIRST_LAUNCH = "first_launch"
+private const val KEY_DRIVING_SETUP = "driving_setup_done"
+private const val KEY_BEDTIME_DELETED = "bedtime_deleted"
 
 sealed class Screen {
-    object Welcome : Screen()
     object ModesList : Screen()
+    object BedtimeIntro : Screen()
+    object DrivingIntro : Screen()
     data class ModeDetail(val mode: Mode) : Screen()
+    data class DisplayOptions(val mode: Mode) : Screen()
+    data class Repeat(val mode: Mode) : Screen()
+    data class CustomRepeat(val mode: Mode) : Screen()
+    data class DrivingDetect(val mode: Mode) : Screen()
+    data class AppPicker(val mode: Mode) : Screen()
+    data class EditMode(val mode: Mode, val isNew: Boolean) : Screen()
 }
 
 @Composable
@@ -32,163 +52,502 @@ fun HyperModesApp() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE) }
     var currentScreen by remember {
-        mutableStateOf<Screen>(
-            if (prefs.getBoolean(KEY_FIRST_LAUNCH, true)) Screen.Welcome else Screen.ModesList
-        )
+        // No landing page: the module hooks system_server, so a reboot is
+        // required anyway — go straight to the modes list.
+        mutableStateOf<Screen>(Screen.ModesList)
     }
 
-    MiuixTheme(
-        darkTheme = isSystemInDarkTheme()
-    ) {
-        when (val screen = currentScreen) {
-            is Screen.Welcome -> {
-                WelcomeScreen(
-                    onComplete = {
-                        prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
-                        currentScreen = Screen.ModesList
-                    }
-                )
-            }
-            is Screen.ModesList -> {
-                ModesListScreen(
-                    onModeClick = { mode ->
-                        currentScreen = Screen.ModeDetail(mode)
-                    }
-                )
-            }
-            is Screen.ModeDetail -> {
-                ModeDetailScreen(
-                    mode = screen.mode,
-                    onBack = { currentScreen = Screen.ModesList },
-                    onSave = { updatedMode ->
-                        // TODO: Persist updated mode
-                    }
-                )
-            }
-        }
+    // Restore the last known schedule immediately so the UI never flashes
+    // placeholder times while waiting for the hook's first reply.
+    LaunchedEffect(Unit) {
+        DeskClockState.restore(context)
     }
-}
 
-@Composable
-fun WelcomeScreen(onComplete: () -> Unit) {
-    val context = LocalContext.current
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = "Welcome"
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Welcome to HyperModes",
-                        style = MiuixTheme.textStyles.headline1
+    // Listen for schedule/state updates broadcast back from the DeskClock hook.
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: android.content.Intent) {
+                if (intent.hasExtra(Protocol.EXTRA_SLEEP_HOUR)) {
+                    DeskClockState.update(
+                        sleepHour = intent.getIntExtra(Protocol.EXTRA_SLEEP_HOUR, 22),
+                        sleepMin = intent.getIntExtra(Protocol.EXTRA_SLEEP_MIN, 30),
+                        wakeHour = intent.getIntExtra(Protocol.EXTRA_WAKE_HOUR, 7),
+                        wakeMin = intent.getIntExtra(Protocol.EXTRA_WAKE_MIN, 0),
+                        wakeEnabled = intent.getBooleanExtra(Protocol.EXTRA_WAKE_ENABLED, false),
+                        repeatDays = intent.getIntExtra(Protocol.EXTRA_REPEAT_DAYS, 0x7F),
+                        configured = intent.getBooleanExtra(Protocol.EXTRA_BEDTIME_CONFIGURED, true),
+                        reminderMinutes = intent.getIntExtra(Protocol.EXTRA_REMINDER_MINUTES, 15)
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Minimise distractions and take control of your attention with modes for sleep, work, driving and everything in between.",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MiuixTheme.colorScheme.primaryContainer
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Setup Required",
-                                style = MiuixTheme.textStyles.subtitle
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "To activate the module, please force-stop DeskClock and reopen it.",
-                                style = MiuixTheme.textStyles.body2
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    TextButton(
-                        text = if (Shell.isAppGrantedRoot() == true) "Reload DeskClock" else "Open DeskClock Settings",
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            val result = Shell.cmd(
-                                "am force-stop com.android.deskclock",
-                                "sleep 1",
-                                "am start -n com.android.deskclock/.DeskClockTabActivity"
-                            ).exec()
-
-                            if (!result.isSuccess) {
-                                context.startActivity(
-                                    Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.parse("package:com.android.deskclock")
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    }
-                                )
-                            }
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextButton(
-                        text = "Continue",
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColorsPrimary(),
-                        onClick = onComplete
+                    DeskClockState.persist(context)
+                }
+                // State-query replies also carry the live powerkeeper sleep
+                // state — keep the bedtime card in sync on every resume.
+                if (intent.hasExtra(Protocol.EXTRA_IN_SLEEP_MODE)) {
+                    DeskClockState.updateBedtimeActive(
+                        context,
+                        intent.getBooleanExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
                     )
                 }
             }
         }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context, receiver,
+            android.content.IntentFilter(Protocol.ACTION_RESULT),
+            androidx.core.content.ContextCompat.RECEIVER_EXPORTED
+        )
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
+    // Re-query the schedule every time the app comes back to the foreground,
+    // so changes made in the Clock app are reflected immediately.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                context.sendBroadcast(Intent(Protocol.ACTION_QUERY_SCHEDULE).apply {
+                    setPackage(Protocol.TARGET_PACKAGE)
+                })
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Shared holder for the mode being edited. Sub-pages (display options,
+    // repeat, apps) mutate this instead of navigating, so toggling an option
+    // never pops back to the detail page.
+    var editingMode by remember { mutableStateOf<Mode?>(null) }
+
+    // The user's mode list (built-ins minus deleted ones + custom modes),
+    // persisted via ModeStore. Bedtime always sorts first.
+    var modes by remember { mutableStateOf<List<Mode>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        // Official ordering: DND, Bedtime, Driving, then custom modes by name.
+        modes = ModeStore.load(context) {
+            ModeManager.getDefaultModes()
+        }.map {
+            // Bedtime's enabled flag mirrors the official DeskClock state
+            // (BedtimeStateReceiver may have updated ModeStore already; the
+            // live compose state wins if they disagree).
+            if (it.id == "bedtime") it.copy(enabled = DeskClockState.bedtimeActive) else it
+        }.sortedWith(
+            compareBy(
+                { when (it.id) { "dnd" -> 0; "bedtime" -> 1; "driving" -> 2; else -> 3 } },
+                { it.name }
+            )
+        )
+    }
+
+    fun persistModes(updated: List<Mode>) {
+        modes = updated
+        ModeStore.save(context, updated)
+    }
+
+    // Live-sync the bedtime card when the official state changes while the
+    // UI is alive (e.g. scheduled activation pushed by the DeskClock hook).
+    val bedtimeActive = DeskClockState.bedtimeActive
+    LaunchedEffect(bedtimeActive) {
+        val idx = modes.indexOfFirst { it.id == "bedtime" }
+        if (idx >= 0 && modes[idx].enabled != bedtimeActive) {
+            persistModes(modes.toMutableList().apply {
+                set(idx, modes[idx].copy(enabled = bedtimeActive))
+            })
+        }
+    }
+
+    fun upsertMode(mode: Mode) {
+        val idx = modes.indexOfFirst { it.id == mode.id }
+        persistModes(
+            if (idx >= 0) modes.toMutableList().apply { set(idx, mode) }
+            else modes + mode
+        )
+    }
+
+    // Always follow the system's dark mode (no in-app toggle).
+    MiuixTheme(
+        colors = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+            top.yukonga.miuix.kmp.theme.darkColorScheme()
+        } else {
+            top.yukonga.miuix.kmp.theme.lightColorScheme()
+        }
+    ) {
+        // Solid backdrop behind the sliding screens — without it the white
+        // window background flashes through during enter/exit transitions.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.background)
+        ) {
+        AnimatedContent(
+            targetState = currentScreen,
+            transitionSpec = {
+                val forward = targetState.depth() > initialState.depth()
+                val slide = (slideInHorizontally { if (forward) it else -it } + fadeIn())
+                    .togetherWith(slideOutHorizontally { if (forward) -it else it } + fadeOut())
+                slide.using(SizeTransform(clip = false))
+            },
+            label = "screen"
+        ) { screen ->
+            when (screen) {
+                is Screen.ModesList -> {
+                    ModesListScreen(
+                        modes = modes,
+                        onModeClick = { mode ->
+                            when {
+                                // Bedtime shows the intro page when never set up in the
+                                // Clock app, or right after the user deleted the mode.
+                                mode.id == "bedtime" && (!DeskClockState.configured ||
+                                        prefs.getBoolean(KEY_BEDTIME_DELETED, false)) -> {
+                                    currentScreen = Screen.BedtimeIntro
+                                }
+                                // Driving intro until the user has set it up once
+                                mode.id == "driving" && !prefs.getBoolean(KEY_DRIVING_SETUP, false) -> {
+                                    currentScreen = Screen.DrivingIntro
+                                }
+                                else -> {
+                                    editingMode = mode
+                                    currentScreen = Screen.ModeDetail(mode)
+                                }
+                            }
+                        },
+                        onCreateCustom = {
+                            val newMode = Mode(
+                                id = "custom_${System.currentTimeMillis()}",
+                                name = context.getString(R.string.custom_mode_default),
+                                icon = "⭐",
+                                description = ""
+                            )
+                            currentScreen = Screen.EditMode(newMode, isNew = true)
+                        },
+                        onRestoreBuiltIn = { builtIn ->
+                            upsertMode(builtIn)
+                        }
+                    )
+                }
+                is Screen.BedtimeIntro -> {
+                    BedtimeIntroScreen(
+                        onBack = { currentScreen = Screen.ModesList },
+                        onSetup = {
+                            // User went through the landing page — don't gate on it again.
+                            prefs.edit().putBoolean(KEY_BEDTIME_DELETED, false).apply()
+                        }
+                    )
+                }
+                is Screen.DrivingIntro -> {
+                    DrivingIntroScreen(
+                        onBack = { currentScreen = Screen.ModesList },
+                        onSetup = {
+                            prefs.edit().putBoolean(KEY_DRIVING_SETUP, true).apply()
+                            val driving = modes.firstOrNull { it.id == "driving" }
+                                ?: ModeManager.getDefaultModes().first { it.id == "driving" }
+                            editingMode = driving
+                            currentScreen = Screen.ModeDetail(driving)
+                        }
+                    )
+                }
+                is Screen.ModeDetail -> {
+                    ModeDetailScreen(
+                        mode = editingMode ?: screen.mode,
+                        onBack = { currentScreen = Screen.ModesList },
+                        onOpenDisplayOptions = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.DisplayOptions(updated)
+                        },
+                        onOpenRepeat = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.Repeat(updated)
+                        },
+                        onOpenApps = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.AppPicker(updated)
+                        },
+                        onOpenDrivingDetect = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.DrivingDetect(updated)
+                        },
+                        onRename = { updated ->
+                            currentScreen = Screen.EditMode(updated, isNew = false)
+                        },
+                        onDelete = { deleted ->
+                            persistModes(modes.filterNot { it.id == deleted.id })
+                            when (deleted.id) {
+                                // Re-adding driving shows the landing page again.
+                                "driving" -> prefs.edit()
+                                    .putBoolean(KEY_DRIVING_SETUP, false).apply()
+                                // Deleting bedtime fully disables it in the Clock app
+                                // and gates the re-added mode behind the landing page.
+                                "bedtime" -> {
+                                    prefs.edit().putBoolean(KEY_BEDTIME_DELETED, true).apply()
+                                    context.sendBroadcast(Intent(Protocol.ACTION_DISABLE_BEDTIME).apply {
+                                        setPackage(Protocol.TARGET_PACKAGE)
+                                    })
+                                }
+                            }
+                            editingMode = null
+                            currentScreen = Screen.ModesList
+                        },
+                        onSave = { updatedMode ->
+                            editingMode = updatedMode
+                            upsertMode(updatedMode)
+                        }
+                    )
+                }
+                is Screen.DisplayOptions -> {
+                    DisplayOptionsScreen(
+                        mode = editingMode ?: screen.mode,
+                        onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
+                        onSave = { updatedMode ->
+                            editingMode = updatedMode
+                            upsertMode(updatedMode)
+                        }
+                    )
+                }
+                is Screen.Repeat -> {
+                    val mode = editingMode ?: screen.mode
+                    RepeatScreen(
+                        schedule = mode.settings.schedule ?: com.banana.hypermodes.data.ModeSchedule(),
+                        onBack = { currentScreen = Screen.ModeDetail(mode) },
+                        onOpenCustom = { currentScreen = Screen.CustomRepeat(mode) },
+                        onSelect = { newSchedule ->
+                            val updated = mode.copy(
+                                settings = mode.settings.copy(schedule = newSchedule)
+                            )
+                            editingMode = updated
+                            // Only the bedtime schedule lives in the Clock app;
+                            // custom-mode schedules are stored locally.
+                            if (mode.id == "bedtime") {
+                                sendScheduleToDeskClock(context, newSchedule)
+                            } else {
+                                upsertMode(updated)
+                            }
+                            currentScreen = Screen.ModeDetail(updated)
+                        }
+                    )
+                }
+                is Screen.CustomRepeat -> {
+                    val mode = editingMode ?: screen.mode
+                    CustomRepeatScreen(
+                        schedule = mode.settings.schedule ?: com.banana.hypermodes.data.ModeSchedule(),
+                        onBack = { currentScreen = Screen.Repeat(mode) },
+                        onSelect = { newSchedule ->
+                            val updated = mode.copy(
+                                settings = mode.settings.copy(schedule = newSchedule)
+                            )
+                            editingMode = updated
+                            if (mode.id == "bedtime") {
+                                sendScheduleToDeskClock(context, newSchedule)
+                            } else {
+                                upsertMode(updated)
+                            }
+                        }
+                    )
+                }
+                is Screen.AppPicker -> {
+                    AppPickerScreen(
+                        mode = editingMode ?: screen.mode,
+                        onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
+                        onSave = { updatedMode ->
+                            editingMode = updatedMode
+                            upsertMode(updatedMode)
+                        }
+                    )
+                }
+                is Screen.DrivingDetect -> {
+                    DrivingDetectScreen(
+                        mode = editingMode ?: screen.mode,
+                        onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
+                        onSave = { updatedMode ->
+                            editingMode = updatedMode
+                            upsertMode(updatedMode)
+                        }
+                    )
+                }
+                is Screen.EditMode -> {
+                    EditModeScreen(
+                        mode = screen.mode,
+                        onBack = {
+                            currentScreen = if (screen.isNew) Screen.ModesList
+                            else Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onDone = { done ->
+                            upsertMode(done)
+                            if (screen.isNew) {
+                                editingMode = done
+                                currentScreen = Screen.ModeDetail(done)
+                            } else {
+                                editingMode = done
+                                currentScreen = Screen.ModeDetail(done)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        }
     }
 }
 
+/**
+ * 创建模式 dialog (图九): always shows 自定义; each deleted built-in mode
+ * (勿扰/睡眠/开车) is listed individually so it can be restored.
+ */
 @Composable
-fun ModesListScreen(onModeClick: (Mode) -> Unit) {
-    val modes = remember { ModeManager.getDefaultModes() }
+fun CreateModeDialog(
+    show: Boolean,
+    deletedBuiltIns: List<Mode>,
+    onDismiss: () -> Unit,
+    onCreateCustom: () -> Unit,
+    onRestoreBuiltIn: (Mode) -> Unit
+) {
+    top.yukonga.miuix.kmp.overlay.OverlayDialog(
+        title = stringResource(R.string.create_mode),
+        show = show,
+        onDismissRequest = onDismiss
+    ) {
+        Column {
+            // Custom entry
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onCreateCustom)
+                    .padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "😊",
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.custom),
+                    style = MiuixTheme.textStyles.body1
+                )
+            }
+
+            // Deleted built-in modes, listed individually
+            deletedBuiltIns.forEach { builtIn ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onRestoreBuiltIn(builtIn) }
+                        .padding(vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = builtIn.icon,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                    Column {
+                        Text(
+                            text = when (builtIn.id) {
+                                "dnd" -> stringResource(R.string.mode_dnd)
+                                "bedtime" -> stringResource(R.string.mode_bedtime)
+                                "driving" -> stringResource(R.string.mode_driving)
+                                else -> builtIn.name
+                            },
+                            style = MiuixTheme.textStyles.body1
+                        )
+                        Text(
+                            text = when (builtIn.id) {
+                                "dnd" -> stringResource(R.string.mode_dnd_desc)
+                                "bedtime" -> stringResource(R.string.mode_bedtime_desc)
+                                "driving" -> stringResource(R.string.mode_driving_desc)
+                                else -> builtIn.description
+                            },
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                text = stringResource(R.string.cancel),
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+/** Push a full schedule (incl. repeat days) to the DeskClock hook. */
+private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hypermodes.data.ModeSchedule) {
+    context.sendBroadcast(Intent(Protocol.ACTION_APPLY_SCHEDULE).apply {
+        setPackage(Protocol.TARGET_PACKAGE)
+        putExtra(Protocol.EXTRA_SLEEP_HOUR, schedule.startHour)
+        putExtra(Protocol.EXTRA_SLEEP_MIN, schedule.startMinute)
+        putExtra(Protocol.EXTRA_WAKE_HOUR, schedule.endHour)
+        putExtra(Protocol.EXTRA_WAKE_MIN, schedule.endMinute)
+        putExtra(Protocol.EXTRA_REPEAT_DAYS, schedule.repeatDays)
+    })
+}
+
+/** Navigation depth of a screen, used to pick the slide direction. */
+private fun Screen.depth(): Int = when (this) {
+    is Screen.ModesList -> 0
+    is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
+    is Screen.DisplayOptions, is Screen.Repeat, is Screen.AppPicker, is Screen.EditMode,
+    is Screen.DrivingDetect -> 2
+    is Screen.CustomRepeat -> 3
+}
+
+@Composable
+fun ModesListScreen(
+    modes: List<Mode>,
+    onModeClick: (Mode) -> Unit,
+    onCreateCustom: () -> Unit,
+    onRestoreBuiltIn: (Mode) -> Unit
+) {
+    val context = LocalContext.current
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    // Ask the hook for the real schedule whenever this screen is shown.
+    LaunchedEffect(Unit) {
+        context.sendBroadcast(android.content.Intent(Protocol.ACTION_QUERY_SCHEDULE).apply {
+            setPackage(Protocol.TARGET_PACKAGE)
+        })
+    }
+
+    // Live schedule from DeskClock (null until the hook replies)
+    val liveSchedule = DeskClockState.schedule
+
+    val listPrefs = remember { context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE) }
+    val drivingSetUp = listPrefs.getBoolean(KEY_DRIVING_SETUP, false)
+
+    // Format like "23:00" (24-hour)
+    fun formatTime(hour: Int, minute: Int): String = "%02d:%02d".format(hour, minute)
+
+    val scrollBehavior = MiuixScrollBehavior()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = "Modes"
+                title = stringResource(R.string.modes),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .scrollEndHaptic()
+                .overScrollVertical()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentPadding = PaddingValues(top = padding.calculateTopPadding())
         ) {
+            // Description text
             item {
                 Text(
-                    text = "Minimise distractions and take control of your attention with modes for sleep, work, driving and everything in between.",
+                    text = stringResource(R.string.welcome_desc),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp)
                 )
+            }
+
+            // Top spacer for breathing room before first card
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Mode items
@@ -196,14 +555,60 @@ fun ModesListScreen(onModeClick: (Mode) -> Unit) {
                 val mode = modes[index]
                 ModeItem(
                     icon = mode.icon,
-                    title = mode.name,
-                    subtitle = mode.description,
-                    onClick = { onModeClick(mode) }
+                    title = when (mode.id) {
+                        "dnd" -> stringResource(R.string.mode_dnd)
+                        "bedtime" -> stringResource(R.string.mode_bedtime)
+                        "driving" -> stringResource(R.string.mode_driving)
+                        else -> mode.name
+                    },
+                    subtitle = run {
+                        // Official status-first summaries. Bedtime follows the
+                        // Clock wake alarm: alarm on -> show the schedule time.
+                        val schedule = if (mode.id == "bedtime") {
+                            liveSchedule ?: mode.settings.schedule
+                        } else {
+                            mode.settings.schedule
+                        }
+                        // "每天 09:30 - 17:00" style schedule text.
+                        @Composable
+                        fun schedText(s: com.banana.hypermodes.data.ModeSchedule) =
+                            repeatSummary(s.repeatDays) + " " +
+                                    formatTime(s.startHour, s.startMinute) + " - " +
+                                    formatTime(s.endHour, s.endMinute)
+                        when {
+                            mode.id == "driving" && !drivingSetUp ->
+                                stringResource(R.string.not_set_up)
+                            mode.enabled ->
+                                // 进行中: "已启用 · 每天 09:30 - 17:00"
+                                if (mode.id != "dnd" && mode.id != "driving" &&
+                                    schedule?.enabled == true
+                                ) {
+                                    stringResource(R.string.mode_on) + " · " + schedText(schedule)
+                                } else {
+                                    stringResource(R.string.mode_on)
+                                }
+                            mode.id == "dnd" -> stringResource(R.string.mode_off)
+                            mode.id == "driving" -> if (mode.settings.drivingAutoDetect) {
+                                stringResource(R.string.mode_driving_desc)
+                            } else {
+                                stringResource(R.string.mode_off)
+                            }
+                            schedule?.enabled == true -> schedText(schedule)
+                            else -> stringResource(R.string.mode_off)
+                        }
+                    },
+                    onClick = {
+                        // Inject the live schedule into the bedtime mode so the
+                        // detail screen opens with the real Clock times.
+                        val modeToOpen = if (mode.id == "bedtime" && liveSchedule != null) {
+                            mode.copy(settings = mode.settings.copy(schedule = liveSchedule))
+                        } else mode
+                        onModeClick(modeToOpen)
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
                 )
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Create your own mode
@@ -211,9 +616,16 @@ fun ModesListScreen(onModeClick: (Mode) -> Unit) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp),
                     insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                    onClick = { /* TODO */ }
+                    onClick = {
+                        // Only show the chooser popup when deleted built-ins can be
+                        // restored; otherwise go straight to the custom-mode editor.
+                        val deleted = ModeManager.getDefaultModes()
+                            .filter { builtIn -> modes.none { it.id == builtIn.id } }
+                        if (deleted.isEmpty()) onCreateCustom() else showCreateDialog = true
+                    }
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -225,13 +637,36 @@ fun ModesListScreen(onModeClick: (Mode) -> Unit) {
                             modifier = Modifier.padding(end = 16.dp)
                         )
                         Text(
-                            text = "Create your own mode",
+                            text = stringResource(R.string.create_own_mode),
                             style = MiuixTheme.textStyles.body1
                         )
                     }
                 }
             }
+
+            // Bottom spacer with navigation bar padding
+            item {
+                Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
+            }
         }
+
+        // 创建模式 dialog: 自定义 + individually listed built-ins that were deleted.
+        // Must live INSIDE the Scaffold content — OverlayDialog renders via
+        // LocalDialogStates, which only the Scaffold provides.
+        CreateModeDialog(
+            show = showCreateDialog,
+            deletedBuiltIns = ModeManager.getDefaultModes()
+                .filter { builtIn -> modes.none { it.id == builtIn.id } },
+            onDismiss = { showCreateDialog = false },
+            onCreateCustom = {
+                showCreateDialog = false
+                onCreateCustom()
+            },
+            onRestoreBuiltIn = { builtIn ->
+                showCreateDialog = false
+                onRestoreBuiltIn(builtIn)
+            }
+        )
     }
 }
 
@@ -240,12 +675,11 @@ fun ModeItem(
     icon: String,
     title: String,
     subtitle: String?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+        modifier = modifier.fillMaxWidth(),
         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         onClick = onClick
     ) {
@@ -278,11 +712,6 @@ fun ModeItem(
                     }
                 }
             }
-            Icon(
-                imageVector = MiuixIcons.ImmersionMore,
-                contentDescription = null,
-                tint = MiuixTheme.colorScheme.onSurfaceVariantActions
-            )
         }
     }
 }

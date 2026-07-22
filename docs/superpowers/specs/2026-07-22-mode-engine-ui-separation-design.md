@@ -99,12 +99,14 @@ LSPosed 钩子（system_server 侧）把本应用提升为"系统级公民"，�
 
 检测到驾驶开始/结束时改调 `ModeEngine.activate/deactivate`，不再直接实例化 `ModeManager`。
 
-### UI（`ui/`，减法为主）
+### UI（`ui/`，减法为主 + 两处补齐）
 
 - 删除所有 `ModeManager(context).activateMode/deactivateMode` 调用；手动开关改为：更新 ModeStore 的 `enabled` → 直接调 `ModeEngine`（前台进程内即时生效）→ 发 RESCHEDULE。
 - 模式保存/删除后发 `ACTION_RESCHEDULE`。
 - 监听新增的 `ACTION_MODE_STATE` 广播刷新列表（现有 DeskClockState 监听模式不变）。
 - 检测到 `SCHEDULE_EXACT_ALARM` 未授权且存在启用中的定时模式时，在列表页提示跳转授权页。
+- **暂停应用选择 UI（新增）**：`ModeDetailScreen` 的"更多设置"区加"暂停应用"行（显示已选数量），点击进入应用选择页。`AppPickerScreen` 参数化：传入目标集合类型（放行 `allowedApps` / 暂停 `pausedApps`）与标题，同一套搜索+列表+开关 UI 复用。
+- **已修复（2026-07-22）**：`HyperModesApp` 中 AppPicker/DisplayOptions 的 `onSave` 之前只写 `editingMode` 不落 ModeStore，导致放行应用/显示设置返回后丢失；现已补上 `upsertMode`。
 
 ### bedtime 维持 DeskClock 驱动（但补齐附加设置）
 
@@ -135,6 +137,7 @@ bedtime 的定时仍由 DeskClock 自身闹钟驱动（与官方 Clock app 状�
    - 两个模式窗口重叠激活同一设置 → 退出其一不恢复，全退出才恢复（引用计数）。
    - 定时就寝（DeskClock 闹钟）→ 灰度/DND policy 随之应用。
    - 驾驶蓝牙连接 → 经 ModeEngine 激活驾驶模式。
+   - 模式详情页选择暂停应用 → 激活时这些应用被挂起（启动即闪退/不可用的系统挂起态），退出时恢复。
 
 ## 明确不做（YAGNI）
 
