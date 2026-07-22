@@ -7,6 +7,7 @@ import com.banana.hypermodes.hook.SystemKeepAliveHook
 import com.banana.hypermodes.hook.SystemModeHook
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.PermissionGrantHook
+import com.banana.hypermodes.systemserver.hooks.NotificationFilterHook
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
 
@@ -35,6 +36,7 @@ class XposedInit : XposedModule() {
             PermissionGrantHook(this).install(param.classLoader)
             SystemKeepAliveHook(this).install(param.classLoader)
             SystemModeHook(this).install(param.classLoader)
+            NotificationFilterHook(this).install(param.classLoader)
             log(Log.INFO, TAG, "hook installed for system_server")
         } catch (t: Throwable) {
             log(Log.ERROR, TAG, "failed to install system_server hook", t)
