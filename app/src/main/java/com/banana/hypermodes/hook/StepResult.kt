@@ -11,3 +11,14 @@ data class StepResult(val name: String, val success: Boolean, val detail: String
         fun fail(name: String, detail: String) = StepResult(name, false, detail)
     }
 }
+
+/** Current bedtime schedule as stored in DeskClock (sleep prefs + wake provider). */
+data class ScheduleInfo(
+    val sleepHour: Int,
+    val sleepMin: Int,
+    val wakeHour: Int,
+    val wakeMin: Int,
+    val wakeEnabled: Boolean,
+    val repeatDays: Int,
+    val bedtimeConfigured: Boolean
+)

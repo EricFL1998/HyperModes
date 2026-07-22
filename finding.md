@@ -324,3 +324,72 @@ fun stopBedtime(): List<StepResult> {
 - Bit 0 = Monday, Bit 6 = Sunday
 - `127` (0b1111111) = every day
 - Access via `getCoded()` / `setCoded(int)` methods
+
+### `Alarm.DaysOfWeek` Coded Values (complete)
+
+From `com.android.deskclock.Alarm$DaysOfWeek`:
+
+| Value | Constant | Meaning |
+|-------|----------|---------|
+| `0`   | `NO_DAY` | Never / once only |
+| `31`  | `MONDAY_TO_FRIDAY` | 周一至周五 (bits 0-4) |
+| `96`  | `WEEKENDS` | Sat+Sun (bits 5-6) |
+| `127` | `EVERY_DAY` | 每天 |
+| `128` | `LEGAL_WORK_DAY` | 法定工作日（智能跳过节假日）— bit 7 |
+| `256` | `LEGAL_OFF_DAY` | 法定节假日（智能跳过工作日）— bit 8 |
+| `512` | `SHIFT_DAY` | 倒班闹钟 |
+
+- `DAY_MAP = {2,3,4,5,6,7,1}` maps bit index → `Calendar.DAY_OF_WEEK` (bit 0 = Monday = Calendar.MONDAY(2)).
+- `getAlarmType()`: 0=once, 1=every day, 2=legal workday, 3=legal off day, 4=Mon-Fri, 5=custom, 6=shift.
+- `getNextAlarm()` for 128/256 consults `HolidayHelper.isHoliday(context, calendar)` ( holiday data from `com.android.deskclock.addition.holiday.HolidayInstance`); if holiday data is invalid the label falls back to `legal_workday_invalidate`.
+
+---
+
+## Wake Alarm Toggle Sequences (起床响铃 switch)
+
+From `BedtimeManageActivity.onPreferenceChange()` + `showRepeatAlarmTurnOffDialog()`:
+
+**Toggle ON:**
+```kotlin
+AlarmHelper.enableAlarm(context, Integer.MIN_VALUE, true)
+```
+
+**Toggle OFF → ActionSheet with 3 options:**
+- 仅关闭一次: `AlarmHelper.skipAlarmForOnce(context, Integer.MIN_VALUE)` + `AlarmHelper.registerWakeAlarm(context)` — alarm stays enabled, only the next occurrence is skipped
+- 永久关闭: `AlarmHelper.enableAlarm(context, Integer.MIN_VALUE, false)` + `AlarmHelper.registerWakeAlarm(context)`
+- 取消: re-check the toggle, no change
+
+### `AlarmHelper` additional methods
+
+#### `enableAlarm(Context context, int id, boolean enabled)`
+Enables/disables an alarm in the `sleep_alarms` table (use id = `Integer.MIN_VALUE` for the wake alarm).
+
+#### `skipAlarmForOnce(Context context, int id)`
+Marks the next occurrence of the alarm as skipped (sets `skipTime`).
+
+#### `registerWakeAlarm(Context context)`
+Re-registers the wake alarm with the system AlarmManager after skip/disable.
+
+---
+
+## Bedtime Setup State
+
+`BedtimeUtil.bedTimeAlarmCompleted(context)` reads `KEY_BEDTIME_ALARM_COMPLETED` from the `BedtimeAlarm` SharedPreferences — `false` means the user never finished bedtime setup (show intro/guide page).
+
+`BedtimeUtil.isBedtimeOpen(context)` reads `KEY_OPEN_BEDTIME` — master bedtime switch.
+
+---
+
+## Exported Activities (manifest)
+
+| Component | exported | Purpose |
+|-----------|----------|---------|
+| `com.android.deskclock.alarm.bedtime.BedtimeManageActivity` | yes (label `@string/bedtime`) | Main bedtime manage page (作息) |
+| `com.android.deskclock.alarm.bedtime.BedtimeGuideActivity` | yes | First-time setup guide |
+| `com.android.deskclock.alarm.bedtime.BedtimeSettingsActivity` | yes (label `@string/bedtime_settings`) | Bedtime settings |
+
+Launch first-time setup with `BedtimeGuideActivity`, fall back to `BedtimeManageActivity`.
+
+## Provider
+
+`com.android.deskclock.alarm.bedtime.BedtimeProvider` — authority `com.android.deskclock.bedtimeProvider`.

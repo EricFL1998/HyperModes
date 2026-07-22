@@ -24,14 +24,23 @@ data class ModeSettings(
     val enableGrayscale: Boolean = false,
     val enableDarkMode: Boolean = false,
     val dimWallpaper: Boolean = false,
+    val keepScreenOff: Boolean = false,
 
     // Restrictions
     val pausedApps: Set<String> = emptySet(),
     val allowedContacts: Set<String> = emptySet(),
 
+    // Exceptions (who/what can interrupt during the mode)
+    val contactFilter: Int = CONTACT_FILTER_NONE,
+    val allowedApps: Set<String> = emptySet(),
+
     // Screen settings
     val keepScreenOn: Boolean = false,
     val hideNotifications: Boolean = false,
+
+    // Driving auto-detection (何时自动开启)
+    val drivingAutoDetect: Boolean = true,
+    val drivingDetectMode: Int = DRIVING_DETECT_BLUETOOTH,
 
     // Schedule
     val schedule: ModeSchedule? = null
@@ -45,6 +54,15 @@ enum class DndLevel {
     PRIORITY,       // Priority only (alarms, starred contacts)
     ALARMS          // Alarms only
 }
+
+// contactFilter values (who may interrupt while the mode is on)
+const val CONTACT_FILTER_NONE = 0
+const val CONTACT_FILTER_ALL = 1
+const val CONTACT_FILTER_STARRED = 2
+
+// drivingDetectMode values (驾车勿扰 auto-activation source)
+const val DRIVING_DETECT_BLUETOOTH = 0
+const val DRIVING_DETECT_MOTION_BLUETOOTH = 1
 
 /**
  * Schedule for automatic mode activation

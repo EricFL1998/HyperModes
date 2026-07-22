@@ -45,6 +45,12 @@ internal object Reflect {
         field.set(instance, value)
     }
 
+    fun getField(instance: Any, name: String): Any? {
+        val field = findField(instance.javaClass, name)
+        field.isAccessible = true
+        return field.get(instance)
+    }
+
     private fun findMethod(clazz: Class<*>, name: String, args: Array<out Any?>): Method {
         var c: Class<*>? = clazz
         while (c != null) {

@@ -38,7 +38,69 @@ class DeskClockHook(private val module: XposedModule) {
                     return result
                 }
             })
+        hookBedtimeStateSignals(classLoader)
     }
+
+    /**
+     * Every official bedtime transition funnels through
+     * ZenModeUtil.enterZenMode/exitZenMode:
+     *  - scheduled sleep time  -> AlarmReceiver ACTION_ENTER_ZENMODE -> enterZenMode
+     *  - scheduled wake time   -> BedtimeUtil.doInWakeTime -> setZenMode -> exitZenMode
+     *  - manual toggle in the Clock app -> same pair
+     * After each call we read the persisted inZenMode flag (ground truth on
+     * SDK 30+) and push it to our app so its 睡眠模式 UI tracks the official
+     * state even when the change didn't come from us.
+     */
+    private fun hookBedtimeStateSignals(classLoader: ClassLoader) {
+        val zenModeUtil = try {
+            classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+        } catch (t: Throwable) {
+            log("ZenModeUtil not found: ${t.message}")
+            return
+        }
+        for ((name, fallback) in listOf("enterZenMode" to true, "exitZenMode" to false)) {
+            val method = try {
+                zenModeUtil.getDeclaredMethod(name, Context::class.java)
+            } catch (t: Throwable) {
+                log("$name not found: ${t.message}")
+                continue
+            }
+            module.hook(method)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val result = chain.proceed()
+                        try {
+                            val context = chain.getArg(0) as? Context ?: return result
+                            val active = readInZenMode(context, classLoader, fallback)
+                            context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
+                                setPackage(Protocol.MODULE_PACKAGE)
+                                putExtra(Protocol.EXTRA_IN_SLEEP_MODE, active)
+                            })
+                            log("$name -> bedtime active=$active")
+                        } catch (t: Throwable) {
+                            log("bedtime state broadcast failed: $t")
+                        }
+                        return result
+                    }
+                })
+        }
+        log("ZenModeUtil enter/exit hooked")
+    }
+
+    /** BedtimeAlarm/inZenMode is what enter/exitZenMode persist on SDK 30+;
+     * fall back to which method ran on older paths or reflection failure. */
+    private fun readInZenMode(context: Context, classLoader: ClassLoader, fallback: Boolean): Boolean =
+        try {
+            val fbe = classLoader.loadClass(CLS_FBE_UTIL)
+            val prefs = fbe.getDeclaredMethod(
+                "getSharedPreferences", Context::class.java,
+                String::class.java, Int::class.javaPrimitiveType
+            ).invoke(null, context, "BedtimeAlarm", 0) as android.content.SharedPreferences
+            prefs.getBoolean(KEY_IN_ZENMODE, fallback)
+        } catch (t: Throwable) {
+            fallback
+        }
 
     private fun registerReceiver(app: Application, classLoader: ClassLoader) {
         val controller = BedtimeController(app, classLoader) { msg -> log(msg) }
@@ -56,14 +118,30 @@ class DeskClockHook(private val module: XposedModule) {
                     Protocol.ACTION_START_BEDTIME -> controller.startBedtime()
                     Protocol.ACTION_STOP_BEDTIME -> controller.stopBedtime()
                     Protocol.ACTION_SHOW_SLEEP_NOTIFICATION -> controller.showSleepNotification()
+                    Protocol.ACTION_ENABLE_WAKE_ALARM -> controller.enableWakeAlarm()
+                    Protocol.ACTION_DISABLE_WAKE_ALARM -> controller.disableWakeAlarm()
+                    Protocol.ACTION_SKIP_WAKE_ALARM_ONCE -> controller.skipWakeAlarmOnce()
+                    Protocol.ACTION_SET_SLEEP_REMINDER -> controller.setSleepReminder(
+                        intent.getIntExtra(Protocol.EXTRA_REMINDER_MINUTES, 15)
+                    )
+                    Protocol.ACTION_DISABLE_BEDTIME -> controller.disableBedtime()
                     Protocol.ACTION_QUERY_STATE -> emptyList()
+                    Protocol.ACTION_QUERY_SCHEDULE -> emptyList()
                     android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                         handleZenModeChange(context, controller)
                     }
                     else -> return
                 }
                 log("${intent.action} -> ${results.joinToString { it.format() }}")
-                sendResult(app, results, controller.querySleepModeState())
+                // Report DeskClock's own bedtime-active flag (inZenMode pref),
+                // falling back to the powerkeeper sleep state — the two can
+                // disagree right after a manual start (zen only), and the UI
+                // must track the flag that enter/exitZenMode actually set.
+                sendResult(
+                    app, results,
+                    readInZenMode(app, classLoader, controller.querySleepModeState()),
+                    controller.querySchedule(), controller.querySleepReminder()
+                )
             }
         }
 
@@ -72,7 +150,13 @@ class DeskClockHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_START_BEDTIME)
             addAction(Protocol.ACTION_STOP_BEDTIME)
             addAction(Protocol.ACTION_SHOW_SLEEP_NOTIFICATION)
+            addAction(Protocol.ACTION_ENABLE_WAKE_ALARM)
+            addAction(Protocol.ACTION_DISABLE_WAKE_ALARM)
+            addAction(Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+            addAction(Protocol.ACTION_SET_SLEEP_REMINDER)
+            addAction(Protocol.ACTION_DISABLE_BEDTIME)
             addAction(Protocol.ACTION_QUERY_STATE)
+            addAction(Protocol.ACTION_QUERY_SCHEDULE)
             addAction(android.app.NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         }
         app.registerReceiver(
@@ -117,11 +201,22 @@ class DeskClockHook(private val module: XposedModule) {
         return emptyList()
     }
 
-    private fun sendResult(context: Context, results: List<StepResult>, inSleepMode: Boolean) {
+    private fun sendResult(
+        context: Context, results: List<StepResult>, inSleepMode: Boolean,
+        schedule: ScheduleInfo, reminderMinutes: Int
+    ) {
         context.sendBroadcast(Intent(Protocol.ACTION_RESULT).apply {
             setPackage(Protocol.MODULE_PACKAGE)
             putExtra(Protocol.EXTRA_STEPS, results.map { it.format() }.toTypedArray())
             putExtra(Protocol.EXTRA_IN_SLEEP_MODE, inSleepMode)
+            putExtra(Protocol.EXTRA_SLEEP_HOUR, schedule.sleepHour)
+            putExtra(Protocol.EXTRA_SLEEP_MIN, schedule.sleepMin)
+            putExtra(Protocol.EXTRA_WAKE_HOUR, schedule.wakeHour)
+            putExtra(Protocol.EXTRA_WAKE_MIN, schedule.wakeMin)
+            putExtra(Protocol.EXTRA_WAKE_ENABLED, schedule.wakeEnabled)
+            putExtra(Protocol.EXTRA_REPEAT_DAYS, schedule.repeatDays)
+            putExtra(Protocol.EXTRA_BEDTIME_CONFIGURED, schedule.bedtimeConfigured)
+            putExtra(Protocol.EXTRA_REMINDER_MINUTES, reminderMinutes)
         })
     }
 
@@ -129,5 +224,8 @@ class DeskClockHook(private val module: XposedModule) {
 
     companion object {
         private const val TAG = "HyperModes"
+        private const val CLS_ZEN_MODE_UTIL = "com.android.deskclock.alarm.bedtime.ZenModeUtil"
+        private const val CLS_FBE_UTIL = "com.android.deskclock.util.FBEUtil"
+        private const val KEY_IN_ZENMODE = "inZenMode"
     }
 }

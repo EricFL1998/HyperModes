@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.service.notification.ZenModeConfig
+import android.service.notification.Condition
 
 /**
  * Typed façade over HyperOS DeskClock's internal bedtime APIs.
@@ -29,6 +29,13 @@ class BedtimeController(
         private const val CLS_ALARM_HELPER = "com.android.deskclock.util.AlarmHelper"
         private const val CLS_DAYS_OF_WEEK = "com.android.deskclock.Alarm\$DaysOfWeek"
         private const val CLS_ZEN_MODE_UTIL = "com.android.deskclock.alarm.bedtime.ZenModeUtil"
+        private const val CLS_FBE_UTIL = "com.android.deskclock.util.FBEUtil"
+
+        // AlarmCheckboxLayout persists the bedtime screen's wake-alert checkbox
+        // here (default SharedPreferences). If this value disagrees with the
+        // alarm DB row, BedtimeManageActivity.setStatus() sees a transition on
+        // next open and pops the 关闭一次/永久 dialog unprompted.
+        private const val KEY_WAKE_UP_ALERT = "key_wake_up_alert"
 
         // SleepModeUtil.exitSleepMode equivalent — sent raw, no reflection.
         private const val POWERKEEPER_PACKAGE = "com.miui.powerkeeper"
@@ -51,6 +58,7 @@ class BedtimeController(
     private val miHomeHelper by lazy { Reflect.findClass(CLS_MI_HOME_HELPER, classLoader) }
     private val alarmHelper by lazy { Reflect.findClass(CLS_ALARM_HELPER, classLoader) }
     private val zenModeUtil by lazy { Reflect.findClass(CLS_ZEN_MODE_UTIL, classLoader) }
+    private val fbeUtil by lazy { Reflect.findClass(CLS_FBE_UTIL, classLoader) }
     private val notificationManager by lazy {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
@@ -64,6 +72,36 @@ class BedtimeController(
     } catch (t: Throwable) {
         log("querySleepModeState error: ${t.message}")
         false
+    }
+
+    /** Read the persisted bedtime schedule exactly as the Clock app reads it:
+     * sleep time from SharedPreferences, wake alarm from ContentProvider. */
+    fun querySchedule(): ScheduleInfo = try {
+        val sleepHour = Reflect.callStatic(bedtimeUtil, "getSleepAlarmHour", context) as Int
+        val sleepMin = Reflect.callStatic(bedtimeUtil, "getSleepAlarmMin", context) as Int
+        val configured = Reflect.callStatic(bedtimeUtil, "bedTimeAlarmCompleted", context) as Boolean
+
+        var wakeHour = 7
+        var wakeMin = 0
+        var wakeEnabled = false
+        var repeatDays = 0x7F
+
+        val wakeAlarm = Reflect.callStatic(bedtimeUtil, "getWakeAlarm", context)
+        if (wakeAlarm != null) {
+            wakeHour = (Reflect.getField(wakeAlarm, "hour") as? Int) ?: wakeHour
+            wakeMin = (Reflect.getField(wakeAlarm, "minutes") as? Int) ?: wakeMin
+            wakeEnabled = (Reflect.getField(wakeAlarm, "enabled") as? Boolean) ?: false
+            val dow = Reflect.getField(wakeAlarm, "daysOfWeek")
+            if (dow != null) {
+                repeatDays = (Reflect.call(dow, "getCoded") as? Int)
+                    ?: (dow as? Int) ?: repeatDays
+            }
+        }
+
+        ScheduleInfo(sleepHour, sleepMin, wakeHour, wakeMin, wakeEnabled, repeatDays, configured)
+    } catch (t: Throwable) {
+        log("querySchedule error: ${t.message}")
+        ScheduleInfo(22, 30, 7, 0, false, 0x7F, false)
     }
 
     /** Edit the persisted bedtime schedule.
@@ -211,8 +249,13 @@ class BedtimeController(
 
         runStep(results, "enableAndroidBedtimeMode") {
             val ruleId = findOrCreateBedtimeRule()
-            if (ruleId != null) {
-                notificationManager.setAutomaticZenRuleState(ruleId, android.service.notification.Condition.STATE_TRUE)
+            if (ruleId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val condition = Condition(
+                    Uri.parse("condition://$BEDTIME_RULE_ID"),
+                    "",
+                    Condition.STATE_TRUE
+                )
+                notificationManager.setAutomaticZenRuleState(ruleId, condition)
             }
         }
     }
@@ -225,8 +268,13 @@ class BedtimeController(
 
         runStep(results, "disableAndroidBedtimeMode") {
             val ruleId = findOrCreateBedtimeRule()
-            if (ruleId != null) {
-                notificationManager.setAutomaticZenRuleState(ruleId, android.service.notification.Condition.STATE_FALSE)
+            if (ruleId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val condition = Condition(
+                    Uri.parse("condition://$BEDTIME_RULE_ID"),
+                    "",
+                    Condition.STATE_FALSE
+                )
+                notificationManager.setAutomaticZenRuleState(ruleId, condition)
             }
         }
     }
@@ -279,6 +327,124 @@ class BedtimeController(
             Reflect.callStatic(notificationUtil, "showSleepNotification", context)
         }
 
+        return results
+    }
+
+    /**
+     * Enable the wake alarm (toggle ON), per BedtimeManageActivity.onPreferenceChange:
+     * the checkbox first writes key_wake_up_alert=true to the default prefs,
+     * then AlarmHelper.enableAlarm(context, Integer.MIN_VALUE, true).
+     * Writing the pref ourselves is what stops the official app from seeing a
+     * checkbox transition (and popping the 关闭一次/永久 dialog) on next open.
+     */
+    fun enableWakeAlarm(): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+        setWakeAlertPref(results, true)
+        runStep(results, "enableAlarm(true)") {
+            Reflect.callStatic(alarmHelper, "enableAlarm", context, Int.MIN_VALUE, true)
+        }
+        return results
+    }
+
+    /**
+     * Disable the wake alarm permanently (toggle OFF -> "turn off always"),
+     * per BedtimeManageActivity.showRepeatAlarmTurnOffDialog option 1:
+     * key_wake_up_alert=false, then AlarmHelper.enableAlarm(context, MIN_VALUE,
+     * false) + registerWakeAlarm(context).
+     */
+    fun disableWakeAlarm(): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+        setWakeAlertPref(results, false)
+        runStep(results, "enableAlarm(false)") {
+            Reflect.callStatic(alarmHelper, "enableAlarm", context, Int.MIN_VALUE, false)
+        }
+        runStep(results, "registerWakeAlarm") {
+            Reflect.callStatic(alarmHelper, "registerWakeAlarm", context)
+        }
+        return results
+    }
+
+    /** Keep AlarmCheckboxLayout's persisted checkbox state in sync with the
+     * alarm DB so BedtimeManageActivity never sees a spurious transition. */
+    private fun setWakeAlertPref(results: MutableList<StepResult>, enabled: Boolean) {
+        runStep(results, "key_wake_up_alert=$enabled") {
+            val prefs = Reflect.callStatic(fbeUtil, "getDefaultSharedPreferences", context)
+                as android.content.SharedPreferences
+            prefs.edit().putBoolean(KEY_WAKE_UP_ALERT, enabled).apply()
+        }
+    }
+
+    /**
+     * Skip the wake alarm for one occurrence only (toggle OFF -> "skip once"),
+     * per BedtimeManageActivity.showRepeatAlarmTurnOffDialog option 0:
+     * AlarmHelper.skipAlarmForOnce(context, MIN_VALUE) + registerWakeAlarm(context)
+     */
+    fun skipWakeAlarmOnce(): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+        runStep(results, "skipAlarmForOnce") {
+            Reflect.callStatic(alarmHelper, "skipAlarmForOnce", context, Int.MIN_VALUE)
+        }
+        runStep(results, "registerWakeAlarm") {
+            Reflect.callStatic(alarmHelper, "registerWakeAlarm", context)
+        }
+        return results
+    }
+
+    /**
+     * Set the 就寝提醒 lead time (minutes before sleep time; -1 = none),
+     * per BedtimeSettingsFragment: BedtimeUtil.setNotificationAdvTime + reschedule.
+     */
+    fun setSleepReminder(minutes: Int): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+        runStep(results, "setNotificationAdvTime($minutes)") {
+            Reflect.callStatic(bedtimeUtil, "setNotificationAdvTime", context, minutes)
+        }
+        runStep(results, "setSleepNotification") {
+            Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+        }
+        return results
+    }
+
+    /** Current 就寝提醒 lead time in minutes (default 15, -1 = none). */
+    fun querySleepReminder(): Int = try {
+        Reflect.callStatic(bedtimeUtil, "getNotificationAdvTime", context) as Int
+    } catch (t: Throwable) {
+        log("querySleepReminder error: ${t.message}")
+        15
+    }
+
+    /**
+     * Fully disable the bedtime feature (used when the user deletes the
+     * bedtime mode in HyperModes): master switch off, wake alarm off,
+     * exit sleep mode. Every step is best-effort and individually reported.
+     */
+    fun disableBedtime(): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+        // Master bedtime switch (KEY_OPEN_BEDTIME) — confirmed name in
+        // BedtimeUtil.java (decompiled HyperOS DeskClock).
+        runStep(results, "setBedtimeOpenState(false)") {
+            Reflect.callStatic(bedtimeUtil, "setBedtimeOpenState", context, false)
+        }
+        // Wake-alert checkbox pref must match the DB row (see KEY_WAKE_UP_ALERT).
+        setWakeAlertPref(results, false)
+        // Wake alarm off permanently (official 永久关闭 sequence).
+        runStep(results, "enableAlarm(false)") {
+            Reflect.callStatic(alarmHelper, "enableAlarm", context, Int.MIN_VALUE, false)
+        }
+        runStep(results, "registerWakeAlarm") {
+            Reflect.callStatic(alarmHelper, "registerWakeAlarm", context)
+        }
+        // Exit powerkeeper sleep mode in case it is active right now.
+        runStep(results, "exitSleepMode (powerkeeper broadcast)") {
+            context.sendBroadcast(Intent(ACTION_REQUEST_WAKE).apply {
+                setPackage(POWERKEEPER_PACKAGE)
+                putExtra(EXTRA_REASON, REASON_DESK_CLOCK)
+            })
+        }
+        // Reschedule (with bedtime closed this clears the reminder).
+        runStep(results, "setSleepNotification") {
+            Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+        }
         return results
     }
 

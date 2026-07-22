@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun TimePickerDialog(
@@ -60,7 +61,7 @@ fun TimePickerDialog(
                     text = ":",
                     style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, top = 20.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp).padding(top = 20.dp)
                 )
 
                 Column(

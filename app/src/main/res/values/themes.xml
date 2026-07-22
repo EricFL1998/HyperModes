@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.HyperModes" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Launch splash / window background follows the system day/night theme
+         (white in light mode, black in dark mode) via @color/splash_bg,
+         which is qualified by values-night. -->
+    <style name="Theme.HyperModes" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_bg</item>
+    </style>
 </resources>
