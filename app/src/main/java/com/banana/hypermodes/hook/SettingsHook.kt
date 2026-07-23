@@ -96,12 +96,36 @@ class SettingsHook(private val module: XposedModule) {
             putParcelableArrayList("header_user", arrayListOf(userHandleOf(0)))
         })
 
-        val pos = findDisplayHeaderPosition(context, headers)
-        if (pos >= 0) headers.add(pos, header) else headers.add(header)
-        log("modes header injected at ${if (pos >= 0) pos else headers.size - 1}")
+        val pos = findLauncherHeaderPosition(context, headers)
+        // Insert after "桌面" (launcher) so the entry sits just above "显示" (display).
+        if (pos >= 0) headers.add(pos + 1, header) else headers.add(header)
+        log("modes header injected at ${if (pos >= 0) pos + 1 else headers.size - 1}")
     }
 
-    /** Position of the display header (we insert before it = above 显示和触控). */
+    /** Position of the launcher/home header (we insert after it). */
+    private fun findLauncherHeaderPosition(context: Context, headers: List<Any>): Int {
+        // Match by resource id first, then by localized title text.
+        val launcherIds = listOf("launcher_settings", "home_settings")
+            .mapNotNull { name ->
+                context.resources.getIdentifier(name, "id", Protocol.SETTINGS_PACKAGE)
+                    .takeIf { it != 0 }?.toLong()
+            }
+        val launcherTitles = listOf("home_title", "launcher_settings")
+            .mapNotNull { name ->
+                val id = context.resources.getIdentifier(name, "string", Protocol.SETTINGS_PACKAGE)
+                if (id != 0) context.resources.getString(id) else null
+            }
+
+        for (i in headers.indices) {
+            val head = headers[i]
+            if (launcherIds.contains(getLongField(head, "id"))) return i
+            val title = getField(head, "title")?.toString()
+            if (title != null && launcherTitles.contains(title)) return i
+        }
+        return -1
+    }
+
+    /** Fallback: position of the display header (we insert before it). */
     private fun findDisplayHeaderPosition(context: Context, headers: List<Any>): Int {
         // Match by resource id first, then by localized title text.
         val displayIds = listOf("display_settings", "display", "display_and_touch")
