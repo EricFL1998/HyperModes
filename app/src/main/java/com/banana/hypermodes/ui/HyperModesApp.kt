@@ -837,7 +837,7 @@ fun ModeItem(
         modifier = modifier
             .fillMaxWidth()
             // Set a fixed height for all blocks to match MIUI Clock alarm style
-            .height(112.dp),
+            .height(100.dp),
         // Internal padding matching MIUI Clock alarm list items
         insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
         // MIUI Clock alarm blocks use @dimen/miuix_theme_radius_big (36dp)
