@@ -780,7 +780,10 @@ fun ModeItem(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        // Internal padding matching MIUI Clock alarm list items
+        insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+        // MIUI Clock alarm blocks use @dimen/miuix_theme_radius_big (36dp)
+        cornerRadius = 36.dp,
         onClick = onClick
     ) {
         Row(
@@ -788,30 +791,29 @@ fun ModeItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
+                // Title using "Timer" style (headline1, medium weight)
                 Text(
-                    text = icon,
-                    style = MiuixTheme.textStyles.headline2,
-                    modifier = Modifier.padding(end = 16.dp)
+                    text = title,
+                    style = MiuixTheme.textStyles.headline1,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
-                Column {
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Subtitle using "Date/Repeat" style (body2)
                     Text(
-                        text = title,
-                        style = MiuixTheme.textStyles.body1
+                        text = subtitle,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
-                    if (subtitle != null) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = subtitle,
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
                 }
             }
+            // Icon placed on the right, mirroring MIUI style for auxiliary info
+            Text(
+                text = icon,
+                style = MiuixTheme.textStyles.headline2,
+                modifier = Modifier.padding(start = 16.dp)
+            )
         }
     }
 }

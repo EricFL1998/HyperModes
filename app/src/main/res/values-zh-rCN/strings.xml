@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">HyperModes</string>
-    <string name="xposed_description">HyperOS 睡眠模式控制 - 修改时钟应用内的就寝计划，并支持完整的健康/米家/专注模式同步功能。</string>
+    <string name="xposed_description">HyperOS 模式功能</string>
 
     <!-- Navigation -->
     <string name="back">返回</string>
