@@ -1,14 +1,19 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,7 +32,7 @@ import androidx.compose.foundation.clickable
 /** Emoji icon choices for custom modes (stored directly as Mode.icon). */
 val MODE_ICON_CHOICES = listOf(
     "⭐", "💼", "🏛️", "🏢", "💬", "👥", "💡", "📅",
-    "🚫", "🚶", "⛳", "🏋️", "🏊", "🧗", "🤺", "🎮",
+    "⊝", "🚶", "⛳", "🏋️", "🏊", "🧗", "🤺", "🎮",
     "🎨", "❄️", "🔕", "🛠️", "🎹", "🎬", "📖", "🌿",
     "🎧", "🖥️", "🚆", "🚗", "🍴", "🛒", "🎰", "🐾",
     "🎟️", "👨‍👩‍👧", "❤️", "🏠", "🌙", "⏰", "🧘", "✈️"
@@ -44,6 +49,7 @@ fun EditModeScreen(
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     // Built-in modes are stored with their English default names; prefill the
     // rename field with the localized name (unless the user already renamed).
     val englishDefaults = mapOf(
@@ -151,7 +157,14 @@ fun EditModeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                        }
+                    )
                 )
             }
 

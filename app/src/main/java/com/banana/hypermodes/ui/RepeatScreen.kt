@@ -1,9 +1,11 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,6 +17,7 @@ import com.banana.hypermodes.data.ModeSchedule
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -170,6 +173,11 @@ fun RepeatScreen(
                                 )
                             }
                         }
+                        Icon(
+                            imageVector = MiuixIcons.Basic.ArrowRight,
+                            contentDescription = null,
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+                        )
                     }
                 }
             }
@@ -240,17 +248,8 @@ fun CustomRepeatScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(labelRes),
-                                    style = MiuixTheme.textStyles.body1
-                                )
-                                Switch(
-                                    checked = checked,
-                                    onCheckedChange = { on ->
+                                    .clickable {
+                                        val on = !checked
                                         val newDays = if (on) {
                                             schedule.repeatDays or (1 shl day)
                                         } else {
@@ -258,7 +257,31 @@ fun CustomRepeatScreen(
                                         }
                                         onSelect(schedule.copy(repeatDays = newDays))
                                     }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(labelRes),
+                                    style = MiuixTheme.textStyles.body1
                                 )
+                                if (checked) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(
+                                                color = MiuixTheme.colorScheme.primary,
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "✓",
+                                            color = MiuixTheme.colorScheme.surface,
+                                            style = MiuixTheme.textStyles.body2
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

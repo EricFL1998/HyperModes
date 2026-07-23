@@ -196,8 +196,6 @@ fun ModeDetailScreen(
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
