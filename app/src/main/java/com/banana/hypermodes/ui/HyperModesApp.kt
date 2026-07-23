@@ -48,7 +48,6 @@ sealed class Screen {
     data class CustomRepeat(val mode: Mode) : Screen()
     data class DrivingDetect(val mode: Mode) : Screen()
     data class AppPicker(val mode: Mode, val paused: Boolean = false) : Screen()
-    data class EditMode(val mode: Mode, val isNew: Boolean) : Screen()
 }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -127,6 +126,11 @@ fun HyperModesApp() {
     // repeat, apps) mutate this instead of navigating, so toggling an option
     // never pops back to the detail page.
     var editingMode by remember { mutableStateOf<Mode?>(null) }
+    
+    // State for the Edit/Create Mode popup dialog
+    var showEditDialog by remember { mutableStateOf(false) }
+    var modeToEditInDialog by remember { mutableStateOf<Mode?>(null) }
+    var isCreatingNewModeInDialog by remember { mutableStateOf(false) }
 
     // The user's mode list (built-ins minus deleted ones + custom modes),
     // persisted via ModeStore. Bedtime always sorts first.
@@ -259,7 +263,9 @@ fun HyperModesApp() {
                                     schedule = com.banana.hypermodes.data.ModeSchedule(enabled = false)
                                 )
                             )
-                            currentScreen = Screen.EditMode(newMode, isNew = true)
+                            modeToEditInDialog = newMode
+                            isCreatingNewModeInDialog = true
+                            showEditDialog = true
                         },
                         onRestoreBuiltIn = { builtIn ->
                             upsertMode(builtIn)
@@ -317,7 +323,9 @@ fun HyperModesApp() {
                             currentScreen = Screen.DrivingDetect(updated)
                         },
                         onRename = { updated ->
-                            currentScreen = Screen.EditMode(updated, isNew = false)
+                            modeToEditInDialog = updated
+                            isCreatingNewModeInDialog = false
+                            showEditDialog = true
                         },
                         onDelete = { deleted ->
                             if (deleted.enabled) {
@@ -417,27 +425,29 @@ fun HyperModesApp() {
                         }
                     )
                 }
-                is Screen.EditMode -> {
-                    EditModeScreen(
-                        mode = screen.mode,
-                        onBack = {
-                            currentScreen = if (screen.isNew) Screen.ModesList
-                            else Screen.ModeDetail(editingMode ?: screen.mode)
-                        },
-                        onDone = { done ->
-                            upsertMode(done)
-                            if (screen.isNew) {
-                                editingMode = done
-                                currentScreen = Screen.ModeDetail(done)
-                            } else {
-                                editingMode = done
-                                currentScreen = Screen.ModeDetail(done)
-                            }
-                        }
-                    )
-                }
             }
         }
+        }
+
+        // 修改/创建模式 dialog
+        modeToEditInDialog?.let { mode ->
+            EditModeDialog(
+                show = showEditDialog,
+                mode = mode,
+                onDismissRequest = { showEditDialog = false },
+                onDone = { done ->
+                    upsertMode(done)
+                    if (isCreatingNewModeInDialog) {
+                        editingMode = done
+                        currentScreen = Screen.ModeDetail(done)
+                    } else {
+                        // If we were in the detail screen, update the local editing state
+                        if (editingMode?.id == done.id) {
+                            editingMode = done
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -541,7 +551,7 @@ private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hyper
 private fun Screen.depth(): Int = when (this) {
     is Screen.ModesList -> 0
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
-    is Screen.DisplayOptions, is Screen.Repeat, is Screen.AppPicker, is Screen.EditMode,
+    is Screen.DisplayOptions, is Screen.Repeat, is Screen.AppPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }
