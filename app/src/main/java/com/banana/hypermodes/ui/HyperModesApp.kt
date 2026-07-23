@@ -470,6 +470,7 @@ fun CreateModeDialog(
         title = stringResource(R.string.create_mode),
         show = show,
         onDismissRequest = onDismiss,
+        outsideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
         insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp)
     ) {
         Column(

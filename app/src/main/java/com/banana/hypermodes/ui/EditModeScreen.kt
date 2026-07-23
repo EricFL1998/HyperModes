@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
@@ -56,7 +57,7 @@ val MODE_ICON_CHOICES = listOf(
 
 /**
  * 修改模式 dialog: big icon preview, name field, icon grid, 完成 button.
- * Styled as a bottom sheet with centered headers and a single primary button.
+ * True edge-to-edge full-width bottom sheet mirroring MIUI Clock's Add Alarm.
  */
 @Composable
 fun EditModeDialog(
@@ -94,8 +95,9 @@ fun EditModeDialog(
         title = stringResource(R.string.edit_mode),
         show = show,
         onDismissRequest = onDismissRequest,
-        // Bottom padding 0 to reach the edge, side margin handled by content
-        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp)
+        // Set outsideMargin to 0 to fill screen width and bottom edge (including gesture bar)
+        outsideMargin = DpSize(0.dp, 0.dp),
+        insideMargin = DpSize(0.dp, 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -135,7 +137,6 @@ fun EditModeDialog(
                         top.yukonga.miuix.kmp.basic.SmallTitle(
                             text = stringResource(R.string.mode_name),
                             modifier = Modifier.padding(bottom = 12.dp),
-                            // Override default start alignment if possible, otherwise use Box centering
                             insideMargin = PaddingValues(0.dp) 
                         )
                     }
@@ -211,11 +212,12 @@ fun EditModeDialog(
             }
 
             // Bottom Button: Single primary blue "Done" button
+            // padding bottom adjusted to account for gesture bar immersion while maintaining balance
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp) // Bottom padding for visual balance above the edge
+                    .padding(bottom = 32.dp)
                     .height(56.dp)
                     .squircleSurface(
                         color = MiuixTheme.colorScheme.primary,
