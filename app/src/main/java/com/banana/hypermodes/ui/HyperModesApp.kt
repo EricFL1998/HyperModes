@@ -470,7 +470,7 @@ fun CreateModeDialog(
         title = stringResource(R.string.create_mode),
         show = show,
         onDismissRequest = onDismiss,
-        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 24.dp)
+        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -478,7 +478,8 @@ fun CreateModeDialog(
                 .fillMaxHeight(0.7f)
         ) {
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth()
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(top = 24.dp)
             ) {
                 // Custom entry
                 item {

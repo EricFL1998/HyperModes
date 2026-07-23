@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -55,7 +56,7 @@ val MODE_ICON_CHOICES = listOf(
 
 /**
  * 修改模式 dialog: big icon preview, name field, icon grid, 完成 button.
- * Styled as a nearly full-height bottom sheet like MIUI Clock's Add Alarm.
+ * Styled as a bottom sheet with centered headers and a single primary button.
  */
 @Composable
 fun EditModeDialog(
@@ -67,8 +68,6 @@ fun EditModeDialog(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     
-    // Built-in modes are stored with their English default names; prefill the
-    // rename field with the localized name (unless the user already renamed).
     val englishDefaults = mapOf(
         "dnd" to "Do Not Disturb",
         "bedtime" to "Bedtime",
@@ -95,23 +94,25 @@ fun EditModeDialog(
         title = stringResource(R.string.edit_mode),
         show = show,
         onDismissRequest = onDismissRequest,
-        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 24.dp)
+        // Bottom padding 0 to reach the edge, side margin handled by content
+        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f)
+                .fillMaxHeight(0.85f)
         ) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                contentPadding = PaddingValues(top = 24.dp)
             ) {
                 // Big icon preview
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 24.dp),
+                            .padding(bottom = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -128,12 +129,16 @@ fun EditModeDialog(
                     }
                 }
 
-                // Name field
+                // Name field: Centered Label
                 item {
-                    top.yukonga.miuix.kmp.basic.SmallTitle(
-                        text = stringResource(R.string.mode_name),
-                        modifier = Modifier.padding(start = 28.dp, bottom = 8.dp)
-                    )
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        top.yukonga.miuix.kmp.basic.SmallTitle(
+                            text = stringResource(R.string.mode_name),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            // Override default start alignment if possible, otherwise use Box centering
+                            insideMargin = PaddingValues(0.dp) 
+                        )
+                    }
                 }
                 item {
                     top.yukonga.miuix.kmp.basic.TextField(
@@ -141,8 +146,8 @@ fun EditModeDialog(
                         onValueChange = { name = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 16.dp),
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(
@@ -153,17 +158,20 @@ fun EditModeDialog(
                     )
                 }
 
-                // Icon grid label
+                // Icon grid: Centered Label
                 item {
-                    top.yukonga.miuix.kmp.basic.SmallTitle(
-                        text = stringResource(R.string.choose_icon),
-                        modifier = Modifier.padding(start = 28.dp, top = 8.dp, bottom = 8.dp)
-                    )
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        top.yukonga.miuix.kmp.basic.SmallTitle(
+                            text = stringResource(R.string.choose_icon),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            insideMargin = PaddingValues(0.dp)
+                        )
+                    }
                 }
                 
                 item {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
                     ) {
                         MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
                             Row(modifier = Modifier.fillMaxWidth()) {
@@ -172,12 +180,12 @@ fun EditModeDialog(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .padding(4.dp)
+                                            .padding(6.dp)
                                             .aspectRatio(1f)
                                             .squircleSurface(
                                                 color = if (selected) MiuixTheme.colorScheme.primary
                                                 else MiuixTheme.colorScheme.secondaryContainer,
-                                                cornerRadius = 20.dp
+                                                cornerRadius = 24.dp
                                             )
                                             .clickable { icon = choice },
                                         contentAlignment = Alignment.Center
@@ -202,57 +210,29 @@ fun EditModeDialog(
                 }
             }
 
-            // Bottom Buttons Style: Cancel (Grey) | Done (Blue) - Filled to edges of content
-            Row(
+            // Bottom Button: Single primary blue "Done" button
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(bottom = 32.dp) // Bottom padding for visual balance above the edge
+                    .height(56.dp)
+                    .squircleSurface(
+                        color = MiuixTheme.colorScheme.primary,
+                        cornerRadius = 28.dp
+                    )
+                    .clickable {
+                        onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
+                        onDismissRequest()
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                // Secondary action: MIUI Clock "More Settings" style (Grey pill)
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .squircleSurface(
-                            color = MiuixTheme.colorScheme.secondaryContainer,
-                            cornerRadius = 28.dp
-                        )
-                        .clickable { onDismissRequest() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    top.yukonga.miuix.kmp.basic.Text(
-                        text = stringResource(R.string.cancel),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSecondaryContainer,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                
-                // Primary action: MIUI Clock "Finish" style (Blue pill)
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .squircleSurface(
-                            color = MiuixTheme.colorScheme.primary,
-                            cornerRadius = 28.dp
-                        )
-                        .clickable {
-                            onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
-                            onDismissRequest()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    top.yukonga.miuix.kmp.basic.Text(
-                        text = stringResource(R.string.done),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = stringResource(R.string.done),
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
