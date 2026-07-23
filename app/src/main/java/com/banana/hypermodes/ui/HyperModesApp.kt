@@ -20,6 +20,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
@@ -276,8 +277,13 @@ fun HyperModesApp() {
                     )
                 }
                 is Screen.ModeDetail -> {
+                    val currentMode = editingMode ?: screen.mode
+                    val latestMode = modes.firstOrNull { it.id == currentMode.id }
+                    if (latestMode != null && latestMode.enabled != currentMode.enabled) {
+                        editingMode = currentMode.copy(enabled = latestMode.enabled)
+                    }
                     ModeDetailScreen(
-                        mode = editingMode ?: screen.mode,
+                        mode = editingMode ?: currentMode,
                         onBack = { currentScreen = Screen.ModesList },
                         onOpenDisplayOptions = { updated ->
                             editingMode = updated
@@ -571,6 +577,25 @@ fun ModesListScreen(
                 title = stringResource(R.string.modes),
                 scrollBehavior = scrollBehavior
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    val deleted = DefaultModes.get()
+                        .filter { builtIn -> modes.none { it.id == builtIn.id } }
+                    if (deleted.isNotEmpty()) {
+                        showCreateDialog = true
+                    } else {
+                        onCreateCustom()
+                    }
+                }
+            ) {
+                Text(
+                    text = "+",
+                    fontSize = 32.sp,
+                    color = MiuixTheme.colorScheme.onPrimary
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -694,39 +719,6 @@ fun ModesListScreen(
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 12.dp)
                 )
-            }
-
-            // Create your own mode
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp),
-                    insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                    onClick = {
-                        // Only show the chooser popup when deleted built-ins can be
-                        // restored; otherwise go straight to the custom-mode editor.
-                        val deleted = DefaultModes.get()
-                            .filter { builtIn -> modes.none { it.id == builtIn.id } }
-                        if (deleted.isEmpty()) onCreateCustom() else showCreateDialog = true
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "+",
-                            style = MiuixTheme.textStyles.headline2,
-                            modifier = Modifier.padding(end = 16.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.create_own_mode),
-                            style = MiuixTheme.textStyles.body1
-                        )
-                    }
-                }
             }
 
             // Bottom spacer with navigation bar padding

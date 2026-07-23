@@ -11,11 +11,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
@@ -184,7 +187,7 @@ fun ModeDetailScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(
+                    AdaptiveHeroDescription(
                         text = when (editedMode.id) {
                             "dnd" -> stringResource(R.string.mode_dnd_hero_desc)
                             "bedtime" -> stringResource(R.string.bedtime_hero_desc)
@@ -192,11 +195,7 @@ fun ModeDetailScreen(
                             else -> editedMode.description.ifEmpty {
                                 stringResource(R.string.custom_mode_hero_desc)
                             }
-                        },
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
+                        }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     TextButton(
@@ -561,6 +560,45 @@ fun ModeDetailScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AdaptiveHeroDescription(text: String) {
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val baseStyle = MiuixTheme.textStyles.body2
+    val horizontalPadding = 32.dp
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        val maxWidthPx = with(density) { maxWidth.roundToPx() }
+        val measuredWidth = textMeasurer.measure(
+            text = text,
+            style = baseStyle,
+            maxLines = 1,
+            softWrap = false,
+            constraints = Constraints()
+        ).size.width
+        val scale = if (measuredWidth > maxWidthPx && measuredWidth > 0) {
+            maxWidthPx.toFloat() / measuredWidth
+        } else {
+            1f
+        }
+
+        Text(
+            text = text,
+            style = baseStyle,
+            fontSize = (baseStyle.fontSize.value * scale).coerceAtLeast(10f).sp,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
