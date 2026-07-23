@@ -95,13 +95,7 @@ fun EditModeDialog(
     top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
-        title = if (isNew) stringResource(R.string.create_mode) else stringResource(R.string.edit_mode),
-        startAction = {
-            top.yukonga.miuix.kmp.basic.TextButton(
-                text = stringResource(R.string.cancel),
-                onClick = onDismissRequest
-            )
-        }
+        title = if (isNew) stringResource(R.string.create_mode) else stringResource(R.string.edit_mode)
     ) {
         Column(
             modifier = Modifier

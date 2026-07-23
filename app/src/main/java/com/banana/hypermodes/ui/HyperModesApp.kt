@@ -487,13 +487,7 @@ fun CreateModeDialog(
     top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
-        title = stringResource(R.string.create_mode),
-        startAction = {
-            top.yukonga.miuix.kmp.basic.TextButton(
-                text = stringResource(R.string.cancel),
-                onClick = onDismiss
-            )
-        }
+        title = stringResource(R.string.create_mode)
     ) {
         Column(
             modifier = Modifier
