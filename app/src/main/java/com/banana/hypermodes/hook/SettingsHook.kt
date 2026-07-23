@@ -47,11 +47,6 @@ class SettingsHook(private val module: XposedModule) {
                         if (activity != null && headers != null) {
                             injectHeader(activity, headers, classLoader)
                         }
-                        // Remove the dividers between homepage list items so the
-                        // injected header blends into the HyperOS Settings UI.
-                        if (activity != null) {
-                            removeListDividers(activity)
-                        }
                     } catch (t: Throwable) {
                         log("header injection failed: $t")
                     }
@@ -104,59 +99,6 @@ class SettingsHook(private val module: XposedModule) {
         val pos = findDisplayHeaderPosition(context, headers)
         if (pos >= 0) headers.add(pos, header) else headers.add(header)
         log("modes header injected at ${if (pos >= 0) pos else headers.size - 1}")
-    }
-
-    /**
-     * Remove the divider lines from the Settings homepage list.
-     * HyperOS uses either a ListView (android.R.id.list) or a RecyclerView;
-     * both are handled here.
-     */
-    private fun removeListDividers(activity: android.app.Activity) {
-        try {
-            val list: android.view.View? = activity.findViewById(android.R.id.list)
-            if (list == null) {
-                log("homepage list view not found")
-                return
-            }
-            when (list) {
-                is android.widget.ListView -> {
-                    list.divider = null
-                    list.dividerHeight = 0
-                    list.setHeaderDividersEnabled(false)
-                    list.setFooterDividersEnabled(false)
-                    log("removed ListView dividers")
-                }
-                else -> removeRecyclerViewDividers(list)
-            }
-        } catch (t: Throwable) {
-            log("failed to remove dividers: ${t.message}")
-        }
-    }
-
-    /** If the homepage uses a RecyclerView, strip its ItemDecorations. */
-    private fun removeRecyclerViewDividers(view: Any) {
-        try {
-            val recyclerClass = Class.forName("androidx.recyclerview.widget.RecyclerView")
-            if (!recyclerClass.isInstance(view)) {
-                log("unknown homepage list type: ${view.javaClass.name}")
-                return
-            }
-            val getCount = recyclerClass.getMethod("getItemDecorationCount")
-            val count = getCount.invoke(view) as Int
-            if (count == 0) return
-            val getAt = recyclerClass.getMethod("getItemDecorationAt", Int::class.javaPrimitiveType)
-            val remove = recyclerClass.getMethod(
-                "removeItemDecoration",
-                Class.forName("androidx.recyclerview.widget.RecyclerView\$ItemDecoration")
-            )
-            for (i in count - 1 downTo 0) {
-                val decoration = getAt.invoke(view, i)
-                remove.invoke(view, decoration)
-            }
-            log("removed $count RecyclerView divider decoration(s)")
-        } catch (t: Throwable) {
-            log("RecyclerView divider removal failed: ${t.message}")
-        }
     }
 
     /** Position of the display header (we insert before it = above 显示和触控). */
