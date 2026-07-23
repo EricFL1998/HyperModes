@@ -92,44 +92,16 @@ fun EditModeDialog(
     var icon by remember(show, mode) { mutableStateOf(mode.icon.ifEmpty { "⭐" }) }
 
     top.yukonga.miuix.kmp.overlay.OverlayDialog(
+        title = stringResource(R.string.edit_mode),
         show = show,
-        onDismissRequest = onDismissRequest
+        onDismissRequest = onDismissRequest,
+        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                .padding(bottom = 8.dp)
         ) {
-            // MIUI Clock Header Style: Cancel | Title | Done
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                top.yukonga.miuix.kmp.basic.TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = onDismissRequest
-                )
-                
-                top.yukonga.miuix.kmp.basic.Text(
-                    text = stringResource(R.string.edit_mode),
-                    style = MiuixTheme.textStyles.title2,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                top.yukonga.miuix.kmp.basic.TextButton(
-                    text = stringResource(R.string.done),
-                    onClick = {
-                        onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
-                        onDismissRequest()
-                    },
-                    colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary()
-                )
-            }
-
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -227,6 +199,59 @@ fun EditModeDialog(
                 
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+
+            // Bottom Buttons Style: Cancel (Grey) | Done (Blue) - Filled to edges of content
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Secondary action: MIUI Clock "More Settings" style (Grey pill)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .squircleSurface(
+                            color = MiuixTheme.colorScheme.secondaryContainer,
+                            cornerRadius = 28.dp
+                        )
+                        .clickable { onDismissRequest() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    top.yukonga.miuix.kmp.basic.Text(
+                        text = stringResource(R.string.cancel),
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                // Primary action: MIUI Clock "Finish" style (Blue pill)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .squircleSurface(
+                            color = MiuixTheme.colorScheme.primary,
+                            cornerRadius = 28.dp
+                        )
+                        .clickable {
+                            onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
+                            onDismissRequest()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    top.yukonga.miuix.kmp.basic.Text(
+                        text = stringResource(R.string.done),
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

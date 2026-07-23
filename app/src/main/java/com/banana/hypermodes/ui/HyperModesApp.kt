@@ -30,6 +30,7 @@ import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -466,37 +467,16 @@ fun CreateModeDialog(
     onRestoreBuiltIn: (Mode) -> Unit
 ) {
     top.yukonga.miuix.kmp.overlay.OverlayDialog(
+        title = stringResource(R.string.create_mode),
         show = show,
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-                .padding(bottom = 8.dp)
+                .fillMaxHeight(0.7f)
         ) {
-            // MIUI Clock Header Style: Cancel | Title
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = onDismiss
-                )
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                Text(
-                    text = stringResource(R.string.create_mode),
-                    style = MiuixTheme.textStyles.title2,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-            }
-
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
@@ -561,6 +541,28 @@ fun CreateModeDialog(
                         }
                     }
                 }
+            }
+
+            // Bottom action: MIUI Clock secondary button style (Grey pill)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp)
+                    .height(56.dp)
+                    .squircleSurface(
+                        color = MiuixTheme.colorScheme.secondaryContainer,
+                        cornerRadius = 28.dp
+                    )
+                    .clickable { onDismiss() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.cancel),
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                )
             }
         }
     }
@@ -837,7 +839,7 @@ fun ModeItem(
         modifier = modifier
             .fillMaxWidth()
             // Set a fixed height for all blocks to match MIUI Clock alarm style
-            .height(100.dp),
+            .height(96.dp),
         // Internal padding matching MIUI Clock alarm list items
         insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
         // MIUI Clock alarm blocks use @dimen/miuix_theme_radius_big (36dp)
