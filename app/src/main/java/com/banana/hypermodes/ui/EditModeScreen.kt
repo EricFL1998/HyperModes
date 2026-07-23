@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
@@ -55,6 +55,7 @@ val MODE_ICON_CHOICES = listOf(
 
 /**
  * 修改模式 dialog: big icon preview, name field, icon grid, 完成 button.
+ * Styled as a nearly full-height bottom sheet like MIUI Clock's Add Alarm.
  */
 @Composable
 fun EditModeDialog(
@@ -90,146 +91,142 @@ fun EditModeDialog(
     }
     var icon by remember(show, mode) { mutableStateOf(mode.icon.ifEmpty { "⭐" }) }
 
-    OverlayDialog(
-        title = stringResource(R.string.edit_mode),
+    top.yukonga.miuix.kmp.overlay.OverlayDialog(
         show = show,
         onDismissRequest = onDismissRequest
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.9f)
                 .padding(bottom = 8.dp)
         ) {
-            // Big icon preview
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .squircleBackground(
-                            MiuixTheme.colorScheme.secondaryContainer,
-                            40.dp
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = icon, fontSize = 36.sp)
-                }
-            }
-
-            // Name field
-            SmallTitle(
-                text = stringResource(R.string.mode_name),
-                modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
-            )
-            TextField(
-                value = name,
-                onValueChange = { name = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                    }
-                )
-            )
-
-            // Icon grid label
-            SmallTitle(
-                text = stringResource(R.string.choose_icon),
-                modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
-            )
-            
-            // Icon grid: Wrap in a fixed-height scrollable area if needed, 
-            // but OverlayDialog handles scrolling if the content is too large.
-            // Using a simple Column here as OverlayDialog content is already inside a scrollable layout.
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        rowChoices.forEach { choice ->
-                            val selected = icon == choice
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(4.dp)
-                                    .aspectRatio(1f)
-                                    .squircleSurface(
-                                        if (selected) MiuixTheme.colorScheme.primary
-                                        else MiuixTheme.colorScheme.secondaryContainer,
-                                        20.dp
-                                    )
-                                    .clickable { icon = choice },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = choice,
-                                    fontSize = 24.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        repeat(5 - rowChoices.size) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            
+            // MIUI Clock Header Style: Cancel | Title | Done
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Secondary action: MIUI Clock "More Settings" style (Grey pill)
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .squircleSurface(
-                            color = MiuixTheme.colorScheme.secondaryContainer,
-                            cornerRadius = 28.dp
+                top.yukonga.miuix.kmp.basic.TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismissRequest
+                )
+                
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = stringResource(R.string.edit_mode),
+                    style = MiuixTheme.textStyles.title2,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                top.yukonga.miuix.kmp.basic.TextButton(
+                    text = stringResource(R.string.done),
+                    onClick = {
+                        onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
+                        onDismissRequest()
+                    },
+                    colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary()
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Big icon preview
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .squircleBackground(
+                                    MiuixTheme.colorScheme.secondaryContainer,
+                                    48.dp
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            top.yukonga.miuix.kmp.basic.Text(text = icon, fontSize = 44.sp)
+                        }
+                    }
+                }
+
+                // Name field
+                item {
+                    top.yukonga.miuix.kmp.basic.SmallTitle(
+                        text = stringResource(R.string.mode_name),
+                        modifier = Modifier.padding(start = 28.dp, bottom = 8.dp)
+                    )
+                }
+                item {
+                    top.yukonga.miuix.kmp.basic.TextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 16.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                            }
                         )
-                        .clickable { onDismissRequest() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.cancel),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSecondaryContainer,
-                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Icon grid label
+                item {
+                    top.yukonga.miuix.kmp.basic.SmallTitle(
+                        text = stringResource(R.string.choose_icon),
+                        modifier = Modifier.padding(start = 28.dp, top = 8.dp, bottom = 8.dp)
                     )
                 }
                 
-                // Primary action: MIUI Clock "Finish" style (Blue pill)
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .squircleSurface(
-                            color = MiuixTheme.colorScheme.primary,
-                            cornerRadius = 28.dp
-                        )
-                        .clickable {
-                            onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
-                            onDismissRequest()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.done),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Medium
-                    )
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                    ) {
+                        MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                rowChoices.forEach { choice ->
+                                    val selected = icon == choice
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(4.dp)
+                                            .aspectRatio(1f)
+                                            .squircleSurface(
+                                                color = if (selected) MiuixTheme.colorScheme.primary
+                                                else MiuixTheme.colorScheme.secondaryContainer,
+                                                cornerRadius = 20.dp
+                                            )
+                                            .clickable { icon = choice },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        top.yukonga.miuix.kmp.basic.Text(
+                                            text = choice,
+                                            fontSize = 28.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                                repeat(5 - rowChoices.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }

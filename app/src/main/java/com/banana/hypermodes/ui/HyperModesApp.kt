@@ -466,72 +466,102 @@ fun CreateModeDialog(
     onRestoreBuiltIn: (Mode) -> Unit
 ) {
     top.yukonga.miuix.kmp.overlay.OverlayDialog(
-        title = stringResource(R.string.create_mode),
         show = show,
         onDismissRequest = onDismiss
     ) {
-        Column {
-            // Custom entry
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(bottom = 8.dp)
+        ) {
+            // MIUI Clock Header Style: Cancel | Title
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onCreateCustom)
-                    .padding(vertical = 14.dp),
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "😊",
-                    modifier = Modifier.padding(end = 16.dp)
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss
                 )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
                 Text(
-                    text = stringResource(R.string.custom),
-                    style = MiuixTheme.textStyles.body1
+                    text = stringResource(R.string.create_mode),
+                    style = MiuixTheme.textStyles.title2,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                 )
             }
 
-            // Deleted built-in modes, listed individually
-            deletedBuiltIns.forEach { builtIn ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onRestoreBuiltIn(builtIn) }
-                        .padding(vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = builtIn.icon,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
-                    Column {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) {
+                // Custom entry
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onCreateCustom)
+                            .padding(horizontal = 28.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = when (builtIn.id) {
-                                "dnd" -> stringResource(R.string.mode_dnd)
-                                "bedtime" -> stringResource(R.string.mode_bedtime)
-                                "driving" -> stringResource(R.string.mode_driving)
-                                else -> builtIn.name
-                            },
-                            style = MiuixTheme.textStyles.body1
+                            text = "😊",
+                            fontSize = 32.sp,
+                            modifier = Modifier.padding(end = 16.dp)
                         )
                         Text(
-                            text = when (builtIn.id) {
-                                "dnd" -> stringResource(R.string.mode_dnd_desc)
-                                "bedtime" -> stringResource(R.string.mode_bedtime_desc)
-                                "driving" -> stringResource(R.string.mode_driving_desc)
-                                else -> builtIn.description
-                            },
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            text = stringResource(R.string.custom),
+                            style = MiuixTheme.textStyles.body1,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
-                text = stringResource(R.string.cancel),
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            )
+                // Deleted built-in modes, listed individually
+                items(deletedBuiltIns.size) { index ->
+                    val builtIn = deletedBuiltIns[index]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onRestoreBuiltIn(builtIn) }
+                            .padding(horizontal = 28.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = builtIn.icon,
+                            fontSize = 32.sp,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                        Column {
+                            Text(
+                                text = when (builtIn.id) {
+                                    "dnd" -> stringResource(R.string.mode_dnd)
+                                    "bedtime" -> stringResource(R.string.mode_bedtime)
+                                    "driving" -> stringResource(R.string.mode_driving)
+                                    else -> builtIn.name
+                                },
+                                style = MiuixTheme.textStyles.body1,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                            )
+                            Text(
+                                text = when (builtIn.id) {
+                                    "dnd" -> stringResource(R.string.mode_dnd_desc)
+                                    "bedtime" -> stringResource(R.string.mode_bedtime_desc)
+                                    "driving" -> stringResource(R.string.mode_driving_desc)
+                                    else -> builtIn.description
+                                },
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
