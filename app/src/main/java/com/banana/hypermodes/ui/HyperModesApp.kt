@@ -450,6 +450,25 @@ fun HyperModesApp() {
         }
 
         // 修改/创建模式 dialog removed from here
+        modeToEditInDialog?.let { mode ->
+            EditModeDialog(
+                show = showEditDialog,
+                mode = mode,
+                isNew = isCreatingNewModeInDialog,
+                onDismissRequest = { showEditDialog = false },
+                onDone = { done ->
+                    upsertMode(done)
+                    if (isCreatingNewModeInDialog) {
+                        editingMode = done
+                        currentScreen = Screen.ModeDetail(done)
+                    } else {
+                        if (editingMode?.id == done.id) {
+                            editingMode = done
+                        }
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -802,6 +821,7 @@ fun ModesListScreen(
             EditModeDialog(
                 show = showEditDialog,
                 mode = mode,
+                isNew = false, // From ModesListScreen, it's always false for "Rename"
                 onDismissRequest = onDismissEdit,
                 onDone = onDoneEdit
             )

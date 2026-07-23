@@ -63,6 +63,7 @@ val MODE_ICON_CHOICES = listOf(
 fun EditModeDialog(
     show: Boolean,
     mode: Mode,
+    isNew: Boolean = false,
     onDismissRequest: () -> Unit,
     onDone: (Mode) -> Unit
 ) {
@@ -96,7 +97,7 @@ fun EditModeDialog(
     top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
-        title = stringResource(R.string.edit_mode),
+        title = if (isNew) stringResource(R.string.create_mode) else stringResource(R.string.edit_mode),
         startAction = {
             top.yukonga.miuix.kmp.basic.TextButton(
                 text = stringResource(R.string.cancel),

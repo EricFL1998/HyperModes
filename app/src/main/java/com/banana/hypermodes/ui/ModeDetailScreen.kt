@@ -260,37 +260,34 @@ fun ModeDetailScreen(
 
                 // Grouped options for bedtime
                 item {
-                    Column(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp)
-                            .squircleBackground(
-                                color = MiuixTheme.colorScheme.secondaryContainer,
-                                cornerRadius = 24.dp
-                            )
+                            .padding(bottom = 12.dp),
+                        insideMargin = PaddingValues(0.dp)
                     ) {
-                        // 就寝提醒 row (图三): official options 准时/15/30/60分钟/无
-                        ValueSettingItem(
-                            title = stringResource(R.string.sleep_reminder),
-                            subtitle = "",
-                            value = reminderSummary(DeskClockState.reminderMinutes),
-                            onClick = { showReminderDialog = true },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Column {
+                            // 就寝提醒 row (图三): official options 准时/15/30/60分钟/无
+                            ValueSettingItem(
+                                title = stringResource(R.string.sleep_reminder),
+                                subtitle = "",
+                                value = reminderSummary(DeskClockState.reminderMinutes),
+                                onClick = { showReminderDialog = true },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        // Divider or spacing if needed, but Miuix usually uses internal padding/visual separation
-                        
-                        // 重复周期 row (图四): opens the repeat picker sub-page
-                        ValueSettingItem(
-                            title = stringResource(R.string.repeat_cycle),
-                            subtitle = stringResource(R.string.repeat_cycle_desc),
-                            value = repeatSummary(
-                                (editedMode.settings.schedule ?: ModeSchedule()).repeatDays
-                            ),
-                            onClick = { onOpenRepeat(editedMode) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            // 重复周期 row (图四): opens the repeat picker sub-page
+                            ValueSettingItem(
+                                title = stringResource(R.string.repeat_cycle),
+                                subtitle = stringResource(R.string.repeat_cycle_desc),
+                                value = repeatSummary(
+                                    (editedMode.settings.schedule ?: ModeSchedule()).repeatDays
+                                ),
+                                onClick = { onOpenRepeat(editedMode) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
@@ -428,59 +425,58 @@ fun ModeDetailScreen(
             }
 
             item {
-                Column(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                        .squircleBackground(
-                            color = MiuixTheme.colorScheme.secondaryContainer,
-                            cornerRadius = 24.dp
-                        )
+                        .padding(bottom = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
                 ) {
-                    // Allow all notifications (inverse of DND)
-                    SettingItem(
-                        title = stringResource(R.string.allow_all_notifications),
-                        subtitle = "",
-                        checked = !editedMode.settings.enableDnd,
-                        onCheckedChange = { allowAll ->
-                            editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(enableDnd = !allowAll)
+                    Column {
+                        // Allow all notifications (inverse of DND)
+                        SettingItem(
+                            title = stringResource(R.string.allow_all_notifications),
+                            subtitle = "",
+                            checked = !editedMode.settings.enableDnd,
+                            onCheckedChange = { allowAll ->
+                                editedMode = editedMode.copy(
+                                    settings = editedMode.settings.copy(enableDnd = !allowAll)
+                                )
+                                onSave(editedMode)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Contacts row: who may interrupt (none / all / starred).
+                        // Official behavior: People/Apps are hidden while 允许所有通知 is on.
+                        if (editedMode.settings.enableDnd) {
+                            SettingItem(
+                                title = stringResource(R.string.contacts),
+                                subtitle = when (editedMode.settings.contactFilter) {
+                                    CONTACT_FILTER_ALL -> stringResource(R.string.all_contacts)
+                                    CONTACT_FILTER_STARRED -> stringResource(R.string.starred_contacts)
+                                    else -> stringResource(R.string.no_contacts)
+                                },
+                                checked = false,
+                                onCheckedChange = {},
+                                onClick = { showContactDialog = true },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            onSave(editedMode)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
 
-                    // Contacts row: who may interrupt (none / all / starred).
-                    // Official behavior: People/Apps are hidden while 允许所有通知 is on.
-                    if (editedMode.settings.enableDnd) {
-                        SettingItem(
-                            title = stringResource(R.string.contacts),
-                            subtitle = when (editedMode.settings.contactFilter) {
-                                CONTACT_FILTER_ALL -> stringResource(R.string.all_contacts)
-                                CONTACT_FILTER_STARRED -> stringResource(R.string.starred_contacts)
-                                else -> stringResource(R.string.no_contacts)
-                            },
-                            checked = false,
-                            onCheckedChange = {},
-                            onClick = { showContactDialog = true },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Apps row: which apps may interrupt
-                        SettingItem(
-                            title = stringResource(R.string.apps),
-                            subtitle = if (editedMode.settings.allowedApps.isEmpty()) {
-                                stringResource(R.string.no_apps_except)
-                            } else {
-                                stringResource(R.string.apps_except, editedMode.settings.allowedApps.size)
-                            },
-                            checked = false,
-                            onCheckedChange = {},
-                            onClick = { onOpenApps(editedMode) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            // Apps row: which apps may interrupt
+                            SettingItem(
+                                title = stringResource(R.string.apps),
+                                subtitle = if (editedMode.settings.allowedApps.isEmpty()) {
+                                    stringResource(R.string.no_apps_except)
+                                } else {
+                                    stringResource(R.string.apps_except, editedMode.settings.allowedApps.size)
+                                },
+                                checked = false,
+                                onCheckedChange = {},
+                                onClick = { onOpenApps(editedMode) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
@@ -494,39 +490,38 @@ fun ModeDetailScreen(
             }
 
             item {
-                Column(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                        .squircleBackground(
-                            color = MiuixTheme.colorScheme.secondaryContainer,
-                            cornerRadius = 24.dp
-                        )
+                        .padding(bottom = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
                 ) {
-                    // Display settings row with dynamic summary
-                    SettingItem(
-                        title = stringResource(R.string.display_settings),
-                        subtitle = displayOptionsSummary(editedMode.settings),
-                        checked = false,
-                        onCheckedChange = {},
-                        onClick = { onOpenDisplayOptions(editedMode) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Column {
+                        // Display settings row with dynamic summary
+                        SettingItem(
+                            title = stringResource(R.string.display_settings),
+                            subtitle = displayOptionsSummary(editedMode.settings),
+                            checked = false,
+                            onCheckedChange = {},
+                            onClick = { onOpenDisplayOptions(editedMode) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    // Paused apps row: which apps get suspended while the mode is on
-                    SettingItem(
-                        title = stringResource(R.string.paused_apps),
-                        subtitle = if (editedMode.settings.pausedApps.isEmpty()) {
-                            stringResource(R.string.no_apps_paused)
-                        } else {
-                            stringResource(R.string.apps_paused, editedMode.settings.pausedApps.size)
-                        },
-                        checked = false,
-                        onCheckedChange = {},
-                        onClick = { onOpenPausedApps(editedMode) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        // Paused apps row: which apps get suspended while the mode is on
+                        SettingItem(
+                            title = stringResource(R.string.paused_apps),
+                            subtitle = if (editedMode.settings.pausedApps.isEmpty()) {
+                                stringResource(R.string.no_apps_paused)
+                            } else {
+                                stringResource(R.string.apps_paused, editedMode.settings.pausedApps.size)
+                            },
+                            checked = false,
+                            onCheckedChange = {},
+                            onClick = { onOpenPausedApps(editedMode) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
