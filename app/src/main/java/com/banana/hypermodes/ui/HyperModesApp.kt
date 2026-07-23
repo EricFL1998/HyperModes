@@ -30,7 +30,6 @@ import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -466,21 +465,24 @@ fun CreateModeDialog(
     onCreateCustom: () -> Unit,
     onRestoreBuiltIn: (Mode) -> Unit
 ) {
-    top.yukonga.miuix.kmp.overlay.OverlayDialog(
-        title = stringResource(R.string.create_mode),
+    top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
-        outsideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
-        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp)
+        title = stringResource(R.string.create_mode),
+        startAction = {
+            top.yukonga.miuix.kmp.basic.TextButton(
+                text = stringResource(R.string.cancel),
+                onClick = onDismiss
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.7f)
+                .padding(bottom = 16.dp)
         ) {
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(top = 24.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Custom entry
                 item {
@@ -543,28 +545,6 @@ fun CreateModeDialog(
                         }
                     }
                 }
-            }
-
-            // Bottom action: MIUI Clock secondary button style (Grey pill)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp)
-                    .height(56.dp)
-                    .squircleSurface(
-                        color = MiuixTheme.colorScheme.secondaryContainer,
-                        cornerRadius = 28.dp
-                    )
-                    .clickable { onDismiss() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.cancel),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSecondaryContainer,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                )
             }
         }
     }
