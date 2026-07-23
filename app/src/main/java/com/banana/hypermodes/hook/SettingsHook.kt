@@ -97,8 +97,19 @@ class SettingsHook(private val module: XposedModule) {
         })
 
         val pos = findLauncherHeaderPosition(context, headers)
-        // Insert after "桌面" (launcher) so the entry sits just above "显示" (display).
-        if (pos >= 0) headers.add(pos + 1, header) else headers.add(header)
+        // Insert after "桌面" (launcher) and copy its groupId so the new entry
+        // shares the same card/module as "桌面" / "显示".
+        if (pos >= 0) {
+            val launcherHeader = headers[pos]
+            val groupId = getIntField(launcherHeader, "groupId")
+            if (groupId > 0) {
+                setField(header, "groupId", groupId)
+                log("Copied groupId $groupId from launcher header")
+            }
+            headers.add(pos + 1, header)
+        } else {
+            headers.add(header)
+        }
         log("modes header injected at ${if (pos >= 0) pos + 1 else headers.size - 1}")
     }
 
@@ -156,6 +167,9 @@ class SettingsHook(private val module: XposedModule) {
 
     private fun getLongField(target: Any, name: String): Long =
         (getField(target, name) as? Long) ?: -1L
+
+    private fun getIntField(target: Any, name: String): Int =
+        (getField(target, name) as? Int) ?: 0
 
     /** UserHandle.of(userId) — @hide API, called reflectively (LSPosed lifts the hidden-API restriction). */
     private fun userHandleOf(userId: Int): android.os.UserHandle =
