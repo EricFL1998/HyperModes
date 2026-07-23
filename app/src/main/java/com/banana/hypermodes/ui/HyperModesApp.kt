@@ -272,6 +272,7 @@ fun HyperModesApp() {
                         },
                         showEditDialog = showEditDialog,
                         modeToEdit = modeToEditInDialog,
+                        isCreatingNewMode = isCreatingNewModeInDialog,
                         onDismissEdit = { showEditDialog = false },
                         onDoneEdit = { done ->
                             upsertMode(done)
@@ -364,6 +365,7 @@ fun HyperModesApp() {
                         },
                         showEditDialog = showEditDialog,
                         modeToEdit = modeToEditInDialog,
+                        isCreatingNewMode = isCreatingNewModeInDialog,
                         onDismissEdit = { showEditDialog = false },
                         onDoneEdit = { done ->
                             upsertMode(done)
@@ -593,6 +595,7 @@ fun ModesListScreen(
     onRestoreBuiltIn: (Mode) -> Unit,
     showEditDialog: Boolean,
     modeToEdit: Mode?,
+    isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit
 ) {
@@ -815,7 +818,7 @@ fun ModesListScreen(
             EditModeDialog(
                 show = showEditDialog,
                 mode = mode,
-                isNew = false, // From ModesListScreen, it's always false for "Rename"
+                isNew = isCreatingNewMode,
                 onDismissRequest = onDismissEdit,
                 onDone = onDoneEdit
             )

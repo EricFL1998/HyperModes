@@ -53,6 +53,7 @@ fun ModeDetailScreen(
     onSave: (Mode) -> Unit,
     showEditDialog: Boolean,
     modeToEdit: Mode?,
+    isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit
 ) {
@@ -596,6 +597,7 @@ fun ModeDetailScreen(
             EditModeDialog(
                 show = showEditDialog,
                 mode = mode,
+                isNew = isCreatingNewMode,
                 onDismissRequest = onDismissEdit,
                 onDone = onDoneEdit
             )
