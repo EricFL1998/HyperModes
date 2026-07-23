@@ -28,6 +28,8 @@ import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -226,6 +228,8 @@ fun HyperModesApp() {
                 is Screen.ModesList -> {
                     ModesListScreen(
                         modes = modes,
+                        // Mirror官方 SubSettings.onNavigateUp(): finish the activity.
+                        onBack = { (context as? android.app.Activity)?.finish() },
                         onModeClick = { mode ->
                             when {
                                 // Bedtime shows the intro page when never set up in the
@@ -545,6 +549,7 @@ private fun Screen.depth(): Int = when (this) {
 @Composable
 fun ModesListScreen(
     modes: List<Mode>,
+    onBack: () -> Unit,
     onModeClick: (Mode) -> Unit,
     onCreateCustom: () -> Unit,
     onRestoreBuiltIn: (Mode) -> Unit
@@ -582,7 +587,18 @@ fun ModesListScreen(
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.modes),
-                scrollBehavior = scrollBehavior
+                scrollBehavior = scrollBehavior,
+                // Matches the official Settings detail page: a back arrow that
+                // finishes the activity. Uses miuix's default navigation-icon /
+                // title spacing so it lines up with the stock Settings UI.
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = MiuixIcons.Back,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
