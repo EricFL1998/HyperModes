@@ -90,8 +90,6 @@ fun HyperModesApp() {
                     )
                     DeskClockState.persist(context)
                 }
-                // State-query replies also carry the live powerkeeper sleep
-                // state — keep the bedtime card in sync on every resume.
                 if (intent.hasExtra(Protocol.EXTRA_IN_SLEEP_MODE)) {
                     DeskClockState.updateBedtimeActive(
                         context,
@@ -173,13 +171,22 @@ fun HyperModesApp() {
     DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: Context, intent: android.content.Intent) {
+                val activeModeId = intent.getStringExtra(Protocol.EXTRA_MODE_ID)
                 modes = sortModes(
-                    ModeStore.load(context) { DefaultModes.get() }.map {
-                        if (it.id == "bedtime") {
-                            it.copy(enabled = DeskClockState.bedtimeActive)
-                        } else it
+                    ModeStore.load(context) { DefaultModes.get() }.map { mode ->
+                        when {
+                            activeModeId == null -> mode.copy(enabled = false)
+                            mode.id == activeModeId -> mode.copy(enabled = true)
+                            else -> mode.copy(enabled = false)
+                        }
                     }
                 )
+                editingMode?.let { current ->
+                    val latest = modes.firstOrNull { it.id == current.id }
+                    if (latest != null) {
+                        editingMode = current.copy(enabled = latest.enabled)
+                    }
+                }
             }
         }
         androidx.core.content.ContextCompat.registerReceiver(

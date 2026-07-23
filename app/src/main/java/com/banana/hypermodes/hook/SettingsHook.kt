@@ -10,14 +10,14 @@ import io.github.libxposed.api.XposedModule
 
 /**
  * Injects a "模式" (Modes) entry into the HyperOS Settings homepage,
- * positioned directly above 显示和触控 (display), mimicking the Pixel entry
- * (title 模式, summary 勿扰、睡眠、自定义模式). Tapping it opens HyperModes.
+ * positioned directly above 显示和触控 (display), mimicking the Pixel entry.
+ * Tapping it opens HyperModes.
  *
  * HyperOS/MIUI's homepage is com.android.settings.MiuiSettings, whose
  * updateHeaderList(List) builds a header list — the same mechanism the
  * reference module (HyperCeiler) uses. We insert a
- * PreferenceActivity$Header with our id, icon, title, summary and launch
- * intent, before the display header.
+ * PreferenceActivity$Header with our id, icon, title and launch intent,
+ * before the display header.
  */
 class SettingsHook(private val module: XposedModule) {
 
@@ -46,6 +46,11 @@ class SettingsHook(private val module: XposedModule) {
                         val headers = chain.getArg(0) as? MutableList<Any>
                         if (activity != null && headers != null) {
                             injectHeader(activity, headers, classLoader)
+                        }
+                        // Remove the dividers between homepage list items so the
+                        // injected header blends into the HyperOS Settings UI.
+                        if (activity != null) {
+                            removeListDividers(activity)
                         }
                     } catch (t: Throwable) {
                         log("header injection failed: $t")
@@ -86,7 +91,7 @@ class SettingsHook(private val module: XposedModule) {
         // works here. ic_homepage_modes is the stock Modes tile's own icon.
         setField(header, "iconRes", modesIconRes(context))
         setField(header, "title", modesTitle(context))
-        setField(header, "summary", modesSummary(context))
+        setField(header, "summary", null)
         setField(header, "intent", Intent().apply {
             setClassName(Protocol.MODULE_PACKAGE, MAIN_ACTIVITY)
             putExtra("isDisplayHomeAsUpEnabled", true)
@@ -99,6 +104,59 @@ class SettingsHook(private val module: XposedModule) {
         val pos = findDisplayHeaderPosition(context, headers)
         if (pos >= 0) headers.add(pos, header) else headers.add(header)
         log("modes header injected at ${if (pos >= 0) pos else headers.size - 1}")
+    }
+
+    /**
+     * Remove the divider lines from the Settings homepage list.
+     * HyperOS uses either a ListView (android.R.id.list) or a RecyclerView;
+     * both are handled here.
+     */
+    private fun removeListDividers(activity: android.app.Activity) {
+        try {
+            val list: android.view.View? = activity.findViewById(android.R.id.list)
+            if (list == null) {
+                log("homepage list view not found")
+                return
+            }
+            when (list) {
+                is android.widget.ListView -> {
+                    list.divider = null
+                    list.dividerHeight = 0
+                    list.setHeaderDividersEnabled(false)
+                    list.setFooterDividersEnabled(false)
+                    log("removed ListView dividers")
+                }
+                else -> removeRecyclerViewDividers(list)
+            }
+        } catch (t: Throwable) {
+            log("failed to remove dividers: ${t.message}")
+        }
+    }
+
+    /** If the homepage uses a RecyclerView, strip its ItemDecorations. */
+    private fun removeRecyclerViewDividers(view: Any) {
+        try {
+            val recyclerClass = Class.forName("androidx.recyclerview.widget.RecyclerView")
+            if (!recyclerClass.isInstance(view)) {
+                log("unknown homepage list type: ${view.javaClass.name}")
+                return
+            }
+            val getCount = recyclerClass.getMethod("getItemDecorationCount")
+            val count = getCount.invoke(view) as Int
+            if (count == 0) return
+            val getAt = recyclerClass.getMethod("getItemDecorationAt", Int::class.javaPrimitiveType)
+            val remove = recyclerClass.getMethod(
+                "removeItemDecoration",
+                Class.forName("androidx.recyclerview.widget.RecyclerView\$ItemDecoration")
+            )
+            for (i in count - 1 downTo 0) {
+                val decoration = getAt.invoke(view, i)
+                remove.invoke(view, decoration)
+            }
+            log("removed $count RecyclerView divider decoration(s)")
+        } catch (t: Throwable) {
+            log("RecyclerView divider removal failed: ${t.message}")
+        }
     }
 
     /** Position of the display header (we insert before it = above 显示和触控). */
@@ -128,15 +186,6 @@ class SettingsHook(private val module: XposedModule) {
     private fun modesTitle(context: Context): CharSequence {
         val id = context.resources.getIdentifier("zen_modes_list_title", "string", Protocol.SETTINGS_PACKAGE)
         return if (id != 0) context.resources.getString(id) else "模式"
-    }
-
-    /** 勿扰、睡眠、自定义模式 — our own localized string via package context. */
-    private fun modesSummary(context: Context): CharSequence = try {
-        val ourContext = context.createPackageContext(Protocol.MODULE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY)
-        val id = ourContext.resources.getIdentifier("modes_settings_summary", "string", Protocol.MODULE_PACKAGE)
-        if (id != 0) ourContext.resources.getString(id) else DEFAULT_SUMMARY
-    } catch (t: Throwable) {
-        DEFAULT_SUMMARY
     }
 
     private fun getLongField(target: Any, name: String): Long =
@@ -187,6 +236,5 @@ class SettingsHook(private val module: XposedModule) {
         private const val MAIN_ACTIVITY = "com.banana.hypermodes.ui.MainActivity"
         // Unique id for our injected header (doubles as the duplicate guard).
         private const val OUR_HEADER_ID = 845_214L
-        private const val DEFAULT_SUMMARY = "勿扰、睡眠、自定义模式"
     }
 }

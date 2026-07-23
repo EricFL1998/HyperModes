@@ -79,8 +79,14 @@ class ScheduledModeManager(
 
         // Check if current time is within the scheduled period
         if (isCurrentlyInSchedule(startTime, endTime, repeatDays)) {
-            log("Current time is within schedule, activating immediately: ${mode.name}")
-            engine.activateMode(mode.id)
+            val periodStart = getCurrentPeriodStart(startTime, repeatDays)
+            if (engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
+                log("Current time is within schedule but mode was dismissed this period: ${mode.name}")
+            } else {
+                log("Current time is within schedule, activating immediately: ${mode.name}")
+                engine.clearDismissRecord(mode.id)
+                engine.activateMode(mode.id)
+            }
         }
 
         scheduleAlarm(mode.id, startTime, repeatDays, true)
@@ -281,6 +287,33 @@ class ScheduledModeManager(
 
         // Should never reach here if days list is valid
         return target.timeInMillis
+    }
+
+    private fun getCurrentPeriodStart(time: String, repeatDays: List<Int>): Long {
+        val parsed = parseTime(time) ?: return System.currentTimeMillis()
+        val (hour, minute) = parsed
+        val now = Calendar.getInstance()
+        val candidate = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        if (candidate.timeInMillis > now.timeInMillis) {
+            candidate.add(Calendar.DAY_OF_MONTH, -1)
+        }
+
+        for (i in 0..6) {
+            val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
+            val ourDayOfWeek = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
+            if (repeatDays.contains(ourDayOfWeek)) {
+                return candidate.timeInMillis
+            }
+            candidate.add(Calendar.DAY_OF_MONTH, -1)
+        }
+
+        return candidate.timeInMillis
     }
 
     private fun log(msg: String) {

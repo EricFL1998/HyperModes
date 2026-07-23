@@ -1,6 +1,7 @@
 package com.banana.hypermodes.systemserver
 
 import android.content.Context
+import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
@@ -131,6 +132,17 @@ class RoutineCoreEngine private constructor() {
             } else {
                 // activeModeId is null: deactivate current mode if one is active
                 currentActiveMode?.let { activeMode ->
+                    // When the user manually turns off a scheduled mode from the UI,
+                    // ModeControlBridge writes activeModeId=null directly to
+                    // Settings.Global, so RoutineCoreEngine.deactivateMode() is not
+                    // invoked and no dismiss record is created. Record it here so
+                    // the scheduler won't reactivate this mode later in the same
+                    // period (e.g. when the user creates or deletes another mode).
+                    if (activeMode.type == ModeType.SCHEDULED) {
+                        val now = System.currentTimeMillis()
+                        dismissedScheduledModes[activeMode.id] = now
+                        log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
+                    }
                     log("Deactivating current mode: ${activeMode.name}")
                     modeActionExecutor?.revertMode(activeMode)
                     currentActiveMode = null
@@ -176,6 +188,7 @@ class RoutineCoreEngine private constructor() {
 
         // Persist active mode to Settings.Global
         updateActiveModeInSettings(modeId)
+        broadcastModeState(modeId)
 
         // Reschedule alarms (next occurrence after activation)
         scheduledModeManager?.updateSchedules(allModes)
@@ -215,6 +228,7 @@ class RoutineCoreEngine private constructor() {
 
         // Clear active mode from Settings.Global
         updateActiveModeInSettings(null)
+        broadcastModeState(null)
 
         // Reschedule alarms (next occurrence after deactivation)
         scheduledModeManager?.updateSchedules(allModes)
@@ -243,6 +257,22 @@ class RoutineCoreEngine private constructor() {
             log("Updated active mode in Settings.Global: ${modeId ?: "null"}")
         } catch (e: Exception) {
             log("Failed to update active mode: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun broadcastModeState(modeId: String?) {
+        val context = systemContext ?: return
+        try {
+            context.sendBroadcast(Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
+                setPackage(com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)
+                if (modeId != null) {
+                    putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_MODE_ID, modeId)
+                }
+            })
+            log("Broadcast mode state: ${modeId ?: "null"}")
+        } catch (e: Exception) {
+            log("Failed to broadcast mode state: ${e.message}")
             e.printStackTrace()
         }
     }
