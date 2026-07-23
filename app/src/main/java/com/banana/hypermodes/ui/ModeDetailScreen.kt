@@ -32,6 +32,8 @@ import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.squircle.squircleBackground
+import top.yukonga.miuix.kmp.squircle.squircleSurface
+import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -198,21 +200,36 @@ fun ModeDetailScreen(
                         }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    TextButton(
-                        text = if (editedMode.enabled) stringResource(R.string.turn_off)
-                        else stringResource(R.string.turn_on_now),
-                        colors = ButtonDefaults.textButtonColorsPrimary(),
-                        onClick = {
-                            val enabled = !editedMode.enabled
-                            editedMode = editedMode.copy(enabled = enabled)
-                            if (enabled) {
-                                ModeControlBridge.activateMode(context, editedMode.id)
-                            } else {
-                                ModeControlBridge.deactivateMode(context, editedMode.id)
-                            }
-                            onSave(editedMode)
-                        }
-                    )
+                    // Primary action button: MIUI Clock "Finish" style (Blue pill)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 28.dp)
+                            .squircleSurface(
+                                color = MiuixTheme.colorScheme.primary,
+                                cornerRadius = 28.dp
+                            )
+                            .clickable {
+                                val enabled = !editedMode.enabled
+                                editedMode = editedMode.copy(enabled = enabled)
+                                if (enabled) {
+                                    ModeControlBridge.activateMode(context, editedMode.id)
+                                } else {
+                                    ModeControlBridge.deactivateMode(context, editedMode.id)
+                                }
+                                onSave(editedMode)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (editedMode.enabled) stringResource(R.string.turn_off)
+                            else stringResource(R.string.turn_on_now),
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
