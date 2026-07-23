@@ -269,6 +269,16 @@ fun HyperModesApp() {
                         },
                         onRestoreBuiltIn = { builtIn ->
                             upsertMode(builtIn)
+                        },
+                        showEditDialog = showEditDialog,
+                        modeToEdit = modeToEditInDialog,
+                        onDismissEdit = { showEditDialog = false },
+                        onDoneEdit = { done ->
+                            upsertMode(done)
+                            if (isCreatingNewModeInDialog) {
+                                editingMode = done
+                                currentScreen = Screen.ModeDetail(done)
+                            }
                         }
                     )
                 }
@@ -351,6 +361,16 @@ fun HyperModesApp() {
                         onSave = { updatedMode ->
                             editingMode = updatedMode
                             upsertMode(updatedMode)
+                        },
+                        showEditDialog = showEditDialog,
+                        modeToEdit = modeToEditInDialog,
+                        onDismissEdit = { showEditDialog = false },
+                        onDoneEdit = { done ->
+                            upsertMode(done)
+                            // If we were in the detail screen, update the local editing state
+                            if (editingMode?.id == done.id) {
+                                editingMode = done
+                            }
                         }
                     )
                 }
@@ -429,26 +449,7 @@ fun HyperModesApp() {
         }
         }
 
-        // 修改/创建模式 dialog
-        modeToEditInDialog?.let { mode ->
-            EditModeDialog(
-                show = showEditDialog,
-                mode = mode,
-                onDismissRequest = { showEditDialog = false },
-                onDone = { done ->
-                    upsertMode(done)
-                    if (isCreatingNewModeInDialog) {
-                        editingMode = done
-                        currentScreen = Screen.ModeDetail(done)
-                    } else {
-                        // If we were in the detail screen, update the local editing state
-                        if (editingMode?.id == done.id) {
-                            editingMode = done
-                        }
-                    }
-                }
-            )
-        }
+        // 修改/创建模式 dialog removed from here
     }
 }
 
@@ -562,7 +563,11 @@ fun ModesListScreen(
     onBack: () -> Unit,
     onModeClick: (Mode) -> Unit,
     onCreateCustom: () -> Unit,
-    onRestoreBuiltIn: (Mode) -> Unit
+    onRestoreBuiltIn: (Mode) -> Unit,
+    showEditDialog: Boolean,
+    modeToEdit: Mode?,
+    onDismissEdit: () -> Unit,
+    onDoneEdit: (Mode) -> Unit
 ) {
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -777,6 +782,16 @@ fun ModesListScreen(
                 onRestoreBuiltIn(builtIn)
             }
         )
+
+        // 修改/创建模式 dialog
+        modeToEdit?.let { mode ->
+            EditModeDialog(
+                show = showEditDialog,
+                mode = mode,
+                onDismissRequest = onDismissEdit,
+                onDone = onDoneEdit
+            )
+        }
     }
 }
 

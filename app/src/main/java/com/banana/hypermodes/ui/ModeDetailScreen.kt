@@ -50,7 +50,11 @@ fun ModeDetailScreen(
     onOpenDrivingDetect: (Mode) -> Unit,
     onRename: (Mode) -> Unit,
     onDelete: (Mode) -> Unit,
-    onSave: (Mode) -> Unit
+    onSave: (Mode) -> Unit,
+    showEditDialog: Boolean,
+    modeToEdit: Mode?,
+    onDismissEdit: () -> Unit,
+    onDoneEdit: (Mode) -> Unit
 ) {
     BackHandler(onBack = onBack)
     var editedMode by remember(mode) { mutableStateOf(mode) }
@@ -576,6 +580,16 @@ fun ModeDetailScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+
+        // 修改模式 dialog
+        modeToEdit?.let { mode ->
+            EditModeDialog(
+                show = showEditDialog,
+                mode = mode,
+                onDismissRequest = onDismissEdit,
+                onDone = onDoneEdit
+            )
         }
     }
 }
