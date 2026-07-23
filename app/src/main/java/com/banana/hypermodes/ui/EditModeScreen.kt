@@ -57,7 +57,7 @@ val MODE_ICON_CHOICES = listOf(
 
 /**
  * 修改模式 dialog: big icon preview, name field, icon grid, 完成 button.
- * Uses the native OverlayBottomSheet for pullable immersive interaction.
+ * Uses a single primary button and ensures all content is scrollable.
  */
 @Composable
 fun EditModeDialog(
@@ -92,8 +92,6 @@ fun EditModeDialog(
     }
     var icon by remember(show, mode) { mutableStateOf(mode.icon.ifEmpty { "⭐" }) }
 
-    // If OverlayBottomSheet is truly available, it should be here.
-    // Otherwise we'll have to find another way.
     top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
@@ -103,112 +101,141 @@ fun EditModeDialog(
                 text = stringResource(R.string.cancel),
                 onClick = onDismissRequest
             )
-        },
-        endAction = {
-            top.yukonga.miuix.kmp.basic.TextButton(
-                text = stringResource(R.string.done),
-                onClick = {
-                    onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
-                    onDismissRequest()
-                },
-                colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary()
-            )
         }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .fillMaxHeight(0.9f)
         ) {
-            // Big icon preview
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                // Big icon preview
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .squircleBackground(
+                                    color = MiuixTheme.colorScheme.secondaryContainer,
+                                    cornerRadius = 48.dp
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            top.yukonga.miuix.kmp.basic.Text(text = icon, fontSize = 44.sp)
+                        }
+                    }
+                }
+
+                // Name field: Centered Label
+                item {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        top.yukonga.miuix.kmp.basic.SmallTitle(
+                            text = stringResource(R.string.mode_name),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            insideMargin = PaddingValues(0.dp) 
+                        )
+                    }
+                }
+                item {
+                    top.yukonga.miuix.kmp.basic.TextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                            }
+                        )
+                    )
+                }
+
+                // Icon grid: Centered Label
+                item {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        top.yukonga.miuix.kmp.basic.SmallTitle(
+                            text = stringResource(R.string.choose_icon),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            insideMargin = PaddingValues(0.dp)
+                        )
+                    }
+                }
+                
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                    ) {
+                        MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                rowChoices.forEach { choice ->
+                                    val selected = icon == choice
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(6.dp)
+                                            .aspectRatio(1f)
+                                            .squircleSurface(
+                                                color = if (selected) MiuixTheme.colorScheme.primary
+                                                else MiuixTheme.colorScheme.secondaryContainer,
+                                                cornerRadius = 24.dp
+                                            )
+                                            .clickable { icon = choice },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        top.yukonga.miuix.kmp.basic.Text(
+                                            text = choice,
+                                            fontSize = 28.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                                repeat(5 - rowChoices.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bottom action: Single prominent blue pill button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 24.dp),
+                    .padding(horizontal = 28.dp)
+                    .padding(top = 16.dp, bottom = 32.dp)
+                    .height(60.dp)
+                    .squircleSurface(
+                        color = MiuixTheme.colorScheme.primary,
+                        cornerRadius = 30.dp
+                    )
+                    .clickable {
+                        onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
+                        onDismissRequest()
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .squircleBackground(
-                            color = MiuixTheme.colorScheme.secondaryContainer,
-                            cornerRadius = 48.dp
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    top.yukonga.miuix.kmp.basic.Text(text = icon, fontSize = 44.sp)
-                }
-            }
-
-            // Name field: Centered Label
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                top.yukonga.miuix.kmp.basic.SmallTitle(
-                    text = stringResource(R.string.mode_name),
-                    modifier = Modifier.padding(bottom = 12.dp),
-                    insideMargin = PaddingValues(0.dp) 
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = stringResource(R.string.done),
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp
                 )
             }
-            
-            top.yukonga.miuix.kmp.basic.TextField(
-                value = name,
-                onValueChange = { name = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                    }
-                )
-            )
-
-            // Icon grid: Centered Label
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                top.yukonga.miuix.kmp.basic.SmallTitle(
-                    text = stringResource(R.string.choose_icon),
-                    modifier = Modifier.padding(bottom = 12.dp),
-                    insideMargin = PaddingValues(0.dp)
-                )
-            }
-            
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
-            ) {
-                MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        rowChoices.forEach { choice ->
-                            val selected = icon == choice
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(6.dp)
-                                    .aspectRatio(1f)
-                                    .squircleSurface(
-                                        color = if (selected) MiuixTheme.colorScheme.primary
-                                        else MiuixTheme.colorScheme.secondaryContainer,
-                                        cornerRadius = 24.dp
-                                    )
-                                    .clickable { icon = choice },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                top.yukonga.miuix.kmp.basic.Text(
-                                    text = choice,
-                                    fontSize = 28.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        repeat(5 - rowChoices.size) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
