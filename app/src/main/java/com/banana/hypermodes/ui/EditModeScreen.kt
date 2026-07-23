@@ -147,7 +147,7 @@ fun EditModeScreen(
             item {
                 SmallTitle(
                     text = stringResource(R.string.mode_name),
-                    modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 28.dp, bottom = 8.dp)
                 )
             }
             item {
@@ -173,7 +173,7 @@ fun EditModeScreen(
             item {
                 SmallTitle(
                     text = stringResource(R.string.choose_icon),
-                    modifier = Modifier.padding(start = 24.dp, top = 8.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 28.dp, top = 8.dp, bottom = 8.dp)
                 )
             }
             item {

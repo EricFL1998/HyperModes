@@ -221,7 +221,7 @@ fun ModeDetailScreen(
                 item {
                     SmallTitle(
                         text = stringResource(R.string.when_to_turn_on),
-                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                        modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                     )
                 }
 
@@ -271,7 +271,7 @@ fun ModeDetailScreen(
                 item {
                     SmallTitle(
                         text = stringResource(R.string.when_to_turn_on),
-                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                        modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                     )
                 }
                 item {
@@ -328,7 +328,7 @@ fun ModeDetailScreen(
                 item {
                     SmallTitle(
                         text = stringResource(R.string.when_to_turn_on),
-                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                        modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                     )
                 }
                 if (!schedule.enabled) {
@@ -394,7 +394,7 @@ fun ModeDetailScreen(
             item {
                 SmallTitle(
                     text = stringResource(R.string.notif_filter),
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                 )
             }
 
@@ -459,7 +459,7 @@ fun ModeDetailScreen(
             item {
                 SmallTitle(
                     text = stringResource(R.string.more_settings),
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                 )
             }
 

@@ -635,7 +635,7 @@ fun ModesListScreen(
                     text = stringResource(R.string.welcome_desc),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp)
+                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp)
                 )
             }
 
