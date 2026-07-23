@@ -50,6 +50,7 @@ class ScheduledModeManager(
     /**
      * Schedule a single mode.
      * Creates start and end alarms based on mode configuration.
+     * If current time is within the scheduled period, activate immediately.
      */
     private fun scheduleMode(mode: ModeConfig) {
         if (mode.type != ModeType.SCHEDULED) {
@@ -76,6 +77,12 @@ class ScheduledModeManager(
 
         log("Scheduling mode: ${mode.name}, start=$startTime, end=$endTime, days=$repeatDays")
 
+        // Check if current time is within the scheduled period
+        if (isCurrentlyInSchedule(startTime, endTime, repeatDays)) {
+            log("Current time is within schedule, activating immediately: ${mode.name}")
+            engine.activateMode(mode.id)
+        }
+
         scheduleAlarm(mode.id, startTime, repeatDays, true)
         scheduleAlarm(mode.id, endTime, repeatDays, false)
     }
@@ -101,9 +108,18 @@ class ScheduledModeManager(
                 log("Alarm triggered: $tag")
                 try {
                     if (isStart) {
-                        engine.activateMode(modeId)
+                        // Check if mode was manually dismissed in this period
+                        // periodStartTime is the time when this alarm fires (start of new period)
+                        if (engine.isDismissedInCurrentPeriod(modeId, nextOccurrence)) {
+                            log("Mode $modeId was dismissed in current period, skipping auto-activation")
+                        } else {
+                            // Clear any old dismiss record since this is a new period
+                            engine.clearDismissRecord(modeId)
+                            engine.activateMode(modeId)
+                        }
                     } else {
-                        engine.deactivateMode(modeId)
+                        // End alarm: automatic deactivation, not user dismiss
+                        engine.deactivateMode(modeId, isManualDismiss = false)
                     }
                 } catch (e: Exception) {
                     log("Failed to ${if (isStart) "activate" else "deactivate"} mode $modeId: ${e.message}")
@@ -171,6 +187,54 @@ class ScheduledModeManager(
     /**
      * Parse and validate a time string in strict "HH:mm" form.
      */
+    /**
+     * Check if current time is within the scheduled period.
+     * Supports cross-day schedules (e.g., 22:00-07:00).
+     *
+     * @param startTime Start time in HH:mm format
+     * @param endTime End time in HH:mm format
+     * @param repeatDays List of days (1=Monday, 7=Sunday)
+     * @return true if current time is within the schedule
+     */
+    private fun isCurrentlyInSchedule(startTime: String, endTime: String, repeatDays: List<Int>): Boolean {
+        val startParsed = parseTime(startTime) ?: return false
+        val endParsed = parseTime(endTime) ?: return false
+        val (startHour, startMinute) = startParsed
+        val (endHour, endMinute) = endParsed
+
+        val now = Calendar.getInstance()
+        val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val startMinutes = startHour * 60 + startMinute
+        val endMinutes = endHour * 60 + endMinute
+
+        // Convert current day to our format (1=Monday, 7=Sunday)
+        val dayOfWeek = now.get(Calendar.DAY_OF_WEEK)
+        val currentDay = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
+
+        // Check if current day is in repeat days
+        if (!repeatDays.contains(currentDay)) {
+            // For cross-day schedules, also check if we're in the "end" portion from yesterday
+            if (endMinutes < startMinutes && currentMinutes < endMinutes) {
+                // We're in the early morning portion, check if yesterday is in repeat days
+                val yesterday = if (currentDay == 1) 7 else currentDay - 1
+                if (!repeatDays.contains(yesterday)) {
+                    return false
+                }
+            } else {
+                return false
+            }
+        }
+
+        // Check if current time is within the range
+        return if (endMinutes < startMinutes) {
+            // Cross-day schedule (e.g., 22:00-07:00)
+            currentMinutes >= startMinutes || currentMinutes < endMinutes
+        } else {
+            // Same-day schedule (e.g., 09:00-17:00)
+            currentMinutes >= startMinutes && currentMinutes < endMinutes
+        }
+    }
+
     private fun parseTime(time: String): Pair<Int, Int>? {
         val parts = time.split(":")
         if (parts.size != 2) return null

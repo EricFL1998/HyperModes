@@ -8,6 +8,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.systemserver.config.ModeConfig
+import com.banana.hypermodes.systemserver.config.ModeType
 import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
@@ -31,6 +32,11 @@ class RoutineCoreEngine private constructor() {
 
     private var currentActiveMode: ModeConfig? = null
     private var allModes: List<ModeConfig> = emptyList()
+
+    // Track manually dismissed scheduled modes: modeId -> dismiss timestamp
+    // When user manually closes a mode during its scheduled period,
+    // it won't auto-reopen until the next scheduled period starts
+    private val dismissedScheduledModes = mutableMapOf<String, Long>()
 
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
@@ -180,23 +186,32 @@ class RoutineCoreEngine private constructor() {
     /**
      * Deactivate a mode by ID.
      * Reverts mode actions and clears active mode from Settings.Global.
+     * Records dismiss timestamp for scheduled modes if manually dismissed.
      * Reschedules alarms after deactivation.
      *
      * @param modeId Mode identifier to deactivate
+     * @param isManualDismiss true if user manually closed, false if automatic (e.g., end alarm)
      */
-    fun deactivateMode(modeId: String) {
+    fun deactivateMode(modeId: String, isManualDismiss: Boolean = true) {
         val mode = currentActiveMode
         if (mode == null || mode.id != modeId) {
             log("Cannot deactivate mode: mode not active: $modeId")
             return
         }
 
-        log("Deactivating mode: ${mode.name} (id=$modeId)")
+        log("Deactivating mode: ${mode.name} (id=$modeId, manual=$isManualDismiss)")
 
         // Revert mode actions
         modeActionExecutor?.revertMode(mode)
 
         currentActiveMode = null
+
+        // Record dismiss timestamp ONLY for manual dismissals of scheduled modes
+        if (isManualDismiss && mode.type == ModeType.SCHEDULED) {
+            val now = System.currentTimeMillis()
+            dismissedScheduledModes[modeId] = now
+            log("Recorded manual dismiss for mode $modeId at timestamp $now")
+        }
 
         // Clear active mode from Settings.Global
         updateActiveModeInSettings(null)
@@ -252,6 +267,39 @@ class RoutineCoreEngine private constructor() {
      * Used by system_server hooks to manually trigger bedtime activation/deactivation.
      */
     fun getBedtimeListener(): BedtimeListener? = bedtimeListener
+
+    /**
+     * Check if a mode was manually dismissed during the current scheduled period.
+     * Used by scheduler to prevent re-activation after manual dismissal.
+     *
+     * @param modeId Mode identifier
+     * @param periodStartTime Start time of the current scheduled period (milliseconds)
+     * @return true if mode was dismissed after the period started
+     */
+    fun isDismissedInCurrentPeriod(modeId: String, periodStartTime: Long): Boolean {
+        val dismissTime = dismissedScheduledModes[modeId] ?: return false
+
+        // If dismiss happened after this period started, it's dismissed for this period
+        val isDismissed = dismissTime >= periodStartTime
+
+        // Clean up old dismiss records (older than 24 hours)
+        if (System.currentTimeMillis() - dismissTime > 24 * 60 * 60 * 1000) {
+            dismissedScheduledModes.remove(modeId)
+            return false
+        }
+
+        return isDismissed
+    }
+
+    /**
+     * Clear dismiss record when a new scheduled period starts.
+     * Called by ScheduledModeManager when the mode is activated by schedule.
+     */
+    fun clearDismissRecord(modeId: String) {
+        if (dismissedScheduledModes.remove(modeId) != null) {
+            log("Cleared dismiss record for mode $modeId (new period started)")
+        }
+    }
 
     private fun log(msg: String) {
         Log.i(TAG, msg)
