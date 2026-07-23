@@ -779,7 +779,10 @@ fun ModeItem(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // Set a fixed height for all blocks to match MIUI Clock alarm style
+            .height(112.dp),
         // Internal padding matching MIUI Clock alarm list items
         insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
         // MIUI Clock alarm blocks use @dimen/miuix_theme_radius_big (36dp)
@@ -787,11 +790,14 @@ fun ModeItem(
         onClick = onClick
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
                 // Title using "Timer" style (headline1, medium weight)
                 Text(
                     text = title,
@@ -804,7 +810,9 @@ fun ModeItem(
                     Text(
                         text = subtitle,
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }
