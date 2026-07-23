@@ -6,23 +6,30 @@ import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
 /**
- * Keep-alive for the HyperModes app, running INSIDE system_server.
+ * Keep-alive for the HyperModes BroadcastReceivers, running INSIDE system_server.
  *
- * System apps survive because the framework never force-stops or
- * background-kills them. We give HyperModes the same treatment by
- * intercepting the two ActivityManagerService entry points used by
- * Settings' "强制停止", MIUI Security's cleaner, and `am kill`:
+ * In zero-process architecture, RoutineCoreEngine runs in system_server and doesn't
+ * need process keep-alive. However, certain triggers (Bluetooth, charging) still rely
+ * on app BroadcastReceivers, which are disabled when the app is force-stopped.
  *
+ * This hook prevents force-stop and ensures broadcasts reach the app even in stopped state:
  * - forceStopPackage(String, int)   — force stop (Settings app info page)
  * - killBackgroundProcesses(String, int) — background kill (cleaner apps)
- * - killTaskProcessesIfPossible(Task) — process kill after swipe-from-recents
+ * - forceIncludeStoppedPackages — ensure broadcasts reach stopped apps
+ * - allowAutoStart — bypass MIUI "自启动" restrictions
+ * - alwaysAllowExactAlarm — allow scheduled modes to use exact alarms
  *
- * Calls targeting our package are swallowed; everything else proceeds.
+ * Calls targeting our package are swallowed or modified; everything else proceeds normally.
  */
 class SystemKeepAliveHook(private val module: XposedModule) {
 
-    fun install(classLoader: ClassLoader) {
-        log("SystemKeepAliveHook.install starting")
+    /**
+     * Install keep-alive hooks in system_server.
+     * @param classLoader system_server ClassLoader
+     * @param deferHeavyHooks if true, defer expensive reflection operations to systemReady callback
+     */
+    fun install(classLoader: ClassLoader, deferHeavyHooks: Boolean = false) {
+        log("SystemKeepAliveHook.install starting (deferHeavyHooks=$deferHeavyHooks)")
         val ams = try {
             classLoader.loadClass(AMS)
         } catch (t: Throwable) {
@@ -30,17 +37,66 @@ class SystemKeepAliveHook(private val module: XposedModule) {
             return
         }
         log("AMS found, installing hooks")
+
+        // Always install these critical hooks immediately
         skipForOurPackage(ams, "forceStopPackage")
         skipForOurPackage(ams, "killBackgroundProcesses")
-        allowAutoStart(classLoader)
-        surviveSwipeFromRecents(classLoader)
-        exemptFromStandbyBuckets(classLoader)
         alwaysAllowExactAlarm(classLoader)
-        exemptFromGreezer(classLoader)
-        exemptFromCachedAlarm(classLoader)
+
+        if (deferHeavyHooks) {
+            // Defer heavy reflection operations to systemReady callback
+            log("Deferring heavy hooks to systemReady")
+            installDeferredHooksOnSystemReady(classLoader, ams)
+        } else {
+            // Install all hooks immediately (legacy behavior)
+            installAllHooksNow(classLoader)
+        }
+
+        log("SystemKeepAliveHook.install complete")
+    }
+
+    /**
+     * Install all hooks immediately (used when deferHeavyHooks=false)
+     */
+    private fun installAllHooksNow(classLoader: ClassLoader) {
+        allowAutoStart(classLoader)
+        alwaysAllowExactAlarm(classLoader)
         log("About to call forceIncludeStoppedPackages")
         forceIncludeStoppedPackages(classLoader)
-        log("SystemKeepAliveHook.install complete")
+    }
+
+    /**
+     * Hook AMS.systemReady to install heavy hooks after system_server startup completes.
+     * This avoids lspd Binder timeout during onSystemServerStarting.
+     */
+    private fun installDeferredHooksOnSystemReady(classLoader: ClassLoader, ams: Class<*>) {
+        val systemReady = ams.declaredMethods.firstOrNull { it.name == "systemReady" }
+        if (systemReady == null) {
+            log("systemReady not found, cannot defer hooks")
+            // Fallback: install immediately
+            installAllHooksNow(classLoader)
+            return
+        }
+
+        module.hook(systemReady)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        log("systemReady called, installing deferred hooks")
+                        allowAutoStart(classLoader)
+                        alwaysAllowExactAlarm(classLoader)
+                        forceIncludeStoppedPackages(classLoader)
+                        log("Deferred hooks installed successfully")
+                    } catch (t: Throwable) {
+                        log("Failed to install deferred hooks: ${t.message}")
+                        t.printStackTrace()
+                    }
+                    return result
+                }
+            })
+        log("systemReady hooked for deferred hook installation")
     }
 
     /**
@@ -147,85 +203,6 @@ class SystemKeepAliveHook(private val module: XposedModule) {
      * containing "xiaomi"/"miui" or in mAurogonAlarmAllowList are exempt.
      * Force false for our package so alarms fire on time even when frozen.
      */
-    private fun exemptFromCachedAlarm(classLoader: ClassLoader) {
-        val method = try {
-            classLoader.loadClass(GREEZE_MANAGER_SERVICE)
-                .getDeclaredMethod("isNeedCachedAlarmForAurogonInner", Int::class.javaPrimitiveType)
-                .apply { isAccessible = true }
-        } catch (t: Throwable) {
-            log("isNeedCachedAlarmForAurogonInner not found: ${t.message}")
-            return
-        }
-        module.hook(method)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val uid = chain.getArg(0) as? Int ?: return chain.proceed()
-                    val myUid = android.os.Process.myUid()  // system_server uid
-                    // Can't directly get our app's uid here, check package name instead
-                    try {
-                        val svc = chain.thisObject
-                        val pkg = svc.javaClass.getDeclaredMethod("getPackageNameFromUid", Int::class.javaPrimitiveType)
-                            .invoke(svc, uid) as? String
-                        if (pkg == Protocol.MODULE_PACKAGE) {
-                            log("cached alarm: exempting $pkg")
-                            return false  // false = don't cache, send immediately
-                        }
-                    } catch (t: Throwable) {
-                        // Fall through to original logic
-                    }
-                    return chain.proceed()
-                }
-            })
-        log("isNeedCachedAlarmForAurogonInner hooked")
-    }
-
-    /**
-     * MIUI Greezer freezes cached apps, and BroadcastQueueImpl.shouldSkipReceiver
-     * then denies them ALL broadcast delivery ("Greezer Denial ... need cached
-     * broadcast") — including our AlarmManager mode triggers. The check
-     * funnels through BroadcastQueueModernStubImpl.checkReceiverIfRestricted
-     * (miui-services.jar) -> GreezeManagerInternal.isRestrictReceiver.
-     * Returning false for our package exempts it like a system app: the
-     * broadcast is delivered, which wakes (unfreezes) our process to run the
-     * engine. No process needs to stay resident — delivery itself is the wake.
-     */
-    private fun exemptFromGreezer(classLoader: ClassLoader) {
-        val method = try {
-            val stub = classLoader.loadClass(BROADCAST_STUB)
-            val queue = classLoader.loadClass(BROADCAST_QUEUE)
-            val record = classLoader.loadClass(BROADCAST_RECORD)
-            val process = classLoader.loadClass(PROCESS_RECORD)
-            stub.getDeclaredMethod(
-                "checkReceiverIfRestricted", queue, record, process,
-                Boolean::class.javaPrimitiveType
-            ).apply { isAccessible = true }
-        } catch (t: Throwable) {
-            log("checkReceiverIfRestricted not found: ${t.message}")
-            return
-        }
-        module.hook(method)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val app = chain.getArg(2) ?: return chain.proceed()
-                    val pkg = try {
-                        val info = app.javaClass.getField("info").get(app)
-                        (info?.javaClass?.getField("packageName")?.get(info) as? String)
-                            ?: app.javaClass.getField("processName").get(app) as? String
-                    } catch (t: Throwable) {
-                        null
-                    }
-                    if (pkg == Protocol.MODULE_PACKAGE) {
-                        log("Greezer: exempting broadcast delivery to $pkg")
-                        return false // false = not restricted, deliver normally
-                    }
-                    return chain.proceed()
-                }
-            })
-        log("checkReceiverIfRestricted hooked")
-    }
-
     /**
      * Apps targeting S+ normally need the user-grantable SCHEDULE_EXACT_ALARM
      * app-op to call setExactAndAllowWhileIdle; AlarmManagerService throws
@@ -255,47 +232,6 @@ class SystemKeepAliveHook(private val module: XposedModule) {
                 }
             })
         log("hasScheduleExactAlarmInternal hooked")
-    }
-
-    /**
-     * Swiping the app card away in recents calls
-     * ActivityTaskSupervisor.cleanUpRemovedTask, which funnels into
-     * killTaskProcessesIfPossible(Task) — killing every process containing
-     * the task's base package. That single private method is the ONLY kill
-     * entry point for removed tasks (all 3 callers in services.jar funnel
-     * into it), so skipping it for our package keeps the mode engine alive
-     * after the card is swiped away. The task/card itself is still removed
-     * normally — only the process kill is skipped.
-     */
-    private fun surviveSwipeFromRecents(classLoader: ClassLoader) {
-        val method = try {
-            val supervisor = classLoader.loadClass(TASK_SUPERVISOR)
-            val task = classLoader.loadClass(TASK)
-            supervisor.getDeclaredMethod("killTaskProcessesIfPossible", task)
-                .apply { isAccessible = true }
-        } catch (t: Throwable) {
-            log("killTaskProcessesIfPossible not found: ${t.message}")
-            return
-        }
-        module.hook(method)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val task = chain.getArg(0) ?: return chain.proceed()
-                    val pkg = try {
-                        task.javaClass.getMethod("getBasePackageName")
-                            .invoke(task) as? String
-                    } catch (t: Throwable) {
-                        null
-                    }
-                    if (pkg == Protocol.MODULE_PACKAGE) {
-                        log("swipe from recents: keeping $pkg alive")
-                        return null // void method — skip the process kill
-                    }
-                    return chain.proceed()
-                }
-            })
-        log("killTaskProcessesIfPossible hooked")
     }
 
     /**
@@ -340,36 +276,6 @@ class SystemKeepAliveHook(private val module: XposedModule) {
      * app's would. Best-effort: if MIUI renamed the method, the module log
      * says so and alarms still fire (allowWhileIdle bypasses most throttling).
      */
-    private fun exemptFromStandbyBuckets(classLoader: ClassLoader) {
-        val controller = try {
-            classLoader.loadClass(APP_STANDBY_CONTROLLER)
-        } catch (t: Throwable) {
-            log("AppStandbyController not found: ${t.message}")
-            return
-        }
-        // AOSP: getAppStandbyBucket(String packageName, int userId,
-        // long elapsedRealtime, boolean shouldMinimizeUsage)
-        val method = controller.declaredMethods.firstOrNull {
-            it.name == "getAppStandbyBucket" &&
-                    it.parameterTypes.firstOrNull() == String::class.java
-        }
-        if (method == null) {
-            log("getAppStandbyBucket(String,...) not found")
-            return
-        }
-        module.hook(method)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    if (chain.getArg(0) == Protocol.MODULE_PACKAGE) {
-                        return android.app.usage.UsageStatsManager.STANDBY_BUCKET_ACTIVE
-                    }
-                    return chain.proceed()
-                }
-            })
-        log("getAppStandbyBucket hooked")
-    }
-
     private fun skipForOurPackage(ams: Class<*>, name: String) {
         val method = try {
             ams.getDeclaredMethod(name, String::class.java, Int::class.javaPrimitiveType)
@@ -401,11 +307,6 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         private const val BROADCAST_STUB = "com.android.server.am.BroadcastQueueModernStubImpl"
         private const val BROADCAST_QUEUE = "com.android.server.am.BroadcastQueue"
         private const val BROADCAST_RECORD = "com.android.server.am.BroadcastRecord"
-        private const val PROCESS_RECORD = "com.android.server.am.ProcessRecord"
-        private const val TASK_SUPERVISOR = "com.android.server.wm.ActivityTaskSupervisor"
-        private const val TASK = "com.android.server.wm.Task"
-        private const val APP_STANDBY_CONTROLLER = "com.android.server.usage.AppStandbyController"
         private const val ALARM_MANAGER_SERVICE = "com.android.server.alarm.AlarmManagerService"
-        private const val GREEZE_MANAGER_SERVICE = "com.miui.server.greeze.GreezeManagerService"
     }
 }

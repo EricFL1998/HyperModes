@@ -39,7 +39,8 @@ object DefaultModes {
             settings = ModeSettings(
                 enableDnd = true,
                 dndLevel = DndLevel.PRIORITY,
-                hideNotifications = true
+                hideNotifications = true,
+                drivingAutoDetect = true
             )
         )
     )

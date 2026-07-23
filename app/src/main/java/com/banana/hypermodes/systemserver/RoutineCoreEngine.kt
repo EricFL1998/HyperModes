@@ -111,15 +111,23 @@ class RoutineCoreEngine private constructor() {
             // Update bedtime listener with new mode list
             bedtimeListener?.updateModes(config.modes)
 
-            // Restore active mode if one is specified
-            config.activeModeId?.let { modeId ->
-                val mode = allModes.find { it.id == modeId }
+            // Handle active mode changes
+            if (config.activeModeId != null) {
+                // Restore or switch to the specified active mode
+                val mode = allModes.find { it.id == config.activeModeId }
                 if (mode != null) {
                     log("Restoring active mode: ${mode.name}")
                     currentActiveMode = mode
                     modeActionExecutor?.applyMode(mode)
                 } else {
-                    log("Active mode not found in config: $modeId")
+                    log("Active mode not found in config: ${config.activeModeId}")
+                }
+            } else {
+                // activeModeId is null: deactivate current mode if one is active
+                currentActiveMode?.let { activeMode ->
+                    log("Deactivating current mode: ${activeMode.name}")
+                    modeActionExecutor?.revertMode(activeMode)
+                    currentActiveMode = null
                 }
             }
         } catch (e: Exception) {

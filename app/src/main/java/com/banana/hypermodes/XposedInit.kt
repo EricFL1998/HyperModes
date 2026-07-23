@@ -6,7 +6,6 @@ import com.banana.hypermodes.hook.SettingsHook
 import com.banana.hypermodes.hook.SystemKeepAliveHook
 import com.banana.hypermodes.hook.SystemModeHook
 import com.banana.hypermodes.protocol.Protocol
-import com.banana.hypermodes.systemserver.PermissionGrantHook
 import com.banana.hypermodes.systemserver.hooks.NotificationFilterHook
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
@@ -29,24 +28,30 @@ class XposedInit : XposedModule() {
      * (keep-alive, Greezer exemption, exact-alarm, mode bridge) must be
      * installed here. Runs before critical services start, which is early
      * enough to hook AMS.systemReady and AlarmManagerService.
+     *
+     * OPTIMIZATION: Only install critical hooks here to avoid lspd Binder timeout.
+     * Heavy reflection operations are deferred to SystemModeHook.systemReady callback.
      */
     override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {
+        log(Log.INFO, TAG, "onSystemServerStarting called - installing critical hooks only")
         try {
-            // Install permission grant hook FIRST so the app can write to Settings.Global
-            PermissionGrantHook(this).install(param.classLoader)
-            SystemKeepAliveHook(this).install(param.classLoader)
+            // Install SystemModeHook early - it will install SettingsProviderHook in systemReady
+            // and defer heavy operations to systemReady callback
             SystemModeHook(this).install(param.classLoader)
+
+            // Install SystemKeepAliveHook with lightweight mode (defer heavy hooks to systemReady)
+            SystemKeepAliveHook(this).install(param.classLoader, deferHeavyHooks = true)
+
             NotificationFilterHook(this).install(param.classLoader)
-            log(Log.INFO, TAG, "hook installed for system_server")
+            log(Log.INFO, TAG, "critical hooks installed for system_server")
         } catch (t: Throwable) {
             log(Log.ERROR, TAG, "failed to install system_server hook", t)
         }
     }
 
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
-        // Only hook in each app's main process. Note: system_server never
-        // reaches this callback — it is scoped via the virtual package
-        // "system" and reported through onSystemServerStarting above.
+        // Note: system_server CAN reach this callback with packageName="system"
+        // if onSystemServerStarting wasn't called (LSPosed version differences)
         if (processName != null && processName != param.packageName) {
             log(Log.INFO, TAG, "skipping hook install in secondary process: $processName")
             return
@@ -61,8 +66,34 @@ class XposedInit : XposedModule() {
                     SettingsHook(this).install(param.classLoader)
                     log(Log.INFO, TAG, "hook installed for ${param.packageName}")
                 }
-                // "android" (system_server) is handled in onSystemServerStarting —
-                // onPackageReady's first phase never fires there.
+                "android", "system" -> {
+                    // Fallback: if onSystemServerStarting wasn't called, try here
+                    // LSPosed may use "android" or "system" for system_server
+                    log(Log.INFO, TAG, "onPackageReady for ${param.packageName} - installing system hooks (fallback)")
+
+                    try {
+                        SystemKeepAliveHook(this).install(param.classLoader)
+                        log(Log.INFO, TAG, "SystemKeepAliveHook installed in fallback")
+                    } catch (t: Throwable) {
+                        log(Log.ERROR, TAG, "SystemKeepAliveHook failed in fallback", t)
+                    }
+
+                    try {
+                        SystemModeHook(this).install(param.classLoader)
+                        log(Log.INFO, TAG, "SystemModeHook installed in fallback")
+                    } catch (t: Throwable) {
+                        log(Log.ERROR, TAG, "SystemModeHook failed in fallback", t)
+                    }
+
+                    try {
+                        NotificationFilterHook(this).install(param.classLoader)
+                        log(Log.INFO, TAG, "NotificationFilterHook installed in fallback")
+                    } catch (t: Throwable) {
+                        log(Log.ERROR, TAG, "NotificationFilterHook failed in fallback", t)
+                    }
+
+                    log(Log.INFO, TAG, "system hooks installation completed for ${param.packageName}")
+                }
             }
         } catch (t: Throwable) {
             log(Log.ERROR, TAG, "failed to install hook", t)

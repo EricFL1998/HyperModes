@@ -120,11 +120,19 @@ class NotificationFilterHook(private val module: XposedModule) {
      * Uses reflection to call getSbn() then getPackageName().
      */
     private fun extractPackageName(record: Any): String {
-        // NotificationRecord.getSbn() returns StatusBarNotification
-        val sbn = record.javaClass.getMethod("getSbn").invoke(record)
+        try {
+            // NotificationRecord.getSbn() returns StatusBarNotification
+            val sbn = record.javaClass.getMethod("getSbn").invoke(record)
+                ?: throw IllegalStateException("NotificationRecord.getSbn() returned null")
 
-        // StatusBarNotification.getPackageName() returns String
-        return sbn.javaClass.getMethod("getPackageName").invoke(sbn) as String
+            // StatusBarNotification.getPackageName() returns String
+            return sbn.javaClass.getMethod("getPackageName").invoke(sbn) as? String
+                ?: throw IllegalStateException("StatusBarNotification.getPackageName() returned null")
+        } catch (e: NoSuchMethodException) {
+            throw IllegalStateException("NotificationRecord API changed: method not found - ${e.message}", e)
+        } catch (e: ClassCastException) {
+            throw IllegalStateException("NotificationRecord API changed: type mismatch - ${e.message}", e)
+        }
     }
 
     private fun log(msg: String) = module.log(Log.INFO, TAG, msg)

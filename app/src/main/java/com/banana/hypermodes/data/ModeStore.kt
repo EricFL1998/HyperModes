@@ -23,7 +23,7 @@ object ModeStore {
                 ?: return defaults()
 
             val fullConfig = ConfigParser.parseConfig(jsonString)
-            fullConfig.modes.map { it.toMode() }
+            fullConfig.modes.map { it.toMode(isActive = it.id == fullConfig.activeModeId) }
         } catch (e: Exception) {
             // Parse error or missing config - return defaults
             defaults()

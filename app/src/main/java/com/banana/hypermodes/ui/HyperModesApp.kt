@@ -241,7 +241,11 @@ fun HyperModesApp() {
                                 id = "custom_${System.currentTimeMillis()}",
                                 name = context.getString(R.string.custom_mode_default),
                                 icon = "⭐",
-                                description = ""
+                                description = "",
+                                settings = com.banana.hypermodes.data.ModeSettings(
+                                    drivingAutoDetect = false,
+                                    schedule = com.banana.hypermodes.data.ModeSchedule(enabled = false)
+                                )
                             )
                             currentScreen = Screen.EditMode(newMode, isNew = true)
                         },

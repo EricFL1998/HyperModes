@@ -1,6 +1,7 @@
 package com.banana.hypermodes.data
 
 import com.banana.hypermodes.systemserver.config.*
+import java.util.Calendar
 
 /**
  * Represents a mode (like Bedtime, Focus, Driving)
@@ -40,8 +41,9 @@ data class ModeSettings(
     val keepScreenOn: Boolean = false,
     val hideNotifications: Boolean = false,
 
-    // Driving auto-detection (何时自动开启)
-    val drivingAutoDetect: Boolean = true,
+    // Driving auto-detection (何时自动开启). Only the built-in driving mode
+    // enables this; custom modes must opt in explicitly.
+    val drivingAutoDetect: Boolean = false,
     val drivingDetectMode: Int = DRIVING_DETECT_BLUETOOTH,
 
     // Schedule
@@ -71,12 +73,17 @@ const val DRIVING_DETECT_MOTION_BLUETOOTH = 1
  */
 data class ModeSchedule(
     val enabled: Boolean = false,
-    val startHour: Int = 22,
-    val startMinute: Int = 0,
-    val endHour: Int = 7,
-    val endMinute: Int = 0,
+    val startHour: Int = currentHour(),
+    val startMinute: Int = currentMinute(),
+    val endHour: Int = (currentHour() + 1) % 24,
+    val endMinute: Int = currentMinute(),
     val repeatDays: Int = 0x7F // All days by default
-)
+) {
+    companion object {
+        private fun currentHour(): Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        private fun currentMinute(): Int = Calendar.getInstance().get(Calendar.MINUTE)
+    }
+}
 
 /**
  * App info for pause list
@@ -96,10 +103,12 @@ data class PausableApp(
 fun Mode.toModeConfig(): ModeConfig {
     val s = settings
 
-    // Determine mode type based on id and settings
+    // Driving detection is only meaningful for the built-in driving mode.
+    // A custom mode must remain scheduled when it has a time table, even if
+    // legacy data left drivingAutoDetect enabled by default.
     val type = when {
         id == "bedtime" -> ModeType.BEDTIME
-        s.drivingAutoDetect -> ModeType.DYNAMIC_TRIGGER
+        id == "driving" && s.drivingAutoDetect -> ModeType.DYNAMIC_TRIGGER
         else -> ModeType.SCHEDULED
     }
 
@@ -118,8 +127,8 @@ fun Mode.toModeConfig(): ModeConfig {
         }
     }
 
-    // Build trigger config for DYNAMIC_TRIGGER type
-    val triggers = if (s.drivingAutoDetect) {
+    // Build trigger config only for the built-in driving mode.
+    val triggers = if (id == "driving" && s.drivingAutoDetect) {
         TriggerConfig(
             bluetooth = BluetoothTrigger(
                 enabled = s.drivingDetectMode == DRIVING_DETECT_BLUETOOTH ||
@@ -159,6 +168,7 @@ fun Mode.toModeConfig(): ModeConfig {
         startTime = startTime,
         endTime = endTime,
         repeatDays = repeatDays,
+        scheduleEnabled = s.schedule?.enabled ?: false,
         triggers = triggers,
         notification = NotificationConfig(
             dndLevel = dndLevel,
@@ -178,18 +188,32 @@ fun Mode.toModeConfig(): ModeConfig {
 /**
  * Convert system_server ModeConfig to UI Mode
  */
-fun ModeConfig.toMode(): Mode {
-    // Parse start/end times
-    val (startHour, startMinute) = startTime?.split(":")?.map { it.toIntOrNull() ?: 0 } ?: listOf(22, 0)
-    val (endHour, endMinute) = endTime?.split(":")?.map { it.toIntOrNull() ?: 0 } ?: listOf(7, 0)
+fun ModeConfig.toMode(isActive: Boolean = false): Mode {
+    fun parseTime(value: String?, defaultHour: Int): Pair<Int, Int> {
+        val parts = value?.split(":")
+        val hour = parts?.getOrNull(0)?.toIntOrNull()
+        val minute = parts?.getOrNull(1)?.toIntOrNull()
+        return if (hour in 0..23 && minute in 0..59) {
+            hour!! to minute!!
+        } else {
+            defaultHour to 0
+        }
+    }
 
-    // Convert repeatDays list to bitmask
-    val repeatDaysBitmask = repeatDays?.fold(0) { acc, day ->
-        acc or (1 shl (day - 1))
-    } ?: 0x7F
+    val (startHour, startMinute) = parseTime(startTime, 22)
+    val (endHour, endMinute) = parseTime(endTime, 7)
 
-    // Determine drivingAutoDetect and drivingDetectMode from triggers
-    val drivingAutoDetect = type == ModeType.DYNAMIC_TRIGGER
+    // Invalid legacy day values are ignored instead of shifting by a negative
+    // or out-of-range amount.
+    val repeatDaysBitmask = repeatDays
+        ?.filter { it in 1..7 }
+        ?.fold(0) { acc, day -> acc or (1 shl (day - 1)) }
+        ?.takeIf { it != 0 }
+        ?: 0x7F
+
+    // A legacy custom mode may have been incorrectly serialized as
+    // DYNAMIC_TRIGGER. Only the built-in driving mode owns that trigger type.
+    val drivingAutoDetect = id == "driving" && type == ModeType.DYNAMIC_TRIGGER
     val drivingDetectMode = when {
         triggers?.motion?.enabled == true -> DRIVING_DETECT_MOTION_BLUETOOTH
         triggers?.bluetooth?.enabled == true -> DRIVING_DETECT_BLUETOOTH
@@ -210,10 +234,13 @@ fun ModeConfig.toMode(): Mode {
         com.banana.hypermodes.systemserver.config.DndLevel.ALARMS -> DndLevel.ALARMS
     }
 
-    // Build schedule for SCHEDULED and BEDTIME types
-    val schedule = if (type == ModeType.SCHEDULED || type == ModeType.BEDTIME) {
+    // Preserve schedule data whenever it exists. This also repairs legacy
+    // custom modes that were misclassified as DYNAMIC_TRIGGER.
+    val hasStoredSchedule = startTime != null || endTime != null || repeatDays != null
+    val hasConfiguredSchedule = hasStoredSchedule || scheduleEnabled == true || type == ModeType.BEDTIME
+    val schedule = if (hasConfiguredSchedule) {
         ModeSchedule(
-            enabled = true,
+            enabled = scheduleEnabled ?: hasStoredSchedule,
             startHour = startHour,
             startMinute = startMinute,
             endHour = endHour,
@@ -227,7 +254,7 @@ fun ModeConfig.toMode(): Mode {
         name = name,
         icon = icon,
         description = "",
-        enabled = true,
+        enabled = isActive,
         settings = ModeSettings(
             enableDnd = true,
             dndLevel = dndLevel,

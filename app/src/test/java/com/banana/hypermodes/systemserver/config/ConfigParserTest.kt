@@ -137,6 +137,63 @@ class ConfigParserTest {
     }
 
     @Test
+    fun testScheduleEnabledRoundTrip() {
+        val config = FullConfig(
+            activeModeId = null,
+            modes = listOf(
+                ModeConfig(
+                    id = "custom_work",
+                    name = "Work",
+                    icon = "work",
+                    type = ModeType.SCHEDULED,
+                    startTime = "09:30",
+                    endTime = "17:45",
+                    repeatDays = listOf(1, 2, 3, 4, 5),
+                    scheduleEnabled = false,
+                    notification = NotificationConfig(DndLevel.PRIORITY),
+                    display = DisplayConfig(),
+                    pausedApps = emptyList()
+                )
+            )
+        )
+
+        val parsed = ConfigParser.parseConfig(ConfigParser.serializeConfig(config))
+        val mode = parsed.modes.single()
+
+        assertEquals("09:30", mode.startTime)
+        assertEquals("17:45", mode.endTime)
+        assertEquals(listOf(1, 2, 3, 4, 5), mode.repeatDays)
+        assertEquals(false, mode.scheduleEnabled)
+    }
+
+    @Test
+    fun testLegacyConfigWithoutScheduleEnabled() {
+        val json = """
+        {
+            "activeModeId": null,
+            "modes": [{
+                "id": "custom_legacy",
+                "name": "Legacy",
+                "icon": "work",
+                "type": "SCHEDULED",
+                "startTime": "08:10",
+                "endTime": "12:20",
+                "repeatDays": [1, 3, 5],
+                "notification": { "dndLevel": "PRIORITY", "allowedApps": [] },
+                "display": {},
+                "pausedApps": []
+            }]
+        }
+        """.trimIndent()
+
+        val mode = ConfigParser.parseConfig(json).modes.single()
+
+        assertNull(mode.scheduleEnabled)
+        assertEquals("08:10", mode.startTime)
+        assertEquals("12:20", mode.endTime)
+    }
+
+    @Test
     fun testBedtimeModeType() {
         val json = """
         {

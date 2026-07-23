@@ -13,10 +13,12 @@ data class ModeConfig(
     val icon: String,
     val type: ModeType,
 
-    // Schedule (for SCHEDULED type)
+    // Schedule (for SCHEDULED/BEDTIME types). Nullable for legacy configs.
     val startTime: String? = null,  // "HH:mm"
     val endTime: String? = null,    // "HH:mm"
     val repeatDays: List<Int>? = null,  // [1,2,3,4,5] = Mon-Fri
+    /** Whether this schedule is enabled; null means legacy config without the field. */
+    val scheduleEnabled: Boolean? = null,
 
     // Triggers (for DYNAMIC_TRIGGER type)
     val triggers: TriggerConfig? = null,

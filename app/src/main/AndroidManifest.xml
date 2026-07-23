@@ -54,16 +54,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Scheduled mode triggers: AlarmManager fires these at configured times -->
-        <receiver
-            android:name=".systemserver.trigger.ModeAlarmReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.banana.hypermodes.START_MODE" />
-                <action android:name="com.banana.hypermodes.END_MODE" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
+import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
@@ -52,6 +53,10 @@ class SystemModeHook(private val module: XposedModule) {
                         val context = ams.getDeclaredField("mContext")
                             .apply { isAccessible = true }
                             .get(chain.thisObject) as Context
+
+                        // Install UniversalPermissionHook for automatic permission grant
+                        UniversalPermissionHook(module).install(classLoader)
+
                         clearStoppedState(context)
                         registerBridge(context)
                         initRoutineCoreEngine(context, classLoader)
@@ -140,21 +145,37 @@ class SystemModeHook(private val module: XposedModule) {
     private fun setPackagesSuspended(packages: List<String>, suspended: Boolean) {
         try {
             val ipm = binder("package", "android.content.pm.IPackageManager\$Stub")
+            if (ipm == null) {
+                log("setPackagesSuspended: package binder not available")
+                return
+            }
+
             val method = ipm.javaClass.methods.first {
                 it.name == "setPackagesSuspendedAsUser"
             }
-            // Signature across API levels:
-            // (String[], boolean, PersistableBundle, PersistableBundle,
-            //  SuspendDialogInfo, String callingPackage, int userId)
-            val args = method.parameterTypes.map { t ->
-                when {
-                    t == Array<String>::class.java -> packages.toTypedArray()
-                    t == Boolean::class.javaPrimitiveType -> suspended
-                    t == Int::class.javaPrimitiveType -> 0 // userId: system user
-                    t == String::class.java -> Protocol.MODULE_PACKAGE
-                    else -> null
-                }
-            }.toTypedArray()
+
+            // Android 16 signature (verified):
+            // setPackagesSuspendedAsUser(String[] packageNames, boolean suspended,
+            //     PersistableBundle appExtras, PersistableBundle launcherExtras,
+            //     SuspendDialogInfo dialogInfo, int flags, String suspendingPackage,
+            //     int suspendingUserId, int targetUserId)
+            val params = method.parameterTypes
+            if (params.size < 9) {
+                log("setPackagesSuspendedAsUser signature mismatch: expected >=9 params, got ${params.size}")
+                return
+            }
+
+            val args = arrayOfNulls<Any>(params.size)
+            args[0] = packages.toTypedArray()  // String[] packageNames
+            args[1] = suspended                 // boolean suspended
+            args[2] = null                      // PersistableBundle appExtras
+            args[3] = null                      // PersistableBundle launcherExtras
+            args[4] = null                      // SuspendDialogInfo dialogInfo
+            args[5] = 0                         // int flags
+            args[6] = Protocol.MODULE_PACKAGE   // String suspendingPackage
+            args[7] = 0                         // int suspendingUserId
+            args[8] = 0                         // int targetUserId
+
             method.invoke(ipm, *args)
             log("setPackagesSuspended($suspended): ${packages.joinToString()}")
         } catch (t: Throwable) {
@@ -169,6 +190,12 @@ class SystemModeHook(private val module: XposedModule) {
             log("notification binder unavailable: $t")
             return
         }
+
+        if (inm == null) {
+            log("notification binder returned null")
+            return
+        }
+
         val getChannels = inm.javaClass.methods.firstOrNull {
             it.name == "getNotificationChannelsForPackage"
         }
@@ -205,13 +232,31 @@ class SystemModeHook(private val module: XposedModule) {
     }
 
     /** ServiceManager.getService(name) + Stub.asInterface(binder), reflectively. */
-    private fun binder(service: String, stubClass: String): Any {
-        val binder = Class.forName("android.os.ServiceManager")
-            .getMethod("getService", String::class.java)
-            .invoke(null, service) as IBinder
-        return Class.forName(stubClass)
-            .getMethod("asInterface", IBinder::class.java)
-            .invoke(null, binder)!!
+    private fun binder(service: String, stubClass: String): Any? {
+        return try {
+            val binder = Class.forName("android.os.ServiceManager")
+                .getMethod("getService", String::class.java)
+                .invoke(null, service) as? IBinder
+
+            if (binder == null) {
+                log("$service binder not found (service not started?)")
+                return null
+            }
+
+            val result = Class.forName(stubClass)
+                .getMethod("asInterface", IBinder::class.java)
+                .invoke(null, binder)
+
+            if (result == null) {
+                log("$stubClass.asInterface returned null")
+                return null
+            }
+
+            result
+        } catch (t: Throwable) {
+            log("binder($service, $stubClass) failed: ${t.message}")
+            null
+        }
     }
 
     private fun log(msg: String) = module.log(Log.INFO, TAG, msg)

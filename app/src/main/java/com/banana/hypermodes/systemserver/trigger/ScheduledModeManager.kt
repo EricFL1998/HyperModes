@@ -1,9 +1,9 @@
 package com.banana.hypermodes.systemserver.trigger
 
 import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ModeConfig
@@ -11,14 +11,20 @@ import com.banana.hypermodes.systemserver.config.ModeType
 import java.util.Calendar
 
 /**
- * Manages scheduled mode triggers using AlarmManager.
- * Schedules alarms for modes with SCHEDULED type, activates/deactivates them at specified times.
+ * Manages scheduled mode triggers using AlarmManager with OnAlarmListener.
+ * Runs entirely in system_server, no application process needed (zero-process architecture).
  */
 class ScheduledModeManager(
     private val context: Context,
     private val engine: RoutineCoreEngine
 ) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    private val handler = Handler(Looper.getMainLooper())
+    private val scheduledAlarms = mutableMapOf<String, AlarmManager.OnAlarmListener>()
+
+    companion object {
+        private const val TAG = "ScheduledModeManager"
+    }
 
     /**
      * Update schedules for all modes.
@@ -27,11 +33,14 @@ class ScheduledModeManager(
     fun updateSchedules(modes: List<ModeConfig>) {
         log("Updating schedules for ${modes.size} modes")
 
-        // Cancel all existing alarms first
+        // Cancel alarms from the previous configuration before rebuilding it.
         cancelAllSchedules()
 
-        // Schedule only SCHEDULED type modes
-        modes.filter { it.type == ModeType.SCHEDULED }.forEach { mode ->
+        // Schedule only enabled SCHEDULED modes. Disabled schedules retain
+        // their stored times but must not leave an old PendingIntent active.
+        modes.filter {
+            it.type == ModeType.SCHEDULED && it.scheduleEnabled != false
+        }.forEach { mode ->
             scheduleMode(mode)
         }
 
@@ -48,57 +57,79 @@ class ScheduledModeManager(
             return
         }
 
-        if (mode.startTime == null || mode.endTime == null) {
+        if (mode.scheduleEnabled == false) {
+            log("Skipping disabled schedule: ${mode.name}")
+            return
+        }
+
+        val startTime = mode.startTime
+        val endTime = mode.endTime
+        if (startTime == null || endTime == null) {
             log("Skipping mode with missing times: ${mode.name}")
             return
         }
 
-        val repeatDays = mode.repeatDays ?: listOf(1, 2, 3, 4, 5, 6, 7)
+        val repeatDays = mode.repeatDays
+            ?.filter { it in 1..7 }
+            ?.takeIf { it.isNotEmpty() }
+            ?: listOf(1, 2, 3, 4, 5, 6, 7)
 
-        log("Scheduling mode: ${mode.name}, start=${mode.startTime}, end=${mode.endTime}, days=$repeatDays")
+        log("Scheduling mode: ${mode.name}, start=$startTime, end=$endTime, days=$repeatDays")
 
-        // Schedule start alarm
-        scheduleAlarm(mode.id, mode.startTime, repeatDays, true)
-
-        // Schedule end alarm
-        scheduleAlarm(mode.id, mode.endTime, repeatDays, false)
+        scheduleAlarm(mode.id, startTime, repeatDays, true)
+        scheduleAlarm(mode.id, endTime, repeatDays, false)
     }
 
     /**
-     * Schedule a single alarm (start or end).
+     * Schedule a single alarm (start or end) using OnAlarmListener.
+     * Runs directly in system_server without requiring app process.
      */
-    private fun scheduleAlarm(modeId: String, time: String, repeatDays: List<Int>, isStart: Boolean) {
-        val (hour, minute) = parseTime(time)
+    private fun scheduleAlarm(modeId: String, time: String, repeatDays: List<Int>, isStart: Boolean): Boolean {
+        val parsed = parseTime(time)
+        if (parsed == null) {
+            log("Skipping invalid time '$time' for mode $modeId")
+            return false
+        }
+        val (hour, minute) = parsed
         val nextOccurrence = getNextOccurrence(hour, minute, repeatDays)
 
-        val action = if (isStart) ACTION_START_MODE else ACTION_END_MODE
-        val intent = Intent(action).apply {
-            setPackage(context.packageName)
-            putExtra(EXTRA_MODE_ID, modeId)
-        }
-
-        // Use unique request code for each alarm (modeId hash + start/end flag)
-        val requestCode = (modeId.hashCode() * 2) + if (isStart) 0 else 1
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Schedule exact alarm
         try {
-            alarmManager.setExactAndAllowWhileIdle(
+            val tag = "${modeId}_${if (isStart) "start" else "end"}"
+
+            // Create listener that runs in system_server
+            val listener = AlarmManager.OnAlarmListener {
+                log("Alarm triggered: $tag")
+                try {
+                    if (isStart) {
+                        engine.activateMode(modeId)
+                    } else {
+                        engine.deactivateMode(modeId)
+                    }
+                } catch (e: Exception) {
+                    log("Failed to ${if (isStart) "activate" else "deactivate"} mode $modeId: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+
+            // Schedule the alarm with listener (no PendingIntent needed)
+            alarmManager.setExact(
                 AlarmManager.RTC_WAKEUP,
                 nextOccurrence,
-                pendingIntent
+                tag,
+                listener,
+                handler
             )
+
+            // Store listener for later cancellation
+            scheduledAlarms[tag] = listener
 
             val calendar = Calendar.getInstance().apply { timeInMillis = nextOccurrence }
             log("Scheduled ${if (isStart) "START" else "END"} alarm for mode $modeId at ${calendar.time}")
+            return true
         } catch (e: Exception) {
             log("Failed to schedule alarm: ${e.message}")
             e.printStackTrace()
+            return false
         }
     }
 
@@ -106,10 +137,12 @@ class ScheduledModeManager(
      * Cancel all scheduled alarms.
      */
     private fun cancelAllSchedules() {
-        // We don't track active alarms, so we can't cancel them individually.
-        // This is acceptable because updateSchedules() is called when modes change,
-        // and the old alarms will be overwritten by FLAG_UPDATE_CURRENT.
-        log("Canceling all schedules (handled by FLAG_UPDATE_CURRENT)")
+        scheduledAlarms.forEach { (tag, listener) ->
+            alarmManager.cancel(listener)
+            log("Canceled alarm: $tag")
+        }
+        scheduledAlarms.clear()
+        log("Canceled all tracked schedules")
     }
 
     /**
@@ -119,42 +152,32 @@ class ScheduledModeManager(
         log("Canceling mode: $modeId")
 
         // Cancel start alarm
-        val startIntent = Intent(ACTION_START_MODE).apply {
-            setPackage(context.packageName)
-            putExtra(EXTRA_MODE_ID, modeId)
+        val startTag = "${modeId}_start"
+        scheduledAlarms[startTag]?.let { listener ->
+            alarmManager.cancel(listener)
+            scheduledAlarms.remove(startTag)
+            log("Canceled start alarm: $startTag")
         }
-        val startRequestCode = modeId.hashCode() * 2
-        val startPendingIntent = PendingIntent.getBroadcast(
-            context,
-            startRequestCode,
-            startIntent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        startPendingIntent?.let { alarmManager.cancel(it) }
 
         // Cancel end alarm
-        val endIntent = Intent(ACTION_END_MODE).apply {
-            setPackage(context.packageName)
-            putExtra(EXTRA_MODE_ID, modeId)
+        val endTag = "${modeId}_end"
+        scheduledAlarms[endTag]?.let { listener ->
+            alarmManager.cancel(listener)
+            scheduledAlarms.remove(endTag)
+            log("Canceled end alarm: $endTag")
         }
-        val endRequestCode = modeId.hashCode() * 2 + 1
-        val endPendingIntent = PendingIntent.getBroadcast(
-            context,
-            endRequestCode,
-            endIntent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        endPendingIntent?.let { alarmManager.cancel(it) }
-
-        log("Mode canceled: $modeId")
     }
 
     /**
-     * Parse time string "HH:mm" into hour and minute.
+     * Parse and validate a time string in strict "HH:mm" form.
      */
-    private fun parseTime(time: String): Pair<Int, Int> {
+    private fun parseTime(time: String): Pair<Int, Int>? {
         val parts = time.split(":")
-        return parts[0].toInt() to parts[1].toInt()
+        if (parts.size != 2) return null
+        val hour = parts[0].toIntOrNull() ?: return null
+        val minute = parts[1].toIntOrNull() ?: return null
+        if (hour !in 0..23 || minute !in 0..59) return null
+        return hour to minute
     }
 
     /**
@@ -198,12 +221,5 @@ class ScheduledModeManager(
 
     private fun log(msg: String) {
         Log.i(TAG, msg)
-    }
-
-    companion object {
-        private const val TAG = "ScheduledModeManager"
-        const val ACTION_START_MODE = "com.banana.hypermodes.START_MODE"
-        const val ACTION_END_MODE = "com.banana.hypermodes.END_MODE"
-        const val EXTRA_MODE_ID = "MODE_ID"
     }
 }
