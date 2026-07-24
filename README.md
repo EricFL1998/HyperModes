@@ -1,4 +1,4 @@
-# HyperModes
+<img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-22-841_com banana hypermodes" src="https://github.com/user-attachments/assets/dddb64b1-4466-4eee-8a84-4c2b7f216e33" /># HyperModes
 
 一个为HyperOS 打造的原生风格模式与自动化工具。
 
@@ -33,3 +33,9 @@ HyperModes 的核心逻辑运行在 `system_server` 进程中。App 本身仅作
 2. 在 LSPosed 中激活模块
 3. 重启系统以使 Hook 生效。
 4. 打开设置，模式开始创建您的个性化模式。
+
+<img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-22-841_com banana hypermodes" src="https://github.com/user-attachments/assets/538349ad-b802-4bc5-8709-09b9a5d5265c" />
+<img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-27-822_com banana hypermodes" src="https://github.com/user-attachments/assets/22c4f854-420d-45dd-9d30-2d892f1c2b06" />
+<img width="1220" height="4130" alt="Screenshot_2026-07-24-13-50-41-595_com banana hypermodes" src="https://github.com/user-attachments/assets/2fdc4da0-afe2-4288-b4b2-ce01e3bbb5e3" />
+
+
