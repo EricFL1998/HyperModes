@@ -50,9 +50,9 @@ class SettingsHook(private val module: XposedModule) {
                     val titleResId = modContext.resources.getIdentifier(
                         "modes", "string", Protocol.MODULE_PACKAGE
                     )
-                    val iconResId = modContext.resources.getIdentifier(
-                        "ic_stat_zen", "drawable", Protocol.MODULE_PACKAGE
-                    )
+                        val iconResId = modContext.resources.getIdentifier(
+                            "setting_modes", "drawable", Protocol.MODULE_PACKAGE
+                        )
 
                     Reflect.call(checkBox, "setTitle", modContext.getString(titleResId))
                     if (iconResId != 0) {

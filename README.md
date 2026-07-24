@@ -1,6 +1,6 @@
 # HyperModes
 
-一个为 MIUI / HyperOS 打造的原生风格模式与自动化工具。
+一个为HyperOS 打造的原生风格模式与自动化工具。
 
 ## 核心特性
 
