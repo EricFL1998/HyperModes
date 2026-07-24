@@ -570,7 +570,7 @@ fun ModeDetailScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(horizontal = 32.dp, vertical = 28.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 20.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -579,7 +579,7 @@ fun ModeDetailScreen(
                     text = stringResource(R.string.delete_mode_title),
                     style = MiuixTheme.textStyles.title3,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
                 // Centered message text
                 Text(
@@ -587,12 +587,12 @@ fun ModeDetailScreen(
                     style = MiuixTheme.textStyles.body1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 28.dp)
+                    modifier = Modifier.padding(bottom = 20.dp)
                 )
-                // Buttons: cancel | delete (as per guideline #33)
+                // Buttons: cancel | delete - wider buttons closer to edges
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TextButton(
                         text = stringResource(R.string.cancel),
