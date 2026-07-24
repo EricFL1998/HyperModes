@@ -172,4 +172,6 @@
     <string name="custom_mode_hero_desc">在此模式下减少干扰、保持专注</string>
     <string name="list_separator">、</string>
     <string name="options_none">未启用任何选项</string>
+    <string name="status_bar_preview">状态栏预览</string>
+    <string name="icon_display_customization_action">图标显示自定义</string>
 </resources>

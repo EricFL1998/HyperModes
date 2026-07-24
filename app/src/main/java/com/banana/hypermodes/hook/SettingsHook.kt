@@ -1,220 +1,135 @@
 package com.banana.hypermodes.hook
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
+import java.lang.reflect.Proxy
 
 /**
- * Injects a "模式" (Modes) entry into the HyperOS Settings homepage,
- * positioned directly above 显示和触控 (display), mimicking the Pixel entry.
- * Tapping it opens HyperModes.
- *
- * HyperOS/MIUI's homepage is com.android.settings.MiuiSettings, whose
- * updateHeaderList(List) builds a header list — the same mechanism the
- * reference module (HyperCeiler) uses. We insert a
- * PreferenceActivity$Header with our id, icon, title and launch intent,
- * before the display header.
+ * Hooks the MIUI Settings app to inject a "Modes" toggle into the
+ * "Custom Status Bar Icons" screen.
  */
 class SettingsHook(private val module: XposedModule) {
 
+    companion object {
+        private const val TAG = "HyperModes"
+        private const val PREF_KEY = "setting_hypermodes"
+        private const val SLOT_NAME = "hypermodes"
+    }
+
     fun install(classLoader: ClassLoader) {
-        val miuiSettings = try {
-            classLoader.loadClass(MIUI_SETTINGS)
-        } catch (t: Throwable) {
-            log("MiuiSettings not found, skipping header hook")
-            return
-        }
-        val updateHeaderList = try {
-            miuiSettings.getDeclaredMethod("updateHeaderList", List::class.java)
-                .apply { isAccessible = true }
-        } catch (t: Throwable) {
-            log("updateHeaderList not found: ${t.message}")
-            return
-        }
-        module.hook(updateHeaderList)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
+        try {
+            val settingsFragmentClass = classLoader.loadClass("com.android.settings.IconDisplayCustomizationSettings")
+
+            // Hook onCreate to inject UI elements
+            val onCreate = settingsFragmentClass.getDeclaredMethod("onCreate", Bundle::class.java)
+            module.hook(onCreate).intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
-                    try {
-                        val activity = chain.thisObject as? android.app.Activity
-                        @Suppress("UNCHECKED_CAST")
-                        val headers = chain.getArg(0) as? MutableList<Any>
-                        if (activity != null && headers != null) {
-                            injectHeader(activity, headers, classLoader)
-                        }
-                    } catch (t: Throwable) {
-                        log("header injection failed: $t")
+                    val fragment = chain.thisObject
+                    val context = Reflect.call(fragment, "getContext") as Context
+                    
+                    val systemCategory = Reflect.getField(fragment, "mSettingsSystemState") ?: return result
+
+                    // Create CheckBoxPreference for HyperModes using reflection
+                    val checkBoxClass = classLoader.loadClass("androidx.preference.CheckBoxPreference")
+                    val checkBox = Reflect.newInstance(checkBoxClass, context)
+                    
+                    Reflect.call(checkBox, "setKey", PREF_KEY)
+                    Reflect.call(checkBox, "setPersistent", false)
+
+                    // Load strings from our module
+                    val modContext = context.createPackageContext(
+                        Protocol.MODULE_PACKAGE,
+                        Context.CONTEXT_IGNORE_SECURITY
+                    )
+                    val titleResId = modContext.resources.getIdentifier(
+                        "modes", "string", Protocol.MODULE_PACKAGE
+                    )
+                    val iconResId = modContext.resources.getIdentifier(
+                        "ic_stat_zen", "drawable", Protocol.MODULE_PACKAGE
+                    )
+
+                    Reflect.call(checkBox, "setTitle", modContext.getString(titleResId))
+                    if (iconResId != 0) {
+                        val icon = modContext.getDrawable(iconResId)
+                        Reflect.call(checkBox, "setIcon", icon)
                     }
+
+                    // Add to the system category
+                    Reflect.call(systemCategory, "addPreference", checkBox)
+
+                    // Set listener
+                    val listenerClass = classLoader.loadClass("androidx.preference.Preference\$OnPreferenceChangeListener")
+                    val proxy = Proxy.newProxyInstance(
+                        classLoader,
+                        arrayOf(listenerClass)
+                    ) { _, method, args ->
+                        if (method.name == "onPreferenceChange") {
+                            val isChecked = args[1] as Boolean
+                            setStatusBarHideIconSlotName(context, !isChecked, SLOT_NAME)
+                            true
+                        } else {
+                            null
+                        }
+                    }
+                    Reflect.call(checkBox, "setOnPreferenceChangeListener", proxy)
                     return result
                 }
             })
-        log("MiuiSettings.updateHeaderList hooked")
+
+            // Hook onResume to update our preference state
+            val onResume = settingsFragmentClass.getDeclaredMethod("onResume")
+            module.hook(onResume).intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    val fragment = chain.thisObject
+                    val context = Reflect.call(fragment, "getContext") as Context
+                    val checkBox = Reflect.call(fragment, "findPreference", PREF_KEY) ?: return result
+                    
+                    val isHidden = isHideIconSlotName(context, SLOT_NAME)
+                    Reflect.call(checkBox, "setChecked", !isHidden)
+                    return result
+                }
+            })
+
+        } catch (t: Throwable) {
+            log("Failed to install SettingsHook: $t")
+        }
     }
 
-    /** Stock Modes glyph from Settings' own resources.
-     * ic_homepage_modes wraps the glyph in a pink AdaptiveIconShapeDrawable
-     * background; ic_zen_priority_modes_expressive is the same glyph bare. */
-    private fun modesIconRes(context: Context): Int {
-        for (name in listOf(
-            "ic_zen_priority_modes_expressive",
-            "ic_do_not_disturb_mode_settings",
-            "ic_homepage_modes"
-        )) {
-            val id = context.resources.getIdentifier(name, "drawable", Protocol.SETTINGS_PACKAGE)
-            if (id != 0) return id
-        }
-        return 0
+    private fun isHideIconSlotName(context: Context, slot: String): Boolean {
+        val list = toHideIconSlotNameList(
+            Settings.System.getString(context.contentResolver, "status_bar_hide_icon_slot_name")
+        )
+        return list.contains(slot)
     }
 
-    private fun injectHeader(context: Context, headers: MutableList<Any>, classLoader: ClassLoader) {
-        // Duplicate guard — updateHeaderList runs on every resume.
-        for (h in headers) {
-            if (getLongField(h, "id") == OUR_HEADER_ID) return
-        }
+    private fun setStatusBarHideIconSlotName(context: Context, hide: Boolean, slot: String) {
+        val list = toHideIconSlotNameList(
+            Settings.System.getString(context.contentResolver, "status_bar_hide_icon_slot_name")
+        ).toMutableList()
 
-        val header = classLoader.loadClass(MIUI_HEADER)
-            .getDeclaredConstructor().apply { isAccessible = true }.newInstance()
-
-        setField(header, "id", OUR_HEADER_ID)
-        // The homepage renders icons via ImageView.setImageResource resolved
-        // against SETTINGS' own resource table, so only a Settings drawable id
-        // works here. ic_homepage_modes is the stock Modes tile's own icon.
-        setField(header, "iconRes", modesIconRes(context))
-        setField(header, "title", modesTitle(context))
-        setField(header, "summary", null)
-        setField(header, "intent", Intent().apply {
-            setClassName(Protocol.MODULE_PACKAGE, MAIN_ACTIVITY)
-            putExtra("isDisplayHomeAsUpEnabled", true)
-        })
-        setField(header, "extras", Bundle().apply {
-            // Hidden API — accessible at runtime thanks to LSPosed.
-            putParcelableArrayList("header_user", arrayListOf(userHandleOf(0)))
-        })
-
-        val pos = findLauncherHeaderPosition(context, headers)
-        // Insert after "桌面" (launcher) and copy its groupId so the new entry
-        // shares the same card/module as "桌面" / "显示".
-        if (pos >= 0) {
-            val launcherHeader = headers[pos]
-            val groupId = getIntField(launcherHeader, "groupId")
-            if (groupId > 0) {
-                setField(header, "groupId", groupId)
-                log("Copied groupId $groupId from launcher header")
-            }
-            headers.add(pos + 1, header)
+        if (hide && !list.contains(slot)) {
+            list.add(slot)
+        } else if (!hide && list.contains(slot)) {
+            list.remove(slot)
         } else {
-            headers.add(header)
+            return
         }
-        log("modes header injected at ${if (pos >= 0) pos + 1 else headers.size - 1}")
+
+        val result = list.joinToString(",")
+        Settings.System.putString(context.contentResolver, "status_bar_hide_icon_slot_name", result)
     }
 
-    /** Position of the launcher/home header (we insert after it). */
-    private fun findLauncherHeaderPosition(context: Context, headers: List<Any>): Int {
-        // Match by resource id first, then by localized title text.
-        val launcherIds = listOf("launcher_settings", "home_settings")
-            .mapNotNull { name ->
-                context.resources.getIdentifier(name, "id", Protocol.SETTINGS_PACKAGE)
-                    .takeIf { it != 0 }?.toLong()
-            }
-        val launcherTitles = listOf("home_title", "launcher_settings")
-            .mapNotNull { name ->
-                val id = context.resources.getIdentifier(name, "string", Protocol.SETTINGS_PACKAGE)
-                if (id != 0) context.resources.getString(id) else null
-            }
-
-        for (i in headers.indices) {
-            val head = headers[i]
-            if (launcherIds.contains(getLongField(head, "id"))) return i
-            val title = getField(head, "title")?.toString()
-            if (title != null && launcherTitles.contains(title)) return i
-        }
-        return -1
-    }
-
-    /** Fallback: position of the display header (we insert before it). */
-    private fun findDisplayHeaderPosition(context: Context, headers: List<Any>): Int {
-        // Match by resource id first, then by localized title text.
-        val displayIds = listOf("display_settings", "display", "display_and_touch")
-            .mapNotNull { name ->
-                context.resources.getIdentifier(name, "id", Protocol.SETTINGS_PACKAGE)
-                    .takeIf { it != 0 }?.toLong()
-            }
-        val displayTitles = listOf("display_settings", "display", "display_and_touch")
-            .mapNotNull { name ->
-                val id = context.resources.getIdentifier(name, "string", Protocol.SETTINGS_PACKAGE)
-                if (id != 0) context.resources.getString(id) else null
-            }
-
-        for (i in headers.indices) {
-            val head = headers[i]
-            if (displayIds.contains(getLongField(head, "id"))) return i
-            val title = getField(head, "title")?.toString()
-            if (title != null && displayTitles.contains(title)) return i
-        }
-        return -1
-    }
-
-    /** 模式 — reuse Settings' own localized zen_modes_list_title when present. */
-    private fun modesTitle(context: Context): CharSequence {
-        val id = context.resources.getIdentifier("zen_modes_list_title", "string", Protocol.SETTINGS_PACKAGE)
-        return if (id != 0) context.resources.getString(id) else "模式"
-    }
-
-    private fun getLongField(target: Any, name: String): Long =
-        (getField(target, name) as? Long) ?: -1L
-
-    private fun getIntField(target: Any, name: String): Int =
-        (getField(target, name) as? Int) ?: 0
-
-    /** UserHandle.of(userId) — @hide API, called reflectively (LSPosed lifts the hidden-API restriction). */
-    private fun userHandleOf(userId: Int): android.os.UserHandle =
-        android.os.UserHandle::class.java
-            .getMethod("of", Int::class.javaPrimitiveType)
-            .invoke(null, userId) as android.os.UserHandle
-
-    private fun getField(target: Any, name: String): Any? {
-        var cls: Class<*>? = target.javaClass
-        while (cls != null) {
-            try {
-                val f = cls.getDeclaredField(name)
-                f.isAccessible = true
-                return f.get(target)
-            } catch (e: NoSuchFieldException) {
-                cls = cls.superclass
-            }
-        }
-        return null
-    }
-
-    private fun setField(target: Any, name: String, value: Any?) {
-        var cls: Class<*>? = target.javaClass
-        while (cls != null) {
-            try {
-                val f = cls.getDeclaredField(name)
-                f.isAccessible = true
-                f.set(target, value)
-                return
-            } catch (e: NoSuchFieldException) {
-                cls = cls.superclass
-            }
-        }
-        throw NoSuchFieldException("${target.javaClass.name}#$name")
+    private fun toHideIconSlotNameList(str: String?): List<String> {
+        val finalStr = str ?: "alarm_clock,phone,pad,pc,tv,car,sound_box,glasses,camera"
+        return if (finalStr.isEmpty()) emptyList() else finalStr.split(",")
     }
 
     private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
-
-    companion object {
-        private const val TAG = "HyperModes"
-        private const val MIUI_SETTINGS = "com.android.settings.MiuiSettings"
-        private const val MIUI_HEADER =
-            "com.android.settingslib.miuisettings.preference.PreferenceActivity\$Header"
-        private const val MAIN_ACTIVITY = "com.banana.hypermodes.ui.MainActivity"
-        // Unique id for our injected header (doubles as the duplicate guard).
-        private const val OUR_HEADER_ID = 845_214L
-    }
 }

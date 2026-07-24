@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
+import androidx.compose.ui.res.painterResource
+import com.banana.hypermodes.data.ModeIconMapper
 import com.banana.hypermodes.data.Mode
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -48,11 +50,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Emoji icon choices for custom modes (stored directly as Mode.icon). */
 val MODE_ICON_CHOICES = listOf(
-    "⭐", "💼", "🏛️", "🏢", "💬", "👥", "💡", "📅",
-    "⊝", "🚶", "⛳", "🏋️", "🏊", "🧗", "🤺", "🎮",
-    "🎨", "❄️", "🔕", "🛠️", "🎹", "🎬", "📖", "🌿",
-    "🎧", "🖥️", "🚆", "🚗", "🍴", "🛒", "🎰", "🐾",
-    "🎟️", "👨‍👩‍👧", "❤️", "🏠", "🌙", "⏰", "🧘", "✈️"
+    "🌙", "🚗", "💼", "🎮", "📖", "🏠", "💡", "📅",
+    "🎧", "🚶", "🎨", "❄️", "🔕", "🛠️", "🎹", "🎬",
+    "🌿", "🖥️", "🚆", "🍴", "🛒", "🐾", "🎟️", "👨‍👩‍👧",
+    "❤️", "⭐", "⏰", "🧘", "✈️", "📍", "🏋️"
 )
 
 /**
@@ -217,7 +218,11 @@ fun EditModeDialog(
                         cornerRadius = 30.dp
                     )
                     .clickable {
-                        onDone(mode.copy(name = name.trim().ifEmpty { mode.name }, icon = icon))
+                        onDone(mode.copy(
+                            name = name.trim().ifEmpty { mode.name },
+                            icon = icon,
+                            statusIcon = ModeIconMapper.getStatusBarIcon(icon)
+                        ))
                         onDismissRequest()
                     },
                 contentAlignment = Alignment.Center

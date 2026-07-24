@@ -2,6 +2,7 @@ package com.banana.hypermodes.systemserver.executor
 
 import android.content.Context
 import android.util.Log
+import com.banana.hypermodes.systemserver.StatusBarIconManager
 import com.banana.hypermodes.systemserver.config.ModeConfig
 
 /**
@@ -23,6 +24,8 @@ class ModeActionExecutor(
     private val dndController = DndController(context)
     private val appSuspendController = AppSuspendController(context, classLoader)
     private val displayModeController = DisplayModeController(context)
+    private val statusBarIconManager = StatusBarIconManager(context, classLoader)
+
     /**
      * Apply all actions configured in the mode.
      *
@@ -49,6 +52,9 @@ class ModeActionExecutor(
         // Apply display settings
         displayModeController.apply(mode.display)
 
+        // Update status bar icon
+        statusBarIconManager.setIcon(mode.statusIcon, mode.name)
+
         log("applyMode: completed for ${mode.name}")
     }
 
@@ -73,6 +79,9 @@ class ModeActionExecutor(
 
         // Restore display settings
         displayModeController.restore()
+
+        // Remove status bar icon
+        statusBarIconManager.removeIcon()
 
         log("revertMode: completed for ${mode.name}")
     }

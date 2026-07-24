@@ -10,6 +10,7 @@ data class Mode(
     val id: String,
     val name: String,
     val icon: String,
+    val statusIcon: String? = null,
     val description: String,
     val enabled: Boolean = false,
     val settings: ModeSettings = ModeSettings()
@@ -164,6 +165,7 @@ fun Mode.toModeConfig(): ModeConfig {
         id = id,
         name = name,
         icon = icon,
+        statusIcon = statusIcon,
         type = type,
         startTime = startTime,
         endTime = endTime,
@@ -253,6 +255,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
         id = id,
         name = name,
         icon = icon,
+        statusIcon = statusIcon,
         description = "",
         enabled = isActive,
         settings = ModeSettings(

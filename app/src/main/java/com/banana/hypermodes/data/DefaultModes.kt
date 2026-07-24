@@ -6,7 +6,8 @@ object DefaultModes {
         Mode(
             id = "dnd",
             name = "Do Not Disturb",
-            icon = "⊝",
+            icon = "🔕",
+            statusIcon = "ic_stat_mute",
             description = "Silence notifications and calls",
             settings = ModeSettings(
                 enableDnd = true,
@@ -17,6 +18,7 @@ object DefaultModes {
             id = "bedtime",
             name = "Bedtime",
             icon = "🌙",
+            statusIcon = "ic_stat_moon",
             description = "From 11:00 pm - 7:00 am",
             settings = ModeSettings(
                 enableDnd = true,
@@ -35,6 +37,7 @@ object DefaultModes {
             id = "driving",
             name = "Driving",
             icon = "🚗",
+            statusIcon = "ic_stat_car",
             description = "Using device's motion and Bluetooth connection",
             settings = ModeSettings(
                 enableDnd = true,

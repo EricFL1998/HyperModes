@@ -172,4 +172,5 @@
     <string name="custom_mode_hero_desc">Minimize interruptions and stay focused in this mode</string>
     <string name="list_separator">, </string>
     <string name="options_none">No options enabled</string>
+    <string name="icon_display_customization_action">Customize status bar icons</string>
 </resources>

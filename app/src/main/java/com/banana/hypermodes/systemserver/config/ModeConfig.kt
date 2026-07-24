@@ -11,6 +11,7 @@ data class ModeConfig(
     val id: String,
     val name: String,
     val icon: String,
+    val statusIcon: String? = null,
     val type: ModeType,
 
     // Schedule (for SCHEDULED/BEDTIME types). Nullable for legacy configs.
