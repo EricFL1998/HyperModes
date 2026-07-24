@@ -146,7 +146,7 @@ fun EditModeDialog(
                         onValueChange = { name = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
+                            .padding(horizontal = 5.dp)
                             .padding(bottom = 24.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -171,7 +171,7 @@ fun EditModeDialog(
                 
                 item {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp)
                     ) {
                         MODE_ICON_CHOICES.chunked(5).forEach { rowChoices ->
                             Row(modifier = Modifier.fillMaxWidth()) {
@@ -210,7 +210,7 @@ fun EditModeDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
+                    .padding(horizontal = 5.dp)
                     .padding(top = 16.dp, bottom = 32.dp)
                     .height(60.dp)
                     .squircleSurface(
