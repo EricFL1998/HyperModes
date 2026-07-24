@@ -747,12 +747,20 @@ fun ValueSettingItem(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = value,
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantActions
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = value,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = MiuixIcons.Basic.ArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+                )
+            }
         }
     }
 }
@@ -854,6 +862,13 @@ fun SettingItem(
                 Switch(
                     checked = checked,
                     onCheckedChange = onCheckedChange
+                )
+            } else {
+                Icon(
+                    imageVector = MiuixIcons.Basic.ArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions
                 )
             }
         }
