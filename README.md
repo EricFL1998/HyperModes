@@ -1,5 +1,3 @@
-<img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-22-841_com banana hypermodes" src="https://github.com/user-attachments/assets/dddb64b1-4466-4eee-8a84-4c2b7f216e33" /># HyperModes
-
 一个为HyperOS 打造的原生风格模式与自动化工具。
 
 > [!IMPORTANT]
