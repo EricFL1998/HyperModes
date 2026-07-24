@@ -1,10 +1,7 @@
 package com.banana.hypermodes.systemserver
 
 import android.content.Context
-import android.graphics.drawable.Icon
-import android.os.Bundle
 import android.os.IBinder
-import android.os.UserHandle
 import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
 
@@ -58,35 +55,16 @@ class StatusBarIconManager(private val context: Context, private val classLoader
                 return
             }
 
-            val icon = Icon.createWithResource(Protocol.MODULE_PACKAGE, resId)
-
-            // Call IStatusBarService.setIcon(String slot, StatusBarIcon icon)
-            // StatusBarIcon(UserHandle user, String pkg, Icon icon, int iconLevel, int number,
-            //               CharSequence contentDescription, Type type, Shape shape)
-
-            val statusBarIconClass = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon")
-            val userHandleClass = classLoader.loadClass("android.os.UserHandle")
-            val systemUser = userHandleClass.getField("SYSTEM").get(null) as UserHandle
-
-            // Type and Shape are enums in Android 14+ (HyperOS base)
-            val typeEnum = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon\$Type")
-            val systemIconType = typeEnum.getField("SystemIcon").get(null)
-
-            val shapeEnum = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon\$Shape")
-            val wrapContentShape = shapeEnum.getField("WRAP_CONTENT").get(null)
-
-            val statusBarIconConstructor = statusBarIconClass.getConstructor(
-                UserHandle::class.java, String::class.java, Icon::class.java,
-                Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
-                CharSequence::class.java, typeEnum, shapeEnum
+            // HyperOS uses: setIcon(String slot, String iconPackage, int iconId, int iconLevel, String contentDescription)
+            val setIconMethod = service.javaClass.getMethod(
+                "setIcon",
+                String::class.java,
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                String::class.java
             )
-
-            val statusBarIcon = statusBarIconConstructor.newInstance(
-                systemUser, Protocol.MODULE_PACKAGE, icon, 0, 0, contentDescription, systemIconType, wrapContentShape
-            )
-
-            val setIconMethod = service.javaClass.getMethod("setIcon", String::class.java, statusBarIconClass)
-            setIconMethod.invoke(service, slotName, statusBarIcon)
+            setIconMethod.invoke(service, slotName, Protocol.MODULE_PACKAGE, resId, 0, contentDescription)
 
             log("Status bar icon set: $resName (resId=$resId)")
         } catch (e: Exception) {
