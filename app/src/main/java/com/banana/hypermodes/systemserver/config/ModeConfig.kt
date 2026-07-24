@@ -71,6 +71,7 @@ data class NotificationConfig(
 
 @Serializable
 enum class DndLevel {
+    DISABLED,
     NONE,
     PRIORITY,
     ALARMS

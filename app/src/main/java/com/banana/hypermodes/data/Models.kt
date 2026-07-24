@@ -147,10 +147,14 @@ fun Mode.toModeConfig(): ModeConfig {
     } else null
 
     // Map DndLevel
-    val dndLevel = when (s.dndLevel) {
-        DndLevel.NONE -> com.banana.hypermodes.systemserver.config.DndLevel.NONE
-        DndLevel.PRIORITY -> com.banana.hypermodes.systemserver.config.DndLevel.PRIORITY
-        DndLevel.ALARMS -> com.banana.hypermodes.systemserver.config.DndLevel.ALARMS
+    val dndLevel = if (!s.enableDnd) {
+        com.banana.hypermodes.systemserver.config.DndLevel.DISABLED
+    } else {
+        when (s.dndLevel) {
+            DndLevel.NONE -> com.banana.hypermodes.systemserver.config.DndLevel.NONE
+            DndLevel.PRIORITY -> com.banana.hypermodes.systemserver.config.DndLevel.PRIORITY
+            DndLevel.ALARMS -> com.banana.hypermodes.systemserver.config.DndLevel.ALARMS
+        }
     }
 
     // Map ContactFilter
@@ -231,6 +235,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
 
     // Map DndLevel - extract from notification.dndLevel
     val dndLevel = when (notification.dndLevel) {
+        com.banana.hypermodes.systemserver.config.DndLevel.DISABLED -> DndLevel.NONE
         com.banana.hypermodes.systemserver.config.DndLevel.NONE -> DndLevel.NONE
         com.banana.hypermodes.systemserver.config.DndLevel.PRIORITY -> DndLevel.PRIORITY
         com.banana.hypermodes.systemserver.config.DndLevel.ALARMS -> DndLevel.ALARMS
@@ -259,7 +264,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
         description = "",
         enabled = isActive,
         settings = ModeSettings(
-            enableDnd = true,
+            enableDnd = notification.dndLevel != com.banana.hypermodes.systemserver.config.DndLevel.DISABLED,
             dndLevel = dndLevel,
             enableGrayscale = display.grayscale,
             enableDarkMode = display.darkMode,

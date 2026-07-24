@@ -29,6 +29,7 @@ class DndController(private val context: Context) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             val filter = when (level) {
+                DndLevel.DISABLED -> NotificationManager.INTERRUPTION_FILTER_ALL
                 DndLevel.NONE -> NotificationManager.INTERRUPTION_FILTER_NONE
                 DndLevel.PRIORITY -> NotificationManager.INTERRUPTION_FILTER_PRIORITY
                 DndLevel.ALARMS -> NotificationManager.INTERRUPTION_FILTER_ALARMS
