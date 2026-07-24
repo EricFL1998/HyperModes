@@ -8,7 +8,7 @@
 ### 1. 系统级集成，极致稳定
 HyperModes 的核心逻辑运行在 `system_server` 进程中。App 本身仅作为一个配置编辑器，这意味着：
 - **原生体验**：模式切换响应迅速，无任何第三方后台服务常驻。
-- **进程无关**：即使 HyperModes App 被清理或卸载，已设置的自动化逻辑依然会在系统中准确执行。
+- **进程无关**：即使 HyperModes App 被清理 or 卸载，已设置的自动化逻辑依然会在系统中准确执行。
 - **超低功耗**：利用系统原生机制触发，不产生额外待机功耗。
 
 ### 2. 官方时钟深度接入
@@ -28,12 +28,10 @@ HyperModes 的核心逻辑运行在 `system_server` 进程中。App 本身仅作
 ## 安装与使用
 
 1. 安装 APK。
-2. 在 LSPosed 中激活模块
+2. 在 LSPosed 中激活模块。
 3. 重启系统以使 Hook 生效。
 4. 打开设置，模式开始创建您的个性化模式。
 
 <img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-22-841_com banana hypermodes" src="https://github.com/user-attachments/assets/538349ad-b802-4bc5-8709-09b9a5d5265c" />
 <img width="1220" height="2656" alt="Screenshot_2026-07-24-13-50-27-822_com banana hypermodes" src="https://github.com/user-attachments/assets/22c4f854-420d-45dd-9d30-2d892f1c2b06" />
 <img width="1220" height="4130" alt="Screenshot_2026-07-24-13-50-41-595_com banana hypermodes" src="https://github.com/user-attachments/assets/2fdc4da0-afe2-4288-b4b2-ce01e3bbb5e3" />
-
-

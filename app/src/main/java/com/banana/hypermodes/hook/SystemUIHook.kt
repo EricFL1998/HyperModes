@@ -78,10 +78,7 @@ class SystemUIHook(private val module: XposedModule) {
     }
 
     private fun log(msg: String, t: Throwable? = null) {
-        if (t != null) {
-            Log.e(TAG, msg, t)
-        } else {
-            Log.i(TAG, msg)
-        }
+        val message = if (t != null) "$msg: ${android.util.Log.getStackTraceString(t)}" else msg
+        module.log(android.util.Log.WARN, TAG, message)
     }
 }

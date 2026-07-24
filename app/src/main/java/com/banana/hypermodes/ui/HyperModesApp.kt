@@ -28,6 +28,9 @@ import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
+import com.banana.hypermodes.utils.UpdateManager
+import com.banana.hypermodes.utils.UpdateInfo
+import com.banana.hypermodes.ui.components.UpdateDialog
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -73,6 +76,22 @@ fun HyperModesApp() {
     // placeholder times while waiting for the hook's first reply.
     LaunchedEffect(Unit) {
         DeskClockState.restore(context)
+    }
+
+    // Auto-update check on startup
+    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val currentVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
+        val info = UpdateManager.fetchIfNewer(currentVersion)
+        if (info != null) {
+            updateInfo = info
+            showUpdateDialog = true
+        }
     }
 
     // Listen for schedule/state updates broadcast back from the DeskClock hook.
@@ -470,6 +489,21 @@ fun HyperModesApp() {
                         }
                     }
                 }
+            )
+        }
+
+        // Auto-update dialog
+        updateInfo?.let { info ->
+            val currentVersion = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+            } catch (e: Exception) {
+                "1.0"
+            }
+            UpdateDialog(
+                show = showUpdateDialog,
+                currentVersion = currentVersion,
+                updateInfo = info,
+                onDismiss = { showUpdateDialog = false }
             )
         }
     }

@@ -341,7 +341,7 @@ class UniversalPermissionHook(private val module: XposedModule) {
         return null
     }
 
-    private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
+    private fun log(msg: String) = module.log(Log.WARN, TAG, msg)
 
     companion object {
         private const val TAG = "HyperModes.UniversalPermission"

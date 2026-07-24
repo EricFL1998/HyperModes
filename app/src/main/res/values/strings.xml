@@ -174,4 +174,13 @@
     <string name="list_separator">, </string>
     <string name="options_none">No options enabled</string>
     <string name="icon_display_customization_action">Customize status bar icons</string>
+
+    <!-- Update Dialog -->
+    <string name="new_version_found">New version found</string>
+    <string name="current_version">Current version: %1$s</string>
+    <string name="latest_version">Latest version: %1$s</string>
+    <string name="changelog">Changelog</string>
+    <string name="later">Later</string>
+    <string name="go_update">Update Now</string>
+    <string name="already_latest">Already on the latest version</string>
 </resources>

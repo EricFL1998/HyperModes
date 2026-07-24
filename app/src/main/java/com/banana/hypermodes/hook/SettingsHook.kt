@@ -307,5 +307,5 @@ class SettingsHook(private val module: XposedModule) {
         return if (finalStr.isEmpty()) emptyList() else finalStr.split(",")
     }
 
-    private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
+    private fun log(msg: String) = module.log(Log.WARN, TAG, msg)
 }

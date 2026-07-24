@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.libsu.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation(libs.miuix.core)
     implementation(libs.miuix.ui)

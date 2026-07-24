@@ -136,7 +136,7 @@ class NotificationFilterHook(private val module: XposedModule) {
         }
     }
 
-    private fun log(msg: String) = module.log(Log.INFO, TAG, msg)
+    private fun log(msg: String) = module.log(Log.WARN, TAG, msg)
 
     companion object {
         private const val TAG = "HyperModes"
