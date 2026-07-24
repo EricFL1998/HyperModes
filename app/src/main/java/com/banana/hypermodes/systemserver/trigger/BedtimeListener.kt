@@ -1,12 +1,16 @@
 package com.banana.hypermodes.systemserver.trigger
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ModeType
@@ -36,6 +40,20 @@ class BedtimeListener(
     private val handler = Handler(Looper.getMainLooper())
     private var allModes: List<ModeConfig> = emptyList()
 
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Protocol.ACTION_BEDTIME_ACTIVE) {
+                val inSleepMode = intent.getBooleanExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
+                log("Received bedtime active broadcast: $inSleepMode")
+                if (inSleepMode) {
+                    activateBedtime()
+                } else {
+                    deactivateBedtime()
+                }
+            }
+        }
+    }
+
     /**
      * Initialize the bedtime listener.
      * Registers ContentObserver for bedtime state changes and checks initial state.
@@ -43,6 +61,10 @@ class BedtimeListener(
     fun init(modes: List<ModeConfig>) {
         log("Initializing BedtimeListener...")
         allModes = modes
+
+        // Watch for broadcasts from DeskClockHook
+        val filter = IntentFilter(Protocol.ACTION_BEDTIME_ACTIVE)
+        context.registerReceiver(receiver, filter, null, handler, Context.RECEIVER_EXPORTED)
 
         // Watch Settings.Secure for bedtime mode state
         registerBedtimeObserver()
@@ -116,9 +138,20 @@ class BedtimeListener(
             val currentMode = engine.getCurrentActiveMode()
             val bedtimeMode = findBedtimeMode()
 
-            log("Bedtime state check: active=$bedtimeActive, currentMode=${currentMode?.name}, bedtimeMode=${bedtimeMode?.name}")
+            // Check if this bedtime mode was recently manually dismissed
+            val isManualDismissed = if (bedtimeMode != null) {
+                // For BEDTIME modes, we consider them "dismissed" if the dismiss happened 
+                // in the last few minutes and we haven't seen a new activation since then.
+                // RoutineCoreEngine already tracks dismissedScheduledModes.
+                // Since BEDTIME modes don't have a scheduled start time in the engine,
+                // we use a recent threshold (e.g. 1 minute) to prevent immediate re-activation
+                // by the ContentObserver before Settings.Secure has synced.
+                engine.isDismissedInCurrentPeriod(bedtimeMode.id, System.currentTimeMillis() - 60000)
+            } else false
 
-            if (bedtimeActive) {
+            log("Bedtime state check: active=$bedtimeActive, dismissed=$isManualDismissed, currentMode=${currentMode?.name}, bedtimeMode=${bedtimeMode?.name}")
+
+            if (bedtimeActive && !isManualDismissed) {
                 // Bedtime should be active
                 if (bedtimeMode != null && currentMode?.id != bedtimeMode.id) {
                     log("Activating bedtime mode: ${bedtimeMode.name}")
@@ -192,6 +225,7 @@ class BedtimeListener(
         log("Manual bedtime activation requested")
         val bedtimeMode = findBedtimeMode()
         if (bedtimeMode != null) {
+            engine.clearDismissRecord(bedtimeMode.id)
             engine.activateMode(bedtimeMode.id)
         } else {
             log("Cannot activate bedtime: no BEDTIME mode configured")

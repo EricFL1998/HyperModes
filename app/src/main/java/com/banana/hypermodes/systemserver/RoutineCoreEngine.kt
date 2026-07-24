@@ -219,8 +219,8 @@ class RoutineCoreEngine private constructor() {
 
         currentActiveMode = null
 
-        // Record dismiss timestamp ONLY for manual dismissals of scheduled modes
-        if (isManualDismiss && mode.type == ModeType.SCHEDULED) {
+        // Record dismiss timestamp ONLY for manual dismissals of scheduled or bedtime modes
+        if (isManualDismiss && (mode.type == ModeType.SCHEDULED || mode.type == ModeType.BEDTIME)) {
             val now = System.currentTimeMillis()
             dismissedScheduledModes[modeId] = now
             log("Recorded manual dismiss for mode $modeId at timestamp $now")

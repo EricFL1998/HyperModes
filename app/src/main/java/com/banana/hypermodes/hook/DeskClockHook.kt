@@ -164,7 +164,6 @@ class DeskClockHook(private val module: XposedModule) {
                             val context = chain.getArg(0) as? Context ?: return result
                             val active = readInZenMode(context, classLoader, fallback)
                             context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
-                                setPackage(Protocol.MODULE_PACKAGE)
                                 putExtra(Protocol.EXTRA_IN_SLEEP_MODE, active)
                             })
                             log("$name -> bedtime active=$active")
