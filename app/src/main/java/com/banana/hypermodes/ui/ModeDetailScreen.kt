@@ -563,7 +563,7 @@ fun ModeDetailScreen(
             }
         )
 
-        // Delete confirmation with HyperOS style
+        // Delete confirmation dialog
         top.yukonga.miuix.kmp.overlay.OverlayDialog(
             show = showDeleteConfirm,
             onDismissRequest = { showDeleteConfirm = false }
@@ -584,10 +584,10 @@ fun ModeDetailScreen(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
-                // Buttons
+                // Buttons: cancel | confirm (as per guideline #33)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
                         text = stringResource(R.string.cancel),
