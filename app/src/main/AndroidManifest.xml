@@ -44,6 +44,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HyperModes">
 
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"

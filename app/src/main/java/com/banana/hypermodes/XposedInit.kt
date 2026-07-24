@@ -5,6 +5,7 @@ import com.banana.hypermodes.hook.DeskClockHook
 import com.banana.hypermodes.hook.SettingsHook
 import com.banana.hypermodes.hook.SystemKeepAliveHook
 import com.banana.hypermodes.hook.SystemModeHook
+import com.banana.hypermodes.hook.SystemUIHook
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.hooks.NotificationFilterHook
 import io.github.libxposed.api.XposedModule
@@ -64,6 +65,10 @@ class XposedInit : XposedModule() {
                 }
                 Protocol.SETTINGS_PACKAGE -> {
                     SettingsHook(this).install(param.classLoader)
+                    log(Log.INFO, TAG, "hook installed for ${param.packageName}")
+                }
+                "com.android.systemui" -> {
+                    SystemUIHook(this).install(param.classLoader)
                     log(Log.INFO, TAG, "hook installed for ${param.packageName}")
                 }
                 "android", "system" -> {

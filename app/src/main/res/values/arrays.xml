@@ -3,5 +3,7 @@
     <string-array name="xposed_scope">
         <item>com.android.deskclock</item>
         <item>com.android.settings</item>
+        <item>com.android.systemui</item>
+        <item>system</item>
     </string-array>
 </resources>
