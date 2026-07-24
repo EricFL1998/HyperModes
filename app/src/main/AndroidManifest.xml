@@ -53,7 +53,7 @@
 
         <activity-alias
             android:name=".LauncherAlias"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:label="@string/app_name"
             android:icon="@mipmap/ic_launcher"
