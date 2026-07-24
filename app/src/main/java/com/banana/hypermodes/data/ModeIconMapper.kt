@@ -32,7 +32,6 @@ object ModeIconMapper {
         "🐾" to "ic_stat_pets",
         "🎟️" to "ic_stat_ticket",
         "👨‍👩‍👧" to "ic_stat_family",
-        "❤️" to "ic_stat_heart",
         "⭐" to "ic_stat_star",
         "⏰" to "ic_stat_alarm",
         "🧘" to "ic_stat_zen",
