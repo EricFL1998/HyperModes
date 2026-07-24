@@ -129,6 +129,7 @@
     <string name="set_schedule">Set a schedule</string>
     <string name="start_time">Start time</string>
     <string name="end_time">End time</string>
+    <string name="delete_mode_title">Delete mode</string>
     <string name="delete_mode_confirm">Delete \"%1$s\" mode?</string>
     <string name="setup_driving">Set up Driving</string>
     <string name="setup_mode">Set up %1$s</string>

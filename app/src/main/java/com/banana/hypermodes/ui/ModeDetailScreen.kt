@@ -563,32 +563,47 @@ fun ModeDetailScreen(
             }
         )
 
-        // Delete confirmation (official: 要删除“X”模式吗？)
+        // Delete confirmation with HyperOS style
         top.yukonga.miuix.kmp.overlay.OverlayDialog(
             show = showDeleteConfirm,
             onDismissRequest = { showDeleteConfirm = false }
         ) {
-            Column {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)
+            ) {
+                // Title
+                Text(
+                    text = stringResource(R.string.delete_mode_title),
+                    style = MiuixTheme.textStyles.headline2,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                // Message
                 Text(
                     text = stringResource(R.string.delete_mode_confirm, localizedName),
-                    style = MiuixTheme.textStyles.body1,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(bottom = 24.dp)
                 )
-                TextButton(
-                    text = stringResource(R.string.delete),
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete(editedMode)
-                    },
+                // Buttons
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showDeleteConfirm = false },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showDeleteConfirm = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            showDeleteConfirm = false
+                            onDelete(editedMode)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.textButtonColorsPrimary()
+                    )
+                }
             }
         }
 
