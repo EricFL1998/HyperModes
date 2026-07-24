@@ -68,10 +68,44 @@ class RoutineCoreEngine private constructor() {
         // Watch for config changes in Settings.Global
         observeConfigChanges(context)
 
-        // Load initial config
-        loadConfigFromSettings()
+        // Quick restore: show icon immediately if there's an active mode
+        restoreActiveIcon(context)
 
-        log("RoutineCoreEngine initialized successfully")
+        // Load full config asynchronously to avoid blocking systemReady
+        mainHandler?.post {
+            loadConfigFromSettings()
+            log("RoutineCoreEngine initialized successfully")
+        }
+    }
+
+    /**
+     * Quickly restore the status bar icon if a mode was active before reboot.
+     * This runs synchronously to show the icon as soon as possible.
+     */
+    private fun restoreActiveIcon(context: Context) {
+        try {
+            // Parse config to find the active mode's icon
+            val json = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
+            if (json.isNullOrBlank()) return
+
+            val config = ConfigParser.parseConfig(json)
+            val activeModeId = config.activeModeId
+            if (activeModeId.isNullOrBlank()) return
+
+            val activeMode = config.modes.find { it.id == activeModeId } ?: return
+
+            // Show icon immediately
+            modeActionExecutor?.run {
+                val iconManager = javaClass.getDeclaredField("statusBarIconManager").apply {
+                    isAccessible = true
+                }.get(this) as? StatusBarIconManager
+
+                iconManager?.setIcon(activeMode.icon, activeMode.name)
+                log("Quick restored icon for mode: ${activeMode.name}")
+            }
+        } catch (e: Exception) {
+            log("Failed to quick restore icon: ${e.message}")
+        }
     }
 
     private fun observeConfigChanges(context: Context) {

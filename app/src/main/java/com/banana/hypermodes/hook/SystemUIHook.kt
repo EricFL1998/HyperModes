@@ -9,7 +9,7 @@ import io.github.libxposed.api.XposedModule
  * Hook for SystemUI to enable tinting of HyperModes status bar icons.
  *
  * By default, SystemUI only applies color tinting to icons from "com.android.systemui" package.
- * This hook intercepts the package check to allow our icons to be tinted based on status bar theme.
+ * This hook modifies the package name comparison to include our package.
  */
 class SystemUIHook(private val module: XposedModule) {
 
@@ -19,7 +19,7 @@ class SystemUIHook(private val module: XposedModule) {
 
     fun install(classLoader: ClassLoader) {
         try {
-            // Hook StatusBarIconView.updateLightDarkTint to enable tinting for our icons
+            // Hook StatusBarIconView.updateLightDarkTint to fake package name check
             val statusBarIconViewClass = classLoader.loadClass(
                 "com.android.systemui.statusbar.StatusBarIconView"
             )
@@ -37,35 +37,30 @@ class SystemUIHook(private val module: XposedModule) {
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         try {
-                            // Get the StatusBarIconView instance
                             val iconView = chain.thisObject
 
-                            // Get mIcon field to check package name
+                            // Get mIcon field
                             val iconField = iconView.javaClass.getDeclaredField("mIcon")
                             iconField.isAccessible = true
                             val statusBarIcon = iconField.get(iconView)
 
                             if (statusBarIcon != null) {
-                                // Get package name from StatusBarIcon
+                                // Get package name
                                 val pkgField = statusBarIcon.javaClass.getDeclaredField("pkg")
                                 pkgField.isAccessible = true
                                 val pkg = pkgField.get(statusBarIcon) as? String
 
-                                log("updateLightDarkTint called for package: $pkg")
-
-                                // If this is our icon, force useTint to true
+                                // If this is our icon, temporarily change pkg to "com.android.systemui"
                                 if (pkg == Protocol.MODULE_PACKAGE) {
-                                    // Get mExParams field
-                                    val exParamsField = iconView.javaClass.getDeclaredField("mExParams")
-                                    exParamsField.isAccessible = true
-                                    val exParams = exParamsField.get(iconView)
+                                    pkgField.set(statusBarIcon, "com.android.systemui")
 
-                                    // Set useTint = true in StatusBarIconViewEx
-                                    val useTintField = exParams.javaClass.getDeclaredField("useTint")
-                                    useTintField.isAccessible = true
-                                    useTintField.setBoolean(exParams, true)
+                                    // Call original method with faked package
+                                    val result = chain.proceed()
 
-                                    log("Forced useTint=true for HyperModes icon")
+                                    // Restore original package
+                                    pkgField.set(statusBarIcon, Protocol.MODULE_PACKAGE)
+
+                                    return result
                                 }
                             }
                         } catch (t: Throwable) {

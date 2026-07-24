@@ -13,19 +13,27 @@ class StatusBarIconManager(private val context: Context, private val classLoader
 
     private var statusBarService: Any? = null
     private val slotName = "hypermodes"
+    private var isInitialized = false
 
-    init {
+    /**
+     * Lazy initialization of StatusBarService.
+     * Called on first use instead of in constructor to speed up startup.
+     */
+    private fun ensureInitialized() {
+        if (isInitialized) return
+
         try {
             val serviceManagerClass = classLoader.loadClass("android.os.ServiceManager")
             val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
             val binder = getServiceMethod.invoke(null, Context.STATUS_BAR_SERVICE) as IBinder
-            
+
             val iStatusBarServiceClass = classLoader.loadClass("com.android.internal.statusbar.IStatusBarService")
             val asInterfaceMethod = iStatusBarServiceClass.getDeclaredClasses()
                 .find { it.simpleName == "Stub" }
                 ?.getMethod("asInterface", IBinder::class.java)
-            
+
             statusBarService = asInterfaceMethod?.invoke(null, binder)
+            isInitialized = true
             log("StatusBarIconManager initialized, service found: ${statusBarService != null}")
         } catch (e: Exception) {
             log("Failed to initialize StatusBarIconManager: ${e.message}")
@@ -39,6 +47,7 @@ class StatusBarIconManager(private val context: Context, private val classLoader
      * @param contentDescription Description for accessibility.
      */
     fun setIcon(iconResName: String?, contentDescription: String) {
+        ensureInitialized()
         val service = statusBarService ?: return
         val resName = iconResName ?: "ic_stat_zen"
 
@@ -77,6 +86,7 @@ class StatusBarIconManager(private val context: Context, private val classLoader
      * Remove the status bar icon.
      */
     fun removeIcon() {
+        ensureInitialized()
         val service = statusBarService ?: return
         try {
             val removeIconMethod = service.javaClass.getMethod("removeIcon", String::class.java)
