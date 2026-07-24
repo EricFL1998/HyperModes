@@ -570,7 +570,7 @@ fun ModeDetailScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 20.dp)
+                    .padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 5.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -581,10 +581,10 @@ fun ModeDetailScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                // Centered message text
+                // Centered message text with medium weight
                 Text(
                     text = stringResource(R.string.delete_mode_confirm, localizedName),
-                    style = MiuixTheme.textStyles.body1,
+                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 20.dp)
