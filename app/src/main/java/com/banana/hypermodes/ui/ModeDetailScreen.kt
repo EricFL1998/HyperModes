@@ -563,28 +563,33 @@ fun ModeDetailScreen(
             }
         )
 
-        // Delete confirmation dialog
+        // Delete confirmation dialog (HyperOS style - centered title and text)
         top.yukonga.miuix.kmp.overlay.OverlayDialog(
             show = showDeleteConfirm,
             onDismissRequest = { showDeleteConfirm = false }
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)
+                modifier = Modifier
+                    .padding(horizontal = 32.dp, vertical = 28.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Title
+                // Centered title with larger font
                 Text(
                     text = stringResource(R.string.delete_mode_title),
-                    style = MiuixTheme.textStyles.headline2,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    style = MiuixTheme.textStyles.title3,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-                // Message
+                // Centered message text
                 Text(
                     text = stringResource(R.string.delete_mode_confirm, localizedName),
-                    style = MiuixTheme.textStyles.body2,
+                    style = MiuixTheme.textStyles.body1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 28.dp)
                 )
-                // Buttons: cancel | confirm (as per guideline #33)
+                // Buttons: cancel | delete (as per guideline #33)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
