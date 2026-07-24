@@ -51,6 +51,8 @@ class SystemUIHook(private val module: XposedModule) {
                                 pkgField.isAccessible = true
                                 val pkg = pkgField.get(statusBarIcon) as? String
 
+                                log("updateLightDarkTint called for package: $pkg")
+
                                 // If this is our icon, force useTint to true
                                 if (pkg == Protocol.MODULE_PACKAGE) {
                                     // Get mExParams field
@@ -62,10 +64,12 @@ class SystemUIHook(private val module: XposedModule) {
                                     val useTintField = exParams.javaClass.getDeclaredField("useTint")
                                     useTintField.isAccessible = true
                                     useTintField.setBoolean(exParams, true)
+
+                                    log("Forced useTint=true for HyperModes icon")
                                 }
                             }
                         } catch (t: Throwable) {
-                            // Silent fail - don't break SystemUI
+                            log("Hook failed: ${t.message}", t)
                         }
 
                         return chain.proceed()
