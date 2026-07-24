@@ -284,8 +284,6 @@ class BedtimeController(
      * Returns the rule ID.
      */
     private fun findOrCreateBedtimeRule(): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return null
-
         try {
             // Check if rule already exists
             val rules = notificationManager.automaticZenRules
@@ -296,17 +294,10 @@ class BedtimeController(
 
             // Create new rule
             val conditionId = Uri.parse("condition://$BEDTIME_RULE_ID")
-            val rule = AutomaticZenRule(
-                BEDTIME_RULE_NAME,
-                null, // No owner (we control it manually)
-                conditionId,
-                NotificationManager.INTERRUPTION_FILTER_ALARMS, // Allow only alarms
-                true // Enabled
-            )
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                rule.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
-            }
+            val rule = AutomaticZenRule.Builder(BEDTIME_RULE_NAME, conditionId)
+                .setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+                .setEnabled(true)
+                .build()
 
             return notificationManager.addAutomaticZenRule(rule)
         } catch (t: Throwable) {

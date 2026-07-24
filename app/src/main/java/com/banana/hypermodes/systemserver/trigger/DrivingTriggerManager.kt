@@ -2,6 +2,7 @@ package com.banana.hypermodes.systemserver.trigger
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,7 +29,7 @@ class DrivingTriggerManager(
     private val context: Context,
     private val engine: RoutineCoreEngine
 ) {
-    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val bluetoothAdapter: BluetoothAdapter? = context.getSystemService(BluetoothManager::class.java)?.adapter
     private var currentDrivingModeId: String? = null
     private var drivingModes: List<ModeConfig> = emptyList()
     private var isReceiverRegistered = false
