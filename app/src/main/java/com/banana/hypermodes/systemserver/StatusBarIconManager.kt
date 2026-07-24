@@ -44,28 +44,34 @@ class StatusBarIconManager(private val context: Context, private val classLoader
     fun setIcon(iconResName: String?, contentDescription: String) {
         val service = statusBarService ?: return
         val resName = iconResName ?: "ic_stat_zen"
-        
+
         try {
-            val resId = context.resources.getIdentifier(resName, "drawable", Protocol.MODULE_PACKAGE)
+            // Create package context to access our module's resources
+            val moduleContext = context.createPackageContext(
+                Protocol.MODULE_PACKAGE,
+                Context.CONTEXT_IGNORE_SECURITY or Context.CONTEXT_INCLUDE_CODE
+            )
+
+            val resId = moduleContext.resources.getIdentifier(resName, "drawable", Protocol.MODULE_PACKAGE)
             if (resId == 0) {
-                log("Icon resource not found: $resName")
+                log("Icon resource not found: $resName in package ${Protocol.MODULE_PACKAGE}")
                 return
             }
 
             val icon = Icon.createWithResource(Protocol.MODULE_PACKAGE, resId)
-            
+
             // Call IStatusBarService.setIcon(String slot, StatusBarIcon icon)
-            // StatusBarIcon(UserHandle user, String pkg, Icon icon, int iconLevel, int number, 
+            // StatusBarIcon(UserHandle user, String pkg, Icon icon, int iconLevel, int number,
             //               CharSequence contentDescription, Type type, Shape shape)
-            
+
             val statusBarIconClass = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon")
             val userHandleClass = classLoader.loadClass("android.os.UserHandle")
             val systemUser = userHandleClass.getField("SYSTEM").get(null) as UserHandle
-            
+
             // Type and Shape are enums in Android 14+ (HyperOS base)
             val typeEnum = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon\$Type")
             val systemIconType = typeEnum.getField("SystemIcon").get(null)
-            
+
             val shapeEnum = classLoader.loadClass("com.android.internal.statusbar.StatusBarIcon\$Shape")
             val wrapContentShape = shapeEnum.getField("WRAP_CONTENT").get(null)
 
@@ -81,8 +87,8 @@ class StatusBarIconManager(private val context: Context, private val classLoader
 
             val setIconMethod = service.javaClass.getMethod("setIcon", String::class.java, statusBarIconClass)
             setIconMethod.invoke(service, slotName, statusBarIcon)
-            
-            log("Status bar icon set: $resName")
+
+            log("Status bar icon set: $resName (resId=$resId)")
         } catch (e: Exception) {
             log("Failed to set status bar icon: ${e.message}")
             e.printStackTrace()
