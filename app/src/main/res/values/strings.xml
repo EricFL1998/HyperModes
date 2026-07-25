@@ -175,6 +175,14 @@
     <string name="options_none">No options enabled</string>
     <string name="icon_display_customization_action">Customize status bar icons</string>
 
+    <!-- Focus card detail -->
+    <string name="focus_card_title">Focus modes</string>
+    <string name="focus_card_empty">No modes configured</string>
+    <string name="focus_card_open_app">Open HyperModes</string>
+    <string name="focus_card_fallback">Focus mode</string>
+    <string name="focus_card_active">On</string>
+    <string name="focus_card_inactive">Off</string>
+
     <!-- Update Dialog -->
     <string name="new_version_found">New version found</string>
     <string name="current_version">Current version: %1$s</string>

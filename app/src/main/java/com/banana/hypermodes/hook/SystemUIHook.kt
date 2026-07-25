@@ -37,7 +37,8 @@ class SystemUIHook(private val module: XposedModule) {
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         try {
-                            val iconView = chain.thisObject
+                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                            val iconView = getThisObjectMethod.invoke(chain)
 
                             // Get mIcon field
                             val iconField = iconView.javaClass.getDeclaredField("mIcon")

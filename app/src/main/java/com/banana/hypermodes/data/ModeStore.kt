@@ -32,19 +32,20 @@ object ModeStore {
 
     /**
      * Save the mode list to Settings.Global.
-     * Preserves the existing activeModeId if present.
+     * Preserves the existing activeModeId and lastModeId if present.
      */
     fun save(context: Context, modes: List<Mode>) {
         try {
-            // Get existing activeModeId if present
-            val existingActiveModeId = getCurrentActiveModeId(context)
+            val existing = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
+                ?.let { ConfigParser.parseConfig(it) }
 
             // Convert UI models to system_server config models
             val modeConfigs = modes.map { it.toModeConfig() }
 
-            // Build FullConfig with preserved activeModeId
+            // Build FullConfig with preserved activeModeId and lastModeId
             val fullConfig = FullConfig(
-                activeModeId = existingActiveModeId,
+                activeModeId = existing?.activeModeId,
+                lastModeId = existing?.lastModeId,
                 modes = modeConfigs
             )
 

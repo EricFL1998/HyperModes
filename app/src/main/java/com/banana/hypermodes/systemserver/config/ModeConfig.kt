@@ -98,5 +98,6 @@ enum class ContactFilter {
 @Serializable
 data class FullConfig(
     val activeModeId: String? = null,
+    val lastModeId: String? = null,
     val modes: List<ModeConfig>
 )

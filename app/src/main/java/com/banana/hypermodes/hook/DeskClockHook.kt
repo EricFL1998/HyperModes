@@ -29,7 +29,8 @@ class DeskClockHook(private val module: XposedModule) {
             .intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
-                    val app = chain.thisObject as Application
+                    val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                    val app = getThisObjectMethod.invoke(chain) as Application
                     try {
                         registerReceiver(app, classLoader)
                     } catch (t: Throwable) {

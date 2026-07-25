@@ -39,6 +39,12 @@ internal object Reflect {
         field.setInt(instance, value)
     }
 
+    fun setBooleanField(instance: Any, name: String, value: Boolean) {
+        val field = findField(instance.javaClass, name)
+        field.isAccessible = true
+        field.setBoolean(instance, value)
+    }
+
     fun setObjectField(instance: Any, name: String, value: Any?) {
         val field = findField(instance.javaClass, name)
         field.isAccessible = true

@@ -69,7 +69,8 @@ class SettingsHook(private val module: XposedModule) {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
                     try {
-                        val activity = chain.thisObject as? android.app.Activity
+                        val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                        val activity = getThisObjectMethod.invoke(chain) as? android.app.Activity
                         @Suppress("UNCHECKED_CAST")
                         val headers = chain.getArg(0) as? MutableList<Any>
                         if (activity != null && headers != null) {
@@ -206,8 +207,9 @@ class SettingsHook(private val module: XposedModule) {
             module.hook(onCreate).intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
-                    val fragment = chain.thisObject
-                    val context = Reflect.call(fragment, "getContext") as Context
+                    val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                    val fragment = getThisObjectMethod.invoke(chain)
+                    val context = Reflect.call(fragment!!, "getContext") as Context
                     
                     val systemCategory = Reflect.getField(fragment, "mSettingsSystemState") ?: return result
 
@@ -263,8 +265,9 @@ class SettingsHook(private val module: XposedModule) {
             module.hook(onResume).intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
-                    val fragment = chain.thisObject
-                    val context = Reflect.call(fragment, "getContext") as Context
+                    val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                    val fragment = getThisObjectMethod.invoke(chain)
+                    val context = Reflect.call(fragment!!, "getContext") as Context
                     val checkBox = Reflect.call(fragment, "findPreference", PREF_KEY_TOGGLE) ?: return result
                     
                     val isHidden = isHideIconSlotName(context, SLOT_NAME)

@@ -50,9 +50,12 @@ class SystemModeHook(private val module: XposedModule) {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
                     try {
+                        val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                        val thisObject = getThisObjectMethod.invoke(chain)
+
                         val context = ams.getDeclaredField("mContext")
                             .apply { isAccessible = true }
-                            .get(chain.thisObject) as Context
+                            .get(thisObject) as Context
 
                         // Install UniversalPermissionHook for automatic permission grant
                         UniversalPermissionHook(module).install(classLoader)

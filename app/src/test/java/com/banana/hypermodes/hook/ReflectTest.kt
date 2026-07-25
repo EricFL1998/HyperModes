@@ -88,6 +88,18 @@ class ReflectTest {
     }
 
     @Test
+    fun `setBooleanField writes private boolean fields`() {
+        class FlagFixture {
+            private var enabled = false
+            fun enabled() = enabled
+        }
+
+        val fixture = FlagFixture()
+        Reflect.setBooleanField(fixture, "enabled", true)
+        assertEquals(true, fixture.enabled())
+    }
+
+    @Test
     fun `setObjectField writes reference fields`() {
         val f = Fixture()
         Reflect.setObjectField(f, "label", "x")

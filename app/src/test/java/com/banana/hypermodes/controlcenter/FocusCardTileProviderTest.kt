@@ -1,0 +1,574 @@
+package com.banana.hypermodes.controlcenter
+
+import android.content.Context
+import android.content.ContextWrapper
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import com.banana.hypermodes.systemserver.config.ConfigParser
+import com.banana.hypermodes.systemserver.config.DisplayConfig
+import com.banana.hypermodes.systemserver.config.DndLevel
+import com.banana.hypermodes.systemserver.config.FullConfig
+import com.banana.hypermodes.systemserver.config.ModeConfig
+import com.banana.hypermodes.systemserver.config.ModeType
+import com.banana.hypermodes.systemserver.config.NotificationConfig
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class FocusCardTileProviderTest {
+
+    @Test
+    fun `active snapshot maps to active boolean state`() {
+        val fixture = fixture(configJson(activeModeId = "focus", lastModeId = "work"))
+        val tile = fixture.createTile()
+
+        val state = tile.getState()
+
+        assertEquals("hypermodes_focus", state.spec)
+        assertEquals("Focus", state.label)
+        assertEquals(2, state.state)
+        assertTrue(state.value)
+        assertFalse(state.dualTarget)
+        assertTrue(state.handlesLongClick)
+        assertFalse(state.handlesSecondaryClick)
+        assertNotNull(state.contentDescription)
+        assertNotNull(state.icon)
+        assertTrue(tile.isAvailable())
+    }
+
+    @Test
+    fun `remembered inactive snapshot maps to inactive boolean state`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+
+        val state = tile.getState()
+
+        assertEquals("Work", state.label)
+        assertEquals(1, state.state)
+        assertFalse(state.value)
+        assertTrue(tile.isAvailable())
+    }
+
+    @Test
+    fun `empty mode list maps to unavailable state`() {
+        val fixture = fixture(ConfigParser.serializeConfig(FullConfig(modes = emptyList())))
+        val tile = fixture.createTile()
+
+        val state = tile.getState()
+
+        assertEquals("hypermodes_focus", state.spec)
+        assertEquals(0, state.state)
+        assertFalse(state.value)
+        assertFalse(tile.isAvailable())
+    }
+
+    @Test
+    fun `callback receives state after refresh`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.refreshState()
+
+        assertEquals(1, callback.states.size)
+        assertEquals("Work", callback.states.single().label)
+    }
+
+    @Test
+    fun `multiple listener tokens share one observer and close after final token stops`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val tokenA = Any()
+        val tokenB = Any()
+
+        tile.setListening(tokenA, true)
+        tile.setListening(tokenA, true)
+        tile.setListening(tokenB, true)
+
+        assertTrue(tile.isListening())
+        assertEquals(1, fixture.store.observeCalls)
+        assertEquals(0, fixture.store.closeCalls)
+
+        tile.setListening(tokenA, false)
+
+        assertTrue(tile.isListening())
+        assertEquals(1, fixture.store.observeCalls)
+        assertEquals(0, fixture.store.closeCalls)
+
+        tile.setListening(tokenB, false)
+
+        assertFalse(tile.isListening())
+        assertEquals(1, fixture.store.observeCalls)
+        assertEquals(1, fixture.store.closeCalls)
+    }
+
+    @Test
+    fun `store observer refreshes callbacks`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+        tile.setListening(Any(), true)
+
+        fixture.store.fireChange()
+
+        assertEquals(1, callback.states.size)
+        assertEquals("Work", callback.states.single().label)
+    }
+
+    @Test
+    fun `click deactivates active mode`() {
+        val fixture = fixture(configJson(activeModeId = "focus", lastModeId = "work"))
+        val tile = fixture.createTile()
+
+        tile.click()
+
+        val config = ConfigParser.parseConfig(fixture.store.json!!)
+        assertNull(config.activeModeId)
+        assertEquals("focus", config.lastModeId)
+        assertFalse(tile.getState().value)
+    }
+
+    @Test
+    fun `click activates inactive displayed mode`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+
+        tile.click()
+
+        val config = ConfigParser.parseConfig(fixture.store.json!!)
+        assertEquals("work", config.activeModeId)
+        assertEquals("work", config.lastModeId)
+        assertTrue(tile.getState().value)
+    }
+
+    @Test
+    fun `long click shows detail immediately when already on main thread`() {
+        val queuedUiTasks = mutableListOf<() -> Unit>()
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ -> FakeDetailAdapter },
+            postToUi = { task -> queuedUiTasks += task },
+            isMainThread = { true }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.longClick()
+
+        assertEquals(listOf(true), callback.detailEvents)
+        assertEquals(0, queuedUiTasks.size)
+    }
+
+    @Test
+    fun `long click posts detail notify when off main thread`() {
+        val queuedUiTasks = mutableListOf<() -> Unit>()
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ -> FakeDetailAdapter },
+            postToUi = { task -> queuedUiTasks += task },
+            isMainThread = { false }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.longClick()
+
+        assertEquals(emptyList<Boolean>(), callback.detailEvents)
+        assertEquals(1, queuedUiTasks.size)
+
+        queuedUiTasks.single().invoke()
+
+        assertEquals(listOf(true), callback.detailEvents)
+    }
+
+    @Test
+    fun `long click does not show detail without adapter`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.longClick()
+
+        assertEquals(emptyList<Boolean>(), callback.detailEvents)
+    }
+
+    @Test
+    fun `detail dismiss closes through same callback identity used to open`() {
+        lateinit var dismiss: () -> Unit
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { onDismiss, _ ->
+                dismiss = onDismiss
+                FakeDetailAdapter
+            }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.longClick()
+        dismiss()
+
+        assertEquals(listOf(true, false), callback.detailEvents)
+        assertEquals(1, callback.identityHashes.distinct().size)
+    }
+
+    @Test
+    fun `production detail factory path refreshes state before closing through stable callback identity`() {
+        lateinit var dismiss: () -> Unit
+        lateinit var refresh: () -> Unit
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { onDismiss, onStateRefresh ->
+                dismiss = onDismiss
+                refresh = onStateRefresh
+                FakeDetailAdapter
+            }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        tile.longClick()
+        refresh()
+        dismiss()
+
+        assertEquals(listOf("detail:true", "state:Work", "detail:false"), callback.events)
+        assertEquals(1, callback.identityHashes.distinct().size)
+    }
+
+    @Test
+    fun `detail dismiss is safe after callback is removed`() {
+        lateinit var dismiss: () -> Unit
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { onDismiss, _ ->
+                dismiss = onDismiss
+                FakeDetailAdapter
+            }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+        tile.longClick()
+        tile.removeCallback(callback)
+
+        dismiss()
+
+        assertEquals(listOf(true), callback.detailEvents)
+    }
+
+    @Test
+    fun `secondary clicks do not mutate config or show detail`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+        val before = fixture.store.json
+
+        tile.secondaryClick()
+        tile.secondClick()
+
+        assertEquals(before, fixture.store.json)
+        assertEquals(emptyList<Boolean>(), callback.detailEvents)
+    }
+
+    @Test
+    fun `missing resources still produce non null tile icon`() {
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            pluginContext = MissingResourceContext(),
+            moduleContext = MissingResourceContext()
+        )
+        val tile = fixture.createTile()
+
+        val state = tile.getState()
+
+        assertNotNull(state.icon)
+        val icon = state.icon as FakeDrawableIcon
+        assertNotNull(icon.drawable)
+    }
+
+    @Test
+    fun `destroy clears callbacks and detail so dismiss and long click stop working`() {
+        lateinit var dismiss: () -> Unit
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { onDismiss, _ ->
+                dismiss = onDismiss
+                FakeDetailAdapter
+            }
+        )
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+        tile.longClick()
+
+        tile.destroy()
+        dismiss()
+        tile.longClick()
+        tile.showDetail(true)
+
+        assertEquals(listOf(true), callback.detailEvents)
+    }
+
+    @Test
+    fun `destroy closes observer clears callbacks and marks destroyed`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+        tile.setListening(Any(), true)
+
+        tile.destroy()
+        tile.refreshState()
+
+        assertTrue(tile.isDestroyed())
+        assertFalse(tile.isListening())
+        assertEquals(1, fixture.store.closeCalls)
+        assertEquals(0, callback.states.size)
+    }
+
+    @Test
+    fun `primitive returning methods never return null`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+
+        assertTrue(tile.isAvailable())
+        assertFalse(tile.isListening())
+        assertFalse(tile.isDestroyed())
+        assertTrue(tile.isTileReady())
+        assertFalse(tile.isConnected())
+        assertEquals(0, tile.getCurrentTileUser())
+        assertEquals(0, tile.getMetricsCategory())
+        assertEquals(0L, tile.unknownLong())
+        assertEquals(0.toByte(), tile.unknownByte())
+        assertEquals(0.toShort(), tile.unknownShort())
+        assertEquals(0f, tile.unknownFloat())
+        assertEquals(0.0, tile.unknownDouble(), 0.0)
+        assertEquals(' ', tile.unknownChar())
+    }
+
+    @Test
+    fun `populate returns the same log maker instance`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val logMaker = FakeLogMaker()
+
+        val returned = tile.populate(logMaker)
+
+        assertSame(logMaker, returned)
+    }
+
+    @Test
+    fun `equals hashCode and toString behave safely`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val tile = fixture.createTile()
+        val same = tile
+        val other = fixture.createTile()
+
+        assertTrue(tile == same)
+        assertFalse(tile == other)
+        assertFalse(tile.equals("not a tile"))
+        assertEquals(System.identityHashCode(tile), tile.hashCode())
+        assertNotEquals("", tile.toString())
+    }
+
+    private fun fixture(
+        json: String,
+        detailFactory: FocusCardDetailFactory? = null,
+        pluginContext: Context = TestContext(),
+        moduleContext: Context = TestContext(),
+        postToUi: ((() -> Unit) -> Unit) = { task -> task() },
+        isMainThread: () -> Boolean = { true }
+    ): Fixture {
+        val store = RecordingObservableStore(json)
+        val repository = FocusCardStateRepository(store, ModeIndexSelector { 0 })
+        val classes = FocusCardTileClasses(
+            tileInterface = FakeTile::class.java,
+            booleanStateClass = FakeBooleanState::class.java,
+            drawableIconClass = FakeDrawableIcon::class.java,
+            detailAdapterInterface = FakeDetailAdapterInterface::class.java
+        )
+        return Fixture(
+            provider = FocusCardTileProvider(
+                pluginContext = pluginContext,
+                moduleContext = moduleContext,
+                classes = classes,
+                repository = repository,
+                observableStore = store,
+                detailFactory = detailFactory,
+                postToUi = postToUi,
+                isMainThread = isMainThread
+            ),
+            store = store
+        )
+    }
+
+    private fun configJson(activeModeId: String?, lastModeId: String?): String {
+        return ConfigParser.serializeConfig(
+            FullConfig(
+                activeModeId = activeModeId,
+                lastModeId = lastModeId,
+                modes = listOf(mode("work", "Work"), mode("focus", "Focus"))
+            )
+        )
+    }
+
+    private fun mode(id: String, name: String): ModeConfig {
+        return ModeConfig(
+            id = id,
+            name = name,
+            icon = "🧘",
+            type = ModeType.SCHEDULED,
+            notification = NotificationConfig(DndLevel.PRIORITY),
+            display = DisplayConfig(),
+            pausedApps = emptyList()
+        )
+    }
+
+    private data class Fixture(
+        val provider: FocusCardTileProvider,
+        val store: RecordingObservableStore
+    ) {
+        fun createTile(): FakeTile = provider.create() as FakeTile
+    }
+
+    private class RecordingObservableStore(var json: String?) : ObservableFocusCardConfigStore {
+        val writes = mutableListOf<String>()
+        var observeCalls = 0
+        var closeCalls = 0
+        private var observer: (() -> Unit)? = null
+
+        override fun read(): String? = json
+
+        override fun write(json: String): Boolean {
+            writes += json
+            this.json = json
+            return true
+        }
+
+        override fun observe(onChanged: () -> Unit): AutoCloseable {
+            observeCalls += 1
+            observer = onChanged
+            return AutoCloseable {
+                closeCalls += 1
+                if (observer === onChanged) observer = null
+            }
+        }
+
+        fun fireChange() {
+            observer?.invoke()
+        }
+    }
+
+    private open class TestContext : ContextWrapper(null) {
+        override fun getApplicationContext(): Context = this
+    }
+
+    private class MissingResourceContext : ContextWrapper(null) {
+        override fun getApplicationContext(): Context = this
+        override fun getPackageName(): String = "missing.resources"
+    }
+
+    private interface FakeCallback {
+        fun onStateChanged(state: FakeBooleanState)
+        fun onShowDetail(show: Boolean)
+    }
+
+    private class RecordingCallback : FakeCallback {
+        val states = mutableListOf<FakeBooleanState>()
+        val detailEvents = mutableListOf<Boolean>()
+        val identityHashes = mutableListOf<Int>()
+        val events = mutableListOf<String>()
+
+        override fun onStateChanged(state: FakeBooleanState) {
+            states += state
+            events += "state:${state.label}"
+        }
+
+        override fun onShowDetail(show: Boolean) {
+            identityHashes += System.identityHashCode(this)
+            detailEvents += show
+            events += "detail:$show"
+        }
+    }
+
+    private class FakeBooleanState {
+        @JvmField var spec: String? = null
+        @JvmField var label: CharSequence? = null
+        @JvmField var contentDescription: CharSequence? = null
+        @JvmField var icon: Any? = null
+        @JvmField var state: Int = 0
+        @JvmField var value: Boolean = false
+        @JvmField var dualTarget: Boolean = true
+        @JvmField var handlesLongClick: Boolean = false
+        @JvmField var handlesSecondaryClick: Boolean = true
+    }
+
+    private interface FakeTile {
+        fun addCallback(callback: FakeCallback)
+        fun removeCallback(callback: FakeCallback)
+        fun removeCallbacks()
+        fun removeCallbacksByType(type: Int)
+        fun getState(): FakeBooleanState
+        fun getTileSpec(): String
+        fun setTileSpec(spec: String)
+        fun getTileLabel(): CharSequence
+        fun isAvailable(): Boolean
+        fun isListening(): Boolean
+        fun isDestroyed(): Boolean
+        fun isTileReady(): Boolean
+        fun isConnected(): Boolean
+        fun getCurrentTileUser(): Int
+        fun getMetricsCategory(): Int
+        fun getMetricsSpec(): String?
+        fun getInstanceId(): Any?
+        fun setListening(token: Any, listening: Boolean)
+        fun click()
+        fun click(view: Any?)
+        fun longClick()
+        fun longClick(view: Any?)
+        fun secondaryClick()
+        fun secondaryClick(view: Any?)
+        fun secondClick()
+        fun secondClick(view: Any?)
+        fun refreshState()
+        fun destroy()
+        fun getDetailAdapter(): FakeDetailAdapterInterface?
+        fun setDetailListening(show: Boolean)
+        fun showDetail(show: Boolean)
+        fun userSwitch(user: Int)
+        fun populate(logMaker: FakeLogMaker): FakeLogMaker
+        fun unknownLong(): Long
+        fun unknownByte(): Byte
+        fun unknownShort(): Short
+        fun unknownFloat(): Float
+        fun unknownDouble(): Double
+        fun unknownChar(): Char
+    }
+
+    private interface FakeDetailAdapterInterface
+
+    private object FakeDetailAdapter : FakeDetailAdapterInterface
+
+    private class FakeLogMaker
+
+    private class FakeDrawableIcon(val drawable: Drawable) {
+        init {
+            require(drawable !is NullDrawable)
+        }
+    }
+
+    private class NullDrawable : ColorDrawable()
+}
