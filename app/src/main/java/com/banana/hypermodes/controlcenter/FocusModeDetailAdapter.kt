@@ -37,16 +37,20 @@ internal data class FocusModeRowDescriptor(
     val selected: Boolean
 )
 
-internal enum class FocusDetailFallbackStage {
+enum class FocusDetailFallbackStage {
     NATIVE_API_UNAVAILABLE,
     NATIVE_CONVERT,
     NATIVE_ITEMS,
     NATIVE_CALLBACK,
     MANUAL_BUILD,
-    SAFE_BUILD
+    SAFE_BUILD,
+    CONTENT_CREATION,
+    ADAPTER_BINDING,
+    STATE_TRANSITION,
+    REGISTRY_OPERATION
 }
 
-internal fun interface FocusDetailDiagnostic {
+fun interface FocusDetailDiagnostic {
     fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?)
 }
 

@@ -5,11 +5,28 @@ import org.junit.Test
 
 class FocusNativeDetailPolicyTest {
 
+    private fun createTestSession(): FocusModeDetailSession {
+        return FocusModeDetailSession(
+            repository = FocusCardStateRepository(
+                store = object : FocusCardConfigStore {
+                    override fun read() = null
+                    override fun write(json: String) = true
+                },
+                selector = ModeIndexSelector { 0 }
+            ),
+            onDismiss = {},
+            nativeDetailContentApi = null,
+            diagnostic = object : FocusDetailDiagnostic {
+                override fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?) {}
+            }
+        )
+    }
+
     @Test
     fun `registered Focus content with 25 items returns 25`() {
         val registry = FocusNativeDetailRegistry
         val content = Any()
-        val session = FocusModeDetailSession()
+        val session = createTestSession()
         registry.registerContent(content, session)
 
         val result = FocusNativeDetailPolicy.shouldReturnFullItemCount(
@@ -41,7 +58,7 @@ class FocusNativeDetailPolicyTest {
     fun `wrong suffix returns null`() {
         val registry = FocusNativeDetailRegistry
         val content = Any()
-        val session = FocusModeDetailSession()
+        val session = createTestSession()
         registry.registerContent(content, session)
 
         val result = FocusNativeDetailPolicy.shouldReturnFullItemCount(
@@ -58,7 +75,7 @@ class FocusNativeDetailPolicyTest {
     fun `zero items returns zero`() {
         val registry = FocusNativeDetailRegistry
         val content = Any()
-        val session = FocusModeDetailSession()
+        val session = createTestSession()
         registry.registerContent(content, session)
 
         val result = FocusNativeDetailPolicy.shouldReturnFullItemCount(
@@ -75,7 +92,7 @@ class FocusNativeDetailPolicyTest {
     fun `registered adapter maps to hypermodes_focus`() {
         val registry = FocusNativeDetailRegistry
         val adapter = Any()
-        val session = FocusModeDetailSession()
+        val session = createTestSession()
         registry.registerSession(adapter, session)
 
         val result = FocusNativeDetailPolicy.shouldMapToFocusSpec(adapter, registry)
@@ -97,7 +114,7 @@ class FocusNativeDetailPolicyTest {
     fun `registered adapter uses specific height`() {
         val registry = FocusNativeDetailRegistry
         val adapter = Any()
-        val session = FocusModeDetailSession()
+        val session = createTestSession()
         registry.registerSession(adapter, session)
 
         val result = FocusNativeDetailPolicy.shouldUseSpecificHeight(adapter, registry)

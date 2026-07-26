@@ -44,6 +44,3 @@ object FocusNativeDetailRegistry {
         return contentSessions[content]?.get()
     }
 }
-
-// Placeholder for session class
-class FocusModeDetailSession
