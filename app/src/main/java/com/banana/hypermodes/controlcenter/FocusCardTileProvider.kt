@@ -145,6 +145,10 @@ private class TileInvocationHandler(
                 refreshState()
                 null
             }
+            "onDetailPanelHidden" -> {
+                handleDetailPanelHidden()
+                null
+            }
             else -> defaultValue(method.returnType)
         }
     }
@@ -408,6 +412,16 @@ private class TileInvocationHandler(
         runOnUi {
             if (destroyed) return@runOnUi
             targets.forEach { callback -> invokeCallback(callback, "onShowDetail", show) }
+        }
+    }
+
+    private fun handleDetailPanelHidden() {
+        if (destroyed) return
+        Log.d("FocusCardTileProvider", "handleDetailPanelHidden: posting refresh")
+        runOnUi {
+            if (!destroyed) {
+                refreshState()
+            }
         }
     }
 
