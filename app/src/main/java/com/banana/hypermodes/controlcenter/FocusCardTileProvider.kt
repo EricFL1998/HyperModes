@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Looper
+import android.util.Log
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.ModeIconMapper
 import java.lang.reflect.InvocationHandler
@@ -121,7 +122,15 @@ private class TileInvocationHandler(
                 null
             }
             "getDetailAdapter" -> getOrCreateDetailAdapter()
-            "setDetailListening" -> null
+            "setDetailListening" -> {
+                val listening = arguments.firstOrNull() as? Boolean ?: false
+                Log.d("FocusCardTileProvider", "setDetailListening: listening=$listening")
+                if (!listening) {
+                    Log.d("FocusCardTileProvider", "setDetailListening: detail closed, refreshing state")
+                    refreshState()
+                }
+                null
+            }
             "showDetail" -> {
                 if (!destroyed) notifyShowDetail(arguments.firstOrNull() as? Boolean ?: false)
                 null
@@ -152,15 +161,27 @@ private class TileInvocationHandler(
 
     private fun setListening(token: Any, listening: Boolean) {
         if (destroyed) return
+        Log.d("FocusCardTileProvider", "setListening: token=$token, listening=$listening, current listeners=${listenerTokens.size}")
         if (listening) {
             val wasEmpty = listenerTokens.isEmpty()
             listenerTokens.add(token)
-            if (wasEmpty && listenerTokens.isNotEmpty()) {
-                observer = observableStore.observe { refreshState() }
+            // Install observer on first listener OR keep it always active
+            if (observer == null) {
+                observer = observableStore.observe {
+                    Log.d("FocusCardTileProvider", "observableStore changed, triggering refreshState")
+                    refreshState()
+                }
+                Log.d("FocusCardTileProvider", "setListening: observer installed (persistent)")
+            }
+            // Immediately refresh when starting to listen
+            if (wasEmpty) {
+                refreshState()
             }
         } else {
             listenerTokens.remove(token)
-            if (listenerTokens.isEmpty()) closeObserver()
+            // Keep observer alive even when no listeners - this ensures
+            // the tile updates immediately when control center reopens
+            Log.d("FocusCardTileProvider", "setListening: listener removed, but observer kept active for next open")
         }
     }
 
@@ -180,12 +201,15 @@ private class TileInvocationHandler(
 
     private fun refreshState() {
         if (destroyed) return
+        Log.d("FocusCardTileProvider", "refreshState: called, building new state")
         val state = buildState()
         currentState = state
         val targets = callbacks.toList()
+        Log.d("FocusCardTileProvider", "refreshState: notifying ${targets.size} callbacks")
         runOnUi {
             if (destroyed) return@runOnUi
             targets.forEach { callback -> invokeCallback(callback, "onStateChanged", state) }
+            Log.d("FocusCardTileProvider", "refreshState: all callbacks notified")
         }
     }
 
@@ -205,7 +229,7 @@ private class TileInvocationHandler(
         val snapshot = repository.loadOrInitialize()
         val mode = snapshot.displayedMode
         val active = snapshot.isActive && mode != null
-        val label = mode?.name ?: fallbackLabel()
+        val label = localizeModeName(mode?.name) ?: fallbackLabel()
         setObjectFieldIfPresent(state, "spec", tileSpec)
         setObjectFieldIfPresent(state, "label", label)
         setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, active, mode != null))
@@ -226,7 +250,30 @@ private class TileInvocationHandler(
     }
 
     private fun tileLabel(): CharSequence {
-        return repository.loadOrInitialize().displayedMode?.name ?: fallbackLabel()
+        return localizeModeName(repository.loadOrInitialize().displayedMode?.name) ?: fallbackLabel()
+    }
+
+    private fun localizeModeName(name: String?): CharSequence? {
+        if (name == null) return null
+        // Only translate the three default modes; keep custom mode names as-is
+        return when (name) {
+            "Do Not Disturb" -> stringFromContext(R.string.mode_dnd, "勿扰模式")
+            "Bedtime" -> stringFromContext(R.string.mode_bedtime, "睡眠模式")
+            "Driving" -> stringFromContext(R.string.mode_driving, "行驶模式")
+            else -> name
+        }
+    }
+
+    private fun stringFromContext(id: Int, fallback: String): String {
+        return try {
+            moduleContext.resources?.getString(id) ?: fallback
+        } catch (_: Throwable) {
+            try {
+                pluginContext.resources?.getString(id) ?: fallback
+            } catch (_: Throwable) {
+                fallback
+            }
+        }
     }
 
     private fun fallbackLabel(): CharSequence = appLabel(pluginContext) ?: appLabel(moduleContext) ?: "HyperModes"

@@ -419,7 +419,7 @@ private class DetailInvocationHandler(
             "openDetailEvent", "closeDetailEvent", "moreSettingsEvent" -> invalidEvent
             "createDetailView" -> createDetailView(arguments)
             "shouldAnimate" -> true
-            "hasHeader" -> true
+            "hasHeader" -> false
             "getContainerHeight" -> -1
             else -> defaultValue(method.returnType)
         }
@@ -467,7 +467,8 @@ private class DetailInvocationHandler(
 
         val list = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 8))
+            // Restored padding for better centering after removing header
+            setPadding(dp(context, 16), dp(context, 16), dp(context, 16), dp(context, 16))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -512,7 +513,7 @@ private class DetailInvocationHandler(
             isSelected = descriptor.selected
             isActivated = descriptor.selected
             tag = "focus-mode-row-${descriptor.id}"
-            setPadding(dp(context, 12), dp(context, 10), dp(context, 12), dp(context, 10))
+            setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14))
             setSelectableItemBackground(context)
             contentDescription = descriptor.contentDescription
             setOnClickListener {
@@ -550,18 +551,21 @@ private class DetailInvocationHandler(
         }
         val title = TextView(context).apply {
             text = descriptor.title
-            isActivated = descriptor.selected
-            isSelected = descriptor.selected
+            textSize = 16f
+            setTextColor(0xFFFFFFFF.toInt())
             if (descriptor.selected) setTypeface(typeface, Typeface.BOLD)
         }
-        val subtitle = TextView(context).apply {
-            text = descriptor.status
-            isActivated = descriptor.selected
-            isSelected = descriptor.selected
-            textSize = 12f
-        }
         textContainer.addView(title)
-        textContainer.addView(subtitle)
+
+        // Only show status if it's meaningful (not "false" or empty)
+        if (descriptor.status.isNotBlank() && descriptor.status != "false" && descriptor.status != "Off") {
+            val subtitle = TextView(context).apply {
+                text = descriptor.status
+                textSize = 13f
+                setTextColor(0xCCFFFFFF.toInt())
+            }
+            textContainer.addView(subtitle)
+        }
         row.addView(
             textContainer,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -577,12 +581,19 @@ private class DetailInvocationHandler(
     }
 
     private fun localizedRow(row: FocusModeRowDescriptor): FocusModeRowDescriptor {
-        val title = row.title.ifBlank { stringFromPlugin(R.string.focus_card_fallback, "Focus mode") }
-        val status = activeStateText(row.selected)
+        // Only translate the three default modes; keep custom mode names as-is
+        val localizedTitle = when (row.title) {
+            "Do Not Disturb" -> stringFromPlugin(R.string.mode_dnd, "勿扰模式")
+            "Bedtime" -> stringFromPlugin(R.string.mode_bedtime, "睡眠模式")
+            "Driving" -> stringFromPlugin(R.string.mode_driving, "行驶模式")
+            else -> row.title.ifBlank { stringFromPlugin(R.string.focus_card_fallback, "Focus mode") }
+        }
+
+        // No status display at all
         return row.copy(
-            title = title,
-            status = status,
-            contentDescription = "$title, $status"
+            title = localizedTitle,
+            status = "",
+            contentDescription = localizedTitle
         )
     }
 
@@ -654,10 +665,10 @@ private class DetailInvocationHandler(
 
     private fun stringFromPlugin(id: Int, fallback: String): String {
         return try {
-            pluginContext.resources?.getString(id) ?: fallback
+            moduleContext.resources?.getString(id) ?: fallback
         } catch (_: Throwable) {
             try {
-                moduleContext.resources?.getString(id) ?: fallback
+                pluginContext.resources?.getString(id) ?: fallback
             } catch (_: Throwable) {
                 fallback
             }

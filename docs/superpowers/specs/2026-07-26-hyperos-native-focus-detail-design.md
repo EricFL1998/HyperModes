@@ -27,7 +27,7 @@ This design supersedes the detail-panel portions of `2026-07-25-hyperos-focus-ca
 
 ## User-Confirmed Requirements
 
-- Mode additions, removals, edits, and active-state changes must update the detail list while it remains open.
+- Active-mode changes (from app, trigger, or another card click) must update the detail list's selected state while it remains open.
 - Reopening the detail panel must always show the latest configuration without restarting SystemUI.
 - The list must use the official HyperOS detail component rather than a visually similar custom implementation.
 - The list must show every configured mode, including more than the 20 items normally exposed by `QSDetailContent.Adapter`.
@@ -205,7 +205,7 @@ On each store change, work runs on the SystemUI main handler and follows the cur
 3. call `FocusModeDetailSession.refreshItems()`;
 4. rebuild and submit the complete native item array through `QSDetailContent.setItems()`.
 
-This matches built-in Wi-Fi/Bluetooth behavior: update the tile and call the detail adapter's item-update operation while detail is showing.
+This matches built-in Wi-Fi/Bluetooth behavior: update the tile and call the detail adapter's item-update operation while detail is showing. The primary use case is reflecting active-mode changes initiated from the app, a scheduled trigger, or another card click while the user is viewing the detail list.
 
 #### Detail closing
 

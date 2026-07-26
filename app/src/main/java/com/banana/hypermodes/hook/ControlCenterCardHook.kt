@@ -462,10 +462,24 @@ class ControlCenterCardHook(private val module: XposedModule) {
         ): Boolean {
             val original = rightPanelContent.toList()
             rightPanelContent.removeAll { it === tailProxy }
-            val footerIndex = rightFooterSpace?.let { footer ->
-                rightPanelContent.indexOfFirst { it === footer }
-            } ?: -1
-            val insertIndex = if (footerIndex >= 0) footerIndex else rightPanelContent.size
+
+            // Find DeviceCenterEntryController (priority=50) and insert AFTER it
+            // If not found, fall back to before FooterSpaceController
+            val deviceCenterIndex = rightPanelContent.indexOfFirst { item ->
+                item.javaClass.simpleName == "DeviceCenterEntryController"
+            }
+
+            val insertIndex = if (deviceCenterIndex >= 0) {
+                // Found device center: insert right after it
+                deviceCenterIndex + 1
+            } else {
+                // Fallback: insert before footer
+                val footerIndex = rightFooterSpace?.let { footer ->
+                    rightPanelContent.indexOfFirst { it === footer }
+                } ?: -1
+                if (footerIndex >= 0) footerIndex else rightPanelContent.size
+            }
+
             rightPanelContent.add(insertIndex, tailProxy)
             return rightPanelContent.size != original.size ||
                 rightPanelContent.indices.any { index -> rightPanelContent[index] !== original[index] }
@@ -480,6 +494,16 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 val rightFooterSpace = featureSet.rightFooterSpaceField.get(distributor)
                 val childControllers = featureSet.childControllersField.get(distributor) as? Iterable<*>
                     ?: return false
+
+                // Diagnostic: log panel structure
+                Log.d("ControlCenterCardHook", "rightPanelContent structure (${rightPanelContent.size} items):")
+                rightPanelContent.forEachIndexed { index, item ->
+                    val isFooter = item === rightFooterSpace
+                    val className = item?.javaClass?.simpleName ?: "null"
+                    val priority = item?.let { runCatching { Reflect.call(it, "getPriority") }.getOrNull() }
+                    Log.d("ControlCenterCardHook", "  [$index] $className (priority=$priority)${if (isFooter) " <- FOOTER" else ""}")
+                }
+
                 val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, classLoader)
                 val cardsController = childControllers.firstOrNull { child ->
                     child != null && child.javaClass == cardsControllerClass
