@@ -10,6 +10,8 @@ import com.banana.hypermodes.controlcenter.FocusCardStateRepository
 import com.banana.hypermodes.controlcenter.FocusCardTileClasses
 import com.banana.hypermodes.controlcenter.FocusCardTileProvider
 import com.banana.hypermodes.controlcenter.FocusModeDetailAdapter
+import com.banana.hypermodes.controlcenter.FocusNativeDetailPolicy
+import com.banana.hypermodes.controlcenter.FocusNativeDetailRegistry
 import com.banana.hypermodes.controlcenter.GlobalFocusCardConfigStore
 import com.banana.hypermodes.controlcenter.ModeIndexSelector
 import com.banana.hypermodes.protocol.Protocol
@@ -111,6 +113,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
             val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, classLoader)
             val preparePanelUpdateMethod = cardsControllerClass.getDeclaredMethod(PREPARE_PANEL_UPDATE)
             val tailFeatureSet = validatedTailFeatureSet(classLoader)
+            val nativeDetailFeatureSet = validatedNativeDetailFeatureSet(classLoader)
 
             if (specsMethod.parameterTypes.isNotEmpty() ||
                 createTileMethod.parameterTypes.size != 1 ||
@@ -133,6 +136,14 @@ class ControlCenterCardHook(private val module: XposedModule) {
             } else {
                 hookListItems(tailFeatureSet.listItemsMethod)
                 hookDistributePanels(tailFeatureSet.distributePanelsMethod, classLoader)
+            }
+            if (nativeDetailFeatureSet == null) {
+                log("Focus native detail feature set unavailable; detail panel will use legacy layout")
+            } else {
+                hookItemCount(nativeDetailFeatureSet.getItemCountMethod, nativeDetailFeatureSet.qsDetailContentClass)
+                hookAdapterMapping(nativeDetailFeatureSet.secondaryParamsFromMethod)
+                hookSpecificHeight(nativeDetailFeatureSet.getUseSpecificHeightMethod)
+                hookPanelHidden(nativeDetailFeatureSet.onHiddenMethod)
             }
         } catch (t: Throwable) {
             unmarkInstalling(classLoader)
@@ -233,6 +244,165 @@ class ControlCenterCardHook(private val module: XposedModule) {
             })
     }
 
+    private fun hookItemCount(method: Method, qsDetailContentClass: Class<*>) {
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val original = chain.proceed()
+                    return try {
+                        val innerAdapter = chain.thisObject ?: return original
+                        val outerContent = FocusNativeDetailPolicy.resolveOuterContent(innerAdapter, qsDetailContentClass)
+                        val suffix = outerContent?.let { FocusNativeDetailPolicy.readSuffix(it) }
+                        val items = outerContent?.let { FocusNativeDetailPolicy.readItemsArray(it) }
+                        val itemsLength = items?.size ?: 0
+
+                        val fullCount = FocusNativeDetailPolicy.shouldReturnFullItemCount(
+                            outerContent = outerContent,
+                            suffix = suffix,
+                            itemsLength = itemsLength,
+                            registry = FocusNativeDetailRegistry
+                        )
+
+                        fullCount ?: original
+                    } catch (t: Throwable) {
+                        log("failed to intercept item count in $QS_DETAIL_CONTENT_CLASS\$Adapter.getItemCount", t)
+                        original
+                    }
+                }
+            })
+    }
+
+    private fun hookAdapterMapping(method: Method) {
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val adapter = chain.args.firstOrNull()
+                    val focusSpec = FocusNativeDetailPolicy.shouldMapToFocusSpec(
+                        adapter = adapter,
+                        registry = FocusNativeDetailRegistry
+                    )
+
+                    return if (focusSpec != null) {
+                        try {
+                            // Build SecondaryParams with tileSpec=focusSpec
+                            val paramsClass = method.returnType
+                            val constructor = paramsClass.getDeclaredConstructor(String::class.java)
+                            constructor.isAccessible = true
+                            constructor.newInstance(focusSpec)
+                        } catch (t: Throwable) {
+                            log("failed to build SecondaryParams for Focus adapter in $SECONDARY_PARAMS_CLASS.from", t)
+                            chain.proceed()
+                        }
+                    } else {
+                        chain.proceed()
+                    }
+                }
+            })
+    }
+
+    private fun hookSpecificHeight(method: Method) {
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val original = chain.proceed()
+                    return try {
+                        val params = chain.thisObject ?: return original
+                        val adapter = reflectAdapter(params)
+
+                        val shouldUse = FocusNativeDetailPolicy.shouldUseSpecificHeight(
+                            adapter = adapter,
+                            registry = FocusNativeDetailRegistry
+                        )
+
+                        shouldUse ?: original
+                    } catch (t: Throwable) {
+                        log("failed to intercept specific height in $DETAIL_PANEL_PARAMS_CLASS.getUseSpecificHeight", t)
+                        original
+                    }
+                }
+            })
+    }
+
+    private fun hookPanelHidden(method: Method) {
+        module.hook(method)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val delegate = chain.thisObject
+                    val adapter = delegate?.let { reflectAdapter(it) }
+                    val session = adapter?.let { FocusNativeDetailRegistry.adapterSession(it) }
+
+                    val result = chain.proceed()
+
+                    if (session != null) {
+                        try {
+                            session.onPanelHidden()
+                            if (session.hasPendingCardRefresh()) {
+                                session.clearPendingCardRefresh()
+                                notifyPendingRefresh(delegate)
+                            }
+                        } catch (t: Throwable) {
+                            log("failed to notify panel hidden for Focus session in $DETAIL_PANEL_DELEGATE_CLASS.onHidden", t)
+                        }
+                    }
+
+                    return result
+                }
+            })
+    }
+
+    private fun reflectAdapter(instance: Any): Any? {
+        return try {
+            val field = findFieldByType(instance.javaClass, "adapter", "mAdapter", "detailAdapter")
+            field?.let {
+                it.isAccessible = true
+                it.get(instance)
+            }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun findFieldByType(clazz: Class<*>, vararg names: String): java.lang.reflect.Field? {
+        var current: Class<*>? = clazz
+        while (current != null) {
+            for (name in names) {
+                try {
+                    return current.getDeclaredField(name)
+                } catch (_: NoSuchFieldException) {
+                    continue
+                }
+            }
+            current = current.superclass
+        }
+        return null
+    }
+
+    private fun notifyPendingRefresh(delegate: Any) {
+        try {
+            // Find tile provider through delegate
+            val tileProviderField = findFieldByType(delegate.javaClass, "tileProvider", "provider", "mProvider")
+            val tileProvider = tileProviderField?.let {
+                it.isAccessible = true
+                it.get(delegate)
+            } ?: return
+
+            // Call onDetailPanelHidden on tile provider
+            val method = tileProvider.javaClass.declaredMethods.firstOrNull {
+                it.name == "onDetailPanelHidden" && it.parameterTypes.isEmpty()
+            }
+            if (method != null) {
+                method.isAccessible = true
+                method.invoke(tileProvider)
+            }
+        } catch (_: Throwable) {
+            // Silent failure - this is best-effort notification
+        }
+    }
+
     private fun createFocusTile(controller: Any?, classLoader: ClassLoader): Any {
         val pluginContext = controller?.let { Reflect.call(it, "getContext") as? Context }
             ?: throw IllegalStateException("QSController.getContext() did not return Context")
@@ -328,6 +498,10 @@ class ControlCenterCardHook(private val module: XposedModule) {
         private const val MAIN_PANEL_CONTENT_CLASS = "miui.systemui.controlcenter.panel.main.MainPanelContent"
         private const val MAIN_PANEL_CONTENT_DISTRIBUTOR_CLASS =
             "miui.systemui.controlcenter.panel.main.MainPanelContentDistributor"
+        private const val QS_DETAIL_CONTENT_CLASS = "miui.systemui.controlcenter.qs.QSDetailContent"
+        private const val SECONDARY_PARAMS_CLASS = "miui.systemui.controlcenter.panel.main.qs.SecondaryParams"
+        private const val DETAIL_PANEL_PARAMS_CLASS = "miui.systemui.controlcenter.panel.main.DetailPanelParams"
+        private const val DETAIL_PANEL_DELEGATE_CLASS = "miui.systemui.controlcenter.panel.main.DetailPanelDelegate"
         private const val GET_CARD_STYLE_TILE_SPECS = "getCardStyleTileSpecs"
         private const val CREATE_TILE = "createTile"
         private const val PREPARE_PANEL_UPDATE = "preparePanelUpdate"
@@ -392,6 +566,14 @@ class ControlCenterCardHook(private val module: XposedModule) {
             val childControllersField: Field
         )
 
+        internal data class NativeDetailFeatureSet(
+            val getItemCountMethod: Method,
+            val secondaryParamsFromMethod: Method,
+            val getUseSpecificHeightMethod: Method,
+            val onHiddenMethod: Method,
+            val qsDetailContentClass: Class<*>
+        )
+
         internal fun validatedTailFeatureSet(classLoader: ClassLoader): TailFeatureSet? {
             return try {
                 val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, classLoader)
@@ -417,6 +599,62 @@ class ControlCenterCardHook(private val module: XposedModule) {
                     rightPanelContentField = rightPanelContentField,
                     rightFooterSpaceField = rightFooterSpaceField,
                     childControllersField = childControllersField
+                )
+            } catch (_: Throwable) {
+                null
+            }
+        }
+
+        internal fun validatedNativeDetailFeatureSet(classLoader: ClassLoader): NativeDetailFeatureSet? {
+            return try {
+                val qsDetailContentClass = Reflect.findClass(QS_DETAIL_CONTENT_CLASS, classLoader)
+                val secondaryParamsClass = Reflect.findClass(SECONDARY_PARAMS_CLASS, classLoader)
+                val detailPanelParamsClass = Reflect.findClass(DETAIL_PANEL_PARAMS_CLASS, classLoader)
+                val detailPanelDelegateClass = Reflect.findClass(DETAIL_PANEL_DELEGATE_CLASS, classLoader)
+
+                // Find inner Adapter class
+                val adapterClass = qsDetailContentClass.declaredClasses.firstOrNull {
+                    it.simpleName == "Adapter"
+                } ?: return null
+
+                val getItemCountMethod = adapterClass.getDeclaredMethod("getItemCount").also { it.isAccessible = true }
+
+                // SecondaryParamsKt.from(DetailAdapter) - this is a static method in SecondaryParamsKt
+                val secondaryParamsKtClass = try {
+                    classLoader.loadClass("${secondaryParamsClass.name}Kt")
+                } catch (_: Throwable) {
+                    return null
+                }
+
+                val detailAdapterClass = try {
+                    classLoader.loadClass("com.android.systemui.plugins.qs.DetailAdapter")
+                } catch (_: Throwable) {
+                    return null
+                }
+
+                val secondaryParamsFromMethod = secondaryParamsKtClass.getDeclaredMethod("from", detailAdapterClass)
+                    .also { it.isAccessible = true }
+
+                val getUseSpecificHeightMethod = detailPanelParamsClass.getDeclaredMethod("getUseSpecificHeight")
+                    .also { it.isAccessible = true }
+
+                val onHiddenMethod = detailPanelDelegateClass.getDeclaredMethod("onHidden")
+                    .also { it.isAccessible = true }
+
+                if (getItemCountMethod.parameterTypes.isNotEmpty() ||
+                    secondaryParamsFromMethod.parameterTypes.size != 1 ||
+                    getUseSpecificHeightMethod.parameterTypes.isNotEmpty() ||
+                    onHiddenMethod.parameterTypes.isNotEmpty()
+                ) {
+                    return null
+                }
+
+                NativeDetailFeatureSet(
+                    getItemCountMethod = getItemCountMethod,
+                    secondaryParamsFromMethod = secondaryParamsFromMethod,
+                    getUseSpecificHeightMethod = getUseSpecificHeightMethod,
+                    onHiddenMethod = onHiddenMethod,
+                    qsDetailContentClass = qsDetailContentClass
                 )
             } catch (_: Throwable) {
                 null
