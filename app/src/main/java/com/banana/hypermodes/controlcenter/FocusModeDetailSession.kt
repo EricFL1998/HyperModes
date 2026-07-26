@@ -148,7 +148,14 @@ class FocusModeDetailSession(
             val snapshot = repository.loadOrInitialize()
             val rows = buildRows(snapshot, api)
 
-            api.setItems.invoke(content, rows)
+            // Create properly typed array for reflection invoke
+            val itemArrayType = api.setItems.parameterTypes[0].componentType ?: return
+            val itemArray = java.lang.reflect.Array.newInstance(itemArrayType, rows.size)
+            rows.forEachIndexed { index, row ->
+                java.lang.reflect.Array.set(itemArray, index, row)
+            }
+
+            api.setItems.invoke(content, itemArray)
         }
     }
 

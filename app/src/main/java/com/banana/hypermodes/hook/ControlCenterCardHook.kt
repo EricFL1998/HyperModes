@@ -254,8 +254,9 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 detailAdapterInterface = classes.detailAdapterInterface,
                 repository = repository,
                 onDismiss = onDismiss,
-                onStateRefresh = onStateRefresh
-            ).create()
+                onStateRefresh = onStateRefresh,
+                nativeDetailContentApi = classes.nativeDetailContentApi
+            ).adapter
         }
         val tile = FocusCardTileProvider(
             pluginContext = pluginContext,
