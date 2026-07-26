@@ -87,6 +87,24 @@ class FocusModeDetailSessionTest {
     }
 
     @Test
+    fun `destroy from CLOSING moves to CLOSED`() {
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = null,
+            diagnostic = FakeDiagnostic()
+        )
+
+        session.setDetailListening(true)
+        session.setDetailListening(false)
+        assertEquals(DetailLifecycleState.CLOSING, session.state)
+
+        session.destroy()
+
+        assertEquals(DetailLifecycleState.CLOSED, session.state)
+    }
+
+    @Test
     fun `setDetailListening false records pending refresh`() {
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
