@@ -65,11 +65,12 @@ private class TileInvocationHandler(
 ) : InvocationHandler {
     private val callbacks = mutableListOf<Any>()
     private val listenerTokens = identitySet<Any>()
-    private var observer: AutoCloseable? = null
+    private var observerRegistration: AutoCloseable? = null
     private var destroyed = false
     private var tileSpec = TILE_SPEC
     private var currentState: Any? = null
     private var detailAdapter: Any? = null
+    private var detailSession: FocusModeDetailSession? = null
 
     override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
         val arguments = args ?: emptyArray()
@@ -125,10 +126,7 @@ private class TileInvocationHandler(
             "setDetailListening" -> {
                 val listening = arguments.firstOrNull() as? Boolean ?: false
                 Log.d("FocusCardTileProvider", "setDetailListening: listening=$listening")
-                if (!listening) {
-                    Log.d("FocusCardTileProvider", "setDetailListening: detail closed, refreshing state")
-                    refreshState()
-                }
+                setDetailListening(listening)
                 null
             }
             "showDetail" -> {
@@ -165,23 +163,50 @@ private class TileInvocationHandler(
         if (listening) {
             val wasEmpty = listenerTokens.isEmpty()
             listenerTokens.add(token)
-            // Install observer on first listener OR keep it always active
-            if (observer == null) {
-                observer = observableStore.observe {
-                    Log.d("FocusCardTileProvider", "observableStore changed, triggering refreshState")
-                    refreshState()
-                }
-                Log.d("FocusCardTileProvider", "setListening: observer installed (persistent)")
-            }
+            updateObserverOwnership()
             // Immediately refresh when starting to listen
             if (wasEmpty) {
                 refreshState()
             }
         } else {
             listenerTokens.remove(token)
-            // Keep observer alive even when no listeners - this ensures
-            // the tile updates immediately when control center reopens
-            Log.d("FocusCardTileProvider", "setListening: listener removed, but observer kept active for next open")
+            updateObserverOwnership()
+        }
+    }
+
+    private fun updateObserverOwnership() {
+        val needsObserver = listenerTokens.isNotEmpty() ||
+                            (detailSession?.state == DetailLifecycleState.OPEN)
+
+        if (needsObserver && observerRegistration == null) {
+            observerRegistration = observableStore.observe {
+                Log.d("FocusCardTileProvider", "observableStore changed, triggering handleConfigChange")
+                handleConfigChange()
+            }
+            Log.d("FocusCardTileProvider", "updateObserverOwnership: observer installed")
+        } else if (!needsObserver && observerRegistration != null) {
+            observerRegistration?.close()
+            observerRegistration = null
+            Log.d("FocusCardTileProvider", "updateObserverOwnership: observer released")
+        }
+    }
+
+    private fun handleConfigChange() {
+        if (destroyed) return
+        val session = detailSession
+        when (session?.state) {
+            DetailLifecycleState.OPEN -> {
+                refreshState()
+                session.refreshItems()
+            }
+            DetailLifecycleState.CLOSING -> {
+                // Pending refresh will be posted by onPanelHidden
+            }
+            else -> {
+                if (listenerTokens.isNotEmpty()) {
+                    refreshState()
+                }
+            }
         }
     }
 
@@ -190,13 +215,10 @@ private class TileInvocationHandler(
         destroyed = true
         callbacks.clear()
         listenerTokens.clear()
-        closeObserver()
+        observerRegistration?.close()
+        observerRegistration = null
         detailAdapter = null
-    }
-
-    private fun closeObserver() {
-        observer?.close()
-        observer = null
+        detailSession = null
     }
 
     private fun refreshState() {
@@ -364,7 +386,20 @@ private class TileInvocationHandler(
             onStateRefresh = { refreshState() }
         )
         detailAdapter = created
+        // Extract session if this is a FocusModeDetailAdapter
+        if (created != null) {
+            detailSession = FocusNativeDetailRegistry.adapterSession(created)
+        }
         return created
+    }
+
+    private fun setDetailListening(listening: Boolean) {
+        if (destroyed) return
+        val session = detailSession
+        if (session != null) {
+            session.setDetailListening(listening)
+            updateObserverOwnership()
+        }
     }
 
     private fun notifyShowDetail(show: Boolean) {
