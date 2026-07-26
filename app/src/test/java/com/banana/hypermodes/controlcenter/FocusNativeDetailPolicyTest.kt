@@ -131,4 +131,33 @@ class FocusNativeDetailPolicyTest {
 
         assertNull(result)
     }
+
+    @Test
+    fun `registered Focus content should clean bound row`() {
+        val registry = FocusNativeDetailRegistry
+        val content = Any()
+        val session = createTestSession()
+        registry.registerContent(content, session)
+
+        val result = FocusNativeDetailPolicy.shouldCleanBoundRow(content, registry)
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `unregistered content should not clean bound row`() {
+        val registry = FocusNativeDetailRegistry
+        val content = Any()
+
+        val result = FocusNativeDetailPolicy.shouldCleanBoundRow(content, registry)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `null content should not clean bound row`() {
+        val result = FocusNativeDetailPolicy.shouldCleanBoundRow(null, FocusNativeDetailRegistry)
+
+        assertFalse(result)
+    }
 }

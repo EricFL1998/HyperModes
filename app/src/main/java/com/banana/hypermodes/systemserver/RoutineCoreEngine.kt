@@ -13,6 +13,7 @@ import com.banana.hypermodes.systemserver.config.ModeType
 import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
+import com.banana.hypermodes.systemserver.trigger.BedtimeListenerLifecycle
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
 
@@ -42,6 +43,7 @@ class RoutineCoreEngine private constructor() {
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
     private var bedtimeListener: BedtimeListener? = null
+    private var bedtimeListenerLifecycle = BedtimeListenerLifecycle()
     private var modeActionExecutor: ModeActionExecutor? = null
 
     private var mainHandler: Handler? = null
@@ -63,7 +65,10 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
-        bedtimeListener = BedtimeListener(context, this)
+        bedtimeListenerLifecycle = BedtimeListenerLifecycle()
+        bedtimeListener = BedtimeListener(context, this, bedtimeListenerLifecycle).also {
+            it.registerStateSources()
+        }
 
         // Watch for config changes in Settings.Global
         observeConfigChanges(context)
@@ -100,8 +105,12 @@ class RoutineCoreEngine private constructor() {
                     isAccessible = true
                 }.get(this) as? StatusBarIconManager
 
-                iconManager?.setIcon(activeMode.icon, activeMode.name)
-                log("Quick restored icon for mode: ${activeMode.name}")
+                // Use statusIcon if available, fallback to icon mapping
+                val statusIcon = activeMode.statusIcon
+                    ?: com.banana.hypermodes.data.ModeIconMapper.getStatusBarIcon(activeMode.icon)
+
+                iconManager?.setIcon(statusIcon, activeMode.name)
+                log("Quick restored icon for mode: ${activeMode.name} (icon=$statusIcon)")
             }
         } catch (e: Exception) {
             log("Failed to quick restore icon: ${e.message}")
@@ -149,19 +158,27 @@ class RoutineCoreEngine private constructor() {
             // Update driving trigger manager with new mode list
             drivingTriggerManager?.init(config.modes)
 
-            // Update bedtime listener with new mode list
-            bedtimeListener?.updateModes(config.modes)
-
-            // Handle active mode changes
+            // Handle active mode changes before synchronizing external trigger state.
             if (config.activeModeId != null) {
-                // Restore or switch to the specified active mode
-                val mode = allModes.find { it.id == config.activeModeId }
-                if (mode != null) {
-                    log("Restoring active mode: ${mode.name}")
-                    currentActiveMode = mode
-                    modeActionExecutor?.applyMode(mode)
+                if (currentActiveMode?.id != config.activeModeId) {
+                    // Deactivate current mode if it's different from the new one
+                    currentActiveMode?.let { oldMode ->
+                        log("Deactivating current mode before switch: ${oldMode.name}")
+                        modeActionExecutor?.revertMode(oldMode)
+                    }
+
+                    // Restore or switch to the specified active mode
+                    val mode = allModes.find { it.id == config.activeModeId }
+                    if (mode != null) {
+                        log("Activating mode from config: ${mode.name}")
+                        currentActiveMode = mode
+                        modeActionExecutor?.applyMode(mode)
+                    } else {
+                        log("Active mode not found in config: ${config.activeModeId}")
+                        currentActiveMode = null
+                    }
                 } else {
-                    log("Active mode not found in config: ${config.activeModeId}")
+                    log("Active mode unchanged: ${currentActiveMode?.name}")
                 }
             } else {
                 // activeModeId is null: deactivate current mode if one is active
@@ -181,6 +198,16 @@ class RoutineCoreEngine private constructor() {
                     modeActionExecutor?.revertMode(activeMode)
                     currentActiveMode = null
                 }
+            }
+
+            // Initialize the bedtime bridge on the first load, then synchronize its modes.
+            // This runs after the persisted active mode is restored so external bedtime state wins.
+            bedtimeListener?.let { listener ->
+                bedtimeListenerLifecycle.onModesLoaded(
+                    modes = config.modes,
+                    initialize = listener::init,
+                    update = listener::updateModes
+                )
             }
         } catch (e: Exception) {
             log("Failed to load config: ${e.message}")

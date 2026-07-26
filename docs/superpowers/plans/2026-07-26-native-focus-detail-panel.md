@@ -779,4 +779,572 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-由于完整计划非常长（11个任务，每个任务5-11个步骤），我会分段继续写入。是否继续写完整计划，还是你希望我用更简洁的格式？
+### Task 4: Complete Session Implementation with Native Binding
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/controlcenter/FocusModeDetailSession.kt`
+- Modify: `app/src/test/java/com/banana/hypermodes/controlcenter/FocusModeDetailSessionTest.kt`
+
+**Interfaces:**
+- Consumes: `FocusNativeDetailRegistry` from Task 1, `FocusNativeDetailContentApi`, `FocusCardStateRepository`
+- Produces: Complete `FocusModeDetailSession` with `bindDetailView(context: Context, convertView: View?, parent: ViewGroup?): View?`, `refreshItems()`, `hasPendingCardRefresh(): Boolean`, real adapter proxy implementation
+
+- [ ] **Step 1: Write failing native bind test**
+
+```kotlin
+@Test
+fun `bindDetailView registers content and returns View`() {
+    val api = FakeNativeDetailContentApi()
+    val session = FocusModeDetailSession(
+        repository = FakeFocusCardStateRepository(),
+        onDismiss = {},
+        nativeDetailContentApi = api,
+        diagnostic = FakeDiagnostic()
+    )
+    
+    val view = session.bindDetailView(
+        context = mockContext,
+        convertView = null,
+        parent = null
+    )
+    
+    assertNotNull(view)
+    assertTrue(FocusNativeDetailRegistry.isFocusContent(view))
+}
+
+class FakeNativeDetailContentApi : FocusNativeDetailContentApi {
+    override fun convertOrInflate(context: Context, convertView: View?, parent: ViewGroup?): Any {
+        return MockView() // Return fake View
+    }
+    override fun setSuffix(content: Any, suffix: String) {}
+    override fun setItems(content: Any, items: Array<Any>) {}
+    override fun setCallback(content: Any, callback: Any) {}
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailSessionTest`
+Expected: FAIL with "bindDetailView not implemented"
+
+- [ ] **Step 3: Implement native bind skeleton**
+
+Add to `FocusModeDetailSession.kt`:
+```kotlin
+fun bindDetailView(
+    context: Context,
+    convertView: View?,
+    parent: ViewGroup?
+): View? {
+    val api = nativeDetailContentApi ?: return null
+    
+    val content = api.convertOrInflate(context, convertView, parent)
+    if (content !is View) return null
+    
+    FocusNativeDetailRegistry.registerContent(content, this)
+    currentContent = WeakReference(content)
+    
+    api.setSuffix(content, FocusNativeDetailRegistry.CONTENT_SUFFIX)
+    
+    return content
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailSessionTest`
+Expected: PASS
+
+- [ ] **Step 5: Add refreshItems test**
+
+```kotlin
+@Test
+fun `refreshItems calls setItems when OPEN`() {
+    val api = FakeNativeDetailContentApi()
+    val repository = FakeFocusCardStateRepository().apply {
+        // Add 2 modes
+    }
+    val session = FocusModeDetailSession(
+        repository = repository,
+        onDismiss = {},
+        nativeDetailContentApi = api,
+        diagnostic = FakeDiagnostic()
+    )
+    
+    val view = session.bindDetailView(mockContext, null, null)
+    session.setDetailListening(true)
+    
+    session.refreshItems()
+    
+    assertEquals(2, api.lastItemsCount)
+}
+```
+
+- [ ] **Step 6: Implement refreshItems**
+
+Add to `FocusModeDetailSession.kt`:
+```kotlin
+fun refreshItems() {
+    synchronized(lock) {
+        if (state != DetailLifecycleState.OPEN) return
+        val content = currentContent?.get() ?: return
+        val api = nativeDetailContentApi ?: return
+        
+        val snapshot = repository.loadOrInitialize()
+        val rows = buildRows(snapshot)
+        
+        api.setItems(content, rows.toTypedArray())
+    }
+}
+
+private fun buildRows(snapshot: FocusCardConfig): List<Any> {
+    // Build native SelectableItem objects
+    return snapshot.modes.map { mode ->
+        // Use reflection to create SelectableItem
+    }
+}
+```
+
+- [ ] **Step 7: Run refreshItems test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailSessionTest`
+Expected: PASS
+
+- [ ] **Step 8: Add pending refresh accessor test**
+
+```kotlin
+@Test
+fun `hasPendingCardRefresh returns true after CLOSING`() {
+    val session = FocusModeDetailSession(
+        repository = FakeFocusCardStateRepository(),
+        onDismiss = {},
+        nativeDetailContentApi = null,
+        diagnostic = FakeDiagnostic()
+    )
+    
+    session.setDetailListening(true)
+    assertFalse(session.hasPendingCardRefresh())
+    
+    session.setDetailListening(false)
+    
+    assertTrue(session.hasPendingCardRefresh())
+}
+```
+
+- [ ] **Step 9: Add hasPendingCardRefresh accessor**
+
+```kotlin
+fun hasPendingCardRefresh(): Boolean {
+    synchronized(lock) {
+        return pendingCardRefresh
+    }
+}
+
+fun clearPendingCardRefresh() {
+    synchronized(lock) {
+        pendingCardRefresh = false
+    }
+}
+```
+
+- [ ] **Step 10: Run pending refresh test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailSessionTest`
+Expected: PASS
+
+- [ ] **Step 11: Implement real adapter proxy**
+
+Replace placeholder `val adapter: Any = Any()` with:
+```kotlin
+val adapter: Any = Proxy.newProxyInstance(
+    detailAdapterInterface.classLoader,
+    arrayOf(detailAdapterInterface),
+    DetailAdapterHandler()
+)
+
+private inner class DetailAdapterHandler : InvocationHandler {
+    override fun invoke(proxy: Any, method: Method, args: Array<out Any>?): Any? {
+        return when (method.name) {
+            "getMetricsCategory" -> FocusNativeDetailRegistry.METRICS_CATEGORY
+            "getTitle" -> "Focus Mode" // localized
+            "createDetailView" -> bindDetailView(
+                context = args?.get(0) as Context,
+                convertView = args?.getOrNull(1) as? View,
+                parent = args?.getOrNull(2) as? ViewGroup
+            )
+            "getSettingsIntent" -> Intent(/* HyperModes main */)
+            else -> defaultReturnValue(method.returnType)
+        }
+    }
+}
+```
+
+- [ ] **Step 12: Add adapter proxy test**
+
+```kotlin
+@Test
+fun `adapter proxy returns correct metrics category`() {
+    val session = FocusModeDetailSession(
+        repository = FakeFocusCardStateRepository(),
+        onDismiss = {},
+        nativeDetailContentApi = null,
+        diagnostic = FakeDiagnostic()
+    )
+    
+    val category = Reflect.call(session.adapter, "getMetricsCategory")
+    
+    assertEquals(118, category)
+}
+```
+
+- [ ] **Step 13: Run adapter test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailSessionTest`
+Expected: PASS
+
+- [ ] **Step 14: Commit complete session**
+
+```bash
+git add app/src/main/java/com/banana/hypermodes/controlcenter/FocusModeDetailSession.kt app/src/test/java/com/banana/hypermodes/controlcenter/FocusModeDetailSessionTest.kt
+git commit -m "feat: complete session with native binding and refresh
+
+- bindDetailView registers content and builds native items
+- refreshItems updates native content when OPEN
+- hasPendingCardRefresh/clearPendingCardRefresh accessors
+- Real DetailAdapter proxy with metrics category and createDetailView
+- All operations thread-safe with synchronized blocks
+- Weak reference to current content
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5: Refactor FocusModeDetailAdapter to Use Session
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/controlcenter/FocusModeDetailAdapter.kt`
+- Modify: `app/src/test/java/com/banana/hypermodes/controlcenter/FocusModeDetailAdapterTest.kt`
+
+**Interfaces:**
+- Consumes: `FocusModeDetailSession` from Task 4, `FocusNativeDetailRegistry` from Task 1
+- Produces: Refactored `FocusModeDetailAdapter` as thin wrapper, `FocusCardDetailFactory` returns typed session handle
+
+- [ ] **Step 1: Write failing session creation test**
+
+```kotlin
+@Test
+fun `adapter uses session for detail view`() {
+    val repository = FakeFocusCardStateRepository()
+    val adapter = FocusModeDetailAdapter(
+        pluginContext = mockPluginContext,
+        moduleContext = mockModuleContext,
+        detailAdapterInterface = mockInterface,
+        repository = repository,
+        onDismiss = {},
+        onStateRefresh = {},
+        nativeDetailContentApi = fakeApi
+    )
+    
+    val session = adapter.session
+    assertNotNull(session)
+    assertTrue(FocusNativeDetailRegistry.isFocusAdapter(session.adapter))
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailAdapterTest`
+Expected: FAIL with "unresolved reference: session"
+
+- [ ] **Step 3: Refactor adapter to hold session**
+
+Replace existing implementation with:
+```kotlin
+class FocusModeDetailAdapter(
+    private val pluginContext: Context,
+    private val moduleContext: Context,
+    private val detailAdapterInterface: Class<*>,
+    private val repository: FocusCardStateRepository,
+    private val onDismiss: () -> Unit,
+    private val onStateRefresh: () -> Unit = {},
+    nativeDetailContentApi: FocusNativeDetailContentApi?
+) {
+    val session = FocusModeDetailSession(
+        repository = repository,
+        onDismiss = onDismiss,
+        nativeDetailContentApi = nativeDetailContentApi,
+        diagnostic = object : FocusDetailDiagnostic {
+            override fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?) {
+                Log.w(TAG, "Detail fallback: $stage", throwable)
+            }
+        }
+    )
+    
+    init {
+        FocusNativeDetailRegistry.registerSession(session.adapter, session)
+    }
+    
+    val adapter: Any get() = session.adapter
+    
+    fun setDetailListening(listening: Boolean) {
+        session.setDetailListening(listening)
+        if (!listening && session.hasPendingCardRefresh()) {
+            // Will be posted by onPanelHidden
+        }
+    }
+    
+    fun refreshItems() {
+        session.refreshItems()
+    }
+    
+    fun destroy() {
+        session.destroy()
+    }
+}
+```
+
+- [ ] **Step 4: Run session creation test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailAdapterTest`
+Expected: PASS
+
+- [ ] **Step 5: Update existing tests**
+
+Adjust existing `FocusModeDetailAdapterTest` tests to work with new session-based structure:
+- Tests that called adapter methods now call session methods
+- Tests that checked native content still work through session
+- Remove tests for old manual builder (session handles native path)
+
+- [ ] **Step 6: Run all adapter tests**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusModeDetailAdapterTest`
+Expected: All tests pass or are adjusted
+
+- [ ] **Step 7: Commit adapter refactor**
+
+```bash
+git add app/src/main/java/com/banana/hypermodes/controlcenter/FocusModeDetailAdapter.kt app/src/test/java/com/banana/hypermodes/controlcenter/FocusModeDetailAdapterTest.kt
+git commit -m "refactor: adapter delegates to session
+
+- FocusModeDetailAdapter now thin wrapper around FocusModeDetailSession
+- Session registered in registry on construction
+- setDetailListening/refreshItems/destroy delegate to session
+- Remove old manual builder logic (session owns native binding)
+- Existing tests adjusted for session-based structure
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: Refactor FocusCardTileProvider for Observer Management
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/controlcenter/FocusCardTileProvider.kt`
+- Modify: `app/src/test/java/com/banana/hypermodes/controlcenter/FocusCardTileProviderTest.kt`
+
+**Interfaces:**
+- Consumes: `FocusModeDetailAdapter.session` from Task 5, `ObservableFocusCardConfigStore`
+- Produces: Observer ownership based on card listeners + detail OPEN state, config changes route to refreshItems when OPEN
+
+- [ ] **Step 1: Write failing observer ownership test**
+
+```kotlin
+@Test
+fun `observer active when detail OPEN`() {
+    val store = FakeObservableStore()
+    val provider = FocusCardTileProvider(...)
+    
+    val detailFactory = provider.detailFactory
+    val adapter = detailFactory.create({}, {}) as FocusModeDetailAdapter
+    
+    adapter.setDetailListening(true)
+    
+    assertTrue(store.hasObserver)
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusCardTileProviderTest`
+Expected: FAIL
+
+- [ ] **Step 3: Implement observer claim tracking**
+
+Add to `FocusCardTileProvider`:
+```kotlin
+private var detailSession: FocusModeDetailSession? = null
+private var observerRegistration: AutoCloseable? = null
+
+private fun updateObserverOwnership() {
+    val needsObserver = listenerTokens.isNotEmpty() || 
+                        (detailSession?.state == DetailLifecycleState.OPEN)
+    
+    if (needsObserver && observerRegistration == null) {
+        observerRegistration = observableStore.observe {
+            postToUi { handleConfigChange() }
+        }
+    } else if (!needsObserver && observerRegistration != null) {
+        observerRegistration?.close()
+        observerRegistration = null
+    }
+}
+
+private fun handleConfigChange() {
+    val session = detailSession
+    when (session?.state) {
+        DetailLifecycleState.OPEN -> {
+            refreshState()
+            session.refreshItems()
+        }
+        DetailLifecycleState.CLOSING -> {
+            // Pending refresh will be posted by onPanelHidden
+        }
+        else -> {
+            if (listenerTokens.isNotEmpty()) {
+                refreshState()
+            }
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Run observer ownership test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusCardTileProviderTest`
+Expected: PASS
+
+- [ ] **Step 5: Add config change routing test**
+
+```kotlin
+@Test
+fun `config change refreshes items when OPEN`() {
+    val store = FakeObservableStore()
+    val provider = FocusCardTileProvider(...)
+    val adapter = detailFactory.create({}, {}) as FocusModeDetailAdapter
+    
+    adapter.setDetailListening(true)
+    
+    store.triggerChange()
+    
+    // Verify session.refreshItems was called
+}
+```
+
+- [ ] **Step 6: Implement detail listening delegation**
+
+Update `setDetailListening` in provider or adapter:
+```kotlin
+fun setDetailListening(listening: Boolean) {
+    detailSession?.setDetailListening(listening)
+    updateObserverOwnership()
+}
+```
+
+- [ ] **Step 7: Run config routing test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusCardTileProviderTest`
+Expected: PASS
+
+- [ ] **Step 8: Add CLOSING state test**
+
+```kotlin
+@Test
+fun `config change during CLOSING defers card refresh`() {
+    val provider = FocusCardTileProvider(...)
+    val adapter = detailFactory.create({}, {}) as FocusModeDetailAdapter
+    
+    adapter.setDetailListening(true)
+    adapter.setDetailListening(false)
+    assertEquals(DetailLifecycleState.CLOSING, adapter.session.state)
+    
+    store.triggerChange()
+    
+    // Verify no immediate refreshState call
+    assertTrue(adapter.session.hasPendingCardRefresh())
+}
+```
+
+- [ ] **Step 9: Run CLOSING test**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusCardTileProviderTest`
+Expected: PASS
+
+- [ ] **Step 10: Remove synchronous refresh from setDetailListening**
+
+Find and delete any `refreshState()` call inside `setDetailListening(false)` path.
+
+- [ ] **Step 11: Run all provider tests**
+
+Run: `./gradlew :app:testDebugUnitTest --tests FocusCardTileProviderTest`
+Expected: All tests pass
+
+- [ ] **Step 12: Commit provider refactor**
+
+```bash
+git add app/src/main/java/com/banana/hypermodes/controlcenter/FocusCardTileProvider.kt app/src/test/java/com/banana/hypermodes/controlcenter/FocusCardTileProviderTest.kt
+git commit -m "refactor: provider manages observer by card+detail claims
+
+- Observer active when card listening OR detail OPEN
+- Config changes route to session.refreshItems when OPEN
+- Config changes defer card refresh when CLOSING
+- Remove synchronous refreshState from setDetailListening(false)
+- Observer releases when both claims gone
+- onPanelHidden posts pending card refresh
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+---
+### Task 7: Install Item Count Hook
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/ControlCenterCardHook.kt`
+
+**Interfaces:**
+- Consumes: `FocusNativeDetailRegistry`, `FocusNativeDetailPolicy.shouldReturnFullItemCount()`
+- Produces: Hook on `QSDetailContent$Adapter.getItemCount()` bypassing 20-item cap for Focus
+
+Implementation: Hook getItemCount, resolve outer content, read suffix/items, call policy, return full count or original.
+
+### Task 8: Install Adapter Mapping Hook
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/ControlCenterCardHook.kt`
+
+**Interfaces:**
+- Consumes: `FocusNativeDetailRegistry`, `FocusNativeDetailPolicy.shouldMapToFocusSpec()`
+- Produces: Hook on `SecondaryParamsKt.from(DetailAdapter)` returning "hypermodes_focus"
+
+Implementation: Hook from method, check adapter with policy, return "hypermodes_focus" or proceed.
+
+### Task 9: Install Specific Height Hook
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/ControlCenterCardHook.kt`
+
+**Interfaces:**
+- Consumes: `FocusNativeDetailRegistry`, `FocusNativeDetailPolicy.shouldUseSpecificHeight()`
+- Produces: Hook on `DetailPanelParams.getUseSpecificHeight()` returning true for Focus
+
+Implementation: Hook getUseSpecificHeight, reflect adapter from params, check with policy, return true or proceed.
+
+### Task 10: Install Hidden Completion Hook
+
+**Files:**
+- Modify: `app/src/main/java/com/banana/hypermodes/hook/ControlCenterCardHook.kt`
+- Modify: `app/src/main/java/com/banana/hypermodes/controlcenter/FocusCardTileProvider.kt`
+
+**Interfaces:**
+- Consumes: `FocusNativeDetailRegistry.adapterSession()`, `FocusModeDetailSession.onPanelHidden()`
+- Produces: Hook on `DetailPanelDelegate.onHidden()` notifying session after original
+
+Implementation: Hook onHidden, capture adapter before original clears it, proceed original, notify session if Focus.
+
+### Task 11: Final Verification
+
+**Files:**
+- Verify: All tests pass, clean build succeeds
+
+Implementation: Run full test suite, verify no regressions, confirm all hooks installed.

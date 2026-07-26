@@ -1,13 +1,10 @@
 package com.banana.hypermodes.controlcenter
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Looper
 import android.util.Log
 import com.banana.hypermodes.R
-import com.banana.hypermodes.data.ModeIconMapper
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -71,6 +68,7 @@ private class TileInvocationHandler(
     private var currentState: Any? = null
     private var detailAdapter: Any? = null
     private var detailSession: FocusModeDetailSession? = null
+    private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
 
     override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
         val arguments = args ?: emptyArray()
@@ -221,6 +219,7 @@ private class TileInvocationHandler(
         listenerTokens.clear()
         observerRegistration?.close()
         observerRegistration = null
+        detailSession?.destroy()
         detailAdapter = null
         detailSession = null
     }
@@ -321,48 +320,13 @@ private class TileInvocationHandler(
     }
 
     private fun createIcon(modeIcon: String?): Any? {
-        val drawable = loadDrawable(modeIcon)
+        val drawable = iconResolver.resolve(modeIcon)
         return try {
             val constructor = classes.drawableIconClass.getDeclaredConstructor(Drawable::class.java)
             constructor.isAccessible = true
             constructor.newInstance(drawable)
         } catch (_: Throwable) {
             null
-        }
-    }
-
-    private fun loadDrawable(modeIcon: String?): Drawable {
-        val iconName = try {
-            ModeIconMapper.getStatusBarIcon(modeIcon ?: "")
-        } catch (_: Throwable) {
-            "ic_stat_zen"
-        }
-        val mappedResId = drawableId(iconName)
-        return drawableFromContexts(mappedResId)
-            ?: drawableFromContexts(R.drawable.ic_stat_zen)
-            ?: drawableFromContexts(android.R.drawable.ic_dialog_info)
-            ?: ColorDrawable(Color.TRANSPARENT)
-    }
-
-    private fun drawableFromContexts(resId: Int): Drawable? {
-        if (resId == 0) return null
-        return try {
-            moduleContext.getDrawable(resId)
-        } catch (_: Throwable) {
-            try {
-                pluginContext.getDrawable(resId)
-            } catch (_: Throwable) {
-                null
-            }
-        }
-    }
-
-    private fun drawableId(name: String): Int {
-        return try {
-            val packageName = moduleContext.packageName ?: pluginContext.packageName
-            moduleContext.resources?.getIdentifier(name, "drawable", packageName) ?: 0
-        } catch (_: Throwable) {
-            0
         }
     }
 

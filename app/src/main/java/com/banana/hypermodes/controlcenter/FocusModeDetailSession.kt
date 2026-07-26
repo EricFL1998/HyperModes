@@ -1,10 +1,14 @@
 package com.banana.hypermodes.controlcenter
 
 import android.content.Context
-import android.content.Intent
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.view.View
 import android.view.ViewGroup
-import com.banana.hypermodes.protocol.Protocol
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import com.banana.hypermodes.systemserver.config.ModeConfig
 import java.lang.ref.WeakReference
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
@@ -21,7 +25,10 @@ class FocusModeDetailSession(
     private val onDismiss: () -> Unit,
     private val nativeDetailContentApi: FocusNativeDetailContentApi?,
     private val diagnostic: FocusDetailDiagnostic,
-    private val detailAdapterInterface: Class<*>? = null
+    private val detailAdapterInterface: Class<*>? = null,
+    private val onStateRefresh: () -> Unit = {},
+    private val modeIconProvider: (ModeConfig) -> Drawable = { ColorDrawable(android.graphics.Color.TRANSPARENT) },
+    private val modeDisplayNameProvider: (ModeConfig) -> String = { mode -> mode.name.ifBlank { "Focus mode" } }
 ) {
     @Volatile
     var state: DetailLifecycleState = DetailLifecycleState.CLOSED
@@ -33,6 +40,8 @@ class FocusModeDetailSession(
     private var currentContent: WeakReference<Any>? = null
     @Volatile
     private var pendingCardRefresh = false
+    @Volatile
+    private var closeRequested = false
 
     private fun createAdapterProxy(): Any {
         val adapterClass = detailAdapterInterface
@@ -65,7 +74,7 @@ class FocusModeDetailSession(
                         parent = arguments.getOrNull(2) as? ViewGroup
                     )
                 }
-                "getSettingsIntent" -> createSettingsIntent()
+                "getSettingsIntent" -> null
                 "getToggleVisible" -> false
                 "getToggleState" -> null
                 "setToggleState" -> null
@@ -77,13 +86,6 @@ class FocusModeDetailSession(
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "FocusModeDetailSessionAdapter@${Integer.toHexString(System.identityHashCode(proxy))}"
                 else -> defaultReturnValue(method.returnType)
-            }
-        }
-
-        private fun createSettingsIntent(): Intent {
-            return Intent().apply {
-                setClassName(Protocol.MODULE_PACKAGE, "com.banana.hypermodes.ui.MainActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         }
     }
@@ -103,40 +105,168 @@ class FocusModeDetailSession(
     }
 
     fun onPanelHidden() {
-        synchronized(lock) {
-            if (state == DetailLifecycleState.CLOSING) {
+        val shouldRefresh = synchronized(lock) {
+            releaseCurrentContentLocked()
+            if (state != DetailLifecycleState.CLOSING) {
+                false
+            } else {
                 state = DetailLifecycleState.CLOSED
-                currentContent = null
-                // Pending refresh will be posted by caller
+                val pending = pendingCardRefresh
+                pendingCardRefresh = false
+                pending
             }
         }
+        if (shouldRefresh) onStateRefresh()
     }
 
     fun destroy() {
         synchronized(lock) {
             state = DetailLifecycleState.CLOSED
-            currentContent = null
+            releaseCurrentContentLocked()
             pendingCardRefresh = false
         }
         FocusNativeDetailRegistry.unregisterSession(adapter)
+    }
+
+    private fun registerCurrentContent(content: Any) {
+        synchronized(lock) {
+            releaseCurrentContentLocked()
+            FocusNativeDetailRegistry.registerContent(content, this)
+            currentContent = WeakReference(content)
+        }
+    }
+
+    private fun releaseCurrentContentIfSame(content: Any) {
+        synchronized(lock) {
+            if (currentContent?.get() === content) releaseCurrentContentLocked()
+        }
+    }
+
+    private fun releaseCurrentContentLocked() {
+        val content = currentContent?.get()
+        currentContent = null
+        if (content != null) {
+            runCatching { FocusNativeDetailRegistry.unregisterContent(content) }
+        }
     }
 
     fun bindDetailView(
         context: Context,
         convertView: View?,
         parent: ViewGroup?
-    ): View? {
-        val api = nativeDetailContentApi ?: return null
+    ): View {
+        val api = nativeDetailContentApi
+        if (api == null) {
+            diagnostic.failed(FocusDetailFallbackStage.NATIVE_API_UNAVAILABLE, null)
+            return createFallbackView(context)
+        }
 
-        val content = api.convertOrInflate.invoke(context, convertView, parent) ?: return null
-        if (content !is View) return null
+        val content = try {
+            api.convertOrInflate.invoke(context, convertView, parent)
+        } catch (throwable: Throwable) {
+            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CONVERT, unwrapReflectionFailure(throwable))
+            return createFallbackView(context)
+        }
+        if (content == null || !api.contentClass.isInstance(content) || content !is View) {
+            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CONVERT, null)
+            return createFallbackView(context)
+        }
 
-        FocusNativeDetailRegistry.registerContent(content, this)
-        currentContent = WeakReference(content)
+        FocusNativeDetailViewDecorator.decorate(content)
+        registerCurrentContent(content)
+        closeRequested = false
 
-        api.setSuffix.invoke(content, FocusNativeDetailRegistry.CONTENT_SUFFIX)
+        try {
+            api.setSuffix.invoke(content, FocusNativeDetailRegistry.CONTENT_SUFFIX)
+            submitItems(content, api)
+        } catch (throwable: Throwable) {
+            releaseCurrentContentIfSame(content)
+            diagnostic.failed(FocusDetailFallbackStage.NATIVE_ITEMS, unwrapReflectionFailure(throwable))
+            return createFallbackView(context)
+        }
+
+        try {
+            api.setCallback.invoke(content, createNativeCallback(api))
+        } catch (throwable: Throwable) {
+            releaseCurrentContentIfSame(content)
+            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CALLBACK, unwrapReflectionFailure(throwable))
+            return createFallbackView(context)
+        }
 
         return content
+    }
+
+    private fun createFallbackView(context: Context): View {
+        return ScrollView(context).apply {
+            addView(
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(48, 48, 48, 48)
+                    addView(
+                        TextView(context).apply {
+                            text = "Focus detail is unavailable"
+                        }
+                    )
+                }
+            )
+        }
+    }
+
+    private fun unwrapReflectionFailure(throwable: Throwable): Throwable {
+        return (throwable as? java.lang.reflect.InvocationTargetException)?.targetException ?: throwable
+    }
+
+    private fun submitItems(content: Any, api: FocusNativeDetailContentApi) {
+        val snapshot = repository.loadOrInitialize()
+        val rows = buildRows(content, snapshot, api)
+        val itemArrayType = api.setItems.parameterTypes[0].componentType
+            ?: throw NoSuchMethodException("${api.contentClass.name}.setItems array component")
+        val itemArray = java.lang.reflect.Array.newInstance(itemArrayType, rows.size)
+        rows.forEachIndexed { index, row ->
+            java.lang.reflect.Array.set(itemArray, index, row)
+        }
+        api.setItems.invoke(content, itemArray)
+    }
+
+    private fun createNativeCallback(api: FocusNativeDetailContentApi): Any {
+        return Proxy.newProxyInstance(
+            api.callbackInterface.classLoader,
+            arrayOf(api.callbackInterface),
+            InvocationHandler { proxy, method, args ->
+                when (method.name) {
+                    "equals" -> proxy === args?.firstOrNull()
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "toString" -> "HyperModesFocusDetailCallback@${Integer.toHexString(System.identityHashCode(proxy))}"
+                    "onDetailItemClick" -> {
+                        val item = args?.firstOrNull()
+                        val modeId = item?.let(::readItemTag) as? String
+                        if (modeId != null) selectMode(modeId)
+                        null
+                    }
+                    "onDetailItemDisconnect" -> null
+                    else -> defaultReturnValue(method.returnType)
+                }
+            }
+        )
+    }
+
+    private fun readItemTag(item: Any): Any? {
+        return runCatching {
+            item.javaClass.methods.firstOrNull { it.name == "getTag" && it.parameterTypes.isEmpty() }
+                ?.invoke(item)
+                ?: findField(item.javaClass, "tag").apply { isAccessible = true }.get(item)
+        }.getOrNull()
+    }
+
+    private fun selectMode(modeId: String) {
+        synchronized(lock) {
+            if (closeRequested) return
+            closeRequested = true
+            pendingCardRefresh = true
+            if (state == DetailLifecycleState.OPEN) state = DetailLifecycleState.CLOSING
+        }
+        runCatching { repository.activate(modeId) }
+        onDismiss()
     }
 
     fun refreshItems() {
@@ -144,18 +274,8 @@ class FocusModeDetailSession(
             if (state != DetailLifecycleState.OPEN) return
             val content = currentContent?.get() ?: return
             val api = nativeDetailContentApi ?: return
-
-            val snapshot = repository.loadOrInitialize()
-            val rows = buildRows(snapshot, api)
-
-            // Create properly typed array for reflection invoke
-            val itemArrayType = api.setItems.parameterTypes[0].componentType ?: return
-            val itemArray = java.lang.reflect.Array.newInstance(itemArrayType, rows.size)
-            rows.forEachIndexed { index, row ->
-                java.lang.reflect.Array.set(itemArray, index, row)
-            }
-
-            api.setItems.invoke(content, itemArray)
+            runCatching { submitItems(content, api) }
+                .onFailure { diagnostic.failed(FocusDetailFallbackStage.NATIVE_ITEMS, unwrapReflectionFailure(it)) }
         }
     }
 
@@ -171,25 +291,38 @@ class FocusModeDetailSession(
         }
     }
 
-    private fun buildRows(snapshot: FocusCardSnapshot, api: FocusNativeDetailContentApi): Array<Any> {
+    private fun buildRows(
+        content: Any,
+        snapshot: FocusCardSnapshot,
+        api: FocusNativeDetailContentApi
+    ): Array<Any> {
         return snapshot.modes.map { mode ->
-            buildSelectableItem(api, mode, snapshot.activeModeId)
+            buildSelectableItem(content, api, mode, snapshot.activeModeId)
         }.toTypedArray()
     }
 
-    private fun buildSelectableItem(api: FocusNativeDetailContentApi, mode: com.banana.hypermodes.systemserver.config.ModeConfig, activeModeId: String?): Any {
+    private fun buildSelectableItem(
+        content: Any,
+        api: FocusNativeDetailContentApi,
+        mode: ModeConfig,
+        activeModeId: String?
+    ): Any {
         val constructor = api.selectableItemConstructor
         val item = when {
             constructor.parameterTypes.isEmpty() -> constructor.newInstance()
-            else -> constructor.newInstance(null)
+            constructor.parameterTypes.size == 1 &&
+                constructor.parameterTypes[0].isAssignableFrom(content.javaClass) -> constructor.newInstance(content)
+            else -> throw NoSuchMethodException(
+                "${api.selectableItemClass.name} constructor cannot receive ${content.javaClass.name}"
+            )
         }
 
-        val selected = activeModeId == mode.id
         setField(item, "tag", mode.id)
-        setField(item, "title", mode.name.ifBlank { "Focus mode" })
-        setField(item, "summary", if (selected) "On" else "Off")
-        setField(item, "selected", selected)
+        setField(item, "title", modeDisplayNameProvider(mode))
+        setField(item, "selected", false)
+        setField(item, "isForceSingle", false)
         setField(item, "selectable", true)
+        setField(item, "iconDrawable", modeIconProvider(mode))
 
         return item
     }

@@ -77,7 +77,10 @@ class XposedInit : XposedModule() {
                             val pluginClassLoader = pluginContext?.classLoader
                             if (pluginClassLoader != null) {
                                 Log.e(TAG, "!!! miui.systemui.plugin loaded, installing control center card hook")
-                                ControlCenterCardHook(this@XposedInit).install(pluginClassLoader)
+                                ControlCenterCardHook(this@XposedInit).install(
+                                    pluginClassLoader = pluginClassLoader,
+                                    systemUiClassLoader = systemUIClassLoader
+                                )
                             } else {
                                 Log.e(TAG, "!!! miui.systemui.plugin pluginContext/classLoader is null")
                             }

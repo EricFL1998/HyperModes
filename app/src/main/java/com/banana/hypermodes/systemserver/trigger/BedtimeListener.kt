@@ -35,15 +35,19 @@ import com.banana.hypermodes.systemserver.config.ModeType
  */
 class BedtimeListener(
     private val context: Context,
-    private val engine: RoutineCoreEngine
+    private val engine: RoutineCoreEngine,
+    private val lifecycle: BedtimeListenerLifecycle
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var allModes: List<ModeConfig> = emptyList()
+    private var receiverRegistered = false
+    private val registeredSecureKeys = mutableSetOf<String>()
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Protocol.ACTION_BEDTIME_ACTIVE) {
                 val inSleepMode = intent.getBooleanExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
+                lifecycle.onBedtimeStateChanged(inSleepMode)
                 log("Received bedtime active broadcast: $inSleepMode")
                 if (inSleepMode) {
                     activateBedtime()
@@ -54,24 +58,32 @@ class BedtimeListener(
         }
     }
 
+    private val bedtimeSettingsObserver = object : ContentObserver(handler) {
+        override fun onChange(selfChange: Boolean, uri: Uri?) {
+            log("Bedtime settings changed: $uri")
+            checkBedtimeState(lifecycle.onPersistedStateChanged(::isBedtimeActive))
+        }
+    }
+
     /**
-     * Initialize the bedtime listener.
-     * Registers ContentObserver for bedtime state changes and checks initial state.
+     * Register bedtime state sources. Mode synchronization happens separately after
+     * RoutineCoreEngine has restored the persisted active mode.
+     */
+    fun registerStateSources() {
+        log("Registering BedtimeListener state sources...")
+        registerReceiverIfNeeded()
+        registerBedtimeObserver()
+        log("BedtimeListener state sources registered")
+    }
+
+    /**
+     * Initialize the bedtime listener with the first mode list and synchronize state.
      */
     fun init(modes: List<ModeConfig>) {
-        log("Initializing BedtimeListener...")
+        registerStateSources()
         allModes = modes
-
-        // Watch for broadcasts from DeskClockHook
-        val filter = IntentFilter(Protocol.ACTION_BEDTIME_ACTIVE)
-        context.registerReceiver(receiver, filter, null, handler, Context.RECEIVER_EXPORTED)
-
-        // Watch Settings.Secure for bedtime mode state
-        registerBedtimeObserver()
-
-        // Check initial bedtime state
+        log("Initializing BedtimeListener with ${modes.size} modes")
         checkBedtimeState()
-
         log("BedtimeListener initialized")
     }
 
@@ -80,11 +92,25 @@ class BedtimeListener(
      * This is called when the engine reloads configuration from Settings.Global.
      */
     fun updateModes(modes: List<ModeConfig>) {
+        registerStateSources()
         allModes = modes
         log("Mode list updated: ${modes.size} modes")
 
         // Re-check bedtime state in case BEDTIME mode was added/removed
         checkBedtimeState()
+    }
+
+    private fun registerReceiverIfNeeded() {
+        if (receiverRegistered) return
+
+        try {
+            val filter = IntentFilter(Protocol.ACTION_BEDTIME_ACTIVE)
+            context.registerReceiver(receiver, filter, null, handler, Context.RECEIVER_EXPORTED)
+            receiverRegistered = true
+            log("Bedtime active receiver registered")
+        } catch (e: Exception) {
+            log("Failed to register bedtime active receiver: ${e.message}")
+        }
     }
 
     /**
@@ -95,35 +121,23 @@ class BedtimeListener(
      * - We also rely on broadcasts from DeskClockHook for HyperOS DeskClock changes
      */
     private fun registerBedtimeObserver() {
-        val observer = object : ContentObserver(handler) {
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                log("Bedtime settings changed: $uri")
-                checkBedtimeState()
-            }
-        }
+        registerSecureObserverIfNeeded("bedtime_mode")
+        registerSecureObserverIfNeeded("sleep_mode_active")
+    }
 
-        // Watch for generic bedtime mode setting
+    private fun registerSecureObserverIfNeeded(key: String) {
+        if (key in registeredSecureKeys) return
+
         try {
             context.contentResolver.registerContentObserver(
-                Settings.Secure.getUriFor("bedtime_mode"),
+                Settings.Secure.getUriFor(key),
                 false,
-                observer
+                bedtimeSettingsObserver
             )
-            log("Registered observer for bedtime_mode")
+            registeredSecureKeys += key
+            log("Registered observer for $key")
         } catch (e: Exception) {
-            log("Failed to register bedtime_mode observer: ${e.message}")
-        }
-
-        // Watch for alternative sleep mode setting
-        try {
-            context.contentResolver.registerContentObserver(
-                Settings.Secure.getUriFor("sleep_mode_active"),
-                false,
-                observer
-            )
-            log("Registered observer for sleep_mode_active")
-        } catch (e: Exception) {
-            log("Failed to register sleep_mode_active observer: ${e.message}")
+            log("Failed to register $key observer: ${e.message}")
         }
     }
 
@@ -132,9 +146,10 @@ class BedtimeListener(
      * Reads the persisted bedtime state from Settings.Secure and activates/deactivates
      * the BEDTIME mode accordingly.
      */
-    private fun checkBedtimeState() {
+    private fun checkBedtimeState(
+        bedtimeActive: Boolean = lifecycle.resolveBedtimeState(::isBedtimeActive)
+    ) {
         try {
-            val bedtimeActive = isBedtimeActive()
             val currentMode = engine.getCurrentActiveMode()
             val bedtimeMode = findBedtimeMode()
 

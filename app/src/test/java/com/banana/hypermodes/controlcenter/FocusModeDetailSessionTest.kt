@@ -19,6 +19,46 @@ class FocusModeDetailSessionTest {
     }
 
     @Test
+    fun `native API unavailable returns a non null fallback view and records the stage`() {
+        val diagnostic = RecordingDetailDiagnostic()
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = null,
+            diagnostic = diagnostic
+        )
+
+        val view = session.bindDetailView(
+            context = android.app.Application(),
+            convertView = null,
+            parent = null
+        )
+
+        assertNotNull(view)
+        assertEquals(listOf(FocusDetailFallbackStage.NATIVE_API_UNAVAILABLE), diagnostic.stages)
+    }
+
+    @Test
+    fun `native conversion failure returns a non null fallback view and records the stage`() {
+        val diagnostic = RecordingDetailDiagnostic()
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createThrowingNativeApi(),
+            diagnostic = diagnostic
+        )
+
+        val view = session.bindDetailView(
+            context = android.app.Application(),
+            convertView = null,
+            parent = null
+        )
+
+        assertNotNull(view)
+        assertEquals(listOf(FocusDetailFallbackStage.NATIVE_CONVERT), diagnostic.stages)
+    }
+
+    @Test
     fun `setDetailListening true moves CLOSED to OPEN`() {
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
@@ -52,21 +92,27 @@ class FocusModeDetailSessionTest {
     }
 
     @Test
-    fun `onPanelHidden moves CLOSING to CLOSED`() {
+    fun `onPanelHidden moves CLOSING to CLOSED and posts one stable refresh`() {
+        var refreshCalls = 0
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
             onDismiss = {},
             nativeDetailContentApi = null,
-            diagnostic = FakeDiagnostic()
+            diagnostic = FakeDiagnostic(),
+            onStateRefresh = { refreshCalls += 1 }
         )
 
         session.setDetailListening(true)
         session.setDetailListening(false)
         assertEquals(DetailLifecycleState.CLOSING, session.state)
+        assertEquals(0, refreshCalls)
 
+        session.onPanelHidden()
         session.onPanelHidden()
 
         assertEquals(DetailLifecycleState.CLOSED, session.state)
+        assertEquals(1, refreshCalls)
+        assertFalse(session.hasPendingCardRefresh())
     }
 
     @Test
@@ -140,11 +186,12 @@ class FocusModeDetailSessionTest {
     @Test
     fun `bindDetailView registers content and returns View`() {
         val api = createFakeNativeApi()
+        val diagnostic = RecordingDetailDiagnostic()
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
             onDismiss = {},
             nativeDetailContentApi = api,
-            diagnostic = FakeDiagnostic()
+            diagnostic = diagnostic
         )
 
         val view = session.bindDetailView(
@@ -154,7 +201,102 @@ class FocusModeDetailSessionTest {
         )
 
         assertNotNull(view)
-        assertTrue(FocusNativeDetailRegistry.isFocusContent(view!!))
+        assertTrue(FocusNativeDetailRegistry.isFocusContent(view))
+        assertTrue(diagnostic.stages.isEmpty())
+    }
+
+    @Test
+    fun `binding new native content unregisters previous content ownership`() {
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createFakeNativeApi(),
+            diagnostic = FakeDiagnostic()
+        )
+        val first = session.bindDetailView(android.app.Application(), null, null)
+        try {
+            assertTrue(FocusNativeDetailRegistry.isFocusContent(first))
+
+            val second = session.bindDetailView(android.app.Application(), null, null)
+            try {
+                assertFalse(FocusNativeDetailRegistry.isFocusContent(first))
+                assertTrue(FocusNativeDetailRegistry.isFocusContent(second))
+            } finally {
+                FocusNativeDetailRegistry.unregisterContent(second)
+            }
+        } finally {
+            FocusNativeDetailRegistry.unregisterContent(first)
+        }
+    }
+
+    @Test
+    fun `panel hidden after closing unregisters current native content ownership`() {
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createFakeNativeApi(),
+            diagnostic = FakeDiagnostic()
+        )
+        val content = session.bindDetailView(android.app.Application(), null, null)
+        try {
+            session.setDetailListening(true)
+            session.setDetailListening(false)
+
+            session.onPanelHidden()
+
+            assertFalse(FocusNativeDetailRegistry.isFocusContent(content))
+        } finally {
+            FocusNativeDetailRegistry.unregisterContent(content)
+        }
+    }
+
+    @Test
+    fun `panel hidden while open unregisters content without refreshing or changing state`() {
+        var refreshCalls = 0
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createFakeNativeApi(),
+            diagnostic = FakeDiagnostic(),
+            onStateRefresh = { refreshCalls += 1 }
+        )
+        val content = session.bindDetailView(android.app.Application(), null, null)
+        try {
+            session.setDetailListening(true)
+
+            session.onPanelHidden()
+
+            assertFalse(FocusNativeDetailRegistry.isFocusContent(content))
+            assertEquals(DetailLifecycleState.OPEN, session.state)
+            assertEquals(0, refreshCalls)
+        } finally {
+            FocusNativeDetailRegistry.unregisterContent(content)
+        }
+    }
+
+    @Test
+    fun `destroy unregisters current native content ownership and adapter ownership`() {
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createFakeNativeApi(),
+            diagnostic = FakeDiagnostic(),
+            detailAdapterInterface = createFakeDetailAdapterInterface()
+        )
+        FocusNativeDetailRegistry.registerSession(session.adapter, session)
+        val content = session.bindDetailView(android.app.Application(), null, null)
+        try {
+            assertTrue(FocusNativeDetailRegistry.isFocusAdapter(session.adapter))
+            assertTrue(FocusNativeDetailRegistry.isFocusContent(content))
+
+            session.destroy()
+
+            assertFalse(FocusNativeDetailRegistry.isFocusContent(content))
+            assertFalse(FocusNativeDetailRegistry.isFocusAdapter(session.adapter))
+        } finally {
+            FocusNativeDetailRegistry.unregisterContent(content)
+            FocusNativeDetailRegistry.unregisterSession(session.adapter)
+        }
     }
 
     @Test
@@ -222,11 +364,27 @@ class FocusModeDetailSessionTest {
         return method.invoke(obj)
     }
 
+    private fun createThrowingNativeApi(): FocusNativeDetailContentApi {
+        val api = createFakeNativeApi()
+        val convertMethod = ThrowingNativeDetailContent::class.java.getDeclaredMethod(
+            "fakeConvert",
+            android.content.Context::class.java,
+            android.view.View::class.java,
+            android.view.ViewGroup::class.java
+        )
+        return api.copy(
+            convertOrInflate = FocusNativeConvertOrInflate(
+                ownerProvider = { null },
+                method = convertMethod
+            )
+        )
+    }
+
     private fun createFakeNativeApi(): FocusNativeDetailContentApi {
         val contentClass = FakeSelectableItem::class.java
         val itemInterface = Any::class.java
         val selectableItemClass = FakeSelectableItem::class.java
-        val callbackInterface = Any::class.java
+        val callbackInterface = FakeSessionCallback::class.java
 
         val convertMethod = FakeSelectableItem::class.java.getDeclaredMethod(
             "fakeConvert",
@@ -273,6 +431,27 @@ class FakeDiagnostic : FocusDetailDiagnostic {
     override fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?) {}
 }
 
+class RecordingDetailDiagnostic : FocusDetailDiagnostic {
+    val stages = mutableListOf<FocusDetailFallbackStage>()
+
+    override fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?) {
+        stages += stage
+    }
+}
+
+class ThrowingNativeDetailContent {
+    companion object {
+        @JvmStatic
+        fun fakeConvert(
+            context: android.content.Context?,
+            convertView: android.view.View?,
+            parent: android.view.ViewGroup?
+        ): Any {
+            throw IllegalStateException("convert failed")
+        }
+    }
+}
+
 class FakeSelectableItem : android.view.View(null) {
     private var suffixValue: String? = null
     private var itemsValue: Array<Any>? = null
@@ -317,6 +496,11 @@ class FakeNativeDetailContentApi {
     fun setCallback(content: Any, callback: Any) {
         (content as? FakeSelectableItem)?.setCallback(callback)
     }
+}
+
+interface FakeSessionCallback {
+    fun onDetailItemClick(item: Any)
+    fun onDetailItemDisconnect(item: Any)
 }
 
 interface FakeDetailAdapter {

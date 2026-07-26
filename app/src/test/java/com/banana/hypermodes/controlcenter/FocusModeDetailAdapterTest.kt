@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.res.AssetManager
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.util.DisplayMetrics
 import android.view.View
@@ -22,6 +23,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,15 +64,191 @@ class FocusModeDetailAdapterTest {
     }
 
     @Test
-    fun `adapter calls onStateRefresh when closing with pending refresh`() {
+    fun `adapter defers state refresh until native panel hidden completes`() {
         val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
         val adapter = fixture.createAdapter()
 
         adapter.setDetailListening(true)
         adapter.setDetailListening(false)
 
+        assertEquals(0, fixture.refreshCalls)
+        assertTrue(adapter.session.hasPendingCardRefresh())
+
+        adapter.onPanelHidden()
+
         assertEquals(1, fixture.refreshCalls)
         assertFalse(adapter.session.hasPendingCardRefresh())
+        assertEquals(DetailLifecycleState.CLOSED, adapter.session.state)
+    }
+
+    @Test
+    fun `native adapter omits settings intent`() {
+        val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
+        val adapter = fixture.createAdapter()
+
+        val settingsIntent = (adapter.adapter as FakeDetailAdapter).getSettingsIntent()
+
+        assertNull(settingsIntent)
+    }
+
+    @Test
+    fun `native rows omit visual selection while preserving row content`() {
+        FakeNativeDetailContent.reset()
+        val nativeApi = FocusNativeDetailContentResolver.fromContentClass(
+            FakeNativeDetailContent::class.java
+        )!!
+        val fixture = fixture(
+            json = configJson(activeModeId = "work", lastModeId = "work"),
+            nativeApiOverride = nativeApi
+        )
+        val activeIcon = ColorDrawable(0x10)
+        val inactiveIcon = ColorDrawable(0x20)
+        val adapter = fixture.createAdapter(
+            modeIconProvider = { mode ->
+                when (mode.id) {
+                    "work" -> activeIcon
+                    "focus" -> inactiveIcon
+                    else -> error("unexpected mode ${mode.id}")
+                }
+            }
+        )
+        val context = TestContext("host", "Host", "Empty", "Open", "On", "Off")
+
+        val content = adapter.session.bindDetailView(context, null, null) as FakeNativeDetailContent
+        val rows = content.itemValues.map { it as FakeNativeDetailContent.SelectableItem }
+
+        assertEquals(listOf("Work", "Focus"), rows.map { it.title })
+        assertEquals(listOf("work", "focus"), rows.map { it.tag })
+        assertSame(activeIcon, rows[0].iconDrawable)
+        assertSame(inactiveIcon, rows[1].iconDrawable)
+        assertTrue(rows.all { it.summary == null })
+        assertTrue(rows.all { it.secondarySummary == null })
+        assertTrue(rows.all { !it.selected })
+        assertTrue(rows.all { !it.isForceSingle() })
+    }
+
+    @Test
+    fun `native rows receive drawable icons from mode provider`() {
+        FakeNativeDetailContent.reset()
+        val nativeApi = FocusNativeDetailContentResolver.fromContentClass(
+            FakeNativeDetailContent::class.java
+        )!!
+        val workDrawable = ColorDrawable(0x10)
+        val focusDrawable = ColorDrawable(0x20)
+        val seenModes = mutableListOf<ModeConfig>()
+        val fixture = fixture(
+            json = configJson(activeModeId = "work", lastModeId = "work"),
+            nativeApiOverride = nativeApi
+        )
+        val adapter = fixture.createAdapter(
+            modeIconProvider = { mode ->
+                seenModes += mode
+                when (mode.id) {
+                    "work" -> workDrawable
+                    "focus" -> focusDrawable
+                    else -> error("unexpected mode ${mode.id}")
+                }
+            }
+        )
+        val context = TestContext("host", "Host", "Empty", "Open", "On", "Off")
+
+        val content = adapter.session.bindDetailView(context, null, null) as FakeNativeDetailContent
+        val rows = content.itemValues.map { it as FakeNativeDetailContent.SelectableItem }
+
+        assertEquals(listOf("work", "focus"), seenModes.map { it.id })
+        assertSame(workDrawable, rows[0].iconDrawable)
+        assertSame(focusDrawable, rows[1].iconDrawable)
+    }
+
+    @Test
+    fun `native rows use injected display names while preserving native row behavior`() {
+        FakeNativeDetailContent.reset()
+        val nativeApi = FocusNativeDetailContentResolver.fromContentClass(
+            FakeNativeDetailContent::class.java
+        )!!
+        val workDrawable = ColorDrawable(0x10)
+        val focusDrawable = ColorDrawable(0x20)
+        val displayedModes = mutableListOf<ModeConfig>()
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            nativeApiOverride = nativeApi
+        )
+        val adapter = fixture.createAdapter(
+            modeIconProvider = { mode ->
+                when (mode.id) {
+                    "work" -> workDrawable
+                    "focus" -> focusDrawable
+                    else -> error("unexpected icon mode ${mode.id}")
+                }
+            },
+            modeDisplayNameProvider = { mode ->
+                displayedModes += mode
+                "Display ${mode.id}"
+            }
+        )
+        val context = TestContext("host", "Host", "Empty", "Open", "On", "Off")
+
+        val content = adapter.session.bindDetailView(context, null, null) as FakeNativeDetailContent
+        val rows = content.itemValues.map { it as FakeNativeDetailContent.SelectableItem }
+        content.callbackValue!!.onDetailItemClick(rows[1])
+
+        assertEquals(listOf("work", "focus"), displayedModes.map { it.id })
+        assertEquals(listOf("Display work", "Display focus"), rows.map { it.title })
+        assertEquals(listOf("work", "focus"), rows.map { it.tag })
+        assertSame(workDrawable, rows[0].iconDrawable)
+        assertSame(focusDrawable, rows[1].iconDrawable)
+        assertTrue(rows.all { !it.selected })
+        assertTrue(rows.all { it.selectable })
+        val config = ConfigParser.parseConfig(fixture.store.json!!)
+        assertEquals("focus", config.activeModeId)
+        assertEquals(1, fixture.dismissCalls)
+    }
+
+    @Test
+    fun `first native bind populates items and installs callback`() {
+        FakeNativeDetailContent.reset()
+        val nativeApi = FocusNativeDetailContentResolver.fromContentClass(FakeNativeDetailContent::class.java)!!
+        val fixture = fixture(
+            json = configJson(activeModeId = "work", lastModeId = "work"),
+            nativeApiOverride = nativeApi
+        )
+        val adapter = fixture.createAdapter()
+        val context = TestContext("host", "Host", "Empty", "Open", "On", "Off")
+
+        val content = adapter.session.bindDetailView(context, null, null) as FakeNativeDetailContent
+
+        assertEquals("HyperModesFocus", content.suffixValue)
+        assertEquals(2, content.itemValues.size)
+        assertNotNull(content.callbackValue)
+        val work = content.itemValues[0] as FakeNativeDetailContent.SelectableItem
+        assertEquals("work", work.tag)
+        assertFalse(work.selected)
+        assertFalse(work.isForceSingle())
+        val outerField = work.javaClass.declaredFields.single {
+            FakeNativeDetailContent::class.java.isAssignableFrom(it.type)
+        }.apply { isAccessible = true }
+        assertEquals(content, outerField.get(work))
+    }
+
+    @Test
+    fun `native item click activates selected mode and requests close once`() {
+        FakeNativeDetailContent.reset()
+        val nativeApi = FocusNativeDetailContentResolver.fromContentClass(FakeNativeDetailContent::class.java)!!
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            nativeApiOverride = nativeApi
+        )
+        val adapter = fixture.createAdapter()
+        val context = TestContext("host", "Host", "Empty", "Open", "On", "Off")
+        val content = adapter.session.bindDetailView(context, null, null) as FakeNativeDetailContent
+        val focus = content.itemValues[1]
+
+        content.callbackValue!!.onDetailItemClick(focus)
+        content.callbackValue!!.onDetailItemClick(focus)
+
+        val config = ConfigParser.parseConfig(fixture.store.json!!)
+        assertEquals("focus", config.activeModeId)
+        assertEquals(1, fixture.dismissCalls)
     }
 
     @Test
@@ -175,7 +353,10 @@ class FocusModeDetailAdapterTest {
         var dismissCalls = 0
         var refreshCalls = 0
 
-        fun createAdapter(): FocusModeDetailAdapter {
+        fun createAdapter(
+            modeIconProvider: ((ModeConfig) -> Drawable)? = null,
+            modeDisplayNameProvider: ((ModeConfig) -> String)? = null
+        ): FocusModeDetailAdapter {
             val nativeApi = nativeApiOverride ?: FocusNativeDetailContentResolver.fromContentClass(FakeNativeDetailContent::class.java)
             return FocusModeDetailAdapter(
                 pluginContext = pluginContext,
@@ -184,7 +365,9 @@ class FocusModeDetailAdapterTest {
                 repository = repository,
                 onDismiss = { dismissCalls += 1 },
                 onStateRefresh = { refreshCalls += 1 },
-                nativeDetailContentApi = nativeApi
+                nativeDetailContentApi = nativeApi,
+                modeIconProvider = modeIconProvider,
+                modeDisplayNameProvider = modeDisplayNameProvider
             )
         }
     }
@@ -233,6 +416,7 @@ class FocusModeDetailAdapterTest {
         override fun startActivity(intent: Intent?) = Unit
     }
 
+    @Suppress("DEPRECATION")
     private class TestResources(
         private val strings: Map<Int, String>
     ) : Resources(newAssetManager(), DisplayMetrics().apply { density = 1f }, Configuration()) {

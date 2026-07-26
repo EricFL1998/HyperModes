@@ -130,6 +130,34 @@ class ModeConversionTest {
         assertTrue(config.toMode(isActive = true).enabled)
     }
 
+    @Test
+    fun `statusIcon is populated from mapper if null`() {
+        val mode = Mode(
+            id = "custom",
+            name = "Custom",
+            icon = "🌙", // moon emoji
+            statusIcon = null,
+            description = ""
+        )
+
+        val config = mode.toModeConfig()
+        assertEquals("ic_stat_moon", config.statusIcon)
+    }
+
+    @Test
+    fun `explicit statusIcon is preserved`() {
+        val mode = Mode(
+            id = "custom",
+            name = "Custom",
+            icon = "🌙",
+            statusIcon = "custom_icon",
+            description = ""
+        )
+
+        val config = mode.toModeConfig()
+        assertEquals("custom_icon", config.statusIcon)
+    }
+
     private fun config(
         id: String,
         type: ModeType,

@@ -169,7 +169,7 @@ fun Mode.toModeConfig(): ModeConfig {
         id = id,
         name = name,
         icon = icon,
-        statusIcon = statusIcon,
+        statusIcon = statusIcon ?: ModeIconMapper.getStatusBarIcon(icon),
         type = type,
         startTime = startTime,
         endTime = endTime,

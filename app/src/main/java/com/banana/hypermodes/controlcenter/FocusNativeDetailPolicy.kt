@@ -32,6 +32,14 @@ object FocusNativeDetailPolicy {
         return true
     }
 
+    fun shouldCleanBoundRow(
+        outerContent: Any?,
+        registry: FocusNativeDetailRegistry
+    ): Boolean {
+        if (outerContent == null) return false
+        return registry.isFocusContent(outerContent)
+    }
+
     fun resolveOuterContent(innerAdapter: Any, contentClass: Class<*>): Any? {
         return try {
             // Try synthetic this$0 field first

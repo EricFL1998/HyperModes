@@ -1,7 +1,9 @@
 package com.banana.hypermodes.controlcenter
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.util.Log
+import com.banana.hypermodes.systemserver.config.ModeConfig
 
 private const val TAG = "FocusModeDetailAdapter"
 
@@ -12,8 +14,15 @@ class FocusModeDetailAdapter(
     private val repository: FocusCardStateRepository,
     private val onDismiss: () -> Unit,
     private val onStateRefresh: () -> Unit = {},
-    nativeDetailContentApi: FocusNativeDetailContentApi?
+    nativeDetailContentApi: FocusNativeDetailContentApi?,
+    modeIconProvider: ((ModeConfig) -> Drawable)? = null,
+    modeDisplayNameProvider: ((ModeConfig) -> String)? = null
 ) {
+    private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
+    private val displayNameResolver = FocusModeDisplayNameResolver(moduleContext::getString)
+    private val resolvedModeIconProvider = modeIconProvider ?: iconResolver::resolve
+    private val resolvedModeDisplayNameProvider = modeDisplayNameProvider ?: displayNameResolver::resolve
+
     val session = FocusModeDetailSession(
         repository = repository,
         onDismiss = onDismiss,
@@ -23,7 +32,10 @@ class FocusModeDetailAdapter(
                 Log.w(TAG, "Detail fallback: $stage", throwable)
             }
         },
-        detailAdapterInterface = detailAdapterInterface
+        detailAdapterInterface = detailAdapterInterface,
+        onStateRefresh = onStateRefresh,
+        modeIconProvider = resolvedModeIconProvider,
+        modeDisplayNameProvider = resolvedModeDisplayNameProvider
     )
 
     init {
@@ -34,18 +46,10 @@ class FocusModeDetailAdapter(
 
     fun setDetailListening(listening: Boolean) {
         session.setDetailListening(listening)
-        if (!listening && session.hasPendingCardRefresh()) {
-            onStateRefresh()
-            session.clearPendingCardRefresh()
-        }
     }
 
     fun onPanelHidden() {
         session.onPanelHidden()
-        if (session.hasPendingCardRefresh()) {
-            onStateRefresh()
-            session.clearPendingCardRefresh()
-        }
     }
 
     fun refreshItems() {
