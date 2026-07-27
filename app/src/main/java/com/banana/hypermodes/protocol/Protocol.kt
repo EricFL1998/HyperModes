@@ -10,6 +10,7 @@ object Protocol {
     const val TARGET_PACKAGE = "com.android.deskclock"
     const val DESKCLOCK_PACKAGE = "com.android.deskclock"
     const val SETTINGS_PACKAGE = "com.android.settings"
+    const val AOD_PACKAGE = "com.miui.aod"
     /** system_server scope (LSPosed "系统框架"). */
     const val FRAMEWORK_PACKAGE = "android"
 

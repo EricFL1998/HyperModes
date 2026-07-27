@@ -3,4 +3,5 @@ com.android.deskclock
 com.android.settings
 com.android.systemui
 miui.systemui.plugin
+com.miui.aod
 system
