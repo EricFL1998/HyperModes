@@ -16,10 +16,12 @@ import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.utils.RefreshRateManager
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowUpDown
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import top.yukonga.miuix.kmp.window.WindowListPopup
 
 /**
  * 显示选项 sub-page: 过滤通知时的显示选项 / 灰度模式 / 让屏幕保持关闭状态 /
@@ -215,9 +217,9 @@ fun DisplayOptionsScreen(
                 }
             }
 
-            // Frame Rate Toggle
+            // Frame Rate Toggle + Value (Combined)
             item {
-                SettingItem(
+                RefreshRateSettingItem(
                     title = stringResource(R.string.refresh_rate_option),
                     subtitle = stringResource(R.string.refresh_rate_option_desc),
                     checked = editedMode.settings.enableRefreshRate,
@@ -227,25 +229,22 @@ fun DisplayOptionsScreen(
                         )
                         onSave(editedMode)
                     },
+                    value = stringResource(R.string.refresh_rate_unit, editedMode.settings.refreshRate),
+                    onValueClick = { showRefreshRatePicker = true },
+                    showPopup = showRefreshRatePicker,
+                    onDismissPopup = { showRefreshRatePicker = false },
+                    supportedRates = supportedRates,
+                    onRateSelect = { rate ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(refreshRate = rate)
+                        )
+                        onSave(editedMode)
+                        showRefreshRatePicker = false
+                    },
                     modifier = Modifier
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 12.dp)
                 )
-            }
-
-            // Frame Rate Selection
-            if (editedMode.settings.enableRefreshRate) {
-                item {
-                    ValueSettingItem(
-                        title = stringResource(R.string.refresh_rate_option),
-                        subtitle = "",
-                        value = stringResource(R.string.refresh_rate_unit, editedMode.settings.refreshRate),
-                        onClick = { showRefreshRatePicker = true },
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp)
-                    )
-                }
             }
 
             // Bottom spacer with navigation bar padding
@@ -254,69 +253,95 @@ fun DisplayOptionsScreen(
             }
         }
     }
-
-    RefreshRateDialog(
-        show = showRefreshRatePicker,
-        rates = supportedRates,
-        current = editedMode.settings.refreshRate,
-        onDismiss = { showRefreshRatePicker = false },
-        onSelect = { rate ->
-            editedMode = editedMode.copy(
-                settings = editedMode.settings.copy(refreshRate = rate)
-            )
-            onSave(editedMode)
-            showRefreshRatePicker = false
-        }
-    )
 }
 
 @Composable
-fun RefreshRateDialog(
-    show: Boolean,
-    rates: List<Int>,
-    current: Int,
-    onDismiss: () -> Unit,
-    onSelect: (Int) -> Unit
+fun RefreshRateSettingItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    value: String,
+    onValueClick: () -> Unit,
+    showPopup: Boolean,
+    onDismissPopup: () -> Unit,
+    supportedRates: List<Int>,
+    onRateSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    top.yukonga.miuix.kmp.overlay.OverlayDialog(
-        title = stringResource(R.string.refresh_rate_option),
-        show = show,
-        onDismissRequest = onDismiss
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Column {
-            rates.forEach { rate ->
-                val selected = current == rate
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(rate) }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (selected) {
-                        Text(
-                            text = "✓",
-                            style = MiuixTheme.textStyles.body1,
-                            color = MiuixTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.width(24.dp))
-                    }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MiuixTheme.textStyles.body1
+                )
+                if (subtitle.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.refresh_rate_unit, rate),
-                        style = MiuixTheme.textStyles.body1,
-                        color = if (selected) MiuixTheme.colorScheme.primary
-                        else MiuixTheme.colorScheme.onSurface
+                        text = subtitle,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
-                text = stringResource(R.string.cancel),
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (checked) {
+                    Box {
+                        Row(
+                            modifier = Modifier.clickable(onClick = onValueClick),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = value,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = MiuixIcons.Basic.ArrowUpDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                        }
+
+                        WindowListPopup(
+                            show = showPopup,
+                            popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
+                            alignment = PopupPositionProvider.Align.TopEnd,
+                            onDismissRequest = onDismissPopup
+                        ) {
+                            ListPopupColumn {
+                                supportedRates.forEachIndexed { index, rate ->
+                                    DropdownImpl(
+                                        text = stringResource(R.string.refresh_rate_unit, rate),
+                                        optionSize = supportedRates.size,
+                                        isSelected = value.startsWith(rate.toString()),
+                                        index = index,
+                                        onSelectedIndexChange = {
+                                            onRateSelect(rate)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange
+                )
+            }
         }
     }
 }
+
