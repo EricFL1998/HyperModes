@@ -68,6 +68,9 @@ private class TileInvocationHandler(
     private var detailAdapter: Any? = null
     private var detailSession: FocusModeDetailSession? = null
     private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
+    private val displayNameResolver = FocusModeDisplayNameResolver { id ->
+        stringFromContext(id, "HyperModes")
+    }
 
     override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
         val arguments = args ?: emptyArray()
@@ -245,7 +248,7 @@ private class TileInvocationHandler(
         val snapshot = repository.loadOrInitialize()
         val mode = snapshot.displayedMode
         val active = snapshot.isActive && mode != null
-        val label = localizeModeName(mode?.name) ?: fallbackLabel()
+        val label = mode?.let { displayNameResolver.resolve(it) } ?: fallbackLabel()
         setObjectFieldIfPresent(state, "spec", tileSpec)
         setObjectFieldIfPresent(state, "label", label)
         setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, active, mode != null))
@@ -266,18 +269,9 @@ private class TileInvocationHandler(
     }
 
     private fun tileLabel(): CharSequence {
-        return localizeModeName(repository.loadOrInitialize().displayedMode?.name) ?: fallbackLabel()
-    }
-
-    private fun localizeModeName(name: String?): CharSequence? {
-        if (name == null) return null
-        // Only translate the three default modes; keep custom mode names as-is
-        return when (name) {
-            "Do Not Disturb" -> stringFromContext(R.string.mode_dnd, "勿扰模式")
-            "Bedtime" -> stringFromContext(R.string.mode_bedtime, "睡眠模式")
-            "Driving" -> stringFromContext(R.string.mode_driving, "行驶模式")
-            else -> name
-        }
+        return repository.loadOrInitialize().displayedMode?.let {
+            displayNameResolver.resolve(it)
+        } ?: fallbackLabel()
     }
 
     private fun stringFromContext(id: Int, fallback: String): String {

@@ -20,12 +20,12 @@
     <string name="create_own_mode">创建自定义模式</string>
 
     <!-- Mode Names & Descriptions -->
-    <string name="mode_dnd">勿扰模式</string>
+    <string name="mode_dnd">勿扰</string>
     <string name="mode_dnd_desc">静音通知和来电</string>
     <string name="mode_dnd_hero_desc">仅允许来自重要联系人和应用的通知，尽量减少干扰</string>
-    <string name="mode_bedtime">睡眠模式</string>
+    <string name="mode_bedtime">睡眠</string>
     <string name="mode_bedtime_desc">23:00 - 07:00</string>
-    <string name="mode_driving">驾驶模式</string>
+    <string name="mode_driving">驾驶</string>
     <string name="mode_driving_desc">利用设备运动状态和蓝牙连接自动开启</string>
 
     <!-- Detail Screen -->
@@ -34,7 +34,7 @@
     <string name="what_to_customize">设置项</string>
 
     <!-- Settings -->
-    <string name="setting_dnd">勿扰模式</string>
+    <string name="setting_dnd">勿扰</string>
     <string name="dnd_none">不干扰</string>
     <string name="dnd_priority">仅限优先打扰</string>
     <string name="dnd_alarms">仅限闹钟</string>

@@ -25,15 +25,15 @@ internal class FocusModeDisplayNameResolver(
         val builtInMappings = mapOf(
             "dnd" to BuiltInModeNameMapping(
                 stringResId = R.string.mode_dnd,
-                defaultNames = setOf("Do Not Disturb", "勿扰模式")
+                defaultNames = setOf("Do Not Disturb", "勿扰")
             ),
             "bedtime" to BuiltInModeNameMapping(
                 stringResId = R.string.mode_bedtime,
-                defaultNames = setOf("Bedtime", "睡眠模式")
+                defaultNames = setOf("Bedtime", "睡眠")
             ),
             "driving" to BuiltInModeNameMapping(
                 stringResId = R.string.mode_driving,
-                defaultNames = setOf("Driving", "驾驶模式")
+                defaultNames = setOf("Driving", "驾驶")
             )
         )
     }
