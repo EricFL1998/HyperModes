@@ -9,4 +9,7 @@
     <color name="white">#FFFFFFFF</color>
     <!-- Light theme: white launch splash / window background. -->
     <color name="splash_bg">#FFFFFFFF</color>
+
+    <color name="setting_modes_icon_color">#CC000000</color>
+    <color name="setting_modes_bg_color">#0F000000</color>
 </resources>

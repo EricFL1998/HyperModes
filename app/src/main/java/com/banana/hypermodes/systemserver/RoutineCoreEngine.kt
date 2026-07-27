@@ -233,6 +233,8 @@ class RoutineCoreEngine private constructor() {
                     val mode = allModes.find { it.id == config.activeModeId }
                     if (mode != null) {
                         log("Activating mode from config: ${mode.name}")
+                        // Clear dismissal record when explicitly switching to this mode via config
+                        clearDismissRecord(mode.id)
                         currentActiveMode = mode
                         modeActionExecutor?.applyMode(mode)
                     } else {
@@ -255,11 +257,19 @@ class RoutineCoreEngine private constructor() {
                         val now = System.currentTimeMillis()
                         dismissedScheduledModes[activeMode.id] = now
                         log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
-                        
+
                         // Persist the dismissal record back to Settings.Global so it survives reboot.
                         // Only do this if the incoming config didn't already have it (to avoid loop).
                         if (config.dismissedModes[activeMode.id] != now) {
                             updateActiveModeInSettings(null)
+                        }
+
+                        // Mirror deactivateMode(): a manual bedtime dismiss via
+                        // Settings.Global must also tell DeskClock to skip the wake
+                        // alarm once, otherwise the official bedtime state stays
+                        // "on" and re-enables this mode (UI flips back to enabled).
+                        if (activeMode.type == ModeType.BEDTIME) {
+                            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
                         }
                     }
                     log("Deactivating current mode: ${activeMode.name}")
@@ -311,6 +321,9 @@ class RoutineCoreEngine private constructor() {
         }
 
         log("Activating mode: ${mode.name} (id=$modeId)")
+
+        // Clear any previous dismiss record when manually activating or reactivating
+        clearDismissRecord(modeId)
 
         // Deactivate current mode first
         currentActiveMode?.let {

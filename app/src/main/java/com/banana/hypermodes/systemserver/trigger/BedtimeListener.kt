@@ -166,7 +166,12 @@ class BedtimeListener(
 
             log("Bedtime state check: active=$bedtimeActive, dismissed=$isManualDismissed, currentMode=${currentMode?.name}, bedtimeMode=${bedtimeMode?.name}")
 
-            if (bedtimeActive && !isManualDismissed) {
+            if (bedtimeActive) {
+                if (isManualDismissed) {
+                    log("Bedtime is active in system but was manually dismissed in HyperModes; keeping it off")
+                    return
+                }
+
                 // Bedtime should be active
                 if (bedtimeMode != null && (currentMode?.id != bedtimeMode.id)) {
                     log("Activating bedtime mode: ${bedtimeMode.name}")
@@ -175,10 +180,11 @@ class BedtimeListener(
                     log("Bedtime active but no BEDTIME mode configured")
                 }
             } else {
-                // Bedtime should be inactive
+                // Bedtime should be inactive (system bedtime is OFF)
                 if (currentMode != null && currentMode.type == ModeType.BEDTIME) {
-                    log("Deactivating bedtime mode: ${currentMode.name}")
-                    engine.deactivateMode(currentMode.id)
+                    log("Deactivating bedtime mode (system state is OFF): ${currentMode.name}")
+                    // system-driven deactivation is not a manual dismiss
+                    engine.deactivateMode(currentMode.id, isManualDismiss = false)
                 }
             }
         } catch (e: Exception) {

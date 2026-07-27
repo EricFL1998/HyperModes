@@ -2,4 +2,7 @@
 <resources>
     <!-- Dark theme: black launch splash / window background. -->
     <color name="splash_bg">#FF000000</color>
+
+    <color name="setting_modes_icon_color">#E6FFFFFF</color>
+    <color name="setting_modes_bg_color">#1AFFFFFF</color>
 </resources>
