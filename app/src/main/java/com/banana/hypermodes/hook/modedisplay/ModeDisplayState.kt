@@ -2,8 +2,11 @@ package com.banana.hypermodes.hook.modedisplay
 
 import android.content.Context
 import android.provider.Settings
+import com.banana.hypermodes.controlcenter.FocusModeDisplayNameResolver
 import com.banana.hypermodes.data.ModeIconMapper
+import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.config.ConfigParser
+import com.banana.hypermodes.systemserver.config.ModeConfig
 
 data class ModeDisplayState(
     val name: String,
@@ -15,10 +18,13 @@ object ModeDisplayStateReader {
 
     fun read(context: Context): ModeDisplayState? {
         val json = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
-        return fromJson(json)
+        return fromJson(json) { mode -> resolveDisplayName(context, mode) }
     }
 
-    fun fromJson(json: String?): ModeDisplayState? {
+    fun fromJson(
+        json: String?,
+        resolveName: (ModeConfig) -> String = { it.name }
+    ): ModeDisplayState? {
         if (json.isNullOrBlank()) return null
 
         return runCatching {
@@ -31,9 +37,21 @@ object ModeDisplayStateReader {
                 ?: ModeIconMapper.getStatusBarIcon(activeMode.icon)
 
             ModeDisplayState(
-                name = activeMode.name,
+                name = resolveName(activeMode),
                 iconResName = iconResName
             )
         }.getOrNull()
     }
+
+    // Built-in modes store their English default names; translate to the module's
+    // localized strings. Renamed or custom modes pass through untouched.
+    private fun resolveDisplayName(context: Context, mode: ModeConfig): String =
+        runCatching {
+            val moduleContext = context.createPackageContext(
+                Protocol.MODULE_PACKAGE,
+                Context.CONTEXT_IGNORE_SECURITY
+            )
+            FocusModeDisplayNameResolver { resId -> moduleContext.getString(resId) }
+                .resolve(mode)
+        }.getOrDefault(mode.name)
 }

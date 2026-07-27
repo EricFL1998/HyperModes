@@ -41,6 +41,15 @@ class ModeDisplayStateReaderTest {
         assertNull(ModeDisplayStateReader.fromJson("{not-json"))
     }
 
+    @Test
+    fun `injected resolver translates built-in mode names`() {
+        val state = ModeDisplayStateReader.fromJson(
+            configJson(activeModeId = "work", statusIcon = "ic_stat_star")
+        ) { mode -> if (mode.id == "work") "工作" else mode.name }
+
+        assertEquals(ModeDisplayState("工作", "ic_stat_star"), state)
+    }
+
     private fun configJson(activeModeId: String, statusIcon: String): String = """
         {
           "activeModeId": "$activeModeId",
