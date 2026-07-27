@@ -1,5 +1,7 @@
 package com.banana.hypermodes.hook.modedisplay
 
+import kotlin.math.roundToInt
+
 data class DisplayBounds(
     val x: Int,
     val y: Int,
@@ -15,6 +17,13 @@ data class DisplayPlacement(
 )
 
 object ModeDisplayPositioner {
+    // Native Full-AOD shrink constants (KeyguardPanelViewController.linkageViewAnim):
+    // animation views settle at wallpaperScale - 0.05 = 0.95 around a pivot at
+    // (0.5W, 0.4H) of the lock screen size.
+    private const val FULL_AOD_ZOOM_SCALE = 0.95f
+    private const val PIVOT_X_RATIO = 0.5f
+    private const val PIVOT_Y_RATIO = 0.4f
+
     fun calculate(
         lockscreen: DisplayBounds?,
         host: DisplayBounds?
@@ -29,9 +38,15 @@ object ModeDisplayPositioner {
         if (relativeX + lockscreen.width > host.width) return null
         if (relativeY + lockscreen.height > host.height) return null
 
+        // Land where the native shrink animation carries lockscreen content:
+        // pivot + scale * (position - pivot). The fading lockscreen copy rides
+        // that transform, so converging on its endpoint keeps the handoff
+        // continuous instead of jumping.
+        val pivotX = host.width * PIVOT_X_RATIO
+        val pivotY = host.height * PIVOT_Y_RATIO
         return DisplayPlacement(
-            x = relativeX,
-            y = relativeY,
+            x = (pivotX + FULL_AOD_ZOOM_SCALE * (relativeX - pivotX)).roundToInt(),
+            y = (pivotY + FULL_AOD_ZOOM_SCALE * (relativeY - pivotY)).roundToInt(),
             width = lockscreen.width,
             height = lockscreen.height
         )

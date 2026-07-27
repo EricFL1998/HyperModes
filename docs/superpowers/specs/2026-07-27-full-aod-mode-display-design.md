@@ -152,14 +152,22 @@ relativeY = lockscreenScreenY - aodRootScreenY
 4. 把 Full-AOD 副本放到该相对位置；
 5. 后续位移、缩放和透明度均由 `aod_root_view` 的原生动画驱动。
 
-原生 Full-AOD 转场会给 `aod_root_view` 设置 scale 和显式 pivot（缩小时围绕约 0.4H 的 pivot 缩到 0.95）。为让副本的**渲染位置**始终等于锁屏副本最后的渲染位置、并随原生动画连续过渡，布局坐标按宿主当前 scale/pivot 做逆变换：
+真机录屏确认：原生转场把锁屏内容围绕 (0.5W, 0.4H) 的 pivot 缩到 0.95（`linkageViewAnim` 中 `scale = wallpaperScale - 0.05`），锁屏副本随底部区域上移并淡出；而 `aod_root_view` 稳态不带缩放，我们的 AOD 副本不会随动画移动。因此定位分两层：
+
+1. `ModeDisplayPositioner` 直接计算原生缩放的**终点位置**，使 AOD 副本落在锁屏内容被缩放携带到的位置，两股轨迹在终点汇合：
 
 ```text
-marginX = pivotX + (relativeX - pivotX) / scaleX
-marginY = pivotY + (relativeY - pivotY) / scaleY
+targetX = 0.5W + 0.95 * (relativeX - 0.5W)
+targetY = 0.4H + 0.95 * (relativeY - 0.4H)   （W/H 为 AOD 宿主尺寸）
 ```
 
-宿主无缩放时该公式退化为原始相对坐标。每次 `onDreamingStarted()` 都会按当时的 scale/pivot 重新定位，转场结束后再次回调时自动收敛到最终位置。
+2. 布局时再按 `aod_root_view` 当前的 scale/pivot 做逆变换，保证渲染位置等于该终点（宿主无缩放时退化为直接放置）：
+
+```text
+margin = livePivot + (target - livePivot) / liveScale
+```
+
+每次 `onDreamingStarted()` 都会按当时的 scale/pivot 重新定位，转场结束后再次回调时自动收敛到最终位置。
 
 坐标规则：
 

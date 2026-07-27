@@ -42,8 +42,8 @@ class ModeDisplayCoordinatorTest {
 
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
-        assertEquals(420, params.leftMargin)
-        assertEquals(2000, params.topMargin)
+        assertEquals(426, params.leftMargin)
+        assertEquals(1946, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
         assertEquals("Work", (fullAod.getChildAt(1) as TextView).text.toString())
@@ -174,8 +174,8 @@ class ModeDisplayCoordinatorTest {
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(View.VISIBLE, fullAod.visibility)
-        assertEquals(420, params.leftMargin)
-        assertEquals(2000, params.topMargin)
+        assertEquals(426, params.leftMargin)
+        assertEquals(1946, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
     }
@@ -218,8 +218,8 @@ class ModeDisplayCoordinatorTest {
 
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
-        assertEquals(100, params.leftMargin)
-        assertEquals(1800, params.topMargin)
+        assertEquals(122, params.leftMargin)
+        assertEquals(1756, params.topMargin)
         assertEquals(200, params.width)
         assertEquals(50, params.height)
     }
@@ -241,12 +241,13 @@ class ModeDisplayCoordinatorTest {
 
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
-        // placement.x = 420, placement.y = 2000 relative to the host origin.
-        assertEquals(420, params.leftMargin) // scaleX untouched at 1.0
-        assertEquals((920f + (2000f - 920f) / 0.95f).roundToInt(), params.topMargin)
-        // Rendered position lands back on the lockscreen position.
+        // Positioner targets the native zoom endpoint (426, 1946); the host
+        // transform inverse keeps the rendered position on that target.
+        assertEquals(426, params.leftMargin) // scaleX untouched at 1.0
+        assertEquals((920f + (1946f - 920f) / 0.95f).roundToInt(), params.topMargin)
+        // Rendered position lands on the zoom endpoint.
         val renderedY = 920f + 0.95f * (params.topMargin - 920f)
-        assertEquals(2000f, renderedY, 1f)
+        assertEquals(1946f, renderedY, 1f)
     }
 
     @Test
