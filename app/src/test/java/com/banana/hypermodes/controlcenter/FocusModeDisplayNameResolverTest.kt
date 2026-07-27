@@ -24,7 +24,7 @@ class FocusModeDisplayNameResolverTest {
     fun `dnd Chinese default resolves to supplied localized dnd string`() {
         val resolver = resolver(R.string.mode_dnd to "Localized DND")
 
-        val resolved = resolver.resolve(mode(id = "dnd", name = "勿扰模式"))
+        val resolved = resolver.resolve(mode(id = "dnd", name = "勿扰"))
 
         assertEquals("Localized DND", resolved)
     }
@@ -38,9 +38,9 @@ class FocusModeDisplayNameResolverTest {
 
         val resolved = listOf(
             resolver.resolve(mode(id = "bedtime", name = "Bedtime")),
-            resolver.resolve(mode(id = "bedtime", name = "睡眠模式")),
+            resolver.resolve(mode(id = "bedtime", name = "睡眠")),
             resolver.resolve(mode(id = "driving", name = "Driving")),
-            resolver.resolve(mode(id = "driving", name = "驾驶模式"))
+            resolver.resolve(mode(id = "driving", name = "驾驶"))
         )
 
         assertEquals(
