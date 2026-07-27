@@ -30,7 +30,8 @@ class ModeConversionTest {
                     endHour = 17,
                     endMinute = 45,
                     repeatDays = 0b0011111
-                )
+                ),
+                enableAdaptiveRefreshRatePro = true
             )
         )
 
@@ -42,7 +43,9 @@ class ModeConversionTest {
         assertEquals("17:45", config.endTime)
         assertEquals(listOf(1, 2, 3, 4, 5), config.repeatDays)
         assertEquals(true, config.scheduleEnabled)
+        assertEquals(true, config.display.adaptiveRefreshRatePro)
         assertEquals(mode.settings.schedule, restored.settings.schedule)
+        assertEquals(true, restored.settings.enableAdaptiveRefreshRatePro)
         assertFalse(restored.settings.drivingAutoDetect)
     }
 
@@ -128,6 +131,34 @@ class ModeConversionTest {
 
         assertFalse(config.toMode().enabled)
         assertTrue(config.toMode(isActive = true).enabled)
+    }
+
+    @Test
+    fun `statusIcon is populated from mapper if null`() {
+        val mode = Mode(
+            id = "custom",
+            name = "Custom",
+            icon = "🌙", // moon emoji
+            statusIcon = null,
+            description = ""
+        )
+
+        val config = mode.toModeConfig()
+        assertEquals("ic_stat_moon", config.statusIcon)
+    }
+
+    @Test
+    fun `explicit statusIcon is preserved`() {
+        val mode = Mode(
+            id = "custom",
+            name = "Custom",
+            icon = "🌙",
+            statusIcon = "custom_icon",
+            description = ""
+        )
+
+        val config = mode.toModeConfig()
+        assertEquals("custom_icon", config.statusIcon)
     }
 
     private fun config(

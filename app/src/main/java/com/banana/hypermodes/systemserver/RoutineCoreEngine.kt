@@ -13,6 +13,7 @@ import com.banana.hypermodes.systemserver.config.ModeType
 import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
+import com.banana.hypermodes.systemserver.trigger.BedtimeListenerLifecycle
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
 
@@ -28,11 +29,20 @@ import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
  */
 class RoutineCoreEngine private constructor() {
 
+    enum class LifecycleState {
+        RUNNING,
+        REPLACING,
+        REMOVED
+    }
+
     private var systemContext: Context? = null
     private var classLoader: ClassLoader? = null
 
     private var currentActiveMode: ModeConfig? = null
     private var allModes: List<ModeConfig> = emptyList()
+
+    @Volatile
+    private var lifecycleState = LifecycleState.RUNNING
 
     // Track manually dismissed scheduled modes: modeId -> dismiss timestamp
     // When user manually closes a mode during its scheduled period,
@@ -42,6 +52,7 @@ class RoutineCoreEngine private constructor() {
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
     private var bedtimeListener: BedtimeListener? = null
+    private var bedtimeListenerLifecycle = BedtimeListenerLifecycle()
     private var modeActionExecutor: ModeActionExecutor? = null
 
     private var mainHandler: Handler? = null
@@ -54,6 +65,22 @@ class RoutineCoreEngine private constructor() {
      * @param loader System_server ClassLoader for reflection
      */
     fun init(context: Context, loader: ClassLoader) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            // Check if it was reinstalled
+            if (isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+                log("Engine was REMOVED but package is present, resetting state to RUNNING")
+                lifecycleState = LifecycleState.RUNNING
+            } else {
+                log("Engine is REMOVED and package missing, skipping init")
+                return
+            }
+        } else if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+            log("Engine is RUNNING but package missing on boot, triggering shutdown")
+            // Initialize mainHandler first so shutdown can post to it
+            mainHandler = Handler(Looper.getMainLooper())
+            shutdownForPackageRemoval()
+            return
+        }
         log("Initializing RoutineCoreEngine...")
         systemContext = context
         classLoader = loader
@@ -63,7 +90,10 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
-        bedtimeListener = BedtimeListener(context, this)
+        bedtimeListenerLifecycle = BedtimeListenerLifecycle()
+        bedtimeListener = BedtimeListener(context, this, bedtimeListenerLifecycle).also {
+            it.registerStateSources()
+        }
 
         // Watch for config changes in Settings.Global
         observeConfigChanges(context)
@@ -98,10 +128,14 @@ class RoutineCoreEngine private constructor() {
             modeActionExecutor?.run {
                 val iconManager = javaClass.getDeclaredField("statusBarIconManager").apply {
                     isAccessible = true
-                }.get(this) as? StatusBarIconManager
+                }[this] as? StatusBarIconManager
 
-                iconManager?.setIcon(activeMode.icon, activeMode.name)
-                log("Quick restored icon for mode: ${activeMode.name}")
+                // Use statusIcon if available, fallback to icon mapping
+                val statusIcon = activeMode.statusIcon
+                    ?: com.banana.hypermodes.data.ModeIconMapper.getStatusBarIcon(activeMode.icon)
+
+                iconManager?.setIcon(statusIcon, activeMode.name)
+                log("Quick restored icon for mode: ${activeMode.name} (icon=$statusIcon)")
             }
         } catch (e: Exception) {
             log("Failed to quick restore icon: ${e.message}")
@@ -112,6 +146,7 @@ class RoutineCoreEngine private constructor() {
         val handler = mainHandler ?: Handler(Looper.getMainLooper())
         val observer = object : ContentObserver(handler) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
+                if (lifecycleState == LifecycleState.REMOVED) return
                 log("Config changed, reloading...")
                 loadConfigFromSettings()
             }
@@ -131,11 +166,28 @@ class RoutineCoreEngine private constructor() {
      */
     private fun loadConfigFromSettings() {
         val context = systemContext ?: return
+        if (lifecycleState == LifecycleState.REMOVED) return
+
+        if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+            log("Package uninstalled but setting exists, triggering shutdown")
+            shutdownForPackageRemoval()
+            return
+        }
 
         try {
             val json = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
             if (json.isNullOrBlank()) {
-                log("No config found in Settings.Global[$CONFIG_KEY]")
+                log("No config found in Settings.Global[$CONFIG_KEY] - treating as empty")
+                // treat as empty config: cancel schedules and revert current mode
+                scheduledModeManager?.updateSchedules(emptyList())
+                drivingTriggerManager?.init(emptyList())
+                bedtimeListener?.updateModes(emptyList())
+                currentActiveMode?.let {
+                    log("Reverting active mode due to missing config: ${it.name}")
+                    modeActionExecutor?.revertMode(it)
+                    currentActiveMode = null
+                }
+                allModes = emptyList()
                 return
             }
 
@@ -143,25 +195,40 @@ class RoutineCoreEngine private constructor() {
             allModes = config.modes
             log("Config loaded: ${allModes.size} modes")
 
+            // Load persisted dismissal records
+            dismissedScheduledModes.clear()
+            dismissedScheduledModes.putAll(config.dismissedModes)
+            if (dismissedScheduledModes.isNotEmpty()) {
+                log("Loaded ${dismissedScheduledModes.size} dismissal records from config")
+            }
+
             // Update schedulers with new mode list
             scheduledModeManager?.updateSchedules(config.modes)
 
             // Update driving trigger manager with new mode list
             drivingTriggerManager?.init(config.modes)
 
-            // Update bedtime listener with new mode list
-            bedtimeListener?.updateModes(config.modes)
-
-            // Handle active mode changes
+            // Handle active mode changes before synchronizing external trigger state.
             if (config.activeModeId != null) {
-                // Restore or switch to the specified active mode
-                val mode = allModes.find { it.id == config.activeModeId }
-                if (mode != null) {
-                    log("Restoring active mode: ${mode.name}")
-                    currentActiveMode = mode
-                    modeActionExecutor?.applyMode(mode)
+                if (currentActiveMode?.id != config.activeModeId) {
+                    // Deactivate current mode if it's different from the new one
+                    currentActiveMode?.let { oldMode ->
+                        log("Deactivating current mode before switch: ${oldMode.name}")
+                        modeActionExecutor?.revertMode(oldMode)
+                    }
+
+                    // Restore or switch to the specified active mode
+                    val mode = allModes.find { it.id == config.activeModeId }
+                    if (mode != null) {
+                        log("Activating mode from config: ${mode.name}")
+                        currentActiveMode = mode
+                        modeActionExecutor?.applyMode(mode)
+                    } else {
+                        log("Active mode not found in config: ${config.activeModeId}")
+                        currentActiveMode = null
+                    }
                 } else {
-                    log("Active mode not found in config: ${config.activeModeId}")
+                    log("Active mode unchanged: ${currentActiveMode?.name}")
                 }
             } else {
                 // activeModeId is null: deactivate current mode if one is active
@@ -172,16 +239,35 @@ class RoutineCoreEngine private constructor() {
                     // invoked and no dismiss record is created. Record it here so
                     // the scheduler won't reactivate this mode later in the same
                     // period (e.g. when the user creates or deletes another mode).
-                    if (activeMode.type == ModeType.SCHEDULED) {
+                    if ((activeMode.type == ModeType.SCHEDULED) || (activeMode.type == ModeType.BEDTIME)) {
                         val now = System.currentTimeMillis()
                         dismissedScheduledModes[activeMode.id] = now
                         log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
+                        
+                        // Persist the dismissal record back to Settings.Global so it survives reboot.
+                        // Only do this if the incoming config didn't already have it (to avoid loop).
+                        if (config.dismissedModes[activeMode.id] != now) {
+                            updateActiveModeInSettings(null)
+                        }
                     }
                     log("Deactivating current mode: ${activeMode.name}")
                     modeActionExecutor?.revertMode(activeMode)
                     currentActiveMode = null
                 }
             }
+
+            // Initialize the bedtime bridge on the first load, then synchronize its modes.
+            // This runs after the persisted active mode is restored so external bedtime state wins.
+            bedtimeListener?.let { listener ->
+                bedtimeListenerLifecycle.onModesLoaded(
+                    modes = config.modes,
+                    initialize = listener::init,
+                    update = listener::updateModes
+                )
+            }
+
+            // Notify UI that state or config has changed
+            broadcastModeState(config.activeModeId)
         } catch (e: Exception) {
             log("Failed to load config: ${e.message}")
             e.printStackTrace()
@@ -197,6 +283,10 @@ class RoutineCoreEngine private constructor() {
      * @param modeId Mode identifier to activate
      */
     fun activateMode(modeId: String) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Cannot activate mode: engine is REMOVED")
+            return
+        }
         val mode = allModes.find { it.id == modeId }
         if (mode == null) {
             log("Cannot activate mode: mode not found: $modeId")
@@ -220,6 +310,11 @@ class RoutineCoreEngine private constructor() {
         currentActiveMode = mode
         modeActionExecutor?.applyMode(mode)
 
+        // IF it's Bedtime mode, ensure DeskClock alarm is NOT skipped
+        if (mode.type == ModeType.BEDTIME) {
+            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_ENABLE_WAKE_ALARM)
+        }
+
         // Persist active mode to Settings.Global
         updateActiveModeInSettings(modeId)
         broadcastModeState(modeId)
@@ -240,6 +335,10 @@ class RoutineCoreEngine private constructor() {
      * @param isManualDismiss true if user manually closed, false if automatic (e.g., end alarm)
      */
     fun deactivateMode(modeId: String, isManualDismiss: Boolean = true) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Cannot deactivate mode: engine is REMOVED")
+            return
+        }
         val mode = currentActiveMode
         if (mode == null || mode.id != modeId) {
             log("Cannot deactivate mode: mode not active: $modeId")
@@ -258,6 +357,11 @@ class RoutineCoreEngine private constructor() {
             val now = System.currentTimeMillis()
             dismissedScheduledModes[modeId] = now
             log("Recorded manual dismiss for mode $modeId at timestamp $now")
+
+            // IF it's Bedtime mode, also tell DeskClock to skip the alarm
+            if (mode.type == ModeType.BEDTIME) {
+                sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+            }
         }
 
         // Clear active mode from Settings.Global
@@ -271,7 +375,7 @@ class RoutineCoreEngine private constructor() {
     }
 
     /**
-     * Update the active mode ID in Settings.Global.
+     * Update the active mode ID and dismissal records in Settings.Global.
      * This keeps the persisted config in sync with runtime state.
      *
      * @param modeId Mode ID to set as active, or null to clear
@@ -286,9 +390,9 @@ class RoutineCoreEngine private constructor() {
                 return
             }
 
-            val updated = ConfigParser.updateActiveModeId(currentJson, modeId)
+            val updated = ConfigParser.updateActiveModeId(currentJson, modeId, dismissedScheduledModes)
             Settings.Global.putString(context.contentResolver, CONFIG_KEY, updated)
-            log("Updated active mode in Settings.Global: ${modeId ?: "null"}")
+            log("Updated state in Settings.Global (activeModeId=${modeId ?: "null"}, dismissals=${dismissedScheduledModes.size})")
         } catch (e: Exception) {
             log("Failed to update active mode: ${e.message}")
             e.printStackTrace()
@@ -298,12 +402,13 @@ class RoutineCoreEngine private constructor() {
     private fun broadcastModeState(modeId: String?) {
         val context = systemContext ?: return
         try {
-            context.sendBroadcast(Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
+            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
                 setPackage(com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)
                 if (modeId != null) {
                     putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_MODE_ID, modeId)
                 }
-            })
+            }
+            context.sendBroadcast(intent)
             log("Broadcast mode state: ${modeId ?: "null"}")
         } catch (e: Exception) {
             log("Failed to broadcast mode state: ${e.message}")
@@ -311,26 +416,22 @@ class RoutineCoreEngine private constructor() {
         }
     }
 
+    private fun sendBedtimeCommand(action: String) {
+        val context = systemContext ?: return
+        try {
+            context.sendBroadcast(Intent(action).apply {
+                setPackage(com.banana.hypermodes.protocol.Protocol.TARGET_PACKAGE)
+            }, com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL)
+            log("Sent command to DeskClock: $action")
+        } catch (e: Exception) {
+            log("Failed to send command to DeskClock: ${e.message}")
+        }
+    }
+
     /**
      * Get the currently active mode, or null if no mode is active.
      */
     fun getCurrentActiveMode(): ModeConfig? = currentActiveMode
-
-    /**
-     * Reschedule all alarms.
-     * Called when time/timezone changes or when external events require rescheduling.
-     */
-    fun rescheduleAllAlarms() {
-        log("Rescheduling all alarms...")
-        scheduledModeManager?.updateSchedules(allModes)
-        log("All alarms rescheduled")
-    }
-
-    /**
-     * Get the BedtimeListener instance for external bedtime control.
-     * Used by system_server hooks to manually trigger bedtime activation/deactivation.
-     */
-    fun getBedtimeListener(): BedtimeListener? = bedtimeListener
 
     /**
      * Check if a mode was manually dismissed during the current scheduled period.
@@ -349,6 +450,8 @@ class RoutineCoreEngine private constructor() {
         // Clean up old dismiss records (older than 24 hours)
         if (System.currentTimeMillis() - dismissTime > 24 * 60 * 60 * 1000) {
             dismissedScheduledModes.remove(modeId)
+            // Persist the removal
+            updateActiveModeInSettings(currentActiveMode?.id)
             return false
         }
 
@@ -362,6 +465,90 @@ class RoutineCoreEngine private constructor() {
     fun clearDismissRecord(modeId: String) {
         if (dismissedScheduledModes.remove(modeId) != null) {
             log("Cleared dismiss record for mode $modeId (new period started)")
+            // Persist the removal
+            updateActiveModeInSettings(currentActiveMode?.id)
+        }
+    }
+
+    private fun isPackageInstalled(context: Context, packageName: String): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Set the lifecycle state of the engine.
+     */
+    fun setLifecycleState(state: LifecycleState) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Engine is already REMOVED, ignoring transition to $state")
+            return
+        }
+        log("Engine lifecycle transition: $lifecycleState -> $state")
+        lifecycleState = state
+        if (state == LifecycleState.RUNNING) {
+            mainHandler?.post { loadConfigFromSettings() }
+        }
+    }
+
+    /**
+     * Get the current lifecycle state.
+     */
+    fun getLifecycleState(): LifecycleState = lifecycleState
+
+    /**
+     * Idempotent shutdown for package removal.
+     * Clears all runtime state and reverts system changes.
+     */
+    fun shutdownForPackageRemoval() {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Engine already removed, skipping shutdown")
+            return
+        }
+        
+        // Use post to ensure we're on the main handler
+        mainHandler?.post {
+            if (lifecycleState == LifecycleState.REMOVED) return@post
+            
+            log("Starting engine shutdown for package removal...")
+            lifecycleState = LifecycleState.REMOVED
+
+            // 1. Cancel all alarms
+            scheduledModeManager?.cancelAllSchedules()
+
+            // 2. Unregister triggers and listeners
+            drivingTriggerManager?.cleanup()
+            bedtimeListener?.let {
+                it.deactivateBedtime() // Ensure it doesn't think it's still active
+                it.cleanup()
+            }
+
+            // 3. Revert active mode
+            currentActiveMode?.let {
+                log("Reverting active mode for shutdown: ${it.name}")
+                modeActionExecutor?.revertMode(it)
+                currentActiveMode = null
+            }
+            
+            // 4. Clear state
+            allModes = emptyList()
+            dismissedScheduledModes.clear()
+            
+            // 5. Remove global config
+            val context = systemContext
+            if (context != null) {
+                try {
+                    Settings.Global.putString(context.contentResolver, CONFIG_KEY, null)
+                    log("Removed global config from Settings.Global")
+                } catch (e: Exception) {
+                    log("Failed to remove global config: ${e.message}")
+                }
+            }
+
+            log("RoutineCoreEngine shutdown complete")
         }
     }
 

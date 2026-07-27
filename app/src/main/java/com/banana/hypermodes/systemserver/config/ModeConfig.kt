@@ -82,7 +82,8 @@ data class DisplayConfig(
     val darkMode: Boolean = false,
     val grayscale: Boolean = false,
     val dimWallpaper: Boolean = false,
-    val keepScreenOff: Boolean = false
+    val keepScreenOff: Boolean = false,
+    val adaptiveRefreshRatePro: Boolean? = null
 )
 
 @Serializable
@@ -99,5 +100,7 @@ enum class ContactFilter {
 data class FullConfig(
     val activeModeId: String? = null,
     val lastModeId: String? = null,
-    val modes: List<ModeConfig>
+    val modes: List<ModeConfig>,
+    /** Records manually dismissed scheduled modes: modeId -> dismissTimestamp. */
+    val dismissedModes: Map<String, Long> = emptyMap()
 )

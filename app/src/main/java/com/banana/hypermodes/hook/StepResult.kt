@@ -20,5 +20,6 @@ data class ScheduleInfo(
     val wakeMin: Int,
     val wakeEnabled: Boolean,
     val repeatDays: Int,
-    val bedtimeConfigured: Boolean
+    val bedtimeConfigured: Boolean,
+    val isSkipped: Boolean = false
 )

@@ -10,12 +10,19 @@ data class FocusCardTileClasses(
     val nativeDetailContentApi: FocusNativeDetailContentApi? = null
 ) {
     companion object {
-        fun resolve(classLoader: ClassLoader): FocusCardTileClasses {
-            val tile = loadClass(classLoader, "com.android.systemui.plugins.qs.QSTile")
-            val state = loadClass(classLoader, "com.android.systemui.plugins.qs.QSTile\$BooleanState")
-            val icon = loadClass(classLoader, "miui.systemui.controlcenter.qs.DrawableIcon")
-            val detail = loadClass(classLoader, "com.android.systemui.plugins.qs.DetailAdapter")
-            val nativeDetailContentApi = FocusNativeDetailContentResolver.fromClassLoader(classLoader)
+        fun resolve(
+            pluginClassLoader: ClassLoader,
+            systemUiClassLoader: ClassLoader = pluginClassLoader,
+            onNativeDetailFailure: (Throwable) -> Unit = {}
+        ): FocusCardTileClasses {
+            val tile = loadClass(pluginClassLoader, "com.android.systemui.plugins.qs.QSTile")
+            val state = loadClass(pluginClassLoader, "com.android.systemui.plugins.qs.QSTile\$BooleanState")
+            val icon = loadClass(pluginClassLoader, "miui.systemui.controlcenter.qs.DrawableIcon")
+            val detail = loadClass(pluginClassLoader, "com.android.systemui.plugins.qs.DetailAdapter")
+            val nativeDetailContentApi = FocusNativeDetailContentResolver.fromClassLoader(
+                systemUiClassLoader,
+                onNativeDetailFailure
+            )
 
             try {
                 icon.getDeclaredConstructor(Drawable::class.java)

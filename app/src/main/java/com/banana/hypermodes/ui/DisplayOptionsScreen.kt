@@ -31,6 +31,14 @@ fun DisplayOptionsScreen(
 
     val scrollBehavior = MiuixScrollBehavior()
 
+    val isSupported = remember {
+        runCatching {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getBooleanMethod = systemPropertiesClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
+            getBooleanMethod.invoke(null, "ro.display.enable_pwm_switch", false) as Boolean
+        }.getOrDefault(defaultValue = false)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -148,6 +156,25 @@ fun DisplayOptionsScreen(
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 12.dp)
                 )
+            }
+
+            if (isSupported) {
+                item {
+                    SettingItem(
+                        title = stringResource(R.string.adaptive_refresh_rate_pro),
+                        subtitle = stringResource(R.string.adaptive_refresh_rate_pro_desc),
+                        checked = editedMode.settings.enableAdaptiveRefreshRatePro,
+                        onCheckedChange = { enabled ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableAdaptiveRefreshRatePro = enabled)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    )
+                }
             }
 
             // Bottom spacer with navigation bar padding

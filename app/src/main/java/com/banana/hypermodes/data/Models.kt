@@ -29,6 +29,7 @@ data class ModeSettings(
     val enableDarkMode: Boolean = false,
     val dimWallpaper: Boolean = false,
     val keepScreenOff: Boolean = false,
+    val enableAdaptiveRefreshRatePro: Boolean = false,
 
     // Restrictions
     val pausedApps: Set<String> = emptySet(),
@@ -169,7 +170,7 @@ fun Mode.toModeConfig(): ModeConfig {
         id = id,
         name = name,
         icon = icon,
-        statusIcon = statusIcon,
+        statusIcon = statusIcon ?: ModeIconMapper.getStatusBarIcon(icon),
         type = type,
         startTime = startTime,
         endTime = endTime,
@@ -184,7 +185,8 @@ fun Mode.toModeConfig(): ModeConfig {
             darkMode = s.enableDarkMode,
             grayscale = s.enableGrayscale,
             dimWallpaper = s.dimWallpaper,
-            keepScreenOff = s.keepScreenOff
+            keepScreenOff = s.keepScreenOff,
+            adaptiveRefreshRatePro = s.enableAdaptiveRefreshRatePro
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -270,6 +272,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enableDarkMode = display.darkMode,
             dimWallpaper = display.dimWallpaper,
             keepScreenOff = display.keepScreenOff,
+            enableAdaptiveRefreshRatePro = display.adaptiveRefreshRatePro ?: false,
             pausedApps = pausedApps.toSet(),
             allowedContacts = emptySet(),
             contactFilter = contactFilterValue,

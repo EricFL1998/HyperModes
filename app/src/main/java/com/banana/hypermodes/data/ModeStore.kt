@@ -42,11 +42,12 @@ object ModeStore {
             // Convert UI models to system_server config models
             val modeConfigs = modes.map { it.toModeConfig() }
 
-            // Build FullConfig with preserved activeModeId and lastModeId
+            // Build FullConfig with preserved activeModeId, lastModeId and dismissedModes
             val fullConfig = FullConfig(
                 activeModeId = existing?.activeModeId,
                 lastModeId = existing?.lastModeId,
-                modes = modeConfigs
+                modes = modeConfigs,
+                dismissedModes = existing?.dismissedModes ?: emptyMap()
             )
 
             // Serialize and write to Settings.Global

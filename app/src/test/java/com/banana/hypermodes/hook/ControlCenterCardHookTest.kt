@@ -201,6 +201,10 @@ class ControlCenterCardHookTest {
             "${featureSet?.listItemsMethod?.declaringClass?.name}#${featureSet?.listItemsMethod?.name}"
         )
         assertEquals(
+            "miui.systemui.controlcenter.panel.main.qs.QSListController#getListItems",
+            "${featureSet?.listItemsMethodQsList?.declaringClass?.name}#${featureSet?.listItemsMethodQsList?.name}"
+        )
+        assertEquals(
             "miui.systemui.controlcenter.panel.main.MainPanelContentDistributor#distributePanels",
             "${featureSet?.distributePanelsMethod?.declaringClass?.name}#${featureSet?.distributePanelsMethod?.name}"
         )
@@ -484,7 +488,7 @@ class ControlCenterCardHookTest {
         ).proxy() as FakeMainPanelContent
 
         assertTrue(proxy.getRightOrLeft())
-        assertEquals(Int.MAX_VALUE - 1, proxy.getPriority())
+        assertEquals(60, proxy.getPriority())
     }
 
     @Test
@@ -736,12 +740,24 @@ class ControlCenterCardHookTest {
                     "miui/systemui/controlcenter/panel/main/qs/QSCardsController.java",
                     """
                     package miui.systemui.controlcenter.panel.main.qs;
-                    public class QSCardsController implements miui.systemui.controlcenter.panel.main.MainPanelContent {
+                    import miui.systemui.controlcenter.panel.main.MainPanelContent;
+                    public class QSCardsController implements MainPanelContent {
                         private final Object focusRecord;
                         public QSCardsController(Object focusRecord) { this.focusRecord = focusRecord; }
                         public void preparePanelUpdate() {}
                         public java.util.List<Object> getListItems() { return java.util.Collections.emptyList(); }
                         public Object getTile(String spec) { return focusRecord; }
+                    }
+                    """.trimIndent()
+                )
+                writeSource(
+                    sourceDir,
+                    "miui/systemui/controlcenter/panel/main/qs/QSListController.java",
+                    """
+                    package miui.systemui.controlcenter.panel.main.qs;
+                    import miui.systemui.controlcenter.panel.main.MainPanelContent;
+                    public class QSListController implements MainPanelContent {
+                        public java.util.List<Object> getListItems() { return java.util.Collections.emptyList(); }
                     }
                     """.trimIndent()
                 )

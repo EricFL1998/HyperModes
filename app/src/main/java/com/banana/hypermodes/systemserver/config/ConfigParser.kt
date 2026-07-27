@@ -36,19 +36,20 @@ object ConfigParser {
     }
 
     /**
-     * Update the activeModeId in existing JSON config.
+     * Update the activeModeId and dismissedModes in existing JSON config.
      * Non-null modeId also records lastModeId; null clears only activeModeId.
      *
      * @param jsonString Existing JSON config
      * @param modeId New active mode ID (null to clear)
+     * @param dismissedModes Current dismissal records
      * @return Updated JSON string
      */
-    fun updateActiveModeId(jsonString: String, modeId: String?): String {
+    fun updateActiveModeId(jsonString: String, modeId: String?, dismissedModes: Map<String, Long>? = null): String {
         val config = parseConfig(jsonString)
         val updated = if (modeId == null) {
-            config.copy(activeModeId = null)
+            config.copy(activeModeId = null, dismissedModes = dismissedModes ?: config.dismissedModes)
         } else {
-            config.copy(activeModeId = modeId, lastModeId = modeId)
+            config.copy(activeModeId = modeId, lastModeId = modeId, dismissedModes = dismissedModes ?: config.dismissedModes)
         }
         return serializeConfig(updated)
     }

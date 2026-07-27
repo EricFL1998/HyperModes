@@ -90,11 +90,27 @@ class ConfigParserTest {
         }
         """.trimIndent()
 
-        val updated = ConfigParser.updateActiveModeId(json, "driving_mode")
+        val dismissals = mapOf("custom_1" to 123456789L)
+        val updated = ConfigParser.updateActiveModeId(json, "driving_mode", dismissals)
         val config = ConfigParser.parseConfig(updated)
 
         assertEquals("driving_mode", config.activeModeId)
         assertEquals(1, config.modes.size) // modes should be unchanged
+        assertEquals(123456789L, config.dismissedModes["custom_1"])
+    }
+
+    @Test
+    fun testDismissedModesRoundTrip() {
+        val config = FullConfig(
+            modes = emptyList(),
+            dismissedModes = mapOf("mode1" to 1000L, "mode2" to 2000L)
+        )
+        val json = ConfigParser.serializeConfig(config)
+        val parsed = ConfigParser.parseConfig(json)
+        
+        assertEquals(2, parsed.dismissedModes.size)
+        assertEquals(1000L, parsed.dismissedModes["mode1"])
+        assertEquals(2000L, parsed.dismissedModes["mode2"])
     }
 
     @Test

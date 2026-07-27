@@ -1,12 +1,9 @@
 package com.banana.hypermodes.controlcenter
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Looper
 import com.banana.hypermodes.R
-import com.banana.hypermodes.data.ModeIconMapper
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -64,11 +61,16 @@ private class TileInvocationHandler(
 ) : InvocationHandler {
     private val callbacks = mutableListOf<Any>()
     private val listenerTokens = identitySet<Any>()
-    private var observer: AutoCloseable? = null
+    private var observerRegistration: AutoCloseable? = null
     private var destroyed = false
     private var tileSpec = TILE_SPEC
     private var currentState: Any? = null
     private var detailAdapter: Any? = null
+    private var detailSession: FocusModeDetailSession? = null
+    private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
+    private val displayNameResolver = FocusModeDisplayNameResolver { id ->
+        stringFromContext(id, "HyperModes")
+    }
 
     override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
         val arguments = args ?: emptyArray()
@@ -121,7 +123,11 @@ private class TileInvocationHandler(
                 null
             }
             "getDetailAdapter" -> getOrCreateDetailAdapter()
-            "setDetailListening" -> null
+            "setDetailListening" -> {
+                val listening = arguments.firstOrNull() as? Boolean ?: false
+                setDetailListening(listening)
+                null
+            }
             "showDetail" -> {
                 if (!destroyed) notifyShowDetail(arguments.firstOrNull() as? Boolean ?: false)
                 null
@@ -136,6 +142,10 @@ private class TileInvocationHandler(
             "isTileReady" -> true
             "userSwitch" -> {
                 refreshState()
+                null
+            }
+            "onDetailPanelHidden" -> {
+                handleDetailPanelHidden()
                 null
             }
             else -> defaultValue(method.returnType)
@@ -155,12 +165,47 @@ private class TileInvocationHandler(
         if (listening) {
             val wasEmpty = listenerTokens.isEmpty()
             listenerTokens.add(token)
-            if (wasEmpty && listenerTokens.isNotEmpty()) {
-                observer = observableStore.observe { refreshState() }
+            updateObserverOwnership()
+            // Immediately refresh when starting to listen
+            if (wasEmpty) {
+                refreshState()
             }
         } else {
             listenerTokens.remove(token)
-            if (listenerTokens.isEmpty()) closeObserver()
+            updateObserverOwnership()
+        }
+    }
+
+    private fun updateObserverOwnership() {
+        val needsObserver = listenerTokens.isNotEmpty() ||
+                            (detailSession?.state == DetailLifecycleState.OPEN)
+
+        if (needsObserver && observerRegistration == null) {
+            observerRegistration = observableStore.observe {
+                handleConfigChange()
+            }
+        } else if (!needsObserver && observerRegistration != null) {
+            observerRegistration?.close()
+            observerRegistration = null
+        }
+    }
+
+    private fun handleConfigChange() {
+        if (destroyed) return
+        val session = detailSession
+        when (session?.state) {
+            DetailLifecycleState.OPEN -> {
+                refreshState()
+                session.refreshItems()
+            }
+            DetailLifecycleState.CLOSING -> {
+                // Pending refresh will be posted by onPanelHidden
+            }
+            else -> {
+                if (listenerTokens.isNotEmpty()) {
+                    refreshState()
+                }
+            }
         }
     }
 
@@ -169,13 +214,11 @@ private class TileInvocationHandler(
         destroyed = true
         callbacks.clear()
         listenerTokens.clear()
-        closeObserver()
+        observerRegistration?.close()
+        observerRegistration = null
+        detailSession?.destroy()
         detailAdapter = null
-    }
-
-    private fun closeObserver() {
-        observer?.close()
-        observer = null
+        detailSession = null
     }
 
     private fun refreshState() {
@@ -205,7 +248,7 @@ private class TileInvocationHandler(
         val snapshot = repository.loadOrInitialize()
         val mode = snapshot.displayedMode
         val active = snapshot.isActive && mode != null
-        val label = mode?.name ?: fallbackLabel()
+        val label = mode?.let { displayNameResolver.resolve(it) } ?: fallbackLabel()
         setObjectFieldIfPresent(state, "spec", tileSpec)
         setObjectFieldIfPresent(state, "label", label)
         setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, active, mode != null))
@@ -226,7 +269,21 @@ private class TileInvocationHandler(
     }
 
     private fun tileLabel(): CharSequence {
-        return repository.loadOrInitialize().displayedMode?.name ?: fallbackLabel()
+        return repository.loadOrInitialize().displayedMode?.let {
+            displayNameResolver.resolve(it)
+        } ?: fallbackLabel()
+    }
+
+    private fun stringFromContext(id: Int, fallback: String): String {
+        return try {
+            moduleContext.resources?.getString(id) ?: fallback
+        } catch (_: Throwable) {
+            try {
+                pluginContext.resources?.getString(id) ?: fallback
+            } catch (_: Throwable) {
+                fallback
+            }
+        }
     }
 
     private fun fallbackLabel(): CharSequence = appLabel(pluginContext) ?: appLabel(moduleContext) ?: "HyperModes"
@@ -248,48 +305,13 @@ private class TileInvocationHandler(
     }
 
     private fun createIcon(modeIcon: String?): Any? {
-        val drawable = loadDrawable(modeIcon)
+        val drawable = iconResolver.resolve(modeIcon)
         return try {
             val constructor = classes.drawableIconClass.getDeclaredConstructor(Drawable::class.java)
             constructor.isAccessible = true
             constructor.newInstance(drawable)
         } catch (_: Throwable) {
             null
-        }
-    }
-
-    private fun loadDrawable(modeIcon: String?): Drawable {
-        val iconName = try {
-            ModeIconMapper.getStatusBarIcon(modeIcon ?: "")
-        } catch (_: Throwable) {
-            "ic_stat_zen"
-        }
-        val mappedResId = drawableId(iconName)
-        return drawableFromContexts(mappedResId)
-            ?: drawableFromContexts(R.drawable.ic_stat_zen)
-            ?: drawableFromContexts(android.R.drawable.ic_dialog_info)
-            ?: ColorDrawable(Color.TRANSPARENT)
-    }
-
-    private fun drawableFromContexts(resId: Int): Drawable? {
-        if (resId == 0) return null
-        return try {
-            moduleContext.getDrawable(resId)
-        } catch (_: Throwable) {
-            try {
-                pluginContext.getDrawable(resId)
-            } catch (_: Throwable) {
-                null
-            }
-        }
-    }
-
-    private fun drawableId(name: String): Int {
-        return try {
-            val packageName = moduleContext.packageName ?: pluginContext.packageName
-            moduleContext.resources?.getIdentifier(name, "drawable", packageName) ?: 0
-        } catch (_: Throwable) {
-            0
         }
     }
 
@@ -317,7 +339,20 @@ private class TileInvocationHandler(
             onStateRefresh = { refreshState() }
         )
         detailAdapter = created
+        // Extract session if this is a FocusModeDetailAdapter
+        if (created != null) {
+            detailSession = FocusNativeDetailRegistry.adapterSession(created)
+        }
         return created
+    }
+
+    private fun setDetailListening(listening: Boolean) {
+        if (destroyed) return
+        val session = detailSession
+        if (session != null) {
+            session.setDetailListening(listening)
+            updateObserverOwnership()
+        }
     }
 
     private fun notifyShowDetail(show: Boolean) {
@@ -326,6 +361,15 @@ private class TileInvocationHandler(
         runOnUi {
             if (destroyed) return@runOnUi
             targets.forEach { callback -> invokeCallback(callback, "onShowDetail", show) }
+        }
+    }
+
+    private fun handleDetailPanelHidden() {
+        if (destroyed) return
+        runOnUi {
+            if (!destroyed) {
+                refreshState()
+            }
         }
     }
 

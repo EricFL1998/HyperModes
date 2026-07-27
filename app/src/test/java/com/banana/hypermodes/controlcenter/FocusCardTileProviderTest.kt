@@ -116,6 +116,9 @@ class FocusCardTileProviderTest {
         tile.addCallback(callback)
         tile.setListening(Any(), true)
 
+        // Clear the initial refresh from setListening
+        callback.states.clear()
+
         fixture.store.fireChange()
 
         assertEquals(1, callback.states.size)
@@ -323,6 +326,37 @@ class FocusCardTileProviderTest {
     }
 
     @Test
+    fun `destroy releases real detail session content and adapter registrations`() {
+        lateinit var session: FocusModeDetailSession
+        lateinit var content: Any
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ ->
+                session = FocusModeDetailSession(
+                    repository = fixtureRepository(configJson(activeModeId = null, lastModeId = "work")),
+                    onDismiss = {},
+                    nativeDetailContentApi = createFakeNativeApi(),
+                    diagnostic = FakeDiagnostic(),
+                    detailAdapterInterface = FakeDetailAdapterInterface::class.java
+                )
+                FocusNativeDetailRegistry.registerSession(session.adapter, session)
+                content = session.bindDetailView(android.app.Application(), null, null)
+                session.adapter
+            }
+        )
+        val tile = fixture.createTile()
+
+        tile.longClick()
+        assertTrue(FocusNativeDetailRegistry.isFocusAdapter(session.adapter))
+        assertTrue(FocusNativeDetailRegistry.isFocusContent(content))
+
+        tile.destroy()
+
+        assertFalse(FocusNativeDetailRegistry.isFocusAdapter(session.adapter))
+        assertFalse(FocusNativeDetailRegistry.isFocusContent(content))
+    }
+
+    @Test
     fun `destroy closes observer clears callbacks and marks destroyed`() {
         val fixture = fixture(configJson(activeModeId = null, lastModeId = "work"))
         val tile = fixture.createTile()
@@ -336,7 +370,8 @@ class FocusCardTileProviderTest {
         assertTrue(tile.isDestroyed())
         assertFalse(tile.isListening())
         assertEquals(1, fixture.store.closeCalls)
-        assertEquals(0, callback.states.size)
+        // After destroy, refreshState should not notify callbacks
+        assertEquals(1, callback.states.size) // Only the initial state from setListening
     }
 
     @Test
@@ -422,6 +457,34 @@ class FocusCardTileProviderTest {
                 lastModeId = lastModeId,
                 modes = listOf(mode("work", "Work"), mode("focus", "Focus"))
             )
+        )
+    }
+
+    private fun fixtureRepository(json: String): FocusCardStateRepository {
+        return FocusCardStateRepository(RecordingObservableStore(json), ModeIndexSelector { 0 })
+    }
+
+    private fun createFakeNativeApi(): FocusNativeDetailContentApi {
+        val contentClass = ProviderNativeDetailContent::class.java
+        val itemInterface = ProviderNativeDetailContent.Item::class.java
+        val selectableItemClass = ProviderNativeDetailContent.SelectableItem::class.java
+        val callbackInterface = ProviderNativeDetailContent.Callback::class.java
+        val convertMethod = ProviderNativeDetailContent::class.java.getDeclaredMethod(
+            "fakeConvert",
+            android.content.Context::class.java,
+            android.view.View::class.java,
+            android.view.ViewGroup::class.java
+        )
+        return FocusNativeDetailContentApi(
+            contentClass = contentClass,
+            itemInterface = itemInterface,
+            selectableItemClass = selectableItemClass,
+            callbackInterface = callbackInterface,
+            convertOrInflate = FocusNativeConvertOrInflate(ownerProvider = { null }, method = convertMethod),
+            selectableItemConstructor = selectableItemClass.getDeclaredConstructor(),
+            setSuffix = contentClass.getDeclaredMethod("setSuffix", String::class.java),
+            setItems = contentClass.getDeclaredMethod("setItems", java.lang.reflect.Array.newInstance(itemInterface, 0).javaClass),
+            setCallback = contentClass.getDeclaredMethod("setCallback", callbackInterface)
         )
     }
 
@@ -560,6 +623,41 @@ class FocusCardTileProviderTest {
 
     private interface FakeDetailAdapterInterface
 
+    private class ProviderNativeDetailContent : android.view.View(null) {
+        fun setSuffix(suffix: String) = Unit
+        fun setItems(vararg items: Item) = Unit
+        fun setCallback(callback: Callback) = Unit
+
+        interface Item {
+            fun getType(): Int = 0
+        }
+
+        class SelectableItem : Item {
+            @JvmField var tag: Any? = null
+            @JvmField var title: CharSequence? = null
+            @JvmField var selected: Boolean = false
+            @JvmField var isForceSingle: Boolean = false
+            @JvmField var selectable: Boolean = false
+            @JvmField var iconDrawable: Drawable? = null
+        }
+
+        interface Callback {
+            fun onDetailItemClick(item: Item)
+            fun onDetailItemDisconnect(item: Item) = Unit
+        }
+
+        companion object {
+            @JvmStatic
+            fun fakeConvert(
+                context: android.content.Context?,
+                convertView: android.view.View?,
+                parent: android.view.ViewGroup?
+            ): ProviderNativeDetailContent {
+                return ProviderNativeDetailContent()
+            }
+        }
+    }
+
     private object FakeDetailAdapter : FakeDetailAdapterInterface
 
     private class FakeLogMaker
@@ -571,4 +669,122 @@ class FocusCardTileProviderTest {
     }
 
     private class NullDrawable : ColorDrawable()
+
+    @Test
+    fun `observer active when detail OPEN`() {
+        val store = RecordingObservableStore(configJson(activeModeId = null, lastModeId = "work"))
+        val repository = FocusCardStateRepository(store, ModeIndexSelector { 0 })
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ ->
+                val adapter = FocusModeDetailAdapter(
+                    pluginContext = TestContext(),
+                    moduleContext = TestContext(),
+                    detailAdapterInterface = FakeDetailAdapterInterface::class.java,
+                    repository = repository,
+                    onDismiss = {},
+                    onStateRefresh = {},
+                    nativeDetailContentApi = null
+                )
+                adapter.adapter
+            }
+        )
+        val tile = fixture.createTile()
+
+        val detailAdapter = tile.getDetailAdapter()
+        assertNotNull(detailAdapter)
+
+        tile.setDetailListening(true)
+
+        assertTrue(fixture.store.observeCalls > 0)
+    }
+
+    @Test
+    fun `config change refreshes items when OPEN`() {
+        lateinit var fixtureStore: RecordingObservableStore
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ ->
+                val adapter = FocusModeDetailAdapter(
+                    pluginContext = TestContext(),
+                    moduleContext = TestContext(),
+                    detailAdapterInterface = FakeDetailAdapterInterface::class.java,
+                    repository = FocusCardStateRepository(fixtureStore, ModeIndexSelector { 0 }),
+                    onDismiss = {},
+                    onStateRefresh = {},
+                    nativeDetailContentApi = null
+                )
+                adapter.adapter
+            }
+        )
+        fixtureStore = fixture.store
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        val detailAdapter = tile.getDetailAdapter()
+        tile.setDetailListening(true)
+
+        // Verify detail is OPEN
+        val session = FocusNativeDetailRegistry.adapterSession(detailAdapter!!)
+        assertEquals(DetailLifecycleState.OPEN, session?.state)
+
+        // Verify observer was installed
+        assertTrue("Observer should be installed when detail is OPEN", fixture.store.observeCalls > 0)
+
+        val statesBefore = callback.states.size
+
+        fixture.store.fireChange()
+
+        // Verify refreshState was called (callbacks notified)
+        assertTrue(callback.states.size > statesBefore)
+    }
+
+    @Test
+    fun `config change during CLOSING defers card refresh`() {
+        lateinit var fixtureStore: RecordingObservableStore
+        val fixture = fixture(
+            json = configJson(activeModeId = null, lastModeId = "work"),
+            detailFactory = FocusCardDetailFactory { _, _ ->
+                val adapter = FocusModeDetailAdapter(
+                    pluginContext = TestContext(),
+                    moduleContext = TestContext(),
+                    detailAdapterInterface = FakeDetailAdapterInterface::class.java,
+                    repository = FocusCardStateRepository(fixtureStore, ModeIndexSelector { 0 }),
+                    onDismiss = {},
+                    onStateRefresh = {},
+                    nativeDetailContentApi = null
+                )
+                adapter.adapter
+            }
+        )
+        fixtureStore = fixture.store
+        val tile = fixture.createTile()
+        val callback = RecordingCallback()
+        tile.addCallback(callback)
+
+        val detailAdapter = tile.getDetailAdapter()
+        tile.setDetailListening(true)
+
+        val session = FocusNativeDetailRegistry.adapterSession(detailAdapter!!)
+        assertNotNull(session)
+        assertEquals(DetailLifecycleState.OPEN, session?.state)
+
+        // Trigger CLOSING state
+        tile.setDetailListening(false)
+        assertEquals(DetailLifecycleState.CLOSING, session?.state)
+
+        // Verify pending refresh was set by setDetailListening
+        assertTrue("Pending card refresh should be set when entering CLOSING", session?.hasPendingCardRefresh() == true)
+
+        val statesBefore = callback.states.size
+
+        fixture.store.fireChange()
+
+        // Verify no immediate refreshState call
+        assertEquals("No new states should be notified during CLOSING", statesBefore, callback.states.size)
+
+        // Verify pending refresh flag is still set
+        assertTrue("Pending card refresh should remain set during CLOSING after config change", session?.hasPendingCardRefresh() == true)
+    }
 }
