@@ -29,11 +29,20 @@ import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
  */
 class RoutineCoreEngine private constructor() {
 
+    enum class LifecycleState {
+        RUNNING,
+        REPLACING,
+        REMOVED
+    }
+
     private var systemContext: Context? = null
     private var classLoader: ClassLoader? = null
 
     private var currentActiveMode: ModeConfig? = null
     private var allModes: List<ModeConfig> = emptyList()
+
+    @Volatile
+    private var lifecycleState = LifecycleState.RUNNING
 
     // Track manually dismissed scheduled modes: modeId -> dismiss timestamp
     // When user manually closes a mode during its scheduled period,
@@ -56,6 +65,10 @@ class RoutineCoreEngine private constructor() {
      * @param loader System_server ClassLoader for reflection
      */
     fun init(context: Context, loader: ClassLoader) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Engine is REMOVED, skipping init")
+            return
+        }
         log("Initializing RoutineCoreEngine...")
         systemContext = context
         classLoader = loader
@@ -103,7 +116,7 @@ class RoutineCoreEngine private constructor() {
             modeActionExecutor?.run {
                 val iconManager = javaClass.getDeclaredField("statusBarIconManager").apply {
                     isAccessible = true
-                }.get(this) as? StatusBarIconManager
+                }[this] as? StatusBarIconManager
 
                 // Use statusIcon if available, fallback to icon mapping
                 val statusIcon = activeMode.statusIcon
@@ -121,6 +134,7 @@ class RoutineCoreEngine private constructor() {
         val handler = mainHandler ?: Handler(Looper.getMainLooper())
         val observer = object : ContentObserver(handler) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
+                if (lifecycleState == LifecycleState.REMOVED) return
                 log("Config changed, reloading...")
                 loadConfigFromSettings()
             }
@@ -140,11 +154,22 @@ class RoutineCoreEngine private constructor() {
      */
     private fun loadConfigFromSettings() {
         val context = systemContext ?: return
+        if (lifecycleState == LifecycleState.REMOVED) return
 
         try {
             val json = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
             if (json.isNullOrBlank()) {
-                log("No config found in Settings.Global[$CONFIG_KEY]")
+                log("No config found in Settings.Global[$CONFIG_KEY] - treating as empty")
+                // treat as empty config: cancel schedules and revert current mode
+                scheduledModeManager?.updateSchedules(emptyList())
+                drivingTriggerManager?.init(emptyList())
+                bedtimeListener?.updateModes(emptyList())
+                currentActiveMode?.let {
+                    log("Reverting active mode due to missing config: ${it.name}")
+                    modeActionExecutor?.revertMode(it)
+                    currentActiveMode = null
+                }
+                allModes = emptyList()
                 return
             }
 
@@ -189,7 +214,7 @@ class RoutineCoreEngine private constructor() {
                     // invoked and no dismiss record is created. Record it here so
                     // the scheduler won't reactivate this mode later in the same
                     // period (e.g. when the user creates or deletes another mode).
-                    if (activeMode.type == ModeType.SCHEDULED || activeMode.type == ModeType.BEDTIME) {
+                    if ((activeMode.type == ModeType.SCHEDULED) || (activeMode.type == ModeType.BEDTIME)) {
                         val now = System.currentTimeMillis()
                         dismissedScheduledModes[activeMode.id] = now
                         log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
@@ -227,6 +252,10 @@ class RoutineCoreEngine private constructor() {
      * @param modeId Mode identifier to activate
      */
     fun activateMode(modeId: String) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Cannot activate mode: engine is REMOVED")
+            return
+        }
         val mode = allModes.find { it.id == modeId }
         if (mode == null) {
             log("Cannot activate mode: mode not found: $modeId")
@@ -275,6 +304,10 @@ class RoutineCoreEngine private constructor() {
      * @param isManualDismiss true if user manually closed, false if automatic (e.g., end alarm)
      */
     fun deactivateMode(modeId: String, isManualDismiss: Boolean = true) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Cannot deactivate mode: engine is REMOVED")
+            return
+        }
         val mode = currentActiveMode
         if (mode == null || mode.id != modeId) {
             log("Cannot deactivate mode: mode not active: $modeId")
@@ -338,12 +371,13 @@ class RoutineCoreEngine private constructor() {
     private fun broadcastModeState(modeId: String?) {
         val context = systemContext ?: return
         try {
-            context.sendBroadcast(Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
+            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
                 setPackage(com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)
                 if (modeId != null) {
                     putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_MODE_ID, modeId)
                 }
-            })
+            }
+            context.sendBroadcast(intent)
             log("Broadcast mode state: ${modeId ?: "null"}")
         } catch (e: Exception) {
             log("Failed to broadcast mode state: ${e.message}")
@@ -398,6 +432,79 @@ class RoutineCoreEngine private constructor() {
     fun clearDismissRecord(modeId: String) {
         if (dismissedScheduledModes.remove(modeId) != null) {
             log("Cleared dismiss record for mode $modeId (new period started)")
+        }
+    }
+
+    /**
+     * Set the lifecycle state of the engine.
+     */
+    fun setLifecycleState(state: LifecycleState) {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Engine is already REMOVED, ignoring transition to $state")
+            return
+        }
+        log("Engine lifecycle transition: $lifecycleState -> $state")
+        lifecycleState = state
+        if (state == LifecycleState.RUNNING) {
+            mainHandler?.post { loadConfigFromSettings() }
+        }
+    }
+
+    /**
+     * Get the current lifecycle state.
+     */
+    fun getLifecycleState(): LifecycleState = lifecycleState
+
+    /**
+     * Idempotent shutdown for package removal.
+     * Clears all runtime state and reverts system changes.
+     */
+    fun shutdownForPackageRemoval() {
+        if (lifecycleState == LifecycleState.REMOVED) {
+            log("Engine already removed, skipping shutdown")
+            return
+        }
+        
+        // Use post to ensure we're on the main handler
+        mainHandler?.post {
+            if (lifecycleState == LifecycleState.REMOVED) return@post
+            
+            log("Starting engine shutdown for package removal...")
+            lifecycleState = LifecycleState.REMOVED
+
+            // 1. Cancel all alarms
+            scheduledModeManager?.cancelAllSchedules()
+
+            // 2. Unregister triggers and listeners
+            drivingTriggerManager?.cleanup()
+            bedtimeListener?.let {
+                it.deactivateBedtime() // Ensure it doesn't think it's still active
+                it.cleanup()
+            }
+
+            // 3. Revert active mode
+            currentActiveMode?.let {
+                log("Reverting active mode for shutdown: ${it.name}")
+                modeActionExecutor?.revertMode(it)
+                currentActiveMode = null
+            }
+            
+            // 4. Clear state
+            allModes = emptyList()
+            dismissedScheduledModes.clear()
+            
+            // 5. Remove global config
+            val context = systemContext
+            if (context != null) {
+                try {
+                    Settings.Global.putString(context.contentResolver, CONFIG_KEY, null)
+                    log("Removed global config from Settings.Global")
+                } catch (e: Exception) {
+                    log("Failed to remove global config: ${e.message}")
+                }
+            }
+
+            log("RoutineCoreEngine shutdown complete")
         }
     }
 

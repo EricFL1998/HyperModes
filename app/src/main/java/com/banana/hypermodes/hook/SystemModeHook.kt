@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.IBinder
 import android.util.Log
+import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
@@ -54,14 +55,14 @@ class SystemModeHook(private val module: XposedModule) {
                         val thisObject = getThisObjectMethod.invoke(chain)
 
                         val context = ams.getDeclaredField("mContext")
-                            .apply { isAccessible = true }
-                            .get(thisObject) as Context
+                            .apply { isAccessible = true }[thisObject] as Context
 
                         // Install UniversalPermissionHook for automatic permission grant
                         UniversalPermissionHook(module).install(classLoader)
 
                         clearStoppedState(context)
                         registerBridge(context)
+                        registerPackageLifecycleReceiver(context)
                         initRoutineCoreEngine(context, classLoader)
                     } catch (t: Throwable) {
                         log("bridge registration failed: $t")
@@ -260,6 +261,45 @@ class SystemModeHook(private val module: XposedModule) {
             log("binder($service, $stubClass) failed: ${t.message}")
             null
         }
+    }
+
+    private fun registerPackageLifecycleReceiver(context: Context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val action = PackageLifecyclePolicy.classify(
+                    intent, Protocol.MODULE_PACKAGE
+                )
+                
+                log("Package event: ${intent.action}, classified: $action")
+                
+                val engine = RoutineCoreEngine.getInstance()
+                when (action) {
+                    PackageLifecyclePolicy.Action.REMOVE -> {
+                        log("Package removal detected, shutting down engine")
+                        engine.shutdownForPackageRemoval()
+                    }
+                    PackageLifecyclePolicy.Action.REPLACEMENT_STARTED -> {
+                        log("Package replacement started")
+                        engine.setLifecycleState(RoutineCoreEngine.LifecycleState.REPLACING)
+                    }
+                    PackageLifecyclePolicy.Action.REPLACEMENT_FINISHED -> {
+                        log("Package replacement finished")
+                        engine.setLifecycleState(RoutineCoreEngine.LifecycleState.RUNNING)
+                    }
+                    else -> {}
+                }
+            }
+        }
+        
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addDataScheme("package")
+        }
+        
+        context.registerReceiver(receiver, filter)
+        log("Package lifecycle receiver registered in system_server")
     }
 
     private fun log(msg: String) = module.log(Log.WARN, TAG, msg)

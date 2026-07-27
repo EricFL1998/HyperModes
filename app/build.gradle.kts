@@ -58,6 +58,8 @@ dependencies {
     compileOnly("io.github.libxposed:api:101.0.1")
     compileOnly("io.github.libxposed:api:101.0.1:sources")
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockito.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

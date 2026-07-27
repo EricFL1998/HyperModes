@@ -39,7 +39,7 @@ class ScheduledModeManager(
         // Schedule only enabled SCHEDULED modes. Disabled schedules retain
         // their stored times but must not leave an old PendingIntent active.
         modes.filter {
-            it.type == ModeType.SCHEDULED && it.scheduleEnabled != false
+            (it.type == ModeType.SCHEDULED) && (it.scheduleEnabled != false)
         }.forEach { mode ->
             scheduleMode(mode)
         }
@@ -89,8 +89,8 @@ class ScheduledModeManager(
             }
         }
 
-        scheduleAlarm(mode.id, startTime, repeatDays, true)
-        scheduleAlarm(mode.id, endTime, repeatDays, false)
+        scheduleAlarm(mode.id, startTime, repeatDays, isStart = true)
+        scheduleAlarm(mode.id, endTime, repeatDays, isStart = false)
     }
 
     /**
@@ -113,6 +113,18 @@ class ScheduledModeManager(
             val listener = AlarmManager.OnAlarmListener {
                 log("Alarm triggered: $tag")
                 try {
+                    // Safety check: is the engine still running and is the package still installed?
+                    if (engine.getLifecycleState() == RoutineCoreEngine.LifecycleState.REMOVED) {
+                        log("Skipping alarm: engine is REMOVED")
+                        return@OnAlarmListener
+                    }
+
+                    if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+                        log("Skipping alarm: package not installed, requesting engine shutdown")
+                        engine.shutdownForPackageRemoval()
+                        return@OnAlarmListener
+                    }
+
                     if (isStart) {
                         // Check if mode was manually dismissed in this period
                         // periodStartTime is the time when this alarm fires (start of new period)
@@ -158,7 +170,7 @@ class ScheduledModeManager(
     /**
      * Cancel all scheduled alarms.
      */
-    private fun cancelAllSchedules() {
+    fun cancelAllSchedules() {
         scheduledAlarms.forEach { (tag, listener) ->
             alarmManager.cancel(listener)
             log("Canceled alarm: $tag")
@@ -209,7 +221,7 @@ class ScheduledModeManager(
         val (endHour, endMinute) = endParsed
 
         val now = Calendar.getInstance()
-        val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val currentMinutes = now[Calendar.HOUR_OF_DAY] * 60 + now[Calendar.MINUTE]
         val startMinutes = startHour * 60 + startMinute
         val endMinutes = endHour * 60 + endMinute
 
@@ -220,7 +232,7 @@ class ScheduledModeManager(
         // Check if current day is in repeat days
         if (!repeatDays.contains(currentDay)) {
             // For cross-day schedules, also check if we're in the "end" portion from yesterday
-            if (endMinutes < startMinutes && currentMinutes < endMinutes) {
+            if (currentMinutes in 0..<endMinutes && endMinutes < startMinutes) {
                 // We're in the early morning portion, check if yesterday is in repeat days
                 val yesterday = if (currentDay == 1) 7 else currentDay - 1
                 if (!repeatDays.contains(yesterday)) {
@@ -273,7 +285,7 @@ class ScheduledModeManager(
         }
 
         // Find the next day that matches one of the repeat days
-        for (i in 0..6) {
+        repeat(7) {
             val dayOfWeek = target.get(Calendar.DAY_OF_WEEK)
             // Convert Calendar.DAY_OF_WEEK (1=Sunday, 2=Monday) to our format (1=Monday, 7=Sunday)
             val ourDayOfWeek = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
@@ -304,7 +316,7 @@ class ScheduledModeManager(
             candidate.add(Calendar.DAY_OF_MONTH, -1)
         }
 
-        for (i in 0..6) {
+        repeat(7) {
             val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
             val ourDayOfWeek = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
             if (repeatDays.contains(ourDayOfWeek)) {
@@ -314,6 +326,15 @@ class ScheduledModeManager(
         }
 
         return candidate.timeInMillis
+    }
+
+    private fun isPackageInstalled(context: Context, packageName: String): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun log(msg: String) {

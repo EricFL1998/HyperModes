@@ -36,7 +36,7 @@ import com.banana.hypermodes.systemserver.config.ModeType
 class BedtimeListener(
     private val context: Context,
     private val engine: RoutineCoreEngine,
-    private val lifecycle: BedtimeListenerLifecycle
+    private val lifecycle: BedtimeListenerLifecycle,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var allModes: List<ModeConfig> = emptyList()
@@ -201,9 +201,7 @@ class BedtimeListener(
                 "bedtime_mode",
                 0
             )
-            if (bedtimeMode == 1) {
-                return true
-            }
+            if (bedtimeMode == 1) return true
 
             // Try alternative sleep_mode_active setting
             val sleepMode = Settings.Secure.getInt(
@@ -211,9 +209,7 @@ class BedtimeListener(
                 "sleep_mode_active",
                 0
             )
-            if (sleepMode == 1) return true
-
-            return false
+            return sleepMode == 1
         } catch (e: Exception) {
             log("Failed to read bedtime state from Settings: ${e.message}")
             return false
@@ -257,6 +253,32 @@ class BedtimeListener(
         } else {
             log("Cannot deactivate bedtime: no BEDTIME mode active")
         }
+    }
+
+    /**
+     * Clean up resources.
+     */
+    fun cleanup() {
+        if (receiverRegistered) {
+            try {
+                context.unregisterReceiver(receiver)
+                receiverRegistered = false
+                log("Bedtime active receiver unregistered")
+            } catch (e: Exception) {
+                log("Failed to unregister bedtime active receiver: ${e.message}")
+            }
+        }
+        
+        registeredSecureKeys.forEach { key ->
+            try {
+                context.contentResolver.unregisterContentObserver(bedtimeSettingsObserver)
+                log("Unregistered observer for $key")
+            } catch (e: Exception) {
+                log("Failed to unregister $key observer: ${e.message}")
+            }
+        }
+        registeredSecureKeys.clear()
+        allModes = emptyList()
     }
 
     private fun log(msg: String) {

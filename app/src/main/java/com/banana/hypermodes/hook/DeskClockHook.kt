@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
@@ -33,6 +34,7 @@ class DeskClockHook(private val module: XposedModule) {
                     val app = getThisObjectMethod.invoke(chain) as Application
                     try {
                         registerReceiver(app, classLoader)
+                        registerPackageLifecycleReceiver(app, classLoader)
                     } catch (t: Throwable) {
                         log("receiver registration failed: $t")
                     }
@@ -101,7 +103,7 @@ class DeskClockHook(private val module: XposedModule) {
                         val result = chain.proceed()
                         try {
                             val dismissed = chain.getArg(1) ?: return result
-                            val id = dismissed.javaClass.getField("id").getInt(dismissed)
+                            val id = (dismissed as Any).javaClass.getField("id").getInt(dismissed)
                             if (id == Int.MIN_VALUE) {
                                 val context = chain.getArg(0) as Context
                                 classLoader.loadClass(CLS_ZEN_MODE_UTIL)
@@ -128,7 +130,7 @@ class DeskClockHook(private val module: XposedModule) {
                 .getDeclaredMethod("getWakeAlarm", Context::class.java)
                 .invoke(null, context) ?: return false
             wakeAlarm.javaClass.getField("enabled").getBoolean(wakeAlarm)
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             false
         }
 
@@ -242,7 +244,7 @@ class DeskClockHook(private val module: XposedModule) {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
                     try {
-                        val context = chain.getArg(0) as? Context ?: return result
+                        chain.getArg(0) as? Context ?: return result
                         val alarmId = chain.getArg(1) as? Int ?: 0
                         val enabled = chain.getArg(2) as? Boolean ?: false
                         if (alarmId == Int.MIN_VALUE && enabled) {
@@ -270,7 +272,7 @@ class DeskClockHook(private val module: XposedModule) {
                 String::class.java, Int::class.javaPrimitiveType
             ).invoke(null, context, "BedtimeAlarm", 0) as android.content.SharedPreferences
             prefs.getBoolean(KEY_IN_ZENMODE, fallback)
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             fallback
         }
 
@@ -348,26 +350,24 @@ class DeskClockHook(private val module: XposedModule) {
             as? android.app.NotificationManager ?: return emptyList()
 
         // Check if any AutomaticZenRule with "bedtime" in name is active
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            val rules = notificationManager.automaticZenRules ?: return emptyList()
-            val bedtimeActive = rules.values.any { rule ->
-                rule.isEnabled &&
-                rule.name.contains("bedtime", ignoreCase = true) &&
-                rule.conditionId != null
-            }
+        val rules = notificationManager.automaticZenRules ?: return emptyList()
+        val bedtimeActive = rules.values.any { rule ->
+            rule.isEnabled &&
+                    rule.name.contains("bedtime", ignoreCase = true) &&
+                    rule.conditionId != null
+        }
 
-            val currentlyInSleep = controller.querySleepModeState()
+        val currentlyInSleep = controller.querySleepModeState()
 
-            // Sync state: if Android bedtime is on but DeskClock is off, start it
-            if (bedtimeActive && !currentlyInSleep) {
-                log("Android bedtime activated externally, starting DeskClock bedtime")
-                return controller.startBedtime()
-            }
-            // If Android bedtime is off but DeskClock is on, stop it
-            else if (!bedtimeActive && currentlyInSleep) {
-                log("Android bedtime deactivated externally, stopping DeskClock bedtime")
-                return controller.stopBedtime()
-            }
+        // Sync state: if Android bedtime is on but DeskClock is off, start it
+        if (bedtimeActive && !currentlyInSleep) {
+            log("Android bedtime activated externally, starting DeskClock bedtime")
+            return controller.startBedtime()
+        }
+        // If Android bedtime is off but DeskClock is on, stop it
+        else if (!bedtimeActive && currentlyInSleep) {
+            log("Android bedtime deactivated externally, stopping DeskClock bedtime")
+            return controller.stopBedtime()
         }
 
         return emptyList()
@@ -391,6 +391,32 @@ class DeskClockHook(private val module: XposedModule) {
             putExtra(Protocol.EXTRA_REMINDER_MINUTES, reminderMinutes)
             putExtra(Protocol.EXTRA_IS_SKIPPED, schedule.isSkipped)
         })
+    }
+
+    private fun registerPackageLifecycleReceiver(app: Application, classLoader: ClassLoader) {
+        val controller = BedtimeController(app, classLoader) { msg -> log(msg) }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val action = PackageLifecyclePolicy.classify(
+                    intent, Protocol.MODULE_PACKAGE
+                )
+                
+                if (action == PackageLifecyclePolicy.Action.REMOVE) {
+                    log("HyperModes removal detected in DeskClock, disabling bedtime")
+                    val results = controller.disableBedtime()
+                    log("disableBedtime results: ${results.joinToString { it.format() }}")
+                }
+            }
+        }
+        
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)
+            addDataScheme("package")
+        }
+        
+        app.registerReceiver(receiver, filter)
+        log("Package lifecycle receiver registered in DeskClock")
     }
 
     private fun log(msg: String) = module.log(Log.WARN, TAG, msg)
