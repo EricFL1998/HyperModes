@@ -20,6 +20,8 @@ import com.banana.hypermodes.systemserver.config.DisplayConfig
  */
 class DisplayModeController(private val context: Context) {
 
+    private var originalRefreshRate: Int? = null
+
     /**
      * Apply the specified display configuration.
      *
@@ -69,6 +71,28 @@ class DisplayModeController(private val context: Context) {
                 }
             }
 
+            // Apply Eye Care (screen_paper_mode_enabled)
+            if (display.eyeCare) {
+                Settings.System.putInt(
+                    context.contentResolver,
+                    "screen_paper_mode_enabled",
+                    1
+                )
+                log("apply: enabled eyeCare")
+            }
+
+            // Apply custom Refresh Rate (user_refresh_rate)
+            if (display.enableRefreshRate) {
+                val cr = context.contentResolver
+                // Save current refresh rate if not already saved
+                if (originalRefreshRate == null) {
+                    originalRefreshRate = Settings.Secure.getInt(cr, "user_refresh_rate", 60)
+                    log("apply: saved original refresh rate: $originalRefreshRate")
+                }
+                Settings.Secure.putInt(cr, "user_refresh_rate", display.refreshRate)
+                log("apply: set refresh rate to ${display.refreshRate}")
+            }
+
         } catch (e: Exception) {
             log("apply: failed to apply display settings: ${e.message}")
             e.printStackTrace()
@@ -101,6 +125,21 @@ class DisplayModeController(private val context: Context) {
                     1
                 )
                 log("restore: reset adaptiveRefreshRatePro to default")
+            }
+
+            // Restore Eye Care to default (disabled/0)
+            Settings.System.putInt(
+                context.contentResolver,
+                "screen_paper_mode_enabled",
+                0
+            )
+            log("restore: disabled eyeCare")
+
+            // Restore Refresh Rate
+            originalRefreshRate?.let { original ->
+                Settings.Secure.putInt(context.contentResolver, "user_refresh_rate", original)
+                log("restore: reverted refresh rate to $original")
+                originalRefreshRate = null
             }
 
         } catch (e: Exception) {

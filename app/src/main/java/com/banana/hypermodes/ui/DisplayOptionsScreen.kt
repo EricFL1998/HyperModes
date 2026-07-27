@@ -1,18 +1,23 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
+import com.banana.hypermodes.utils.RefreshRateManager
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
@@ -26,16 +31,30 @@ fun DisplayOptionsScreen(
     onBack: () -> Unit,
     onSave: (Mode) -> Unit
 ) {
+    val context = LocalContext.current
     var editedMode by remember { mutableStateOf(mode) }
     BackHandler(onBack = onBack)
 
     val scrollBehavior = MiuixScrollBehavior()
+    var showRefreshRatePicker by remember { mutableStateOf(false) }
+
+    val supportedRates = remember {
+        RefreshRateManager.getCachedRefreshRates(context).ifEmpty { listOf(60, 90, 120, 144) }
+    }
 
     val isSupported = remember {
         runCatching {
             val systemPropertiesClass = Class.forName("android.os.SystemProperties")
             val getBooleanMethod = systemPropertiesClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
             getBooleanMethod.invoke(null, "ro.display.enable_pwm_switch", false) as Boolean
+        }.getOrDefault(defaultValue = false)
+    }
+
+    val isEyeCareSupported = remember {
+        runCatching {
+            val featureParserClass = Class.forName("miui.util.FeatureParser")
+            val getBooleanMethod = featureParserClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
+            getBooleanMethod.invoke(null, "support_qingshan_eyecare", false) as Boolean
         }.getOrDefault(defaultValue = false)
     }
 
@@ -177,10 +196,127 @@ fun DisplayOptionsScreen(
                 }
             }
 
+            if (isEyeCareSupported) {
+                item {
+                    SettingItem(
+                        title = stringResource(R.string.eye_care_mode),
+                        subtitle = stringResource(R.string.eye_care_mode_desc),
+                        checked = editedMode.settings.enableEyeCare,
+                        onCheckedChange = { enabled ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableEyeCare = enabled)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    )
+                }
+            }
+
+            // Frame Rate Toggle
+            item {
+                SettingItem(
+                    title = stringResource(R.string.refresh_rate_option),
+                    subtitle = stringResource(R.string.refresh_rate_option_desc),
+                    checked = editedMode.settings.enableRefreshRate,
+                    onCheckedChange = { enabled ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableRefreshRate = enabled)
+                        )
+                        onSave(editedMode)
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
+                )
+            }
+
+            // Frame Rate Selection
+            if (editedMode.settings.enableRefreshRate) {
+                item {
+                    ValueSettingItem(
+                        title = stringResource(R.string.refresh_rate_option),
+                        subtitle = "",
+                        value = stringResource(R.string.refresh_rate_unit, editedMode.settings.refreshRate),
+                        onClick = { showRefreshRatePicker = true },
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    )
+                }
+            }
+
             // Bottom spacer with navigation bar padding
             item {
                 Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
             }
+        }
+    }
+
+    RefreshRateDialog(
+        show = showRefreshRatePicker,
+        rates = supportedRates,
+        current = editedMode.settings.refreshRate,
+        onDismiss = { showRefreshRatePicker = false },
+        onSelect = { rate ->
+            editedMode = editedMode.copy(
+                settings = editedMode.settings.copy(refreshRate = rate)
+            )
+            onSave(editedMode)
+            showRefreshRatePicker = false
+        }
+    )
+}
+
+@Composable
+fun RefreshRateDialog(
+    show: Boolean,
+    rates: List<Int>,
+    current: Int,
+    onDismiss: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    top.yukonga.miuix.kmp.overlay.OverlayDialog(
+        title = stringResource(R.string.refresh_rate_option),
+        show = show,
+        onDismissRequest = onDismiss
+    ) {
+        Column {
+            rates.forEach { rate ->
+                val selected = current == rate
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(rate) }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (selected) {
+                        Text(
+                            text = "✓",
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(24.dp))
+                    }
+                    Text(
+                        text = stringResource(R.string.refresh_rate_unit, rate),
+                        style = MiuixTheme.textStyles.body1,
+                        color = if (selected) MiuixTheme.colorScheme.primary
+                        else MiuixTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                text = stringResource(R.string.cancel),
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

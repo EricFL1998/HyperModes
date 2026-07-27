@@ -83,7 +83,10 @@ data class DisplayConfig(
     val grayscale: Boolean = false,
     val dimWallpaper: Boolean = false,
     val keepScreenOff: Boolean = false,
-    val adaptiveRefreshRatePro: Boolean? = null
+    val adaptiveRefreshRatePro: Boolean? = null,
+    val eyeCare: Boolean = false,
+    val enableRefreshRate: Boolean = false,
+    val refreshRate: Int = 60
 )
 
 @Serializable

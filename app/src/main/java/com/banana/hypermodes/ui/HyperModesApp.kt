@@ -30,6 +30,7 @@ import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.utils.UpdateManager
 import com.banana.hypermodes.utils.UpdateInfo
+import com.banana.hypermodes.utils.RefreshRateManager
 import com.banana.hypermodes.ui.components.UpdateDialog
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -76,6 +77,7 @@ fun HyperModesApp() {
     // placeholder times while waiting for the hook's first reply.
     LaunchedEffect(Unit) {
         DeskClockState.restore(context)
+        RefreshRateManager.initialize(context)
     }
 
     // Auto-update check on startup

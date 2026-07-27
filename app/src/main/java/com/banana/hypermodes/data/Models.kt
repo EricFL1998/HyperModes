@@ -30,6 +30,9 @@ data class ModeSettings(
     val dimWallpaper: Boolean = false,
     val keepScreenOff: Boolean = false,
     val enableAdaptiveRefreshRatePro: Boolean = false,
+    val enableEyeCare: Boolean = false,
+    val enableRefreshRate: Boolean = false,
+    val refreshRate: Int = 60,
 
     // Restrictions
     val pausedApps: Set<String> = emptySet(),
@@ -186,7 +189,10 @@ fun Mode.toModeConfig(): ModeConfig {
             grayscale = s.enableGrayscale,
             dimWallpaper = s.dimWallpaper,
             keepScreenOff = s.keepScreenOff,
-            adaptiveRefreshRatePro = s.enableAdaptiveRefreshRatePro
+            adaptiveRefreshRatePro = s.enableAdaptiveRefreshRatePro,
+            eyeCare = s.enableEyeCare,
+            enableRefreshRate = s.enableRefreshRate,
+            refreshRate = s.refreshRate
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -273,6 +279,9 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             dimWallpaper = display.dimWallpaper,
             keepScreenOff = display.keepScreenOff,
             enableAdaptiveRefreshRatePro = display.adaptiveRefreshRatePro ?: false,
+            enableEyeCare = display.eyeCare,
+            enableRefreshRate = display.enableRefreshRate,
+            refreshRate = display.refreshRate,
             pausedApps = pausedApps.toSet(),
             allowedContacts = emptySet(),
             contactFilter = contactFilterValue,
