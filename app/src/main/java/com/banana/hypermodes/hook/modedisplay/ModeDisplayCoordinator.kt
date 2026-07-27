@@ -135,10 +135,15 @@ class ModeDisplayCoordinator(
         val params = (display.layoutParams as? FrameLayout.LayoutParams)
             ?: FrameLayout.LayoutParams(placement.width, placement.height)
         params.gravity = Gravity.TOP or Gravity.START
-        params.leftMargin = placement.x
-        // Full-AOD content must sit slightly above the lockscreen position so it
-        // lines up with the native zoom/shrink transition instead of appearing low.
-        params.topMargin = (placement.y - fullAodUpwardShiftPx(display)).coerceAtLeast(0)
+        // Place the copy so its *rendered* position matches the lockscreen copy's
+        // last rendered position. The native Full-AOD transition scales
+        // aod_root_view around an explicit pivot, so undo that transform here;
+        // the copy then rides the native animation instead of jumping. When the
+        // host is unscaled this reduces to the raw relative coordinates.
+        val scaleX = root.scaleX.takeIf { it > 0f } ?: 1f
+        val scaleY = root.scaleY.takeIf { it > 0f } ?: 1f
+        params.leftMargin = (root.pivotX + (placement.x - root.pivotX) / scaleX).roundToInt()
+        params.topMargin = (root.pivotY + (placement.y - root.pivotY) / scaleY).roundToInt()
         params.width = placement.width
         params.height = placement.height
         display.layoutParams = params
@@ -147,9 +152,6 @@ class ModeDisplayCoordinator(
         logger("full AOD placement: $placement")
         return true
     }
-
-    private fun fullAodUpwardShiftPx(view: View): Int =
-        (AOD_UPWARD_SHIFT_DP * view.resources.displayMetrics.density).roundToInt()
 
     private fun scheduleOneShotPosition(root: FrameLayout, display: LinearLayout) {
         clearPendingPreDraw()
@@ -236,8 +238,6 @@ class ModeDisplayCoordinator(
     }
 
     companion object {
-        internal const val AOD_UPWARD_SHIFT_DP = 24f
-
         private fun screenBounds(view: View): DisplayBounds? {
             if (!view.isLaidOut || view.width <= 0 || view.height <= 0) return null
             val location = IntArray(2)

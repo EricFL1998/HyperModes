@@ -23,10 +23,6 @@ class ModeDisplayCoordinatorTest {
     private val bounds = IdentityHashMap<View, DisplayBounds>()
     private var state: ModeDisplayState? = ModeDisplayState("Work", "ic_stat_work")
 
-    private val aodShiftPx =
-        (ModeDisplayCoordinator.AOD_UPWARD_SHIFT_DP * context.resources.displayMetrics.density)
-            .roundToInt()
-
     private fun coordinator() = ModeDisplayCoordinator(
         readState = { state },
         readBounds = { bounds[it] },
@@ -47,7 +43,7 @@ class ModeDisplayCoordinatorTest {
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(420, params.leftMargin)
-        assertEquals(2000 - aodShiftPx, params.topMargin)
+        assertEquals(2000, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
         assertEquals("Work", (fullAod.getChildAt(1) as TextView).text.toString())
@@ -179,7 +175,7 @@ class ModeDisplayCoordinatorTest {
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(View.VISIBLE, fullAod.visibility)
         assertEquals(420, params.leftMargin)
-        assertEquals(2000 - aodShiftPx, params.topMargin)
+        assertEquals(2000, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
     }
@@ -223,9 +219,34 @@ class ModeDisplayCoordinatorTest {
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(100, params.leftMargin)
-        assertEquals(1800 - aodShiftPx, params.topMargin)
+        assertEquals(1800, params.topMargin)
         assertEquals(200, params.width)
         assertEquals(50, params.height)
+    }
+
+    @Test
+    fun `placement compensates host scale and pivot so rendered position matches lockscreen`() {
+        val coordinator = coordinator()
+        val lockscreen = ModeDisplayViewFactory.create(context)
+        val root = FrameLayout(context)
+        bounds[lockscreen] = DisplayBounds(420, 2100, 240, 56)
+        bounds[root] = DisplayBounds(0, 100, 1080, 2300)
+        // Native Full-AOD shrink: aod_root_view scaled around a 0.4-height pivot.
+        root.scaleY = 0.95f
+        root.pivotX = 540f
+        root.pivotY = 920f
+        coordinator.attachLockscreenDisplay(lockscreen)
+
+        coordinator.onFullAodStarted(root, isFullAod = true)
+
+        val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
+        val params = fullAod.layoutParams as FrameLayout.LayoutParams
+        // placement.x = 420, placement.y = 2000 relative to the host origin.
+        assertEquals(420, params.leftMargin) // scaleX untouched at 1.0
+        assertEquals((920f + (2000f - 920f) / 0.95f).roundToInt(), params.topMargin)
+        // Rendered position lands back on the lockscreen position.
+        val renderedY = 920f + 0.95f * (params.topMargin - 920f)
+        assertEquals(2000f, renderedY, 1f)
     }
 
     @Test
