@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.banana.hypermodes.systemserver.PackagePresencePolicy
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ModeType
@@ -120,8 +121,16 @@ class ScheduledModeManager(
                     }
 
                     if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
-                        log("Skipping alarm: package not installed, requesting engine shutdown")
-                        engine.shutdownForPackageRemoval()
+                        when (PackagePresencePolicy.onMissingPackage(engine.getLifecycleState())) {
+                            PackagePresencePolicy.MissingPackageAction.SHUTDOWN -> {
+                                log("Skipping alarm: package not installed, requesting engine shutdown")
+                                engine.shutdownForPackageRemoval()
+                            }
+                            PackagePresencePolicy.MissingPackageAction.SKIP_ONLY -> {
+                                log("Skipping alarm: package temporarily unavailable during replacement")
+                            }
+                            PackagePresencePolicy.MissingPackageAction.ALLOW -> Unit
+                        }
                         return@OnAlarmListener
                     }
 

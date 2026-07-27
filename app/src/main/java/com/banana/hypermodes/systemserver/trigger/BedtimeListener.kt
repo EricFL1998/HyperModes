@@ -268,7 +268,7 @@ class BedtimeListener(
                 log("Failed to unregister bedtime active receiver: ${e.message}")
             }
         }
-        
+
         registeredSecureKeys.forEach { key ->
             try {
                 context.contentResolver.unregisterContentObserver(bedtimeSettingsObserver)
@@ -279,6 +279,15 @@ class BedtimeListener(
         }
         registeredSecureKeys.clear()
         allModes = emptyList()
+    }
+
+    /**
+     * Clean up package-removal resources without normal mode deactivation.
+     * The engine restores the active mode separately, and trigger callbacks
+     * must not persist state after the removal gate has closed.
+     */
+    fun cleanupForPackageRemoval() {
+        cleanup()
     }
 
     private fun log(msg: String) {

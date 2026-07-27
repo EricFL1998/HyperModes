@@ -44,6 +44,8 @@ class RoutineCoreEngine private constructor() {
     @Volatile
     private var lifecycleState = LifecycleState.RUNNING
 
+    private val lifecycleLock = Any()
+
     // Track manually dismissed scheduled modes: modeId -> dismiss timestamp
     // When user manually closes a mode during its scheduled period,
     // it won't auto-reopen until the next scheduled period starts
@@ -56,6 +58,7 @@ class RoutineCoreEngine private constructor() {
     private var modeActionExecutor: ModeActionExecutor? = null
 
     private var mainHandler: Handler? = null
+    private var configObserverOwner: EngineObserverOwner? = null
 
     /**
      * Initialize the engine in system_server context.
@@ -152,11 +155,20 @@ class RoutineCoreEngine private constructor() {
             }
         }
 
-        context.contentResolver.registerContentObserver(
-            Settings.Global.getUriFor(CONFIG_KEY),
-            false,
-            observer
+        val owner = EngineObserverOwner(
+            registerAction = { registeredObserver ->
+                context.contentResolver.registerContentObserver(
+                    Settings.Global.getUriFor(CONFIG_KEY),
+                    false,
+                    registeredObserver
+                )
+            },
+            unregisterAction = { registeredObserver ->
+                context.contentResolver.unregisterContentObserver(registeredObserver)
+            }
         )
+        owner.register(observer)
+        configObserverOwner = owner
         log("ContentObserver registered for $CONFIG_KEY")
     }
 
@@ -480,6 +492,17 @@ class RoutineCoreEngine private constructor() {
     }
 
     /**
+     * Atomically closes the lifecycle gate before cleanup work or queued callbacks can run.
+     * REMOVED is terminal for the current system_server process.
+     */
+    fun beginPackageRemoval(): Boolean = synchronized(lifecycleLock) {
+        if (lifecycleState == LifecycleState.REMOVED) return false
+        log("Engine lifecycle transition: $lifecycleState -> REMOVED")
+        lifecycleState = LifecycleState.REMOVED
+        true
+    }
+
+    /**
      * Set the lifecycle state of the engine.
      */
     fun setLifecycleState(state: LifecycleState) {
@@ -504,52 +527,61 @@ class RoutineCoreEngine private constructor() {
      * Clears all runtime state and reverts system changes.
      */
     fun shutdownForPackageRemoval() {
-        if (lifecycleState == LifecycleState.REMOVED) {
+        if (!beginPackageRemoval()) {
             log("Engine already removed, skipping shutdown")
             return
         }
-        
-        // Use post to ensure we're on the main handler
-        mainHandler?.post {
-            if (lifecycleState == LifecycleState.REMOVED) return@post
-            
+
+        val cleanup = {
             log("Starting engine shutdown for package removal...")
-            lifecycleState = LifecycleState.REMOVED
-
-            // 1. Cancel all alarms
-            scheduledModeManager?.cancelAllSchedules()
-
-            // 2. Unregister triggers and listeners
-            drivingTriggerManager?.cleanup()
-            bedtimeListener?.let {
-                it.deactivateBedtime() // Ensure it doesn't think it's still active
-                it.cleanup()
-            }
-
-            // 3. Revert active mode
-            currentActiveMode?.let {
-                log("Reverting active mode for shutdown: ${it.name}")
-                modeActionExecutor?.revertMode(it)
-                currentActiveMode = null
-            }
-            
-            // 4. Clear state
-            allModes = emptyList()
-            dismissedScheduledModes.clear()
-            
-            // 5. Remove global config
-            val context = systemContext
-            if (context != null) {
-                try {
-                    Settings.Global.putString(context.contentResolver, CONFIG_KEY, null)
-                    log("Removed global config from Settings.Global")
-                } catch (e: Exception) {
-                    log("Failed to remove global config: ${e.message}")
-                }
-            }
-
-            log("RoutineCoreEngine shutdown complete")
+            performPackageRemovalCleanup()
         }
+
+        mainHandler?.post(cleanup) ?: cleanup()
+    }
+
+    private fun performPackageRemovalCleanup() {
+        // 1. Cancel all alarms
+        scheduledModeManager?.cancelAllSchedules()
+
+        // 2. Unregister engine configuration observer
+        try {
+            configObserverOwner?.release()
+        } catch (e: Exception) {
+            log("Failed to unregister config observer: ${e.message}")
+        }
+        configObserverOwner = null
+
+        // 3. Unregister triggers and listeners without normal deactivation side effects
+        drivingTriggerManager?.cleanupForPackageRemoval()
+        bedtimeListener?.cleanupForPackageRemoval()
+
+        // 4. Revert active mode
+        currentActiveMode?.let {
+            log("Reverting active mode for shutdown: ${it.name}")
+            modeActionExecutor?.revertMode(it)
+            currentActiveMode = null
+        }
+
+        // 4. Send DeskClock disable command while the injected bridge may still be alive
+        sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_DISABLE_BEDTIME)
+
+        // 5. Clear state
+        allModes = emptyList()
+        dismissedScheduledModes.clear()
+
+        // 6. Remove global config
+        val context = systemContext
+        if (context != null) {
+            try {
+                Settings.Global.putString(context.contentResolver, CONFIG_KEY, null)
+                log("Removed global config from Settings.Global")
+            } catch (e: Exception) {
+                log("Failed to remove global config: ${e.message}")
+            }
+        }
+
+        log("RoutineCoreEngine shutdown complete")
     }
 
     private fun log(msg: String) {
