@@ -286,6 +286,11 @@ class SystemModeHook(private val module: XposedModule) {
                         log("Package replacement finished")
                         engine.setLifecycleState(RoutineCoreEngine.LifecycleState.RUNNING)
                     }
+                    PackageLifecyclePolicy.Action.INSTALL -> {
+                        log("Fresh installation detected, resetting engine to RUNNING")
+                        // Use a transition that ensures we reload config
+                        engine.setLifecycleState(RoutineCoreEngine.LifecycleState.RUNNING)
+                    }
                     else -> {}
                 }
             }

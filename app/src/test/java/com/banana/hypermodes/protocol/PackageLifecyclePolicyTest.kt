@@ -66,4 +66,13 @@ class PackageLifecyclePolicyTest {
         }
         assertEquals(PackageLifecyclePolicy.Action.REPLACEMENT_FINISHED, PackageLifecyclePolicy.classify(intent, target))
     }
+
+    @Test
+    fun testClassifyInstall() {
+        val intent = Intent(Intent.ACTION_PACKAGE_ADDED).apply {
+            data = Uri.parse("package:$target")
+            putExtra(Intent.EXTRA_REPLACING, false)
+        }
+        assertEquals(PackageLifecyclePolicy.Action.INSTALL, PackageLifecyclePolicy.classify(intent, target))
+    }
 }

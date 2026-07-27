@@ -12,7 +12,8 @@ object PackageLifecyclePolicy {
         IGNORE,
         REPLACEMENT_STARTED,
         REPLACEMENT_FINISHED,
-        REMOVE
+        REMOVE,
+        INSTALL
     }
 
     fun classify(intent: Intent, targetPackage: String): Action {
@@ -33,7 +34,7 @@ object PackageLifecyclePolicy {
                 Action.REMOVE
             }
             Intent.ACTION_PACKAGE_ADDED -> {
-                if (replacing) Action.REPLACEMENT_FINISHED else Action.IGNORE
+                if (replacing) Action.REPLACEMENT_FINISHED else Action.INSTALL
             }
             else -> Action.IGNORE
         }

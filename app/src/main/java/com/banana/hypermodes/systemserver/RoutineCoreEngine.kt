@@ -66,7 +66,19 @@ class RoutineCoreEngine private constructor() {
      */
     fun init(context: Context, loader: ClassLoader) {
         if (lifecycleState == LifecycleState.REMOVED) {
-            log("Engine is REMOVED, skipping init")
+            // Check if it was reinstalled
+            if (isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+                log("Engine was REMOVED but package is present, resetting state to RUNNING")
+                lifecycleState = LifecycleState.RUNNING
+            } else {
+                log("Engine is REMOVED and package missing, skipping init")
+                return
+            }
+        } else if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+            log("Engine is RUNNING but package missing on boot, triggering shutdown")
+            // Initialize mainHandler first so shutdown can post to it
+            mainHandler = Handler(Looper.getMainLooper())
+            shutdownForPackageRemoval()
             return
         }
         log("Initializing RoutineCoreEngine...")
@@ -155,6 +167,12 @@ class RoutineCoreEngine private constructor() {
     private fun loadConfigFromSettings() {
         val context = systemContext ?: return
         if (lifecycleState == LifecycleState.REMOVED) return
+
+        if (!isPackageInstalled(context, com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)) {
+            log("Package uninstalled but setting exists, triggering shutdown")
+            shutdownForPackageRemoval()
+            return
+        }
 
         try {
             val json = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
@@ -432,6 +450,15 @@ class RoutineCoreEngine private constructor() {
     fun clearDismissRecord(modeId: String) {
         if (dismissedScheduledModes.remove(modeId) != null) {
             log("Cleared dismiss record for mode $modeId (new period started)")
+        }
+    }
+
+    private fun isPackageInstalled(context: Context, packageName: String): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
