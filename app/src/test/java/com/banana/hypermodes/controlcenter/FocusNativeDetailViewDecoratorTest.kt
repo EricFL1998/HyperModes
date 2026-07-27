@@ -42,8 +42,8 @@ class FocusNativeDetailViewDecoratorTest {
         FocusNativeDetailViewDecorator.decorate(root) { view -> view === list }
         FocusNativeDetailViewDecorator.decorate(root) { view -> view === list }
 
-        assertEquals(3, list.paddingLeft)
-        assertEquals(21, list.paddingTop)
+        assertEquals(15, list.paddingLeft)
+        assertEquals(33, list.paddingTop)
         assertEquals(7, list.paddingRight)
         assertEquals(11, list.paddingBottom)
         assertFalse(list.clipToPadding)

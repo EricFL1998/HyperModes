@@ -176,6 +176,88 @@ class DeskClockHook(private val module: XposedModule) {
                 })
         }
         log("ZenModeUtil enter/exit hooked")
+
+        hookAlarmSkip(classLoader)
+    }
+
+    private fun hookAlarmSkip(classLoader: ClassLoader) {
+        val alarmHelper = try {
+            classLoader.loadClass(CLS_ALARM_HELPER)
+        } catch (t: Throwable) {
+            log("AlarmHelper not found: ${t.message}")
+            return
+        }
+
+        val skipMethod = try {
+            alarmHelper.getDeclaredMethod("skipAlarmForOnce", Context::class.java, Integer.TYPE)
+        } catch (t: Throwable) {
+            log("skipAlarmForOnce not found: ${t.message}")
+            return
+        }
+
+        module.hook(skipMethod)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        val context = chain.getArg(0) as? Context ?: return result
+                        val alarmId = chain.getArg(1) as? Int ?: 0
+                        if (alarmId == Int.MIN_VALUE) {
+                            log("Bedtime alarm skipped manually in DeskClock")
+                            // Notify HyperModes to turn OFF bedtime mode
+                            context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
+                                putExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
+                            })
+                        }
+                    } catch (t: Throwable) {
+                        log("skip hook broadcast failed: $t")
+                    }
+                    return result
+                }
+            })
+        log("skipAlarmForOnce hooked")
+
+        hookAlarmEnable(classLoader)
+    }
+
+    private fun hookAlarmEnable(classLoader: ClassLoader) {
+        val alarmHelper = try {
+            classLoader.loadClass(CLS_ALARM_HELPER)
+        } catch (t: Throwable) {
+            log("AlarmHelper not found: ${t.message}")
+            return
+        }
+
+        val enableMethod = try {
+            alarmHelper.getDeclaredMethod("enableAlarm", Context::class.java, Integer.TYPE, java.lang.Boolean.TYPE)
+        } catch (t: Throwable) {
+            log("enableAlarm not found: ${t.message}")
+            return
+        }
+
+        module.hook(enableMethod)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        val context = chain.getArg(0) as? Context ?: return result
+                        val alarmId = chain.getArg(1) as? Int ?: 0
+                        val enabled = chain.getArg(2) as? Boolean ?: false
+                        if (alarmId == Int.MIN_VALUE && enabled) {
+                            log("Bedtime alarm enabled manually in DeskClock")
+                            // If it's currently bedtime, this might need to trigger mode activation
+                            // ZenModeUtil.enterZenMode is usually called by DeskClock anyway,
+                            // which is already hooked. This is just an extra safety signal.
+                        }
+                    } catch (t: Throwable) {
+                        log("enable hook broadcast failed: $t")
+                    }
+                    return result
+                }
+            })
+        log("enableAlarm hooked")
     }
 
     /** BedtimeAlarm/inZenMode is what enter/exitZenMode persist on SDK 30+;
@@ -307,6 +389,7 @@ class DeskClockHook(private val module: XposedModule) {
             putExtra(Protocol.EXTRA_REPEAT_DAYS, schedule.repeatDays)
             putExtra(Protocol.EXTRA_BEDTIME_CONFIGURED, schedule.bedtimeConfigured)
             putExtra(Protocol.EXTRA_REMINDER_MINUTES, reminderMinutes)
+            putExtra(Protocol.EXTRA_IS_SKIPPED, schedule.isSkipped)
         })
     }
 

@@ -30,7 +30,7 @@ class DisplayModeController(private val context: Context) {
             // Apply dark mode
             if (display.darkMode) {
                 val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-                uiModeManager.setNightMode(UiModeManager.MODE_NIGHT_YES)
+                uiModeManager.nightMode = UiModeManager.MODE_NIGHT_YES
                 log("apply: enabled dark mode")
             }
 
@@ -57,6 +57,18 @@ class DisplayModeController(private val context: Context) {
                 log("apply: keepScreenOff requested but not implemented")
             }
 
+            // Apply Adaptive Refresh Rate Pro (mimotion_pwm_enable)
+            display.adaptiveRefreshRatePro?.let { enabled ->
+                if (isAdaptiveRefreshRateProSupported()) {
+                    Settings.Secure.putInt(
+                        context.contentResolver,
+                        "mimotion_pwm_enable",
+                        if (enabled) 2 else 1
+                    )
+                    log("apply: set adaptiveRefreshRatePro to $enabled")
+                }
+            }
+
         } catch (e: Exception) {
             log("apply: failed to apply display settings: ${e.message}")
             e.printStackTrace()
@@ -70,7 +82,7 @@ class DisplayModeController(private val context: Context) {
         try {
             // Restore dark mode to auto
             val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-            uiModeManager.setNightMode(UiModeManager.MODE_NIGHT_AUTO)
+            uiModeManager.nightMode = UiModeManager.MODE_NIGHT_AUTO
             log("restore: reset dark mode to auto")
 
             // Disable grayscale
@@ -81,9 +93,29 @@ class DisplayModeController(private val context: Context) {
             )
             log("restore: disabled grayscale")
 
+            // Restore Adaptive Refresh Rate Pro to default (disabled/1)
+            if (isAdaptiveRefreshRateProSupported()) {
+                Settings.Secure.putInt(
+                    context.contentResolver,
+                    "mimotion_pwm_enable",
+                    1
+                )
+                log("restore: reset adaptiveRefreshRatePro to default")
+            }
+
         } catch (e: Exception) {
             log("restore: failed to restore display settings: ${e.message}")
             e.printStackTrace()
+        }
+    }
+
+    private fun isAdaptiveRefreshRateProSupported(): Boolean {
+        return try {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getBooleanMethod = systemPropertiesClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
+            getBooleanMethod.invoke(null, "ro.display.enable_pwm_switch", false) as Boolean
+        } catch (_: Exception) {
+            false
         }
     }
 

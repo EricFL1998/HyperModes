@@ -168,7 +168,7 @@ class BedtimeListener(
 
             if (bedtimeActive && !isManualDismissed) {
                 // Bedtime should be active
-                if (bedtimeMode != null && currentMode?.id != bedtimeMode.id) {
+                if (bedtimeMode != null && (currentMode?.id != bedtimeMode.id)) {
                     log("Activating bedtime mode: ${bedtimeMode.name}")
                     engine.activateMode(bedtimeMode.id)
                 } else if (bedtimeMode == null) {
@@ -211,9 +211,7 @@ class BedtimeListener(
                 "sleep_mode_active",
                 0
             )
-            if (sleepMode == 1) {
-                return true
-            }
+            if (sleepMode == 1) return true
 
             return false
         } catch (e: Exception) {

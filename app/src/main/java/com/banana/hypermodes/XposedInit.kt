@@ -30,7 +30,7 @@ class XposedInit : XposedModule() {
             SystemKeepAliveHook(this).install(param.classLoader, deferHeavyHooks = true)
             NotificationFilterHook(this).install(param.classLoader)
         } catch (t: Throwable) {
-            Log.e(TAG, "!!! failed to install system_server hook: ${Log.getStackTraceString(t)}")
+            Log.e(TAG, "!!! failed to install system_server hook", t)
         }
     }
 
@@ -53,7 +53,7 @@ class XposedInit : XposedModule() {
                 }
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "!!! XposedInit error in $pkg: ${Log.getStackTraceString(t)}")
+            Log.e(TAG, "!!! XposedInit error in $pkg", t)
         }
     }
 
@@ -81,16 +81,13 @@ class XposedInit : XposedModule() {
                                     pluginClassLoader = pluginClassLoader,
                                     systemUiClassLoader = systemUIClassLoader
                                 )
-                            } else {
-                                Log.e(TAG, "!!! miui.systemui.plugin pluginContext/classLoader is null")
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "!!! Error extracting plugin classloader from PluginInstance: ${e.message}", e)
+                            Log.e(TAG, "!!! Error extracting plugin classloader from PluginInstance", e)
                         }
                         return result
                     }
                 })
-            Log.e(TAG, "!!! PluginInstance.loadPlugin hook installed; waiting for miui.systemui.plugin load")
         } catch (t: Throwable) {
             Log.e(TAG, "!!! Failed to hook PluginInstance.loadPlugin", t)
         }

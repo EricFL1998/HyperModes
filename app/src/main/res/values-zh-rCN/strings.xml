@@ -104,6 +104,8 @@
     <string name="dim_wallpaper_option_desc">调整壁纸亮度</string>
     <string name="dark_theme_option">启用深色主题</string>
     <string name="dark_theme_option_desc">将设备主题切换为深色背景，让眼睛更舒适</string>
+    <string name="adaptive_refresh_rate_pro">自适应刷新率Pro</string>
+    <string name="adaptive_refresh_rate_pro_desc">智能调整屏幕刷新率以降低功耗，提升画面流畅度</string>
     <string name="and_n_more">%1$s、%2$s和另外 %3$d 个</string>
     <string name="create_mode">创建模式</string>
     <string name="custom">自定义</string>

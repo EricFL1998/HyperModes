@@ -7,8 +7,9 @@ import kotlin.math.roundToInt
 
 internal object FocusNativeDetailViewDecorator {
     private const val RECYCLER_VIEW_CLASS = "androidx.recyclerview.widget.RecyclerView"
-    private const val TOP_PADDING_DP = 16f
-    private val originalTopPadding = WeakHashMap<View, Int>()
+    private const val TOP_PADDING_DP = 28f
+    private const val LEFT_PADDING_DP = 12f
+    private val originalPaddings = WeakHashMap<View, Pair<Int, Int>>()
 
     fun decorate(content: View): Boolean {
         return decorate(content) { view ->
@@ -25,18 +26,25 @@ internal object FocusNativeDetailViewDecorator {
             target.list.background = null
             target.host?.background = null
             target.list.isVerticalScrollBarEnabled = false
-            applyTopPadding(target.list)
+            applyExtraPaddings(target.list)
             true
         }.getOrDefault(false)
     }
 
-    private fun applyTopPadding(list: View) {
-        val originalTop = synchronized(originalTopPadding) {
-            originalTopPadding.getOrPut(list) { list.paddingTop }
+    private fun applyExtraPaddings(list: View) {
+        val (originalLeft, originalTop) = synchronized(originalPaddings) {
+            originalPaddings.getOrPut(list) { list.paddingLeft to list.paddingTop }
         }
         val density = runCatching { list.resources.displayMetrics.density }.getOrDefault(1f)
         val extraTop = (TOP_PADDING_DP * density).roundToInt()
-        list.setPadding(list.paddingLeft, originalTop + extraTop, list.paddingRight, list.paddingBottom)
+        val extraLeft = (LEFT_PADDING_DP * density).roundToInt()
+
+        list.setPadding(
+            originalLeft + extraLeft,
+            originalTop + extraTop,
+            list.paddingRight,
+            list.paddingBottom
+        )
         if (list is ViewGroup) list.clipToPadding = false
     }
 

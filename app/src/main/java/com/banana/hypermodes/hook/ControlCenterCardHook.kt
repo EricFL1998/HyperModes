@@ -15,7 +15,6 @@ import com.banana.hypermodes.controlcenter.FocusNativeDetailPolicy
 import com.banana.hypermodes.controlcenter.FocusNativeDetailRegistry
 import com.banana.hypermodes.controlcenter.FocusNativeRowVisualCleaner
 import com.banana.hypermodes.controlcenter.GlobalFocusCardConfigStore
-import com.banana.hypermodes.controlcenter.ModeIndexSelector
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
@@ -58,7 +57,7 @@ internal class FocusTailContent(
                 "getListItems" -> focusRecord()?.let { listOf(it) } ?: emptyList<Any>()
                 "available" -> {
                     val isEdit = ControlCenterCardHook.isInEditMode(delegate)
-                    if (isEdit) return@invoke false
+                    if (isEdit) return false
 
                     val delegateAvailable = callDelegate(method, safeArgs) as? Boolean == true
                     val recordAvailable = focusRecord() != null
@@ -91,7 +90,7 @@ internal class FocusTailContent(
 
     private fun defaultValue(returnType: Class<*>): Any? {
         return when (returnType) {
-            java.lang.Void.TYPE -> null
+            Void.TYPE -> null
             java.lang.Boolean.TYPE -> false
             java.lang.Integer.TYPE -> 0
             java.lang.Long.TYPE -> 0L
@@ -111,24 +110,23 @@ class ControlCenterCardHook(private val module: XposedModule) {
         pluginClassLoader: ClassLoader,
         systemUiClassLoader: ClassLoader = pluginClassLoader
     ) {
-        val classLoader = pluginClassLoader
-        if (!markInstalling(classLoader)) return
-        log("plugin ClassLoader accepted: $classLoader; SystemUI ClassLoader=$systemUiClassLoader")
+        if (!markInstalling(pluginClassLoader)) return
+        logMsg("plugin ClassLoader accepted: $pluginClassLoader; SystemUI ClassLoader=$systemUiClassLoader")
 
         try {
-            val controllerClass = Reflect.findClass(QS_CONTROLLER_CLASS, classLoader)
+            val controllerClass = Reflect.findClass(QS_CONTROLLER_CLASS, pluginClassLoader)
             val specsMethod = controllerClass.getDeclaredMethod(GET_CARD_STYLE_TILE_SPECS)
             val createTileMethod = controllerClass.getDeclaredMethod(CREATE_TILE, String::class.java)
-            val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, classLoader)
+            val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, pluginClassLoader)
             val preparePanelUpdateMethod = cardsControllerClass.getDeclaredMethod(PREPARE_PANEL_UPDATE)
-            val tailFeatureSet = validatedTailFeatureSet(classLoader)
+            val tailFeatureSet = validatedTailFeatureSet(pluginClassLoader)
             val nativeDetailFeatureSet = validatedNativeDetailFeatureSet(
-                pluginClassLoader = classLoader,
+                pluginClassLoader = pluginClassLoader,
                 systemUiClassLoader = systemUiClassLoader,
                 onFailure = { throwable ->
-                    log(
+                    logMsg(
                         "Focus native detail feature-set resolution failed; " +
-                            "systemUiClassLoader=$systemUiClassLoader, pluginClassLoader=$classLoader",
+                            "systemUiClassLoader=$systemUiClassLoader, pluginClassLoader=$pluginClassLoader",
                         throwable
                     )
                 }
@@ -146,26 +144,26 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 )
             }
 
-            log("Control Center card hooks installed for plugin ClassLoader=$classLoader")
+            logMsg("Control Center card hooks installed for plugin ClassLoader=$pluginClassLoader")
             hookSpecs(specsMethod)
             hookCreateTile(
                 method = createTileMethod,
-                pluginClassLoader = classLoader,
+                pluginClassLoader = pluginClassLoader,
                 systemUiClassLoader = systemUiClassLoader
             )
             hookPreparePanelUpdate(preparePanelUpdateMethod)
             if (tailFeatureSet == null) {
-                log("Focus tail feature set unavailable; preserving native Focus card placement")
+                logMsg("Focus tail feature set unavailable; preserving native Focus card placement")
             } else {
                 hookListItems(tailFeatureSet.listItemsMethod)
                 hookListItems(tailFeatureSet.listItemsMethodQsList)
-                hookDistributePanels(tailFeatureSet.distributePanelsMethod, classLoader)
+                hookDistributePanels(tailFeatureSet.distributePanelsMethod, pluginClassLoader)
             }
             if (nativeDetailFeatureSet == null) {
-                log("Focus native detail feature set unavailable; detail panel will use legacy layout")
+                logMsg("Focus native detail feature set unavailable; detail panel will use legacy layout")
             } else {
                 hookItemCount(nativeDetailFeatureSet.getItemCountMethod, nativeDetailFeatureSet.qsDetailContentClass)
-                log("Focus row visual cleanup hook target: ${methodSignature(nativeDetailFeatureSet.onBindViewHolderMethod)}")
+                logMsg("Focus row visual cleanup hook target: ${methodSignature(nativeDetailFeatureSet.onBindViewHolderMethod)}")
                 hookRowVisualCleanup(
                     method = nativeDetailFeatureSet.onBindViewHolderMethod,
                     qsDetailContentClass = nativeDetailFeatureSet.qsDetailContentClass,
@@ -176,8 +174,8 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 hookPanelHidden(nativeDetailFeatureSet.onHiddenMethod)
             }
         } catch (t: Throwable) {
-            unmarkInstalling(classLoader)
-            log("compatibility failure for plugin ClassLoader=$classLoader", t)
+            unmarkInstalling(pluginClassLoader)
+            logMsg("compatibility failure for plugin ClassLoader=$pluginClassLoader", t)
         }
     }
 
@@ -192,11 +190,11 @@ class ControlCenterCardHook(private val module: XposedModule) {
                         if (original is List<*> && appended is List<*> && appended !== original &&
                             !original.contains(FOCUS_CARD_SPEC) && appendShapeLogged.compareAndSet(false, true)
                         ) {
-                            log("Focus spec appended for list size=${original.size}, type=${original.javaClass.name}")
+                            logMsg("Focus spec appended for list size=${original.size}, type=${original.javaClass.name}")
                         }
                         appended
                     } catch (t: Throwable) {
-                        log("failed to append Focus spec in $QS_CONTROLLER_CLASS.$GET_CARD_STYLE_TILE_SPECS", t)
+                        logMsg("failed to append Focus spec in $QS_CONTROLLER_CLASS.$GET_CARD_STYLE_TILE_SPECS", t)
                         original
                     }
                 }
@@ -208,7 +206,6 @@ class ControlCenterCardHook(private val module: XposedModule) {
         pluginClassLoader: ClassLoader,
         systemUiClassLoader: ClassLoader
     ) {
-        val classLoader = pluginClassLoader
         module.hook(method)
             .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
             .intercept(object : XposedInterface.Hooker {
@@ -216,17 +213,17 @@ class ControlCenterCardHook(private val module: XposedModule) {
                     val spec = chain.args.firstOrNull() as? String
                     if (spec != FOCUS_CARD_SPEC) return chain.proceed()
 
-                    log("Focus tile creation requested")
+                    logMsg("Focus tile creation requested")
                     return try {
                         val tile = createFocusTile(
                             controller = chain.thisObject,
-                            pluginClassLoader = classLoader,
+                            pluginClassLoader = pluginClassLoader,
                             systemUiClassLoader = systemUiClassLoader
                         )
-                        log("Focus tile creation succeeded")
+                        logMsg("Focus tile creation succeeded")
                         tile
                     } catch (t: Throwable) {
-                        logFocusCreationFailure(chain.thisObject, classLoader, t)
+                        logFocusCreationFailure(chain.thisObject, pluginClassLoader, t)
                         null
                     }
                 }
@@ -240,7 +237,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
                     if (applyFocusCardSizing(chain.thisObject) && focusSizingLogged.compareAndSet(false, true)) {
-                        log("Focus card horizontal sizing applied")
+                        logMsg("Focus card horizontal sizing applied")
                     }
                     return result
                 }
@@ -256,7 +253,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
                     return try {
                         filterFocusRecord(original)
                     } catch (t: Throwable) {
-                        log("failed to filter Focus record in $QS_CARDS_CONTROLLER_CLASS.$GET_LIST_ITEMS", t)
+                        logMsg("failed to filter Focus record in $QS_CARDS_CONTROLLER_CLASS.$GET_LIST_ITEMS", t)
                         original
                     }
                 }
@@ -273,10 +270,10 @@ class ControlCenterCardHook(private val module: XposedModule) {
                         if (insertFocusTailFromDistributor(chain.thisObject, classLoader) &&
                             focusTailInsertionLogged.compareAndSet(false, true)
                         ) {
-                            log("Focus tail inserted before right footer spacing")
+                            logMsg("Focus tail inserted before right footer spacing")
                         }
                     } catch (t: Throwable) {
-                        log("failed to insert Focus tail in $MAIN_PANEL_CONTENT_DISTRIBUTOR_CLASS.$DISTRIBUTE_PANELS", t)
+                        logMsg("failed to insert Focus tail in $MAIN_PANEL_CONTENT_DISTRIBUTOR_CLASS.$DISTRIBUTE_PANELS", t)
                     }
                     return result
                 }
@@ -305,7 +302,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
 
                         fullCount ?: original
                     } catch (t: Throwable) {
-                        log("failed to intercept item count in $QS_DETAIL_CONTENT_CLASS\$Adapter.getItemCount", t)
+                        logMsg("failed to intercept item count in $QS_DETAIL_CONTENT_CLASS.Adapter.getItemCount", t)
                         original
                     }
                 }
@@ -331,7 +328,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
                             }
                         }
                     } catch (t: Throwable) {
-                        log("failed to clean Focus row visuals in $QS_DETAIL_CONTENT_CLASS\$Adapter.onBindViewHolder", t)
+                        logMsg("failed to clean Focus row visuals in $QS_DETAIL_CONTENT_CLASS.Adapter.onBindViewHolder", t)
                     }
                     return result
                 }
@@ -371,7 +368,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
 
                         shouldUse ?: original
                     } catch (t: Throwable) {
-                        log("failed to intercept specific height in $DETAIL_PANEL_PARAMS_CLASS.getUseSpecificHeight", t)
+                        logMsg("failed to intercept specific height in $DETAIL_PANEL_PARAMS_CLASS.getUseSpecificHeight", t)
                         original
                     }
                 }
@@ -393,7 +390,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
                         try {
                             session.onPanelHidden()
                         } catch (t: Throwable) {
-                            log("failed to notify panel hidden for Focus session in $DETAIL_PANEL_DELEGATE_CLASS.onHidden", t)
+                            logMsg("failed to notify panel hidden for Focus session in $DETAIL_PANEL_DELEGATE_CLASS.onHidden", t)
                         }
                     }
 
@@ -420,7 +417,6 @@ class ControlCenterCardHook(private val module: XposedModule) {
         pluginClassLoader: ClassLoader,
         systemUiClassLoader: ClassLoader
     ): Any {
-        val classLoader = pluginClassLoader
         val pluginContext = controller?.let { Reflect.call(it, "getContext") as? Context }
             ?: throw IllegalStateException("QSController.getContext() did not return Context")
         val moduleContext = pluginContext.createPackageContext(
@@ -428,12 +424,12 @@ class ControlCenterCardHook(private val module: XposedModule) {
             Context.CONTEXT_IGNORE_SECURITY or Context.CONTEXT_INCLUDE_CODE
         )
         val classes = FocusCardTileClasses.resolve(
-            pluginClassLoader = classLoader,
+            pluginClassLoader = pluginClassLoader,
             systemUiClassLoader = systemUiClassLoader,
             onNativeDetailFailure = { throwable ->
-                log(
+                logMsg(
                     "native QSDetailContent resolution failed; " +
-                        "systemUiClassLoader=$systemUiClassLoader, pluginClassLoader=$classLoader",
+                        "systemUiClassLoader=$systemUiClassLoader, pluginClassLoader=$pluginClassLoader",
                     throwable
                 )
             }
@@ -442,7 +438,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
         val store = GlobalFocusCardConfigStore(moduleContext, handler)
         val repository = FocusCardStateRepository(
             store = store,
-            selector = ModeIndexSelector { size -> Random.nextInt(size) }
+            selector = { size -> Random.nextInt(size) }
         )
         val detailFactory = FocusCardDetailFactory { onDismiss, onStateRefresh ->
             FocusModeDetailAdapter(
@@ -468,7 +464,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
             ?: throw IllegalStateException("Focus tile initialization failed")
     }
 
-    private fun logFocusCreationFailure(controller: Any?, classLoader: ClassLoader, throwable: Throwable) {
+    private fun logFocusCreationFailure(controller: Any?, pluginClassLoader: ClassLoader, throwable: Throwable) {
         val pluginInfo = runCatching {
             val context = controller?.let { Reflect.call(it, "getContext") as? Context }
             if (context == null) {
@@ -476,22 +472,15 @@ class ControlCenterCardHook(private val module: XposedModule) {
             } else {
                 val packageName = context.packageName ?: "<unknown>"
                 val packageInfo = context.packageManager?.getPackageInfo(packageName, 0)
-                val versionCode = packageInfo?.let { info ->
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                        info.longVersionCode
-                    } else {
-                        @Suppress("DEPRECATION")
-                        info.versionCode.toLong()
-                    }
-                }
+                val versionCode = packageInfo?.longVersionCode
                 "package=$packageName versionName=${packageInfo?.versionName} versionCode=$versionCode"
             }
         }.getOrElse {
             "context=<error:${it.javaClass.simpleName}>"
         }
-        log(
+        logMsg(
             "Focus tile creation failed in $QS_CONTROLLER_CLASS.$CREATE_TILE(String), " +
-                "pluginClassLoader=$classLoader, $pluginInfo",
+                "pluginClassLoader=$pluginClassLoader, $pluginInfo",
             throwable
         )
     }
@@ -511,9 +500,9 @@ class ControlCenterCardHook(private val module: XposedModule) {
         installedLoaders.removeAll { it.get() == null }
     }
 
-    private fun log(message: String, throwable: Throwable? = null) {
-        val detail = if (throwable == null) message else "$message: ${Log.getStackTraceString(throwable)}"
-        module.log(Log.WARN, TAG, detail)
+    private fun logMsg(message: String, throwable: Throwable? = null) {
+        val detail = if (throwable == null) message else "$message: ${android.util.Log.getStackTraceString(throwable)}"
+        Log.w(TAG, detail)
     }
 
     private fun methodSignature(method: Method): String {

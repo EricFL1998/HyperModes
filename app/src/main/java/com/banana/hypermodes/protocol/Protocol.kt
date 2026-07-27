@@ -61,6 +61,7 @@ object Protocol {
     const val EXTRA_WAKE_ENABLED = "wakeEnabled"
     const val EXTRA_BEDTIME_CONFIGURED = "bedtimeConfigured"
     const val EXTRA_REMINDER_MINUTES = "reminderMinutes"
+    const val EXTRA_IS_SKIPPED = "isSkipped"
 
     /** Bit 0 = Monday ... bit 6 = Sunday. 127 = every day. */
     const val EVERY_DAY = 0b1111111

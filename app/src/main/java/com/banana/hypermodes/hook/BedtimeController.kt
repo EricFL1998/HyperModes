@@ -85,12 +85,17 @@ class BedtimeController(
         var wakeMin = 0
         var wakeEnabled = false
         var repeatDays = 0x7F
+        var isSkipped = false
 
         val wakeAlarm = Reflect.callStatic(bedtimeUtil, "getWakeAlarm", context)
         if (wakeAlarm != null) {
             wakeHour = (Reflect.getField(wakeAlarm, "hour") as? Int) ?: wakeHour
             wakeMin = (Reflect.getField(wakeAlarm, "minutes") as? Int) ?: wakeMin
             wakeEnabled = (Reflect.getField(wakeAlarm, "enabled") as? Boolean) ?: false
+            val skipTime = (Reflect.getField(wakeAlarm, "skipTime") as? Long) ?: 0L
+            val nextTime = (Reflect.getField(wakeAlarm, "time") as? Long) ?: 0L
+            isSkipped = skipTime > 0 && skipTime == nextTime
+
             val dow = Reflect.getField(wakeAlarm, "daysOfWeek")
             if (dow != null) {
                 repeatDays = (Reflect.call(dow, "getCoded") as? Int)
@@ -98,10 +103,10 @@ class BedtimeController(
             }
         }
 
-        ScheduleInfo(sleepHour, sleepMin, wakeHour, wakeMin, wakeEnabled, repeatDays, configured)
+        ScheduleInfo(sleepHour, sleepMin, wakeHour, wakeMin, wakeEnabled, repeatDays, configured, isSkipped)
     } catch (t: Throwable) {
         log("querySchedule error: ${t.message}")
-        ScheduleInfo(22, 30, 7, 0, false, 0x7F, false)
+        ScheduleInfo(22, 30, 7, 0, false, 0x7F, false, false)
     }
 
     /** Edit the persisted bedtime schedule.

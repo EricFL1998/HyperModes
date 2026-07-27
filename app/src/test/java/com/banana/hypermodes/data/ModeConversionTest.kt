@@ -30,7 +30,8 @@ class ModeConversionTest {
                     endHour = 17,
                     endMinute = 45,
                     repeatDays = 0b0011111
-                )
+                ),
+                enableAdaptiveRefreshRatePro = true
             )
         )
 
@@ -42,7 +43,9 @@ class ModeConversionTest {
         assertEquals("17:45", config.endTime)
         assertEquals(listOf(1, 2, 3, 4, 5), config.repeatDays)
         assertEquals(true, config.scheduleEnabled)
+        assertEquals(true, config.display.adaptiveRefreshRatePro)
         assertEquals(mode.settings.schedule, restored.settings.schedule)
+        assertEquals(true, restored.settings.enableAdaptiveRefreshRatePro)
         assertFalse(restored.settings.drivingAutoDetect)
     }
 

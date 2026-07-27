@@ -189,7 +189,7 @@ class RoutineCoreEngine private constructor() {
                     // invoked and no dismiss record is created. Record it here so
                     // the scheduler won't reactivate this mode later in the same
                     // period (e.g. when the user creates or deletes another mode).
-                    if (activeMode.type == ModeType.SCHEDULED) {
+                    if (activeMode.type == ModeType.SCHEDULED || activeMode.type == ModeType.BEDTIME) {
                         val now = System.currentTimeMillis()
                         dismissedScheduledModes[activeMode.id] = now
                         log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
@@ -209,6 +209,9 @@ class RoutineCoreEngine private constructor() {
                     update = listener::updateModes
                 )
             }
+
+            // Notify UI that state or config has changed
+            broadcastModeState(config.activeModeId)
         } catch (e: Exception) {
             log("Failed to load config: ${e.message}")
             e.printStackTrace()
@@ -246,6 +249,11 @@ class RoutineCoreEngine private constructor() {
         // Apply new mode
         currentActiveMode = mode
         modeActionExecutor?.applyMode(mode)
+
+        // IF it's Bedtime mode, ensure DeskClock alarm is NOT skipped
+        if (mode.type == ModeType.BEDTIME) {
+            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_ENABLE_WAKE_ALARM)
+        }
 
         // Persist active mode to Settings.Global
         updateActiveModeInSettings(modeId)
@@ -285,6 +293,11 @@ class RoutineCoreEngine private constructor() {
             val now = System.currentTimeMillis()
             dismissedScheduledModes[modeId] = now
             log("Recorded manual dismiss for mode $modeId at timestamp $now")
+
+            // IF it's Bedtime mode, also tell DeskClock to skip the alarm
+            if (mode.type == ModeType.BEDTIME) {
+                sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+            }
         }
 
         // Clear active mode from Settings.Global
@@ -338,26 +351,22 @@ class RoutineCoreEngine private constructor() {
         }
     }
 
+    private fun sendBedtimeCommand(action: String) {
+        val context = systemContext ?: return
+        try {
+            context.sendBroadcast(Intent(action).apply {
+                setPackage(com.banana.hypermodes.protocol.Protocol.TARGET_PACKAGE)
+            }, com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL)
+            log("Sent command to DeskClock: $action")
+        } catch (e: Exception) {
+            log("Failed to send command to DeskClock: ${e.message}")
+        }
+    }
+
     /**
      * Get the currently active mode, or null if no mode is active.
      */
     fun getCurrentActiveMode(): ModeConfig? = currentActiveMode
-
-    /**
-     * Reschedule all alarms.
-     * Called when time/timezone changes or when external events require rescheduling.
-     */
-    fun rescheduleAllAlarms() {
-        log("Rescheduling all alarms...")
-        scheduledModeManager?.updateSchedules(allModes)
-        log("All alarms rescheduled")
-    }
-
-    /**
-     * Get the BedtimeListener instance for external bedtime control.
-     * Used by system_server hooks to manually trigger bedtime activation/deactivation.
-     */
-    fun getBedtimeListener(): BedtimeListener? = bedtimeListener
 
     /**
      * Check if a mode was manually dismissed during the current scheduled period.

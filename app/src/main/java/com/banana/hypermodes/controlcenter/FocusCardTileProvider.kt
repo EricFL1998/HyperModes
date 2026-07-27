@@ -3,7 +3,6 @@ package com.banana.hypermodes.controlcenter
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Looper
-import android.util.Log
 import com.banana.hypermodes.R
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
@@ -123,7 +122,6 @@ private class TileInvocationHandler(
             "getDetailAdapter" -> getOrCreateDetailAdapter()
             "setDetailListening" -> {
                 val listening = arguments.firstOrNull() as? Boolean ?: false
-                Log.d("FocusCardTileProvider", "setDetailListening: listening=$listening")
                 setDetailListening(listening)
                 null
             }
@@ -161,7 +159,6 @@ private class TileInvocationHandler(
 
     private fun setListening(token: Any, listening: Boolean) {
         if (destroyed) return
-        Log.d("FocusCardTileProvider", "setListening: token=$token, listening=$listening, current listeners=${listenerTokens.size}")
         if (listening) {
             val wasEmpty = listenerTokens.isEmpty()
             listenerTokens.add(token)
@@ -182,14 +179,11 @@ private class TileInvocationHandler(
 
         if (needsObserver && observerRegistration == null) {
             observerRegistration = observableStore.observe {
-                Log.d("FocusCardTileProvider", "observableStore changed, triggering handleConfigChange")
                 handleConfigChange()
             }
-            Log.d("FocusCardTileProvider", "updateObserverOwnership: observer installed")
         } else if (!needsObserver && observerRegistration != null) {
             observerRegistration?.close()
             observerRegistration = null
-            Log.d("FocusCardTileProvider", "updateObserverOwnership: observer released")
         }
     }
 
@@ -226,15 +220,12 @@ private class TileInvocationHandler(
 
     private fun refreshState() {
         if (destroyed) return
-        Log.d("FocusCardTileProvider", "refreshState: called, building new state")
         val state = buildState()
         currentState = state
         val targets = callbacks.toList()
-        Log.d("FocusCardTileProvider", "refreshState: notifying ${targets.size} callbacks")
         runOnUi {
             if (destroyed) return@runOnUi
             targets.forEach { callback -> invokeCallback(callback, "onStateChanged", state) }
-            Log.d("FocusCardTileProvider", "refreshState: all callbacks notified")
         }
     }
 
@@ -381,7 +372,6 @@ private class TileInvocationHandler(
 
     private fun handleDetailPanelHidden() {
         if (destroyed) return
-        Log.d("FocusCardTileProvider", "handleDetailPanelHidden: posting refresh")
         runOnUi {
             if (!destroyed) {
                 refreshState()
