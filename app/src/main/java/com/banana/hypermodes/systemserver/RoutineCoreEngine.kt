@@ -195,6 +195,13 @@ class RoutineCoreEngine private constructor() {
             allModes = config.modes
             log("Config loaded: ${allModes.size} modes")
 
+            // Load persisted dismissal records
+            dismissedScheduledModes.clear()
+            dismissedScheduledModes.putAll(config.dismissedModes)
+            if (dismissedScheduledModes.isNotEmpty()) {
+                log("Loaded ${dismissedScheduledModes.size} dismissal records from config")
+            }
+
             // Update schedulers with new mode list
             scheduledModeManager?.updateSchedules(config.modes)
 
@@ -362,7 +369,7 @@ class RoutineCoreEngine private constructor() {
     }
 
     /**
-     * Update the active mode ID in Settings.Global.
+     * Update the active mode ID and dismissal records in Settings.Global.
      * This keeps the persisted config in sync with runtime state.
      *
      * @param modeId Mode ID to set as active, or null to clear
@@ -377,9 +384,9 @@ class RoutineCoreEngine private constructor() {
                 return
             }
 
-            val updated = ConfigParser.updateActiveModeId(currentJson, modeId)
+            val updated = ConfigParser.updateActiveModeId(currentJson, modeId, dismissedScheduledModes)
             Settings.Global.putString(context.contentResolver, CONFIG_KEY, updated)
-            log("Updated active mode in Settings.Global: ${modeId ?: "null"}")
+            log("Updated state in Settings.Global (activeModeId=${modeId ?: "null"}, dismissals=${dismissedScheduledModes.size})")
         } catch (e: Exception) {
             log("Failed to update active mode: ${e.message}")
             e.printStackTrace()
@@ -437,6 +444,8 @@ class RoutineCoreEngine private constructor() {
         // Clean up old dismiss records (older than 24 hours)
         if (System.currentTimeMillis() - dismissTime > 24 * 60 * 60 * 1000) {
             dismissedScheduledModes.remove(modeId)
+            // Persist the removal
+            updateActiveModeInSettings(currentActiveMode?.id)
             return false
         }
 
@@ -450,6 +459,8 @@ class RoutineCoreEngine private constructor() {
     fun clearDismissRecord(modeId: String) {
         if (dismissedScheduledModes.remove(modeId) != null) {
             log("Cleared dismiss record for mode $modeId (new period started)")
+            // Persist the removal
+            updateActiveModeInSettings(currentActiveMode?.id)
         }
     }
 
