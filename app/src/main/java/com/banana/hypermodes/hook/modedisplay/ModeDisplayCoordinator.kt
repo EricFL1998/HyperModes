@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import com.banana.hypermodes.protocol.Protocol
 import java.lang.ref.WeakReference
+import kotlin.math.roundToInt
 
 class ModeDisplayCoordinator(
     private val readState: (Context) -> ModeDisplayState? = ModeDisplayStateReader::read,
@@ -135,7 +136,9 @@ class ModeDisplayCoordinator(
             ?: FrameLayout.LayoutParams(placement.width, placement.height)
         params.gravity = Gravity.TOP or Gravity.START
         params.leftMargin = placement.x
-        params.topMargin = placement.y
+        // Full-AOD content must sit slightly above the lockscreen position so it
+        // lines up with the native zoom/shrink transition instead of appearing low.
+        params.topMargin = (placement.y - fullAodUpwardShiftPx(display)).coerceAtLeast(0)
         params.width = placement.width
         params.height = placement.height
         display.layoutParams = params
@@ -144,6 +147,9 @@ class ModeDisplayCoordinator(
         logger("full AOD placement: $placement")
         return true
     }
+
+    private fun fullAodUpwardShiftPx(view: View): Int =
+        (AOD_UPWARD_SHIFT_DP * view.resources.displayMetrics.density).roundToInt()
 
     private fun scheduleOneShotPosition(root: FrameLayout, display: LinearLayout) {
         clearPendingPreDraw()
@@ -230,6 +236,8 @@ class ModeDisplayCoordinator(
     }
 
     companion object {
+        internal const val AOD_UPWARD_SHIFT_DP = 24f
+
         private fun screenBounds(view: View): DisplayBounds? {
             if (!view.isLaidOut || view.width <= 0 || view.height <= 0) return null
             val location = IntArray(2)

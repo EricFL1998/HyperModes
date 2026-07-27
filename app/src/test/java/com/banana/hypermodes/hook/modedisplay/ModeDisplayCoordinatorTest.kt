@@ -5,6 +5,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.IdentityHashMap
+import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -21,6 +22,10 @@ class ModeDisplayCoordinatorTest {
     private val context = RuntimeEnvironment.getApplication()
     private val bounds = IdentityHashMap<View, DisplayBounds>()
     private var state: ModeDisplayState? = ModeDisplayState("Work", "ic_stat_work")
+
+    private val aodShiftPx =
+        (ModeDisplayCoordinator.AOD_UPWARD_SHIFT_DP * context.resources.displayMetrics.density)
+            .roundToInt()
 
     private fun coordinator() = ModeDisplayCoordinator(
         readState = { state },
@@ -42,7 +47,7 @@ class ModeDisplayCoordinatorTest {
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(420, params.leftMargin)
-        assertEquals(2000, params.topMargin)
+        assertEquals(2000 - aodShiftPx, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
         assertEquals("Work", (fullAod.getChildAt(1) as TextView).text.toString())
@@ -174,7 +179,7 @@ class ModeDisplayCoordinatorTest {
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(View.VISIBLE, fullAod.visibility)
         assertEquals(420, params.leftMargin)
-        assertEquals(2000, params.topMargin)
+        assertEquals(2000 - aodShiftPx, params.topMargin)
         assertEquals(240, params.width)
         assertEquals(56, params.height)
     }
@@ -218,7 +223,7 @@ class ModeDisplayCoordinatorTest {
         val fullAod = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
         val params = fullAod.layoutParams as FrameLayout.LayoutParams
         assertEquals(100, params.leftMargin)
-        assertEquals(1800, params.topMargin)
+        assertEquals(1800 - aodShiftPx, params.topMargin)
         assertEquals(200, params.width)
         assertEquals(50, params.height)
     }
