@@ -307,11 +307,23 @@ class DrivingTriggerManager(
 
     /**
      * Clean up resources.
-     * Called when engine is destroyed.
+     * Called when engine is destroyed during normal runtime cleanup.
      */
     fun cleanup() {
         unregisterBluetoothReceiver()
         deactivateDrivingMode()
+    }
+
+    /**
+     * Clean up package-removal resources without normal mode deactivation.
+     * The engine restores the active mode separately, and trigger callbacks
+     * must not persist state after the removal gate has closed.
+     */
+    fun cleanupForPackageRemoval() {
+        unregisterBluetoothReceiver()
+        drivingModes = emptyList()
+        currentDrivingModeId = null
+        isInitialized = false
     }
 
     private fun log(msg: String) {
