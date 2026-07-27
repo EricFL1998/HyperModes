@@ -2,15 +2,16 @@ package com.banana.hypermodes
 
 import android.content.Context
 import android.util.Log
-import com.banana.hypermodes.hook.AodPluginHook
 import com.banana.hypermodes.hook.ControlCenterCardHook
 import com.banana.hypermodes.hook.DeskClockHook
+import com.banana.hypermodes.hook.FullAodHook
 import com.banana.hypermodes.hook.LockscreenHook
 import com.banana.hypermodes.hook.Reflect
 import com.banana.hypermodes.hook.SettingsHook
 import com.banana.hypermodes.hook.SystemKeepAliveHook
 import com.banana.hypermodes.hook.SystemModeHook
 import com.banana.hypermodes.hook.SystemUIHook
+import com.banana.hypermodes.hook.modedisplay.ModeDisplayCoordinator
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.hooks.NotificationFilterHook
 import io.github.libxposed.api.XposedInterface
@@ -19,8 +20,13 @@ import io.github.libxposed.api.XposedModuleInterface
 
 class XposedInit : XposedModule() {
     private var processName: String? = null
-    private val lockscreenHook by lazy { LockscreenHook(this) }
-    private val aodPluginHook by lazy { AodPluginHook(this) }
+    private val modeDisplayCoordinator by lazy {
+        ModeDisplayCoordinator { message ->
+            log(Log.WARN, "HyperModes.ModeDisplay", message)
+        }
+    }
+    private val lockscreenHook by lazy { LockscreenHook(this, modeDisplayCoordinator) }
+    private val fullAodHook by lazy { FullAodHook(this, modeDisplayCoordinator) }
 
     override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
         this.processName = param.processName
@@ -55,10 +61,7 @@ class XposedInit : XposedModule() {
                     hookPluginLoading(param.classLoader)
                     SystemUIHook(this).install(param.classLoader)
                     lockscreenHook.install(param.classLoader)
-                }
-                "com.miui.aod" -> {
-                    Log.e(TAG, "!!! com.miui.aod ready")
-                    aodPluginHook.install(param.classLoader)
+                    fullAodHook.install(param.classLoader)
                 }
             }
         } catch (t: Throwable) {
@@ -91,13 +94,6 @@ class XposedInit : XposedModule() {
                                         pluginClassLoader = pluginClassLoader,
                                         systemUiClassLoader = systemUIClassLoader
                                     )
-                                }
-                            } else if (pkg == "com.miui.aod") {
-                                val pluginContext = Reflect.call(pluginInstance, "getPluginContext") as? Context
-                                val pluginClassLoader = pluginContext?.classLoader
-                                if (pluginClassLoader != null) {
-                                    Log.e(TAG, "!!! com.miui.aod plugin loaded, installing plugin hook")
-                                    aodPluginHook.install(pluginClassLoader)
                                 }
                             }
                         } catch (e: Exception) {

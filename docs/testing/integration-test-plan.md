@@ -277,3 +277,59 @@ During testing, monitor:
 - **LSPosed Version**: _____________
 - **HyperModes Version**: _____________
 - **Test Date**: _____________
+
+---
+
+### Test 8: Full-AOD Mode Display
+
+**Objective:** Verify that the active mode display moves from the lockscreen to SystemUI Full-AOD at the same screen position and inherits native Full-AOD transforms.
+
+**Prerequisites:**
+
+- HyperOS Full-AOD is enabled with a supported full-screen wallpaper configuration.
+- HyperModes is enabled for `com.android.systemui` in LSPosed.
+- One mode with a visible icon and name is active.
+- The ordinary `com.miui.aod` package is not required in the module scope.
+
+**Diagnostic setup:**
+
+```powershell
+adb logcat -c
+adb logcat -v threadtime | Select-String "HyperModes.LockHook|HyperModes.ModeDisplay|HyperModes.FullAod"
+```
+
+**Steps:**
+
+1. Wake the device and leave it on the lockscreen.
+2. Confirm the active mode icon and name are visible in the lockscreen indication area.
+3. Turn the screen off and wait for Full-AOD to finish entering.
+4. Confirm the icon and name remain visible at the same resting screen position.
+5. Leave Full-AOD active long enough to observe a native burn-in position tick.
+6. Confirm the mode display moves with the AOD host and does not move twice relative to the other AOD content.
+7. While still in Full-AOD, activate a different mode and confirm the icon/name refresh.
+8. Deactivate the mode and confirm the Full-AOD row hides.
+9. Reactivate a mode, wake the device, and confirm the lockscreen row returns without a duplicate.
+10. Repeat the lockscreen → Full-AOD → wake cycle twice.
+
+**Required log boundaries:**
+
+- `Full-AOD hooks installed`
+- `onDreamingStarted: fullAod=true`
+- `dream start: fullAod=true`
+- `lockscreen bounds:`
+- `full AOD placement:`
+- `display refresh: active=true` or `display refresh: active=false`
+- `onDreamingStopped observed; waiting for native AOD host exit`
+- native `stopDozing()` handling followed by `dream stop`
+
+**Expected result:**
+
+- Full-AOD displays exactly one mode row.
+- The row starts at the lockscreen row's screen position.
+- The row inherits native AOD parent alpha, scale, and burn-in movement.
+- No fixed 74 dp fallback position, forced alpha, forced visibility, or independent movement timer is used.
+- Mode changes are reflected while the screen is off.
+- Wake and repeated Dream lifecycles leave no stale or duplicate rows.
+- SystemUI remains stable if coordinates are unavailable; that session logs `full AOD placement unavailable` and does not show an incorrectly positioned row.
+
+**Status:** Not yet run on a connected device.
