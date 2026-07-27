@@ -243,6 +243,12 @@ class RoutineCoreEngine private constructor() {
                         val now = System.currentTimeMillis()
                         dismissedScheduledModes[activeMode.id] = now
                         log("Recorded manual dismiss for mode ${activeMode.id} at timestamp $now (from config change)")
+                        
+                        // Persist the dismissal record back to Settings.Global so it survives reboot.
+                        // Only do this if the incoming config didn't already have it (to avoid loop).
+                        if (config.dismissedModes[activeMode.id] != now) {
+                            updateActiveModeInSettings(null)
+                        }
                     }
                     log("Deactivating current mode: ${activeMode.name}")
                     modeActionExecutor?.revertMode(activeMode)
