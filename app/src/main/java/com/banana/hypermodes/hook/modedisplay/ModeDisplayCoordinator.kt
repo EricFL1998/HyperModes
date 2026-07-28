@@ -88,6 +88,11 @@ class ModeDisplayCoordinator(
 
     fun onFullAodStarted(isFullAod: Boolean) {
         logger("dream start: fullAod=$isFullAod parked=${isParked()}")
+        // Re-bind from Settings.Global at every dream boundary: the
+        // mode-state broadcast does not reliably reach the SystemUI process,
+        // so without this the parked view would carry stale content (or stay
+        // visible after the mode was disabled) until the next lockscreen show.
+        refreshDisplay()
         if (!isFullAod) {
             restoreCopyToHome()
             return

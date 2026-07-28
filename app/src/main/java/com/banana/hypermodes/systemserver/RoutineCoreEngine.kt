@@ -438,8 +438,9 @@ class RoutineCoreEngine private constructor() {
     private fun broadcastModeState(modeId: String?) {
         val context = systemContext ?: return
         try {
+            // No package restriction: the mode-display coordinator runs in the
+            // SystemUI process and must receive this too.
             val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_MODE_STATE).apply {
-                setPackage(com.banana.hypermodes.protocol.Protocol.MODULE_PACKAGE)
                 if (modeId != null) {
                     putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_MODE_ID, modeId)
                 }
