@@ -111,6 +111,7 @@ class DeskClockHook(private val module: XposedModule) {
                                     .getDeclaredMethod("exitZenMode", Context::class.java)
                                     .invoke(null, context)
                                 log("wake alarm dismissed -> exitZenMode")
+                                sendBedtimeState(context, false, "ALARM_DISMISSED")
                             }
                         } catch (t: Throwable) {
                             log("dismiss-driven bedtime exit failed: $t")
@@ -167,10 +168,7 @@ class DeskClockHook(private val module: XposedModule) {
                         try {
                             val context = chain.getArg(0) as? Context ?: return result
                             val active = readInZenMode(context, classLoader, fallback)
-                            context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
-                                putExtra(Protocol.EXTRA_IN_SLEEP_MODE, active)
-                            })
-                            log("$name -> bedtime active=$active")
+                            sendBedtimeState(context, active, if (active) "ZEN_ENTERED" else "ZEN_EXITED")
                         } catch (t: Throwable) {
                             log("bedtime state broadcast failed: $t")
                         }
@@ -209,20 +207,15 @@ class DeskClockHook(private val module: XposedModule) {
                         if (alarmId == Int.MIN_VALUE) {
                             log("Bedtime alarm skipped manually in DeskClock")
                             if (readInZenMode(context, classLoader, false)) {
-                                // Skip during an ACTIVE sleep period: skipping the
-                                // alarm alone leaves zen/powerkeeper sleep running
-                                // (and the UI flips back to enabled on next query).
-                                // Exit the current bedtime too; the hooked
-                                // exitZenMode pushes bedtime-inactive for us.
+                                // Skip during an ACTIVE sleep period: exit the live
+                                // session too (hooked exitZenMode also pushes state).
                                 val controller = BedtimeController(context, classLoader) { msg -> log(msg) }
                                 val steps = controller.exitActiveBedtime()
                                 log("skip during active bedtime -> exitActiveBedtime: ${steps.joinToString { it.format() }}")
+                                sendBedtimeState(context, false, "SKIP_ONCE_ACTIVE")
                             } else {
-                                // Daytime pre-skip: no active session, just notify
-                                // HyperModes to turn OFF bedtime mode.
-                                context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
-                                    putExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
-                                })
+                                // Idle pre-skip: DeskClock skips the next bedtime itself.
+                                sendBedtimeState(context, false, "SKIP_ONCE_IDLE")
                             }
                         }
                     } catch (t: Throwable) {
@@ -257,14 +250,12 @@ class DeskClockHook(private val module: XposedModule) {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
                     try {
-                        chain.getArg(0) as? Context ?: return result
+                        val context = chain.getArg(0) as? Context ?: return result
                         val alarmId = chain.getArg(1) as? Int ?: 0
                         val enabled = chain.getArg(2) as? Boolean ?: false
-                        if (alarmId == Int.MIN_VALUE && enabled) {
-                            log("Bedtime alarm enabled manually in DeskClock")
-                            // If it's currently bedtime, this might need to trigger mode activation
-                            // ZenModeUtil.enterZenMode is usually called by DeskClock anyway,
-                            // which is already hooked. This is just an extra safety signal.
+                        if (alarmId == Int.MIN_VALUE && !enabled) {
+                            log("Bedtime wake alarm disabled permanently in DeskClock")
+                            sendBedtimeState(context, false, "ALARM_DISABLED")
                         }
                     } catch (t: Throwable) {
                         log("enable hook broadcast failed: $t")
@@ -288,6 +279,16 @@ class DeskClockHook(private val module: XposedModule) {
         } catch (_: Throwable) {
             fallback
         }
+
+    /** Single funnel for all bedtime-state pushes to system_server. */
+    private fun sendBedtimeState(context: Context, active: Boolean, reason: String) {
+        context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
+            putExtra(Protocol.EXTRA_IN_SLEEP_MODE, active)
+            putExtra(Protocol.EXTRA_BEDTIME_REASON, reason)
+            putExtra(Protocol.EXTRA_EVENT_TIME, System.currentTimeMillis())
+        })
+        log("bedtime state -> active=$active reason=$reason")
+    }
 
     private fun registerReceiver(app: Application, classLoader: ClassLoader) {
         val controller = BedtimeController(app, classLoader) { msg -> log(msg) }

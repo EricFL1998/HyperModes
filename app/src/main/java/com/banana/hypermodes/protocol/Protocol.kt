@@ -65,6 +65,12 @@ object Protocol {
     const val EXTRA_BEDTIME_CONFIGURED = "bedtimeConfigured"
     const val EXTRA_REMINDER_MINUTES = "reminderMinutes"
     const val EXTRA_IS_SKIPPED = "isSkipped"
+    /** Extra on ACTION_BEDTIME_ACTIVE: why the state changed
+     *  (BedtimeReconciler.Reason name; absent on older hook builds). */
+    const val EXTRA_BEDTIME_REASON = "bedtimeReason"
+    /** Extra on ACTION_BEDTIME_ACTIVE: sender-side event wall time
+     *  (informational only — receivers stamp their own receipt time). */
+    const val EXTRA_EVENT_TIME = "eventTime"
 
     /** Bit 0 = Monday ... bit 6 = Sunday. 127 = every day. */
     const val EVERY_DAY = 0b1111111
