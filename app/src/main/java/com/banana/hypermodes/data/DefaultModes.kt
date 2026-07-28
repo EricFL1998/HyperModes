@@ -23,7 +23,7 @@ object DefaultModes {
             settings = ModeSettings(
                 enableDnd = true,
                 enableGrayscale = true,
-                dimWallpaper = true,
+                darkMode = 1, // Dark
                 schedule = ModeSchedule(
                     enabled = true,
                     startHour = 23,

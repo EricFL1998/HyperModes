@@ -49,6 +49,7 @@ sealed class Screen {
     object DrivingIntro : Screen()
     data class ModeDetail(val mode: Mode) : Screen()
     data class DisplayOptions(val mode: Mode) : Screen()
+    data class DeviceControl(val mode: Mode) : Screen()
     data class Repeat(val mode: Mode) : Screen()
     data class CustomRepeat(val mode: Mode) : Screen()
     data class DrivingDetect(val mode: Mode) : Screen()
@@ -337,6 +338,10 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.AppPicker(updated, paused = true)
                         },
+                        onOpenDeviceControl = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.DeviceControl(updated)
+                        },
                         onOpenDrivingDetect = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DrivingDetect(updated)
@@ -386,6 +391,16 @@ fun HyperModesApp() {
                 }
                 is Screen.DisplayOptions -> {
                     DisplayOptionsScreen(
+                        mode = editingMode ?: screen.mode,
+                        onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
+                        onSave = { updatedMode ->
+                            editingMode = updatedMode
+                            upsertMode(updatedMode)
+                        }
+                    )
+                }
+                is Screen.DeviceControl -> {
+                    DeviceControlScreen(
                         mode = editingMode ?: screen.mode,
                         onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
                         onSave = { updatedMode ->
@@ -604,7 +619,7 @@ private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hyper
 private fun Screen.depth(): Int = when (this) {
     is Screen.ModesList -> 0
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
-    is Screen.DisplayOptions, is Screen.Repeat, is Screen.AppPicker,
+    is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }

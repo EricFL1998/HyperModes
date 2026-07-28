@@ -29,11 +29,17 @@ class SettingsHook(private val module: XposedModule) {
     }
 
     fun install(classLoader: ClassLoader) {
-        // Install both hooks independently - if one fails, the other should still work
+        // Install hooks independently - if one fails, the other should still work
         try {
             hookMiuiSettings(classLoader)
         } catch (t: Throwable) {
             log("Failed to install MiuiSettings hook: $t")
+        }
+
+        try {
+            hookHeaderAdapter(classLoader)
+        } catch (t: Throwable) {
+            log("Failed to install HeaderAdapter hook: $t")
         }
 
         try {
@@ -43,9 +49,6 @@ class SettingsHook(private val module: XposedModule) {
         }
     }
 
-    /**
-     * Injects a "Modes" entry into the root Settings screen.
-     */
     /**
      * Injects a "Modes" entry into the root Settings screen.
      */
@@ -85,16 +88,71 @@ class SettingsHook(private val module: XposedModule) {
         log("MiuiSettings.updateHeaderList hooked")
     }
 
-    private fun modesIconRes(context: Context): Int {
-        for (name in listOf(
-            "ic_zen_priority_modes_expressive",
-            "ic_do_not_disturb_mode_settings",
-            "ic_homepage_modes"
-        )) {
-            val id = context.resources.getIdentifier(name, "drawable", Protocol.SETTINGS_PACKAGE)
-            if (id != 0) return id
+    private fun hookHeaderAdapter(classLoader: ClassLoader) {
+        val adapterClass = try {
+            classLoader.loadClass("com.android.settings.MiuiSettings\$HeaderAdapter")
+        } catch (t: Throwable) {
+            log("HeaderAdapter class not found, skipping hook")
+            return
         }
-        return 0
+
+        val viewHolderClass = try {
+            classLoader.loadClass("com.android.settings.MiuiSettings\$HeaderViewHolder")
+        } catch (t: Throwable) {
+            log("HeaderViewHolder class not found")
+            null
+        }
+
+        val headerClass = try {
+            classLoader.loadClass(MIUI_HEADER)
+        } catch (t: Throwable) {
+            log("Header class not found")
+            null
+        }
+
+        if (viewHolderClass == null || headerClass == null) return
+
+        val setIcon = try {
+            adapterClass.getDeclaredMethod("setIcon", viewHolderClass, headerClass)
+                .apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("setIcon method not found: ${t.message}")
+            return
+        }
+
+        module.hook(setIcon)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        val viewHolder = chain.getArg(0)
+                        val header = chain.getArg(1)
+                        val id = getLongField(header!!, "id")
+                        if (id == OUR_HEADER_ID) {
+                            val iconView = Reflect.getField(viewHolder!!, "icon") as? android.widget.ImageView
+                            if (iconView != null) {
+                                val context = iconView.context
+                                val modContext = context.createPackageContext(
+                                    Protocol.MODULE_PACKAGE,
+                                    Context.CONTEXT_IGNORE_SECURITY
+                                )
+                                val iconId = modContext.resources.getIdentifier(
+                                    "ic_homepage_modes", "drawable", Protocol.MODULE_PACKAGE
+                                )
+                                if (iconId != 0) {
+                                    iconView.visibility = android.view.View.VISIBLE
+                                    iconView.setImageDrawable(modContext.getDrawable(iconId))
+                                }
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        // Silent fail
+                    }
+                    return result
+                }
+            })
+        log("HeaderAdapter.setIcon hooked")
     }
 
     private fun injectHeader(context: Context, headers: MutableList<Any>, classLoader: ClassLoader) {
@@ -107,29 +165,10 @@ class SettingsHook(private val module: XposedModule) {
             .getDeclaredConstructor().apply { isAccessible = true }.newInstance()
 
         Reflect.setObjectField(header, "id", OUR_HEADER_ID)
-        val nativeIcon = modesIconRes(context)
-        if (nativeIcon != 0) {
-            Reflect.setIntField(header, "iconRes", nativeIcon)
-        } else {
-            // Fallback to our module's icon which includes the background
-            try {
-                val modContext = context.createPackageContext(
-                    Protocol.MODULE_PACKAGE,
-                    Context.CONTEXT_IGNORE_SECURITY
-                )
-                val iconId = modContext.resources.getIdentifier(
-                    "ic_homepage_modes", "drawable", Protocol.MODULE_PACKAGE
-                )
-                if (iconId != 0) {
-                    val drawable = modContext.getDrawable(iconId)
-                    // Set the icon drawable directly since the resource ID won't resolve in Settings app
-                    Reflect.setObjectField(header, "icon", drawable)
-                    Reflect.setIntField(header, "iconRes", 0)
-                }
-            } catch (t: Throwable) {
-                log("Failed to load fallback icon: $t")
-            }
-        }
+        // Set iconRes to 0 to prevent native MIUI logic from showing the old icon.
+        // The actual icon will be injected via HeaderAdapter.setIcon hook.
+        Reflect.setIntField(header, "iconRes", 0)
+
         Reflect.setObjectField(header, "title", modesTitle(context))
         Reflect.setObjectField(header, "summary", null)
         Reflect.setObjectField(header, "intent", Intent().apply {

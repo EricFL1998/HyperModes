@@ -25,13 +25,11 @@ data class ModeSettings(
     val dndLevel: DndLevel = DndLevel.PRIORITY,
 
     // Display settings
-    val enableGrayscale: Boolean = false,
-    val enableDarkMode: Boolean = false,
-    val dimWallpaper: Boolean = false,
-    val keepScreenOff: Boolean = false,
-    val enableAdaptiveRefreshRatePro: Boolean = false,
-    val enableEyeCare: Boolean = false,
-    val enableRefreshRate: Boolean = false,
+    val enableGrayscale: Boolean? = null,
+    val darkMode: Int? = null, // null: Ignore, 0: Light, 1: Dark
+    val enableAdaptiveRefreshRatePro: Boolean? = null,
+    val enableEyeCare: Boolean? = null,
+    val enableRefreshRate: Boolean? = null,
     val refreshRate: Int = 60,
 
     // Restrictions
@@ -45,6 +43,15 @@ data class ModeSettings(
     // Screen settings
     val keepScreenOn: Boolean = false,
     val hideNotifications: Boolean = false,
+
+    // Display settings (continued)
+    val enableAod: Boolean? = null,
+
+    // Device settings
+    val performanceMode: Int? = null, // 0: Balanced, 1: Performance
+    val enable5g: Boolean? = null,
+    val enableRaiseToWake: Boolean? = null,
+    val enableWakeForNotifications: Boolean? = null,
 
     // Driving auto-detection (何时自动开启). Only the built-in driving mode
     // enables this; custom modes must opt in explicitly.
@@ -185,14 +192,19 @@ fun Mode.toModeConfig(): ModeConfig {
             allowedApps = s.allowedApps.toList()
         ),
         display = DisplayConfig(
-            darkMode = s.enableDarkMode,
+            darkMode = s.darkMode,
             grayscale = s.enableGrayscale,
-            dimWallpaper = s.dimWallpaper,
-            keepScreenOff = s.keepScreenOff,
             adaptiveRefreshRatePro = s.enableAdaptiveRefreshRatePro,
             eyeCare = s.enableEyeCare,
             enableRefreshRate = s.enableRefreshRate,
-            refreshRate = s.refreshRate
+            refreshRate = s.refreshRate,
+            enableAod = s.enableAod
+        ),
+        device = DeviceConfig(
+            performanceMode = s.performanceMode,
+            enable5g = s.enable5g,
+            enableRaiseToWake = s.enableRaiseToWake,
+            enableWakeForNotifications = s.enableWakeForNotifications
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -275,13 +287,16 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enableDnd = notification.dndLevel != com.banana.hypermodes.systemserver.config.DndLevel.DISABLED,
             dndLevel = dndLevel,
             enableGrayscale = display.grayscale,
-            enableDarkMode = display.darkMode,
-            dimWallpaper = display.dimWallpaper,
-            keepScreenOff = display.keepScreenOff,
-            enableAdaptiveRefreshRatePro = display.adaptiveRefreshRatePro ?: false,
+            darkMode = display.darkMode,
+            enableAdaptiveRefreshRatePro = display.adaptiveRefreshRatePro,
             enableEyeCare = display.eyeCare,
             enableRefreshRate = display.enableRefreshRate,
             refreshRate = display.refreshRate,
+            enableAod = display.enableAod,
+            performanceMode = device?.performanceMode,
+            enable5g = device?.enable5g,
+            enableRaiseToWake = device?.enableRaiseToWake,
+            enableWakeForNotifications = device?.enableWakeForNotifications,
             pausedApps = pausedApps.toSet(),
             allowedContacts = emptySet(),
             contactFilter = contactFilterValue,

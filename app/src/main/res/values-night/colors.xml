@@ -5,4 +5,7 @@
 
     <color name="setting_modes_icon_color">#E6FFFFFF</color>
     <color name="setting_modes_bg_color">#1AFFFFFF</color>
+
+    <color name="homepage_modes_icon_color">#E6FFFFFF</color>
+    <color name="homepage_modes_bg_color">#FF3D47C2</color>
 </resources>

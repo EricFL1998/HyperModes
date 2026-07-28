@@ -4,13 +4,13 @@
     android:width="28dp"
     android:viewportWidth="28"
     android:viewportHeight="28">
-    <!-- Rounded rectangle background -->
+    <!-- Solid rounded rectangle background -->
     <path
-        android:fillColor="@color/setting_modes_bg_color"
+        android:fillColor="@color/homepage_modes_bg_color"
         android:pathData="M8,0L20,0A8,8 0,0 1,28 8L28,20A8,8 0,0 1,20 28L8,28A8,8 0,0 1,0 20L0,8A8,8 0,0 1,8 0z" />
-    <!-- Mode icon -->
+    <!-- Mode icon (White) -->
     <path
-        android:fillColor="@color/setting_modes_icon_color"
+        android:fillColor="@color/homepage_modes_icon_color"
         android:pathData="M17,13H11v2h6v-2z M14,4C8.48,4 4,8.48 4,14s4.48,10 10,10 10,-4.48 10,-10S19.52,4 14,4zM14,22c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8z"
         android:fillType="evenOdd"/>
 </vector>

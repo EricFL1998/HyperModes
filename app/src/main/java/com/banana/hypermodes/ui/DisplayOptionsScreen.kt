@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
+import com.banana.hypermodes.ui.components.DropdownSettingItem
 import com.banana.hypermodes.utils.RefreshRateManager
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -23,10 +24,6 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
-/**
- * 显示选项 sub-page: 过滤通知时的显示选项 / 灰度模式 / 让屏幕保持关闭状态 /
- * 调暗壁纸 / 启用深色主题.
- */
 @Composable
 fun DisplayOptionsScreen(
     mode: Mode,
@@ -38,13 +35,20 @@ fun DisplayOptionsScreen(
     BackHandler(onBack = onBack)
 
     val scrollBehavior = MiuixScrollBehavior()
-    var showRefreshRatePicker by remember { mutableStateOf(false) }
 
     val supportedRates = remember {
         RefreshRateManager.getCachedRefreshRates(context).ifEmpty { listOf(60, 90, 120, 144) }
     }
 
-    val isSupported = remember {
+    val isAdaptiveRefreshRateProSupported = remember {
+        runCatching {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getBooleanMethod = systemPropertiesClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
+            getBooleanMethod.invoke(null, "ro.display.enable_pwm_switch", false) as Boolean
+        }.getOrDefault(defaultValue = true)
+    }
+
+    val isRefreshRateSupported = remember {
         runCatching {
             val systemPropertiesClass = Class.forName("android.os.SystemProperties")
             val getBooleanMethod = systemPropertiesClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
@@ -59,6 +63,34 @@ fun DisplayOptionsScreen(
             getBooleanMethod.invoke(null, "support_qingshan_eyecare", false) as Boolean
         }.getOrDefault(defaultValue = false)
     }
+
+    val isAodSupported = remember {
+        runCatching {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getMethod = systemPropertiesClass.getMethod("get", String::class.java)
+            val aodMask = getMethod.invoke(null, "ro.miui.special.aod.mask") as String
+            val miuiVersion = getMethod.invoke(null, "ro.miui.ui.version.name") as String
+            aodMask.isNotEmpty() || miuiVersion.isNotEmpty()
+        }.getOrDefault(defaultValue = true)
+    }
+
+    val isGestureWakeupSupported = remember {
+        runCatching {
+            val featureParserClass = Class.forName("miui.util.FeatureParser")
+            val getBooleanMethod = featureParserClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
+            getBooleanMethod.invoke(null, "support_gesture_wakeup", false) as Boolean
+        }.getOrDefault(defaultValue = true)
+    }
+
+    val booleanOptions = listOf(
+        true to stringResource(R.string.option_on),
+        false to stringResource(R.string.option_off)
+    )
+
+    val themeOptions = listOf(
+        0 to stringResource(R.string.theme_light),
+        1 to stringResource(R.string.theme_dark)
+    )
 
     Scaffold(
         topBar = {
@@ -84,170 +116,212 @@ fun DisplayOptionsScreen(
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(top = padding.calculateTopPadding())
         ) {
-            // Top spacer
             item {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Display options for filtered notifications
+            // Theme Override
             item {
-                SettingItem(
-                    title = stringResource(R.string.display_when_filtered),
-                    subtitle = stringResource(R.string.setting_hide_notifications_desc),
-                    checked = editedMode.settings.hideNotifications,
-                    onCheckedChange = { enabled ->
+                DropdownSettingItem(
+                    title = stringResource(R.string.theme_option),
+                    subtitle = stringResource(R.string.theme_option_desc),
+                    selected = editedMode.settings.darkMode != null,
+                    onToggle = { enabled ->
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(hideNotifications = enabled)
+                            settings = editedMode.settings.copy(darkMode = if (enabled) 1 else null)
                         )
                         onSave(editedMode)
                     },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
+                    value = editedMode.settings.darkMode ?: 1,
+                    options = themeOptions,
+                    onValueChange = { value ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(darkMode = value)
+                        )
+                        onSave(editedMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
+            }
+
+            // Always-on Display
+            if (isAodSupported) {
+                item {
+                    DropdownSettingItem(
+                        title = stringResource(R.string.aod_option),
+                        subtitle = stringResource(R.string.aod_option_desc),
+                        selected = editedMode.settings.enableAod != null,
+                        onToggle = { enabled ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableAod = if (enabled) true else null)
+                            )
+                            onSave(editedMode)
+                        },
+                        value = editedMode.settings.enableAod ?: true,
+                        options = booleanOptions,
+                        onValueChange = { value ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableAod = value)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             // Grayscale
             item {
-                SettingItem(
+                DropdownSettingItem(
                     title = stringResource(R.string.grayscale_mode),
                     subtitle = stringResource(R.string.grayscale_mode_desc),
-                    checked = editedMode.settings.enableGrayscale,
-                    onCheckedChange = { enabled ->
+                    selected = editedMode.settings.enableGrayscale != null,
+                    onToggle = { enabled ->
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(enableGrayscale = enabled)
+                            settings = editedMode.settings.copy(enableGrayscale = if (enabled) true else null)
                         )
                         onSave(editedMode)
                     },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                )
-            }
-
-            // Keep screen off
-            item {
-                SettingItem(
-                    title = stringResource(R.string.keep_screen_off),
-                    subtitle = stringResource(R.string.keep_screen_off_desc),
-                    checked = editedMode.settings.keepScreenOff,
-                    onCheckedChange = { enabled ->
+                    value = editedMode.settings.enableGrayscale ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(keepScreenOff = enabled)
+                            settings = editedMode.settings.copy(enableGrayscale = value)
                         )
                         onSave(editedMode)
                     },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
 
-            // Dim wallpaper
-            item {
-                SettingItem(
-                    title = stringResource(R.string.dim_wallpaper_option),
-                    subtitle = stringResource(R.string.dim_wallpaper_option_desc),
-                    checked = editedMode.settings.dimWallpaper,
-                    onCheckedChange = { enabled ->
-                        editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(dimWallpaper = enabled)
-                        )
-                        onSave(editedMode)
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                )
-            }
-
-            // Dark theme
-            item {
-                SettingItem(
-                    title = stringResource(R.string.dark_theme_option),
-                    subtitle = stringResource(R.string.dark_theme_option_desc),
-                    checked = editedMode.settings.enableDarkMode,
-                    onCheckedChange = { enabled ->
-                        editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(enableDarkMode = enabled)
-                        )
-                        onSave(editedMode)
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                )
-            }
-
-            if (isSupported) {
+            // Refresh Rate (Keep existing UI as it's already a complex override)
+            if (isRefreshRateSupported) {
                 item {
-                    SettingItem(
-                        title = stringResource(R.string.adaptive_refresh_rate_pro),
-                        subtitle = stringResource(R.string.adaptive_refresh_rate_pro_desc),
-                        checked = editedMode.settings.enableAdaptiveRefreshRatePro,
+                    RefreshRateSettingItem(
+                        title = stringResource(R.string.refresh_rate_option),
+                        subtitle = stringResource(R.string.refresh_rate_option_desc),
+                        checked = editedMode.settings.enableRefreshRate == true,
                         onCheckedChange = { enabled ->
                             editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(enableAdaptiveRefreshRatePro = enabled)
+                                settings = editedMode.settings.copy(enableRefreshRate = if (enabled) true else null)
                             )
                             onSave(editedMode)
                         },
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp)
+                        value = stringResource(R.string.refresh_rate_unit, editedMode.settings.refreshRate),
+                        supportedRates = supportedRates,
+                        onRateSelect = { rate ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(refreshRate = rate)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
+            // Eye Care
             if (isEyeCareSupported) {
                 item {
-                    SettingItem(
+                    DropdownSettingItem(
                         title = stringResource(R.string.eye_care_mode),
                         subtitle = stringResource(R.string.eye_care_mode_desc),
-                        checked = editedMode.settings.enableEyeCare,
-                        onCheckedChange = { enabled ->
+                        selected = editedMode.settings.enableEyeCare != null,
+                        onToggle = { enabled ->
                             editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(enableEyeCare = enabled)
+                                settings = editedMode.settings.copy(enableEyeCare = if (enabled) true else null)
                             )
                             onSave(editedMode)
                         },
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp)
+                        value = editedMode.settings.enableEyeCare ?: true,
+                        options = booleanOptions,
+                        onValueChange = { value ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableEyeCare = value)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
-            // Frame Rate Toggle + Value (Combined)
+            // Adaptive Refresh Rate Pro
+            if (isAdaptiveRefreshRateProSupported) {
+                item {
+                    DropdownSettingItem(
+                        title = stringResource(R.string.adaptive_refresh_rate_pro),
+                        subtitle = stringResource(R.string.adaptive_refresh_rate_pro_desc),
+                        selected = editedMode.settings.enableAdaptiveRefreshRatePro != null,
+                        onToggle = { enabled ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableAdaptiveRefreshRatePro = if (enabled) true else null)
+                            )
+                            onSave(editedMode)
+                        },
+                        value = editedMode.settings.enableAdaptiveRefreshRatePro ?: true,
+                        options = booleanOptions,
+                        onValueChange = { value ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableAdaptiveRefreshRatePro = value)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            // Raise to Wake
+            if (isGestureWakeupSupported) {
+                item {
+                    DropdownSettingItem(
+                        title = stringResource(R.string.raise_to_wake),
+                        subtitle = stringResource(R.string.raise_to_wake_desc),
+                        selected = editedMode.settings.enableRaiseToWake != null,
+                        onToggle = { enabled ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableRaiseToWake = if (enabled) true else null)
+                            )
+                            onSave(editedMode)
+                        },
+                        value = editedMode.settings.enableRaiseToWake ?: true,
+                        options = booleanOptions,
+                        onValueChange = { value ->
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(enableRaiseToWake = value)
+                            )
+                            onSave(editedMode)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            // Wake for Notifications
             item {
-                RefreshRateSettingItem(
-                    title = stringResource(R.string.refresh_rate_option),
-                    subtitle = stringResource(R.string.refresh_rate_option_desc),
-                    checked = editedMode.settings.enableRefreshRate,
-                    onCheckedChange = { enabled ->
+                DropdownSettingItem(
+                    title = stringResource(R.string.wake_for_notifications),
+                    subtitle = stringResource(R.string.wake_for_notifications_desc),
+                    selected = editedMode.settings.enableWakeForNotifications != null,
+                    onToggle = { enabled ->
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(enableRefreshRate = enabled)
+                            settings = editedMode.settings.copy(enableWakeForNotifications = if (enabled) true else null)
                         )
                         onSave(editedMode)
                     },
-                    value = stringResource(R.string.refresh_rate_unit, editedMode.settings.refreshRate),
-                    onValueClick = { showRefreshRatePicker = true },
-                    showPopup = showRefreshRatePicker,
-                    onDismissPopup = { showRefreshRatePicker = false },
-                    supportedRates = supportedRates,
-                    onRateSelect = { rate ->
+                    value = editedMode.settings.enableWakeForNotifications ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(refreshRate = rate)
+                            settings = editedMode.settings.copy(enableWakeForNotifications = value)
                         )
                         onSave(editedMode)
-                        showRefreshRatePicker = false
                     },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
 
-            // Bottom spacer with navigation bar padding
             item {
                 Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
             }
@@ -262,13 +336,12 @@ fun RefreshRateSettingItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     value: String,
-    onValueClick: () -> Unit,
-    showPopup: Boolean,
-    onDismissPopup: () -> Unit,
     supportedRates: List<Int>,
     onRateSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showPopup by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
@@ -276,7 +349,7 @@ fun RefreshRateSettingItem(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -296,7 +369,7 @@ fun RefreshRateSettingItem(
                 if (checked) {
                     Box {
                         Row(
-                            modifier = Modifier.clickable(onClick = onValueClick),
+                            modifier = Modifier.clickable { showPopup = true },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -317,7 +390,7 @@ fun RefreshRateSettingItem(
                             show = showPopup,
                             popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
                             alignment = PopupPositionProvider.Align.TopEnd,
-                            onDismissRequest = onDismissPopup
+                            onDismissRequest = { showPopup = false }
                         ) {
                             ListPopupColumn {
                                 supportedRates.forEachIndexed { index, rate ->
@@ -328,6 +401,7 @@ fun RefreshRateSettingItem(
                                         index = index,
                                         onSelectedIndexChange = {
                                             onRateSelect(rate)
+                                            showPopup = false
                                         }
                                     )
                                 }
@@ -344,4 +418,3 @@ fun RefreshRateSettingItem(
         }
     }
 }
-

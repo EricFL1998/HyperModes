@@ -30,6 +30,9 @@ data class ModeConfig(
     // Display settings
     val display: DisplayConfig,
 
+    // Device settings
+    val device: DeviceConfig? = null,
+
     // Paused apps
     val pausedApps: List<String>,
 
@@ -79,14 +82,22 @@ enum class DndLevel {
 
 @Serializable
 data class DisplayConfig(
-    val darkMode: Boolean = false,
-    val grayscale: Boolean = false,
-    val dimWallpaper: Boolean = false,
-    val keepScreenOff: Boolean = false,
+    val darkMode: Int? = null, // null: Ignore, 0: Light, 1: Dark
+    val grayscale: Boolean? = null,
+    val keepScreenOff: Boolean? = null,
     val adaptiveRefreshRatePro: Boolean? = null,
-    val eyeCare: Boolean = false,
-    val enableRefreshRate: Boolean = false,
-    val refreshRate: Int = 60
+    val eyeCare: Boolean? = null,
+    val enableRefreshRate: Boolean? = null,
+    val refreshRate: Int = 60,
+    val enableAod: Boolean? = null
+)
+
+@Serializable
+data class DeviceConfig(
+    val performanceMode: Int? = null,
+    val enable5g: Boolean? = null,
+    val enableRaiseToWake: Boolean? = null,
+    val enableWakeForNotifications: Boolean? = null
 )
 
 @Serializable

@@ -24,6 +24,7 @@ class ModeActionExecutor(
     private val dndController = DndController(context)
     private val appSuspendController = AppSuspendController(context, classLoader)
     private val displayModeController = DisplayModeController(context)
+    private val deviceController = DeviceController(context)
     private val statusBarIconManager = StatusBarIconManager(context, classLoader)
 
     /**
@@ -52,6 +53,9 @@ class ModeActionExecutor(
         // Apply display settings
         displayModeController.apply(mode.display)
 
+        // Apply device settings
+        deviceController.apply(mode.device)
+
         // Update status bar icon
         statusBarIconManager.setIcon(mode.statusIcon, mode.name)
 
@@ -79,6 +83,9 @@ class ModeActionExecutor(
 
         // Restore display settings
         displayModeController.restore()
+
+        // Restore device settings
+        deviceController.restore()
 
         // Remove status bar icon
         statusBarIconManager.removeIcon()

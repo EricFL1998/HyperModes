@@ -47,6 +47,7 @@ fun ModeDetailScreen(
     onOpenRepeat: (Mode) -> Unit,
     onOpenApps: (Mode) -> Unit,
     onOpenPausedApps: (Mode) -> Unit,
+    onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
     onRename: (Mode) -> Unit,
     onDelete: (Mode) -> Unit,
@@ -480,6 +481,30 @@ fun ModeDetailScreen(
                 }
             }
 
+            // Paused apps entry in its own Card immediately after notification filters
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    SettingItem(
+                        title = stringResource(R.string.paused_apps),
+                        subtitle = if (editedMode.settings.pausedApps.isEmpty()) {
+                            stringResource(R.string.no_apps_paused)
+                        } else {
+                            stringResource(R.string.apps_paused, editedMode.settings.pausedApps.size)
+                        },
+                        checked = false,
+                        onCheckedChange = {},
+                        onClick = { onOpenPausedApps(editedMode) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             // 更多设置 section
             item {
                 SmallTitle(
@@ -507,17 +532,13 @@ fun ModeDetailScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // Paused apps row: which apps get suspended while the mode is on
+                        // Device Control entry in the More settings Card
                         SettingItem(
-                            title = stringResource(R.string.paused_apps),
-                            subtitle = if (editedMode.settings.pausedApps.isEmpty()) {
-                                stringResource(R.string.no_apps_paused)
-                            } else {
-                                stringResource(R.string.apps_paused, editedMode.settings.pausedApps.size)
-                            },
+                            title = stringResource(R.string.device_control),
+                            subtitle = deviceControlSummary(editedMode.settings),
                             checked = false,
                             onCheckedChange = {},
-                            onClick = { onOpenPausedApps(editedMode) },
+                            onClick = { onOpenDeviceControl(editedMode) },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -720,10 +741,33 @@ fun ContactFilterDialog(
 fun displayOptionsSummary(settings: ModeSettings): String {
     val enabled = buildList {
         if (settings.hideNotifications) add(stringResource(R.string.setting_hide_notifications))
-        if (settings.enableGrayscale) add(stringResource(R.string.grayscale_mode))
-        if (settings.keepScreenOff) add(stringResource(R.string.keep_screen_off))
-        if (settings.dimWallpaper) add(stringResource(R.string.dim_wallpaper_option))
-        if (settings.enableDarkMode) add(stringResource(R.string.dark_theme_option))
+        settings.darkMode?.let { add(if (it == 1) stringResource(R.string.theme_dark) else stringResource(R.string.theme_light)) }
+        if (settings.enableAod != null) add(stringResource(R.string.aod_option))
+        if (settings.enableGrayscale != null) add(stringResource(R.string.grayscale_mode))
+        if (settings.enableRefreshRate != null) add(stringResource(R.string.refresh_rate_option))
+        if (settings.enableEyeCare != null) add(stringResource(R.string.eye_care_mode))
+    }
+    return when {
+        enabled.isEmpty() -> stringResource(R.string.options_none)
+        enabled.size <= 2 -> enabled.joinToString(stringResource(R.string.list_separator))
+        else -> stringResource(R.string.and_n_more, enabled[0], enabled[1], enabled.size - 2)
+    }
+}
+
+@Composable
+fun deviceControlSummary(settings: ModeSettings): String {
+    val enabled = buildList {
+        settings.performanceMode?.let { mode ->
+            val label = when (mode) {
+                1 -> stringResource(R.string.performance_high)
+                2 -> stringResource(R.string.performance_power_save)
+                else -> stringResource(R.string.performance_balanced)
+            }
+            add(label)
+        }
+        if (settings.enable5g != null) add(stringResource(R.string.five_g_network))
+        if (settings.enableRaiseToWake != null) add(stringResource(R.string.raise_to_wake))
+        if (settings.enableWakeForNotifications != null) add(stringResource(R.string.wake_for_notifications))
     }
     return when {
         enabled.isEmpty() -> stringResource(R.string.options_none)
