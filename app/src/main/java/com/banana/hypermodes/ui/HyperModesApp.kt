@@ -181,21 +181,17 @@ fun HyperModesApp() {
         )
     }
 
-    // Refresh the mode list when the engine activates/deactivates a mode
-    // (scheduled trigger, bedtime push) while the UI is alive.
+    // Refresh the mode list whenever the engine writes the config (scheduled
+    // trigger, bedtime push, toggle from elsewhere) while the UI is alive.
+    // The mode-state broadcast is not reliably delivered to the app process,
+    // so observe the Settings.Global key the engine writes on every change.
     DisposableEffect(Unit) {
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: android.content.Intent) {
-                val activeModeId = intent.getStringExtra(Protocol.EXTRA_MODE_ID)
-                modes = sortModes(
-                    ModeStore.load(context) { DefaultModes.get() }.map { mode ->
-                        when {
-                            activeModeId == null -> mode.copy(enabled = false)
-                            mode.id == activeModeId -> mode.copy(enabled = true)
-                            else -> mode.copy(enabled = false)
-                        }
-                    }
-                )
+        val resolver = context.contentResolver
+        val observer = object : android.database.ContentObserver(
+            android.os.Handler(android.os.Looper.getMainLooper())
+        ) {
+            override fun onChange(selfChange: Boolean) {
+                modes = sortModes(ModeStore.load(context) { DefaultModes.get() })
                 editingMode?.let { current ->
                     val latest = modes.firstOrNull { it.id == current.id }
                     if (latest != null) {
@@ -204,12 +200,12 @@ fun HyperModesApp() {
                 }
             }
         }
-        androidx.core.content.ContextCompat.registerReceiver(
-            context, receiver,
-            android.content.IntentFilter(Protocol.ACTION_MODE_STATE),
-            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        resolver.registerContentObserver(
+            android.provider.Settings.Global.getUriFor(ModeStore.CONFIG_KEY),
+            false,
+            observer
         )
-        onDispose { context.unregisterReceiver(receiver) }
+        onDispose { resolver.unregisterContentObserver(observer) }
     }
 
     // Always follow the system's dark mode (no in-app toggle).

@@ -10,7 +10,7 @@ import com.banana.hypermodes.systemserver.config.FullConfig
  * This replaces the previous SharedPreferences-based storage.
  */
 object ModeStore {
-    private const val CONFIG_KEY = "pixel_routines_full_config"
+    const val CONFIG_KEY = "pixel_routines_full_config"
 
     val BUILT_IN_IDS = listOf("dnd", "bedtime", "driving")
 
