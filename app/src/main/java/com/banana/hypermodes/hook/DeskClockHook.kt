@@ -207,12 +207,15 @@ class DeskClockHook(private val module: XposedModule) {
                         if (alarmId == Int.MIN_VALUE) {
                             log("Bedtime alarm skipped manually in DeskClock")
                             if (readInZenMode(context, classLoader, false)) {
-                                // Skip during an ACTIVE sleep period: exit the live
-                                // session too (hooked exitZenMode also pushes state).
+                                // Skip during an ACTIVE sleep period: report the skip
+                                // FIRST so the engine records a manual dismiss (guards
+                                // against a stale ON re-activating tonight). The
+                                // ZEN_EXITED emitted by exitActiveBedtime below then
+                                // arrives second and is a no-op.
+                                sendBedtimeState(context, false, "SKIP_ONCE_ACTIVE")
                                 val controller = BedtimeController(context, classLoader) { msg -> log(msg) }
                                 val steps = controller.exitActiveBedtime()
                                 log("skip during active bedtime -> exitActiveBedtime: ${steps.joinToString { it.format() }}")
-                                sendBedtimeState(context, false, "SKIP_ONCE_ACTIVE")
                             } else {
                                 // Idle pre-skip: DeskClock skips the next bedtime itself.
                                 sendBedtimeState(context, false, "SKIP_ONCE_IDLE")

@@ -81,16 +81,6 @@ fun ModeDetailScreen(
                 )
             }
         }
-        // The 立即开启/关闭 button mirrors the OFFICIAL bedtime state: when
-        // DeskClock activates bedtime on its own schedule (or from the Clock
-        // app), the hook pushes it and this flips without user interaction.
-        val bedtimeActive = DeskClockState.bedtimeActive
-        LaunchedEffect(bedtimeActive) {
-            if (editedMode.enabled != bedtimeActive) {
-                editedMode = editedMode.copy(enabled = bedtimeActive)
-                onSave(editedMode)
-            }
-        }
     }
 
     val localizedName = when (editedMode.id) {
