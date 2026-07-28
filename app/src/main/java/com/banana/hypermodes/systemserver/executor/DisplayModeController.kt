@@ -165,19 +165,17 @@ class DisplayModeController(private val context: Context) {
      */
     private fun forceConfigurationReapply() {
         try {
-            val amClass = Class.forName("android.app.ActivityManagerNative")
-            val am = amClass.getMethod("getDefault").invoke(null)
-            val update = amClass.getMethod(
-                "updateConfiguration", android.content.res.Configuration::class.java
-            )
-            try {
-                update.invoke(am, null)
-            } catch (t: Throwable) {
-                update.invoke(am, android.content.res.Configuration())
-            }
+            // HyperOS strips ActivityManagerNative.updateConfiguration (proven on
+            // device: NoSuchMethodException), so go through the live binder:
+            // ActivityManager.getService() -> IActivityManager.updateConfiguration.
+            val am = Class.forName("android.app.ActivityManager")
+                .getDeclaredMethod("getService").apply { isAccessible = true }.invoke(null)
+            Class.forName("android.app.IActivityManager")
+                .getMethod("updateConfiguration", android.content.res.Configuration::class.java)
+                .invoke(am, android.content.res.Configuration())
             log("forced configuration re-apply")
         } catch (t: Throwable) {
-            log("forceConfigurationReapply failed: ${t.message}")
+            log("forceConfigurationReapply failed: $t")
         }
     }
 

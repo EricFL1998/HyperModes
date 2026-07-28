@@ -237,10 +237,14 @@ class RoutineCoreEngine private constructor() {
                     val mode = allModes.find { it.id == config.activeModeId }
                     if (mode != null) {
                         log("Activating mode from config: ${mode.name}")
-                        // Clear dismissal record when explicitly switching to this mode via config
-                        clearDismissRecord(mode.id)
+                        // Set current state BEFORE clearing the dismiss record: the clear
+                        // persists via updateActiveModeInSettings(currentActiveMode?.id), and
+                        // while currentActiveMode is still null that write carries
+                        // activeModeId=null — its observer echo reads as a manual
+                        // deactivation and instantly tears the mode back down.
                         currentActiveMode = mode
                         currentModeActivatedAt = System.currentTimeMillis()
+                        clearDismissRecord(mode.id)
                         modeActionExecutor?.applyMode(mode)
                         // Manual UI activation comes through THIS config path, not
                         // activateMode() — route DeskClock sync through the reconciler.
@@ -333,9 +337,6 @@ class RoutineCoreEngine private constructor() {
 
         log("Activating mode: ${mode.name} (id=$modeId)")
 
-        // Clear any previous dismiss record when manually activating or reactivating
-        clearDismissRecord(modeId)
-
         // Deactivate current mode first
         currentActiveMode?.let {
             log("Deactivating current mode: ${it.name}")
@@ -349,6 +350,13 @@ class RoutineCoreEngine private constructor() {
 
         // Persist active mode to Settings.Global
         updateActiveModeInSettings(modeId)
+
+        // Clear dismiss record AFTER the new state is in place: clearing triggers
+        // its own updateActiveModeInSettings(currentActiveMode?.id) write, and while
+        // currentActiveMode was still the old value that write carried a stale
+        // activeModeId — the observer echo then deactivated what we just activated.
+        clearDismissRecord(modeId)
+
         broadcastModeState(modeId)
 
         // Reschedule alarms (next occurrence after activation)
