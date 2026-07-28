@@ -35,7 +35,6 @@ class LockscreenHook(
                         try {
                             val section = HookUtils.getThisObject(chain) ?: return result
                             val injector = Reflect.getField(section, "keyguardBottomAreaInjector") ?: return result
-                            log("bindData triggered, injecting...")
                             injectModeDisplay(injector)
                         } catch (t: Throwable) {
                             log("Injection failed in bindData: ${t.message}")
@@ -54,7 +53,6 @@ class LockscreenHook(
                         val result = chain.proceed()
                         try {
                             val injector = HookUtils.getThisObject(chain) ?: return result
-                            log("updateIndicationTextLayoutParams triggered, injecting...")
                             injectModeDisplay(injector)
                         } catch (t: Throwable) {
                             log("Injection failed in updateIndicationTextLayoutParams: ${t.message}")

@@ -80,9 +80,10 @@ class ModeDisplayCoordinator(
 
     fun updatePanelHost(panel: ViewGroup?, isDepthMode: Boolean) {
         if (panel == null) return
+        val changed = panelRef.get() !== panel || depthMode != isDepthMode
         panelRef = WeakReference(panel)
         depthMode = isDepthMode
-        logger("panel host updated: panel=$panel depthMode=$isDepthMode")
+        if (changed) logger("panel host updated: panel=$panel depthMode=$isDepthMode")
     }
 
     fun onFullAodStarted(isFullAod: Boolean) {
@@ -191,9 +192,10 @@ class ModeDisplayCoordinator(
                 depthTargetX = (endpoint.x - raw.x).toFloat()
                 depthTargetY = (endpoint.y - raw.y).toFloat()
             }
+            val changed = view.translationX != depthTargetX || view.translationY != depthTargetY
             view.translationX = depthTargetX
             view.translationY = depthTargetY
-            logger("depth reassert: ($depthTargetX, $depthTargetY)")
+            if (changed) logger("depth reassert: ($depthTargetX, $depthTargetY)")
             return
         }
 
@@ -209,12 +211,17 @@ class ModeDisplayCoordinator(
         // to the endpoint itself when the panel is unscaled.
         val scaleX = panel.scaleX.takeIf { it > 0f } ?: 1f
         val scaleY = panel.scaleY.takeIf { it > 0f } ?: 1f
-        params.leftMargin = (panel.pivotX + (endpoint.x - panel.pivotX) / scaleX).roundToInt()
-        params.topMargin = (panel.pivotY + (endpoint.y - panel.pivotY) / scaleY).roundToInt()
+        val newLeft = (panel.pivotX + (endpoint.x - panel.pivotX) / scaleX).roundToInt()
+        val newTop = (panel.pivotY + (endpoint.y - panel.pivotY) / scaleY).roundToInt()
+        val changed = params.leftMargin != newLeft || params.topMargin != newTop
+        params.leftMargin = newLeft
+        params.topMargin = newTop
         params.width = endpoint.width
         params.height = endpoint.height
         view.layoutParams = params
-        logger("panel reassert: margins=(${params.leftMargin}, ${params.topMargin}) scale=$scaleY")
+        if (changed) {
+            logger("panel reassert: margins=($newLeft, $newTop) scale=$scaleY")
+        }
     }
 
     private fun restoreCopyToHome() {
@@ -249,8 +256,10 @@ class ModeDisplayCoordinator(
             return
         }
 
-        lastLockscreenBounds = bounds
-        logger("lockscreen bounds: $bounds")
+        if (bounds != lastLockscreenBounds) {
+            lastLockscreenBounds = bounds
+            logger("lockscreen bounds: $bounds")
+        }
     }
 
     private fun ensureReceiverRegistered(context: Context) {
