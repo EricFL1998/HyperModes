@@ -13,7 +13,6 @@ import com.banana.hypermodes.protocol.Protocol
 
 object ModeDisplayViewFactory {
     const val LOCKSCREEN_TAG = "hypermodes_lockscreen_mode_display"
-    const val FULL_AOD_TAG = "hypermodes_full_aod_mode_display"
 
     fun create(context: Context): LinearLayout {
         val verticalPadding = context.dp(4f)

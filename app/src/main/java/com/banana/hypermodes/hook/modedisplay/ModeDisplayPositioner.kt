@@ -24,10 +24,43 @@ object ModeDisplayPositioner {
     private const val PIVOT_X_RATIO = 0.5f
     private const val PIVOT_Y_RATIO = 0.4f
 
+    /** Lockscreen bounds converted to host-relative coordinates, unscaled. */
+    fun calculateRaw(
+        lockscreen: DisplayBounds?,
+        host: DisplayBounds?
+    ): DisplayPlacement? {
+        val (relativeX, relativeY) = validatedRelative(lockscreen, host) ?: return null
+        return DisplayPlacement(
+            x = relativeX,
+            y = relativeY,
+            width = lockscreen!!.width,
+            height = lockscreen.height
+        )
+    }
+
+    /**
+     * Where the native shrink animation carries lockscreen content:
+     * pivot + 0.95 * (position - pivot), in host-relative coordinates.
+     */
     fun calculate(
         lockscreen: DisplayBounds?,
         host: DisplayBounds?
     ): DisplayPlacement? {
+        val (relativeX, relativeY) = validatedRelative(lockscreen, host) ?: return null
+        val pivotX = host!!.width * PIVOT_X_RATIO
+        val pivotY = host.height * PIVOT_Y_RATIO
+        return DisplayPlacement(
+            x = (pivotX + FULL_AOD_ZOOM_SCALE * (relativeX - pivotX)).roundToInt(),
+            y = (pivotY + FULL_AOD_ZOOM_SCALE * (relativeY - pivotY)).roundToInt(),
+            width = lockscreen!!.width,
+            height = lockscreen.height
+        )
+    }
+
+    private fun validatedRelative(
+        lockscreen: DisplayBounds?,
+        host: DisplayBounds?
+    ): Pair<Int, Int>? {
         if (lockscreen == null || host == null) return null
         if (lockscreen.width <= 0 || lockscreen.height <= 0) return null
         if (host.width <= 0 || host.height <= 0) return null
@@ -37,18 +70,6 @@ object ModeDisplayPositioner {
         if (relativeX < 0 || relativeY < 0) return null
         if (relativeX + lockscreen.width > host.width) return null
         if (relativeY + lockscreen.height > host.height) return null
-
-        // Land where the native shrink animation carries lockscreen content:
-        // pivot + scale * (position - pivot). The fading lockscreen copy rides
-        // that transform, so converging on its endpoint keeps the handoff
-        // continuous instead of jumping.
-        val pivotX = host.width * PIVOT_X_RATIO
-        val pivotY = host.height * PIVOT_Y_RATIO
-        return DisplayPlacement(
-            x = (pivotX + FULL_AOD_ZOOM_SCALE * (relativeX - pivotX)).roundToInt(),
-            y = (pivotY + FULL_AOD_ZOOM_SCALE * (relativeY - pivotY)).roundToInt(),
-            width = lockscreen.width,
-            height = lockscreen.height
-        )
+        return relativeX to relativeY
     }
 }

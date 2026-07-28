@@ -28,10 +28,50 @@ class FullAodHook(
             hookDreamingStarted(serviceClass)
             hookDreamingStopped(serviceClass)
             hookStopDozing(classLoader)
+            hookLinkageAnim(classLoader)
             isInstalled = true
             log("Full-AOD hooks installed")
         } catch (t: Throwable) {
             log("Full-AOD hook installation failed: ${t.message}")
+        }
+    }
+
+    // The native Full-AOD transition entry point. Captures the notification
+    // panel (the view that stays visible and inherits burn-in translation) and
+    // the depth-video flag that decides whether the panel itself is scaled.
+    private fun hookLinkageAnim(classLoader: ClassLoader) {
+        try {
+            val controllerClass = classLoader.loadClass(
+                "com.android.keyguard.panel.KeyguardPanelViewController"
+            )
+            val method = controllerClass.getDeclaredMethod(
+                "linkageViewAnim\$default",
+                controllerClass,
+                Boolean::class.javaPrimitiveType,
+                String::class.java,
+                Int::class.javaPrimitiveType
+            )
+            module.hook(method)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val result = chain.proceed()
+                        try {
+                            val controller = HookUtils.getArgs(chain).getOrNull(0)
+                                ?: return result
+                            val panel = Reflect.getField(controller, "notificationPanelView")
+                                as? android.view.ViewGroup
+                            val depth = Reflect.getField(controller, "depthVideoEnable") as? Boolean
+                                ?: false
+                            coordinator.updatePanelHost(panel, depth)
+                        } catch (t: Throwable) {
+                            log("linkageViewAnim panel capture failed: ${t.message}")
+                        }
+                        return result
+                    }
+                })
+        } catch (t: Throwable) {
+            log("linkageViewAnim hook failed: ${t.message}")
         }
     }
 
@@ -50,7 +90,7 @@ class FullAodHook(
                             ?: return result
                         val fullAod = FullAodSignal.isFullAod(root)
                         log("onDreamingStarted: fullAod=$fullAod root=$root")
-                        coordinator.onFullAodStarted(root, fullAod)
+                        coordinator.onFullAodStarted(fullAod)
                     } catch (t: Throwable) {
                         log("onDreamingStarted handling failed: ${t.message}")
                     }

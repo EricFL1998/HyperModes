@@ -77,10 +77,19 @@ class LockscreenHook(
             return
         }
 
-        val existing = indicationArea.findViewWithTag<LinearLayout>(
-            ModeDisplayViewFactory.LOCKSCREEN_TAG
-        )
-        val display = existing ?: ModeDisplayViewFactory.create(indicationArea.context).also {
+        // The coordinator owns the single display view; while it is parked in
+        // the notification panel for Full-AOD it must not be recreated here.
+        val managed = coordinator.peekDisplay()
+        if (managed != null) {
+            if (managed.parent == null && !coordinator.isParked()) {
+                indicationArea.addView(managed, 0)
+                log("lockscreen display re-attached")
+            }
+            coordinator.attachLockscreenDisplay(managed)
+            return
+        }
+
+        val display = ModeDisplayViewFactory.create(indicationArea.context).also {
             it.tag = ModeDisplayViewFactory.LOCKSCREEN_TAG
             indicationArea.addView(it, 0)
             log("lockscreen display created")

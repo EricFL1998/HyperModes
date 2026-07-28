@@ -7,13 +7,20 @@ import android.content.IntentFilter
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import com.banana.hypermodes.protocol.Protocol
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
+/**
+ * Owns the single mode-display view. On the lockscreen it lives in the keyguard
+ * indication area; entering Full-AOD it is re-parented into the notification
+ * panel — which never fades and inherits native burn-in translation — so the
+ * text itself rides into the AOD position instead of fading out and being
+ * redrawn. On wake it is restored to the indication area untouched.
+ */
 class ModeDisplayCoordinator(
     private val readState: (Context) -> ModeDisplayState? = ModeDisplayStateReader::read,
     private val readBounds: (View) -> DisplayBounds? = ::screenBounds,
@@ -21,15 +28,21 @@ class ModeDisplayCoordinator(
 ) {
     private var lockscreenRef = WeakReference<LinearLayout>(null)
     private var lockscreenLayoutListener: View.OnLayoutChangeListener? = null
-    private var fullAodRef = WeakReference<LinearLayout>(null)
-    private var fullAodRootRef = WeakReference<FrameLayout>(null)
     private var lastLockscreenBounds: DisplayBounds? = null
-    private var fullAodPositioned = false
     private var receiverRegistered = false
     private var receiver: BroadcastReceiver? = null
-    private var pendingRootRef = WeakReference<FrameLayout>(null)
-    private var pendingPreDraw: ViewTreeObserver.OnPreDrawListener? = null
-    private var pendingAttachState: View.OnAttachStateChangeListener? = null
+
+    private var panelRef = WeakReference<ViewGroup>(null)
+    private var depthMode = false
+    private var parkedHome: ParkedHome? = null
+    private var depthTargetX = 0f
+    private var depthTargetY = 0f
+
+    private data class ParkedHome(
+        val parent: ViewGroup,
+        val index: Int,
+        val layoutParams: ViewGroup.LayoutParams
+    )
 
     fun attachLockscreenDisplay(view: LinearLayout) {
         val previous = lockscreenRef.get()
@@ -38,10 +51,14 @@ class ModeDisplayCoordinator(
             lockscreenRef = WeakReference(view)
             lockscreenLayoutListener = null
         }
-        captureLockscreenBounds(view, clearWhenUnavailable = previous !== view)
+        if (!isParked()) {
+            captureLockscreenBounds(view, clearWhenUnavailable = previous !== view)
+        }
         if (previous !== view) {
             val listener = View.OnLayoutChangeListener { current, _, _, _, _, _, _, _, _ ->
-                captureLockscreenBounds(current, clearWhenUnavailable = true)
+                if (!isParked()) {
+                    captureLockscreenBounds(current, clearWhenUnavailable = true)
+                }
             }
             view.addOnLayoutChangeListener(listener)
             lockscreenLayoutListener = listener
@@ -51,60 +68,158 @@ class ModeDisplayCoordinator(
         logger("lockscreen attached: view=$view")
     }
 
-    fun onFullAodStarted(root: FrameLayout, isFullAod: Boolean) {
-        logger("dream start: fullAod=$isFullAod root=$root")
+    /** The managed display view, wherever it is currently parented. */
+    fun peekDisplay(): LinearLayout? = lockscreenRef.get()
+
+    fun isParked(): Boolean = parkedHome != null
+
+    fun updatePanelHost(panel: ViewGroup?, isDepthMode: Boolean) {
+        if (panel == null) return
+        panelRef = WeakReference(panel)
+        depthMode = isDepthMode
+        logger("panel host updated: panel=$panel depthMode=$isDepthMode")
+    }
+
+    fun onFullAodStarted(isFullAod: Boolean) {
+        logger("dream start: fullAod=$isFullAod parked=${isParked()}")
         if (!isFullAod) {
-            removeFullAodView()
+            restoreCopyToHome()
             return
         }
-
-        ensureReceiverRegistered(root.context)
-        removeFullAodViewFromDifferentRoot(root)
-
-        val existing = root.findViewWithTag<LinearLayout>(ModeDisplayViewFactory.FULL_AOD_TAG)
-        val display = existing ?: ModeDisplayViewFactory.create(root.context).also {
-            it.tag = ModeDisplayViewFactory.FULL_AOD_TAG
-            root.addView(
-                it,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    Gravity.TOP or Gravity.START
-                )
-            )
-            logger("full AOD display created")
-        }
-
-        fullAodRootRef = WeakReference(root)
-        fullAodRef = WeakReference(display)
-        fullAodPositioned = positionFullAod(root, display)
-        if (!fullAodPositioned) {
-            display.visibility = View.INVISIBLE
-            scheduleOneShotPosition(root, display)
-        }
-        refresh(root.context)
+        parkOrReassert()
     }
 
     fun onFullAodStopped() {
         logger("dream stop")
-        removeFullAodView()
-        lockscreenRef.get()?.let { refresh(it.context) }
+        restoreCopyToHome()
+        refreshDisplay()
     }
 
     fun refresh(context: Context) {
-        val state = readState(context)
-        lockscreenRef.get()?.let {
-            ModeDisplayViewFactory.bind(it.context, it, state)
-            captureLockscreenBounds(it)
-        }
-        fullAodRef.get()?.let {
-            ModeDisplayViewFactory.bind(it.context, it, state)
-            if (!fullAodPositioned && state != null) {
-                it.visibility = View.INVISIBLE
-            }
-        }
-        logger("display refresh: active=${state != null}")
+        refreshDisplay()
+        logger("display refresh: active=${readState(context) != null}")
     }
+
+    private fun refreshDisplay() {
+        val view = lockscreenRef.get() ?: return
+        ModeDisplayViewFactory.bind(view.context, view, readState(view.context))
+        if (!isParked()) {
+            captureLockscreenBounds(view)
+        }
+    }
+
+    private fun parkOrReassert() {
+        val view = lockscreenRef.get() ?: run {
+            logger("park skipped: no lockscreen display")
+            return
+        }
+        val panel = panelRef.get() ?: run {
+            logger("park skipped: no panel host")
+            return
+        }
+        if (panel.width <= 0 || panel.height <= 0) {
+            logger("park skipped: panel not laid out")
+            return
+        }
+        captureLockscreenBounds(view)
+        val bounds = lastLockscreenBounds ?: run {
+            logger("park skipped: no lockscreen bounds")
+            return
+        }
+
+        if (view.parent === panel) {
+            reassertParked(view, panel, bounds)
+            return
+        }
+
+        val homeParent = view.parent as? ViewGroup ?: run {
+            logger("park skipped: display has no parent")
+            return
+        }
+        val raw = ModeDisplayPositioner.calculateRaw(bounds, panelBounds(panel)) ?: run {
+            logger("park skipped: raw placement unavailable: lock=$bounds panel=${panelBounds(panel)}")
+            return
+        }
+
+        parkedHome = ParkedHome(homeParent, homeParent.indexOfChild(view), view.layoutParams)
+        homeParent.removeView(view)
+        val params = FrameLayout.LayoutParams(raw.width, raw.height, Gravity.TOP or Gravity.START)
+        params.leftMargin = raw.x
+        params.topMargin = raw.y
+        panel.addView(view, params)
+        logger("display parked in panel at raw $raw depthMode=$depthMode")
+
+        if (depthMode) {
+            // Depth-video mode scales only the bottom area and status bar, not
+            // the panel, so mirror the native shrink trajectory manually.
+            val endpoint = ModeDisplayPositioner.calculate(bounds, panelBounds(panel))
+            depthTargetX = endpoint?.let { (it.x - raw.x).toFloat() } ?: 0f
+            depthTargetY = endpoint?.let { (it.y - raw.y).toFloat() } ?: 0f
+            view.translationX = 0f
+            view.translationY = 0f
+            view.animate()
+                .translationX(depthTargetX)
+                .translationY(depthTargetY)
+                .setDuration(DEPTH_GLIDE_DURATION_MS)
+                .setInterpolator(DecelerateInterpolator(1f))
+                .start()
+            logger("depth glide to ($depthTargetX, $depthTargetY)")
+        }
+    }
+
+    private fun reassertParked(view: LinearLayout, panel: ViewGroup, bounds: DisplayBounds) {
+        val host = panelBounds(panel)
+        if (depthMode) {
+            val raw = ModeDisplayPositioner.calculateRaw(bounds, host)
+            val endpoint = ModeDisplayPositioner.calculate(bounds, host)
+            if (raw != null && endpoint != null) {
+                depthTargetX = (endpoint.x - raw.x).toFloat()
+                depthTargetY = (endpoint.y - raw.y).toFloat()
+            }
+            view.translationX = depthTargetX
+            view.translationY = depthTargetY
+            logger("depth reassert: ($depthTargetX, $depthTargetY)")
+            return
+        }
+
+        val endpoint = ModeDisplayPositioner.calculate(bounds, host) ?: run {
+            logger("reassert skipped: endpoint unavailable")
+            return
+        }
+        val params = (view.layoutParams as? FrameLayout.LayoutParams)
+            ?: FrameLayout.LayoutParams(endpoint.width, endpoint.height)
+        params.gravity = Gravity.TOP or Gravity.START
+        // Undo the panel's live native transform so the rendered position lands
+        // on the shrink endpoint. Reduces to raw coordinates at scale 0.95 and
+        // to the endpoint itself when the panel is unscaled.
+        val scaleX = panel.scaleX.takeIf { it > 0f } ?: 1f
+        val scaleY = panel.scaleY.takeIf { it > 0f } ?: 1f
+        params.leftMargin = (panel.pivotX + (endpoint.x - panel.pivotX) / scaleX).roundToInt()
+        params.topMargin = (panel.pivotY + (endpoint.y - panel.pivotY) / scaleY).roundToInt()
+        params.width = endpoint.width
+        params.height = endpoint.height
+        view.layoutParams = params
+        logger("panel reassert: margins=(${params.leftMargin}, ${params.topMargin}) scale=$scaleY")
+    }
+
+    private fun restoreCopyToHome() {
+        val home = parkedHome ?: return
+        parkedHome = null
+        val view = lockscreenRef.get()
+        if (view == null) {
+            logger("restore skipped: display view lost")
+            return
+        }
+        view.animate().cancel()
+        view.translationX = 0f
+        view.translationY = 0f
+        (view.parent as? ViewGroup)?.removeView(view)
+        home.parent.addView(view, home.index.coerceAtMost(home.parent.childCount), home.layoutParams)
+        logger("display restored to lockscreen home")
+    }
+
+    private fun panelBounds(panel: ViewGroup): DisplayBounds =
+        readBounds(panel) ?: DisplayBounds(0, 0, panel.width, panel.height)
 
     private fun captureLockscreenBounds(
         view: View,
@@ -121,100 +236,6 @@ class ModeDisplayCoordinator(
 
         lastLockscreenBounds = bounds
         logger("lockscreen bounds: $bounds")
-    }
-
-    private fun positionFullAod(root: FrameLayout, display: LinearLayout): Boolean {
-        lockscreenRef.get()?.let { captureLockscreenBounds(it) }
-        val hostBounds = readBounds(root)
-        val placement = ModeDisplayPositioner.calculate(lastLockscreenBounds, hostBounds)
-        if (placement == null) {
-            logger("full AOD placement unavailable: lock=$lastLockscreenBounds host=$hostBounds")
-            return false
-        }
-
-        val params = (display.layoutParams as? FrameLayout.LayoutParams)
-            ?: FrameLayout.LayoutParams(placement.width, placement.height)
-        params.gravity = Gravity.TOP or Gravity.START
-        // Place the copy so its *rendered* position matches the lockscreen copy's
-        // last rendered position. The native Full-AOD transition scales
-        // aod_root_view around an explicit pivot, so undo that transform here;
-        // the copy then rides the native animation instead of jumping. When the
-        // host is unscaled this reduces to the raw relative coordinates.
-        val scaleX = root.scaleX.takeIf { it > 0f } ?: 1f
-        val scaleY = root.scaleY.takeIf { it > 0f } ?: 1f
-        params.leftMargin = (root.pivotX + (placement.x - root.pivotX) / scaleX).roundToInt()
-        params.topMargin = (root.pivotY + (placement.y - root.pivotY) / scaleY).roundToInt()
-        params.width = placement.width
-        params.height = placement.height
-        display.layoutParams = params
-        fullAodPositioned = true
-        ModeDisplayViewFactory.bind(display.context, display, readState(display.context))
-        logger("full AOD placement: $placement")
-        return true
-    }
-
-    private fun scheduleOneShotPosition(root: FrameLayout, display: LinearLayout) {
-        clearPendingPreDraw()
-        val rootRef = WeakReference(root)
-        val displayRef = WeakReference(display)
-        val listener = ViewTreeObserver.OnPreDrawListener {
-            val currentRoot = rootRef.get()
-            val currentDisplay = displayRef.get()
-            clearPendingPreDraw()
-            if (currentRoot == null || currentDisplay == null || currentDisplay.parent !== currentRoot) {
-                return@OnPreDrawListener true
-            }
-            fullAodPositioned = positionFullAod(currentRoot, currentDisplay)
-            if (!fullAodPositioned) {
-                currentDisplay.visibility = View.INVISIBLE
-            }
-            true
-        }
-        val attachState = object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) = Unit
-
-            override fun onViewDetachedFromWindow(v: View) {
-                removeFullAodView()
-            }
-        }
-        pendingRootRef = rootRef
-        pendingPreDraw = listener
-        pendingAttachState = attachState
-        root.addOnAttachStateChangeListener(attachState)
-        root.viewTreeObserver.addOnPreDrawListener(listener)
-    }
-
-    private fun removeFullAodViewFromDifferentRoot(root: FrameLayout) {
-        val currentRoot = fullAodRootRef.get()
-        if (currentRoot != null && currentRoot !== root) {
-            removeFullAodView()
-        }
-    }
-
-    private fun removeFullAodView() {
-        clearPendingPreDraw()
-        val display = fullAodRef.get()
-        (display?.parent as? ViewGroup)?.removeView(display)
-        fullAodRef = WeakReference(null)
-        fullAodRootRef = WeakReference(null)
-        fullAodPositioned = false
-    }
-
-    private fun clearPendingPreDraw() {
-        val root = pendingRootRef.get()
-        val preDrawListener = pendingPreDraw
-        val attachStateListener = pendingAttachState
-        if (root != null) {
-            if (preDrawListener != null && root.viewTreeObserver.isAlive) {
-                root.viewTreeObserver.removeOnPreDrawListener(preDrawListener)
-            }
-            if (attachStateListener != null) {
-                root.removeOnAttachStateChangeListener(attachStateListener)
-            }
-        }
-        pendingRootRef = WeakReference(null)
-        pendingPreDraw = null
-        pendingAttachState = null
     }
 
     private fun ensureReceiverRegistered(context: Context) {
@@ -238,6 +259,8 @@ class ModeDisplayCoordinator(
     }
 
     companion object {
+        private const val DEPTH_GLIDE_DURATION_MS = 580L
+
         private fun screenBounds(view: View): DisplayBounds? {
             if (!view.isLaidOut || view.width <= 0 || view.height <= 0) return null
             val location = IntArray(2)
