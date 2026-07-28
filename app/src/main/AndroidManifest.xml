@@ -9,6 +9,9 @@
         android:protectionLevel="signature" />
     <uses-permission android:name="com.banana.hypermodes.permission.CONTROL" />
 
+    <!-- Update check against the GitHub releases API -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- Driving detection: car Bluetooth + motion (Activity Recognition) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
