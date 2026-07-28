@@ -1,8 +1,12 @@
 package com.banana.hypermodes.systemserver.config
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 
 /**
  * Parser for HyperModes configuration stored in Settings.Global.
@@ -23,7 +27,38 @@ object ConfigParser {
      * @throws kotlinx.serialization.SerializationException if JSON is invalid
      */
     fun parseConfig(jsonString: String): FullConfig {
-        return json.decodeFromString<FullConfig>(jsonString)
+        val tree = json.parseToJsonElement(jsonString)
+        return json.decodeFromJsonElement(FullConfig.serializer(), migrateLegacyDisplayConfigs(tree))
+    }
+
+    /**
+     * Configs written before tri-state display overrides (pre-v1.2) always encoded
+     * every display toggle as a boolean, where "false" meant "this mode does not
+     * touch the setting". In the tri-state schema false actively forces the setting
+     * off and null means "don't touch", so legacy booleans must be rewritten:
+     * darkMode true -> 1, false -> absent; toggle false -> absent, true -> kept.
+     * A boolean darkMode marks a display object as legacy (it is Int? since v1.2).
+     */
+    private fun migrateLegacyDisplayConfigs(root: JsonElement): JsonElement {
+        val obj = root as? JsonObject ?: return root
+        val modes = obj["modes"] as? JsonArray ?: return root
+        val migratedModes = modes.map { modeElement ->
+            val mode = modeElement as? JsonObject ?: return@map modeElement
+            val display = mode["display"] as? JsonObject ?: return@map modeElement
+            JsonObject(mode.toMutableMap().apply { put("display", migrateLegacyDisplay(display)) })
+        }
+        return JsonObject(obj.toMutableMap().apply { put("modes", JsonArray(migratedModes)) })
+    }
+
+    private fun migrateLegacyDisplay(display: JsonObject): JsonObject {
+        val legacyDarkMode = (display["darkMode"] as? JsonPrimitive)?.booleanOrNull
+            ?: return display // new format: darkMode is a number or null
+        val migrated = display.toMutableMap()
+        if (legacyDarkMode) migrated["darkMode"] = JsonPrimitive(1) else migrated.remove("darkMode")
+        for (key in listOf("grayscale", "keepScreenOff", "eyeCare", "enableRefreshRate")) {
+            if ((migrated[key] as? JsonPrimitive)?.booleanOrNull == false) migrated.remove(key)
+        }
+        return JsonObject(migrated)
     }
 
     /**

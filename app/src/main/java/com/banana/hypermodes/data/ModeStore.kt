@@ -37,7 +37,16 @@ object ModeStore {
     fun save(context: Context, modes: List<Mode>) {
         try {
             val existing = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
-                ?.let { ConfigParser.parseConfig(it) }
+                ?.let {
+                    // An unparseable stored config (e.g. from an incompatible schema)
+                    // must not discard the save - treat it as absent and overwrite.
+                    try {
+                        ConfigParser.parseConfig(it)
+                    } catch (e: Exception) {
+                        android.util.Log.w("ModeStore", "Stored config unparseable, overwriting", e)
+                        null
+                    }
+                }
 
             // Convert UI models to system_server config models
             val modeConfigs = modes.map { it.toModeConfig() }

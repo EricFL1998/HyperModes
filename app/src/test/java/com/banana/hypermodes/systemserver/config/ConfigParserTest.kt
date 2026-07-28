@@ -24,9 +24,8 @@ class ConfigParserTest {
                         "allowedApps": ["com.android.messaging", "com.google.android.apps.messaging"]
                     },
                     "display": {
-                        "darkMode": false,
+                        "darkMode": 0,
                         "grayscale": true,
-                        "dimWallpaper": false,
                         "keepScreenOff": false
                     },
                     "pausedApps": ["com.facebook.katana", "com.instagram.android"],
@@ -55,9 +54,8 @@ class ConfigParserTest {
         assertEquals(DndLevel.PRIORITY, mode.notification.dndLevel)
         assertEquals(2, mode.notification.allowedApps.size)
 
-        assertEquals(false, mode.display.darkMode)
+        assertEquals(0, mode.display.darkMode)
         assertEquals(true, mode.display.grayscale)
-        assertEquals(false, mode.display.dimWallpaper)
         assertEquals(false, mode.display.keepScreenOff)
 
         assertEquals(2, mode.pausedApps.size)
@@ -80,7 +78,7 @@ class ConfigParserTest {
                         "allowedApps": []
                     },
                     "display": {
-                        "darkMode": false,
+                        "darkMode": 0,
                         "grayscale": false
                     },
                     "pausedApps": [],
@@ -132,9 +130,8 @@ class ConfigParserTest {
                         allowedApps = emptyList()
                     ),
                     display = DisplayConfig(
-                        darkMode = true,
+                        darkMode = 1,
                         grayscale = true,
-                        dimWallpaper = false,
                         keepScreenOff = false
                     ),
                     pausedApps = emptyList(),
@@ -228,9 +225,8 @@ class ConfigParserTest {
                         "allowedApps": []
                     },
                     "display": {
-                        "darkMode": true,
+                        "darkMode": 1,
                         "grayscale": true,
-                        "dimWallpaper": false,
                         "keepScreenOff": false
                     },
                     "pausedApps": [],
@@ -253,5 +249,108 @@ class ConfigParserTest {
         assertEquals("22:00", mode.startTime)
         assertEquals("07:00", mode.endTime)
         assertEquals(ContactFilter.STARRED, mode.contactFilter)
+    }
+
+    @Test
+    fun testLegacyBooleanDisplayConfigMigrates() {
+        // Configs written before tri-state display overrides (pre-v1.2) always
+        // encoded every display toggle as a boolean, where "false" meant "this
+        // mode does not touch the setting" — not "force it off".
+        val json = """
+        {
+            "activeModeId": "bedtime",
+            "modes": [
+                {
+                    "id": "bedtime",
+                    "name": "Bedtime",
+                    "icon": "bedtime",
+                    "type": "BEDTIME",
+                    "notification": { "dndLevel": "PRIORITY", "allowedApps": [] },
+                    "display": {
+                        "darkMode": true,
+                        "grayscale": true,
+                        "dimWallpaper": false,
+                        "keepScreenOff": false,
+                        "eyeCare": false,
+                        "enableRefreshRate": false,
+                        "refreshRate": 60
+                    },
+                    "pausedApps": [],
+                    "contactFilter": "ALL"
+                },
+                {
+                    "id": "driving",
+                    "name": "Driving",
+                    "icon": "driving",
+                    "type": "DYNAMIC_TRIGGER",
+                    "notification": { "dndLevel": "NONE", "allowedApps": [] },
+                    "display": {
+                        "darkMode": false,
+                        "grayscale": false,
+                        "dimWallpaper": false,
+                        "keepScreenOff": false,
+                        "eyeCare": false,
+                        "enableRefreshRate": false,
+                        "refreshRate": 60
+                    },
+                    "pausedApps": [],
+                    "contactFilter": "ALL"
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val config = ConfigParser.parseConfig(json)
+
+        val bedtime = config.modes[0]
+        // darkMode was a plain on/off: "on" maps to Dark (1)
+        assertEquals(1, bedtime.display.darkMode)
+        assertEquals(true, bedtime.display.grayscale)
+        // "off" toggles meant "ignore", not "force off"
+        assertNull(bedtime.display.keepScreenOff)
+        assertNull(bedtime.display.eyeCare)
+        assertNull(bedtime.display.enableRefreshRate)
+
+        val driving = config.modes[1]
+        // darkMode "off" meant "ignore", not "force light"
+        assertNull(driving.display.darkMode)
+        assertNull(driving.display.grayscale)
+    }
+
+    @Test
+    fun testNewFormatExplicitFalsePreserved() {
+        // Tri-state configs deliberately store false ("force off"); the legacy
+        // migration must not rewrite them.
+        val json = """
+        {
+            "activeModeId": null,
+            "modes": [{
+                "id": "work",
+                "name": "Work",
+                "icon": "work",
+                "type": "SCHEDULED",
+                "notification": { "dndLevel": "PRIORITY", "allowedApps": [] },
+                "display": {
+                    "darkMode": 0,
+                    "grayscale": false,
+                    "eyeCare": false,
+                    "enableRefreshRate": false,
+                    "enableAod": false,
+                    "refreshRate": 120
+                },
+                "pausedApps": [],
+                "contactFilter": "ALL"
+            }]
+        }
+        """.trimIndent()
+
+        val display = ConfigParser.parseConfig(json).modes.single().display
+
+        assertEquals(0, display.darkMode)
+        assertEquals(false, display.grayscale)
+        assertEquals(false, display.eyeCare)
+        assertEquals(false, display.enableRefreshRate)
+        assertEquals(false, display.enableAod)
+        assertEquals(120, display.refreshRate)
     }
 }
