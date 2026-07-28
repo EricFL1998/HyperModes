@@ -158,12 +158,10 @@ fun HyperModesApp() {
     // persisted via ModeStore. Bedtime always sorts first.
     var modes by remember { mutableStateOf<List<Mode>>(emptyList()) }
     LaunchedEffect(Unit) {
-        modes = sortModes(
-            ModeStore.load(context) { DefaultModes.get() }.map {
-                // Bedtime's enabled flag mirrors the official DeskClock state
-                if (it.id == "bedtime") it.copy(enabled = DeskClockState.bedtimeActive) else it
-            }
-        )
+        // Card state mirrors the engine (activeModeId via ModeStore.load) —
+        // never DeskClock status directly, which races the command round trip
+        // and flaps the card until the backend catches up.
+        modes = sortModes(ModeStore.load(context) { DefaultModes.get() })
     }
 
     fun persistModes(updated: List<Mode>) {
@@ -172,18 +170,6 @@ fun HyperModesApp() {
         context.sendBroadcast(
             Intent(Protocol.ACTION_RESCHEDULE).setPackage(context.packageName)
         )
-    }
-
-    // Live-sync the bedtime card when the official state changes while the
-    // UI is alive (e.g. scheduled activation pushed by the DeskClock hook).
-    val bedtimeActive = DeskClockState.bedtimeActive
-    LaunchedEffect(bedtimeActive) {
-        val idx = modes.indexOfFirst { it.id == "bedtime" }
-        if (idx >= 0 && modes[idx].enabled != bedtimeActive) {
-            persistModes(modes.toMutableList().apply {
-                set(idx, modes[idx].copy(enabled = bedtimeActive))
-            })
-        }
     }
 
     fun upsertMode(mode: Mode) {

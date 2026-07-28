@@ -24,8 +24,11 @@ object DeskClockState {
     var reminderMinutes by mutableStateOf(15)
         private set
 
-    /** Whether the official DeskClock bedtime is active RIGHT NOW
-     *  (powerkeeper sleep mode / inZenMode), as pushed by the hook. */
+    /** Whether the official DeskClock bedtime is active RIGHT NOW, as pushed
+     *  by the hook. INFORMATIONAL ONLY — never write this into a mode's
+     *  `enabled` flag; mode state comes from the engine (activeModeId /
+     *  ACTION_MODE_STATE). Writing it into modes races the command round
+     *  trip and flaps the UI. */
     var bedtimeActive by mutableStateOf(false)
         private set
 
