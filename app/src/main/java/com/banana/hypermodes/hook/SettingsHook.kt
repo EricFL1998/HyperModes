@@ -107,7 +107,29 @@ class SettingsHook(private val module: XposedModule) {
             .getDeclaredConstructor().apply { isAccessible = true }.newInstance()
 
         Reflect.setObjectField(header, "id", OUR_HEADER_ID)
-        Reflect.setIntField(header, "iconRes", modesIconRes(context))
+        val nativeIcon = modesIconRes(context)
+        if (nativeIcon != 0) {
+            Reflect.setIntField(header, "iconRes", nativeIcon)
+        } else {
+            // Fallback to our module's icon which includes the background
+            try {
+                val modContext = context.createPackageContext(
+                    Protocol.MODULE_PACKAGE,
+                    Context.CONTEXT_IGNORE_SECURITY
+                )
+                val iconId = modContext.resources.getIdentifier(
+                    "ic_homepage_modes", "drawable", Protocol.MODULE_PACKAGE
+                )
+                if (iconId != 0) {
+                    val drawable = modContext.getDrawable(iconId)
+                    // Set the icon drawable directly since the resource ID won't resolve in Settings app
+                    Reflect.setObjectField(header, "icon", drawable)
+                    Reflect.setIntField(header, "iconRes", 0)
+                }
+            } catch (t: Throwable) {
+                log("Failed to load fallback icon: $t")
+            }
+        }
         Reflect.setObjectField(header, "title", modesTitle(context))
         Reflect.setObjectField(header, "summary", null)
         Reflect.setObjectField(header, "intent", Intent().apply {
