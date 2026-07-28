@@ -223,6 +223,14 @@ fun ModeDetailScreen(
                                 } else {
                                     ModeControlBridge.deactivateMode(context, editedMode.id)
                                 }
+                                // Bedtime's card mirrors the official DeskClock state,
+                                // which only settles after an async round trip through
+                                // system_server -> DeskClock -> back (seconds if the
+                                // DeskClock process has to cold-start). Update the mirror
+                                // optimistically; the query reply still reconciles truth.
+                                if (editedMode.id == "bedtime") {
+                                    DeskClockState.updateBedtimeActive(context, enabled)
+                                }
                                 onSave(editedMode)
                             },
                         contentAlignment = Alignment.Center

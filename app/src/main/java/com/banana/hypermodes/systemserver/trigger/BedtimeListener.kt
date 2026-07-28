@@ -152,16 +152,15 @@ class BedtimeListener(
         try {
             val currentMode = engine.getCurrentActiveMode()
             val bedtimeMode = findBedtimeMode()
+            val stateAt = lifecycle.explicitStateAt()
 
-            // Check if this bedtime mode was recently manually dismissed
+            // A manual dismiss only counts against broadcasts OLDER than itself:
+            // if the user turned the mode off after the last "bedtime on" signal
+            // arrived, that stale signal must not re-activate the mode. A fresh
+            // broadcast (new scheduled period, Clock-app toggle) is newer than
+            // the dismiss and does re-activate. Replaces the old fixed 60s window.
             val isManualDismissed = if (bedtimeMode != null) {
-                // For BEDTIME modes, we consider them "dismissed" if the dismiss happened 
-                // in the last few minutes and we haven't seen a new activation since then.
-                // RoutineCoreEngine already tracks dismissedScheduledModes.
-                // Since BEDTIME modes don't have a scheduled start time in the engine,
-                // we use a recent threshold (e.g. 1 minute) to prevent immediate re-activation
-                // by the ContentObserver before Settings.Secure has synced.
-                engine.isDismissedInCurrentPeriod(bedtimeMode.id, System.currentTimeMillis() - 60000)
+                engine.isDismissedInCurrentPeriod(bedtimeMode.id, stateAt)
             } else false
 
             log("Bedtime state check: active=$bedtimeActive, dismissed=$isManualDismissed, currentMode=${currentMode?.name}, bedtimeMode=${bedtimeMode?.name}")
@@ -182,6 +181,20 @@ class BedtimeListener(
             } else {
                 // Bedtime should be inactive (system bedtime is OFF)
                 if (currentMode != null && currentMode.type == ModeType.BEDTIME) {
+                    // Only trust an "off" that DeskClock explicitly broadcast
+                    // AFTER this mode was activated. The persisted fallback keys
+                    // are never written (stateAt==0), and an off-broadcast that
+                    // predates the activation is stale — acting on either would
+                    // kill a manually activated bedtime mode whose START_BEDTIME
+                    // push is still in flight.
+                    if (stateAt == 0L) {
+                        log("Bedtime state unknown (no broadcast yet); leaving active mode untouched")
+                        return
+                    }
+                    if (stateAt < engine.getCurrentModeActivatedAt()) {
+                        log("Ignoring stale bedtime-off state (predates mode activation)")
+                        return
+                    }
                     log("Deactivating bedtime mode (system state is OFF): ${currentMode.name}")
                     // system-driven deactivation is not a manual dismiss
                     engine.deactivateMode(currentMode.id, isManualDismiss = false)

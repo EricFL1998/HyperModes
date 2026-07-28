@@ -246,6 +246,38 @@ class BedtimeController(
     }
 
     /**
+     * Force-exit the CURRENTLY ACTIVE bedtime (user ended it mid-period, e.g.
+     * "skip once" while sleep mode is on). Unlike stopBedtime this must NOT call
+     * AlarmHelper.setZenMode: that helper re-ENTERS zen when still inside the
+     * sleep window. Here we exit zen unconditionally, wake powerkeeper, and
+     * re-arm tomorrow's reminder (skip is once-only, the schedule survives).
+     */
+    fun exitActiveBedtime(): List<StepResult> {
+        val results = mutableListOf<StepResult>()
+
+        runStep(results, "exitSleepMode (powerkeeper broadcast)") {
+            context.sendBroadcast(Intent(ACTION_REQUEST_WAKE).apply {
+                setPackage(POWERKEEPER_PACKAGE)
+                putExtra(EXTRA_REASON, REASON_DESK_CLOCK)
+            })
+        }
+
+        runStep(results, "exitZenMode") {
+            Reflect.callStatic(zenModeUtil, "exitZenMode", context)
+        }
+
+        runStep(results, "setSleepNotification") {
+            Reflect.callStatic(alarmHelper, "setSleepNotification", context)
+        }
+
+        // Sync with Android's AutomaticZenRule
+        disableAndroidBedtimeMode(results)
+
+        notifyMiHome(results)
+        return results
+    }
+
+    /**
      * Enable Android's native bedtime mode by activating AutomaticZenRule.
      * This makes other apps (Google Pixel Bedtime, Samsung Modes) aware of bedtime state.
      */

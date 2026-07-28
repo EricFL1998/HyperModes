@@ -27,6 +27,9 @@ object Protocol {
     const val ACTION_DISABLE_WAKE_ALARM = "com.banana.hypermodes.DISABLE_WAKE_ALARM"
     const val ACTION_SKIP_WAKE_ALARM_ONCE = "com.banana.hypermodes.SKIP_WAKE_ALARM_ONCE"
     const val ACTION_SET_SLEEP_REMINDER = "com.banana.hypermodes.SET_SLEEP_REMINDER"
+    /** Exit the live bedtime session WITHOUT touching the wake alarm schedule
+     * (manual turn-off outside the sleep window). */
+    const val ACTION_EXIT_BEDTIME = "com.banana.hypermodes.EXIT_BEDTIME"
     const val ACTION_DISABLE_BEDTIME = "com.banana.hypermodes.DISABLE_BEDTIME"
 
     // Engine (own process, manifest receivers)

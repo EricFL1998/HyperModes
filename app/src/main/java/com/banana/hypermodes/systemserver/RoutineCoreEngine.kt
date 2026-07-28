@@ -39,6 +39,12 @@ class RoutineCoreEngine private constructor() {
     private var classLoader: ClassLoader? = null
 
     private var currentActiveMode: ModeConfig? = null
+
+    /** When currentActiveMode was (re)activated (ms); 0 when no mode is active.
+     * BedtimeListener compares this against bedtime-state broadcast times to
+     * ignore stale state that predates the activation. */
+    private var currentModeActivatedAt: Long = 0L
+
     private var allModes: List<ModeConfig> = emptyList()
 
     @Volatile
@@ -198,6 +204,7 @@ class RoutineCoreEngine private constructor() {
                     log("Reverting active mode due to missing config: ${it.name}")
                     modeActionExecutor?.revertMode(it)
                     currentActiveMode = null
+                    currentModeActivatedAt = 0L
                 }
                 allModes = emptyList()
                 return
@@ -236,10 +243,19 @@ class RoutineCoreEngine private constructor() {
                         // Clear dismissal record when explicitly switching to this mode via config
                         clearDismissRecord(mode.id)
                         currentActiveMode = mode
+                        currentModeActivatedAt = System.currentTimeMillis()
                         modeActionExecutor?.applyMode(mode)
+                        // Manual UI activation comes through THIS config path, not
+                        // activateMode() — sync DeskClock bedtime here too, or the
+                        // official state stays off and the UI mirror flips the mode
+                        // back off seconds later.
+                        if (mode.type == ModeType.BEDTIME) {
+                            sendBedtimeActivateCommands()
+                        }
                     } else {
                         log("Active mode not found in config: ${config.activeModeId}")
                         currentActiveMode = null
+                        currentModeActivatedAt = 0L
                     }
                 } else {
                     log("Active mode unchanged: ${currentActiveMode?.name}")
@@ -265,16 +281,17 @@ class RoutineCoreEngine private constructor() {
                         }
 
                         // Mirror deactivateMode(): a manual bedtime dismiss via
-                        // Settings.Global must also tell DeskClock to skip the wake
-                        // alarm once, otherwise the official bedtime state stays
-                        // "on" and re-enables this mode (UI flips back to enabled).
+                        // Settings.Global must also tell DeskClock, otherwise the
+                        // official bedtime state stays "on" and re-enables this
+                        // mode (UI flips back to enabled).
                         if (activeMode.type == ModeType.BEDTIME) {
-                            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+                            sendBedtimeDisableCommand(activeMode)
                         }
                     }
                     log("Deactivating current mode: ${activeMode.name}")
                     modeActionExecutor?.revertMode(activeMode)
                     currentActiveMode = null
+                    currentModeActivatedAt = 0L
                 }
             }
 
@@ -333,11 +350,15 @@ class RoutineCoreEngine private constructor() {
 
         // Apply new mode
         currentActiveMode = mode
+        currentModeActivatedAt = System.currentTimeMillis()
         modeActionExecutor?.applyMode(mode)
 
-        // IF it's Bedtime mode, ensure DeskClock alarm is NOT skipped
+        // IF it's Bedtime mode, sync DeskClock: wake alarm armed, and push the
+        // official bedtime ON so the system state tracks this mode deliberately
+        // (BedtimeListener reconciles against that state; without it a manual
+        // activation reads as "bedtime off" and gets torn down again).
         if (mode.type == ModeType.BEDTIME) {
-            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_ENABLE_WAKE_ALARM)
+            sendBedtimeActivateCommands()
         }
 
         // Persist active mode to Settings.Global
@@ -376,6 +397,7 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor?.revertMode(mode)
 
         currentActiveMode = null
+        currentModeActivatedAt = 0L
 
         // Record dismiss timestamp ONLY for manual dismissals of scheduled or bedtime modes
         if (isManualDismiss && (mode.type == ModeType.SCHEDULED || mode.type == ModeType.BEDTIME)) {
@@ -383,9 +405,10 @@ class RoutineCoreEngine private constructor() {
             dismissedScheduledModes[modeId] = now
             log("Recorded manual dismiss for mode $modeId at timestamp $now")
 
-            // IF it's Bedtime mode, also tell DeskClock to skip the alarm
+            // IF it's Bedtime mode, also tell DeskClock to end the session
+            // (skip the wake alarm once when inside the sleep window)
             if (mode.type == ModeType.BEDTIME) {
-                sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+                sendBedtimeDisableCommand(mode)
             }
         }
 
@@ -441,12 +464,73 @@ class RoutineCoreEngine private constructor() {
         }
     }
 
+    /**
+     * Sync DeskClock when a bedtime mode is activated: wake alarm armed, and
+     * the official bedtime pushed ON so the system state tracks this mode
+     * (BedtimeListener and the app's status mirror reconcile against it).
+     */
+    private fun sendBedtimeActivateCommands() {
+        sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_ENABLE_WAKE_ALARM)
+        sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_START_BEDTIME)
+    }
+
+    /**
+     * Send the right DeskClock command for a manual bedtime turn-off.
+     * Inside the sleep window the pending wake alarm is skipped once (the user
+     * ended the night early, so tomorrow's alarm for this period is moot).
+     * Outside the window the mode was started manually — the alarm schedule
+     * must stay untouched, only the live session is exited.
+     */
+    private fun sendBedtimeDisableCommand(mode: ModeConfig) {
+        if (isInBedtimeWindow(mode)) {
+            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+        } else {
+            sendBedtimeCommand(com.banana.hypermodes.protocol.Protocol.ACTION_EXIT_BEDTIME)
+        }
+    }
+
+    /**
+     * True if now falls inside the bedtime mode's configured sleep window
+     * ([startTime, endTime), overnight windows supported, repeatDays respected;
+     * 1 = Monday .. 7 = Sunday). Unknown/unparseable schedule defaults to true,
+     * preserving the legacy in-schedule behavior.
+     */
+    private fun isInBedtimeWindow(mode: ModeConfig): Boolean {
+        val start = mode.startTime ?: return true
+        val end = mode.endTime ?: return true
+        return try {
+            val startT = java.time.LocalTime.parse(start)
+            val endT = java.time.LocalTime.parse(end)
+            if (startT == endT) return true
+            val now = java.time.LocalTime.now()
+            val today = java.time.LocalDate.now()
+            val repeat = mode.repeatDays
+            fun isRepeatDay(date: java.time.LocalDate) =
+                repeat == null || repeat.contains(date.dayOfWeek.value)
+            if (startT < endT) {
+                isRepeatDay(today) && !now.isBefore(startT) && now.isBefore(endT)
+            } else {
+                // Overnight window (e.g. 23:00 -> 07:00): after midnight the
+                // period belongs to yesterday's schedule day.
+                (!now.isBefore(startT) && isRepeatDay(today)) ||
+                        (now.isBefore(endT) && isRepeatDay(today.minusDays(1)))
+            }
+        } catch (e: Exception) {
+            log("isInBedtimeWindow parse failed ($start-$end): ${e.message}")
+            true
+        }
+    }
+
     private fun sendBedtimeCommand(action: String) {
         val context = systemContext ?: return
         try {
+            // No receiverPermission: PERMISSION_CONTROL is signature-level, so only
+            // this app can hold it — neither system_server (sender) nor DeskClock
+            // (receiver) can ever satisfy a permission check here. Passing it made
+            // the system silently drop every engine->DeskClock command.
             context.sendBroadcast(Intent(action).apply {
                 setPackage(com.banana.hypermodes.protocol.Protocol.TARGET_PACKAGE)
-            }, com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL)
+            })
             log("Sent command to DeskClock: $action")
         } catch (e: Exception) {
             log("Failed to send command to DeskClock: ${e.message}")
@@ -457,6 +541,9 @@ class RoutineCoreEngine private constructor() {
      * Get the currently active mode, or null if no mode is active.
      */
     fun getCurrentActiveMode(): ModeConfig? = currentActiveMode
+
+    /** When the current mode was activated (ms); 0 when no mode is active. */
+    fun getCurrentModeActivatedAt(): Long = currentModeActivatedAt
 
     /**
      * Check if a mode was manually dismissed during the current scheduled period.
@@ -574,6 +661,7 @@ class RoutineCoreEngine private constructor() {
             log("Reverting active mode for shutdown: ${it.name}")
             modeActionExecutor?.revertMode(it)
             currentActiveMode = null
+            currentModeActivatedAt = 0L
         }
 
         // 4. Send DeskClock disable command while the injected bridge may still be alive

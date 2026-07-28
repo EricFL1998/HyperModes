@@ -17,9 +17,10 @@ import io.github.libxposed.api.XposedModule
  * and after chain.proceed() the Application's base context is ready.
  * Registers the command receiver, then delegates to BedtimeController.
  *
- * The receiver must be RECEIVER_EXPORTED (sender is our app, a different uid)
- * and is guarded by our signature-level permission so only our app can
- * trigger it.
+ * The receiver must be RECEIVER_EXPORTED (senders are other uids: our app and
+ * system_server's RoutineCoreEngine). It is intentionally NOT guarded by the
+ * signature-level permission — system_server can never hold it, so the guard
+ * silently blocked the engine's bedtime commands.
  */
 class DeskClockHook(private val module: XposedModule) {
 
@@ -207,10 +208,22 @@ class DeskClockHook(private val module: XposedModule) {
                         val alarmId = chain.getArg(1) as? Int ?: 0
                         if (alarmId == Int.MIN_VALUE) {
                             log("Bedtime alarm skipped manually in DeskClock")
-                            // Notify HyperModes to turn OFF bedtime mode
-                            context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
-                                putExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
-                            })
+                            if (readInZenMode(context, classLoader, false)) {
+                                // Skip during an ACTIVE sleep period: skipping the
+                                // alarm alone leaves zen/powerkeeper sleep running
+                                // (and the UI flips back to enabled on next query).
+                                // Exit the current bedtime too; the hooked
+                                // exitZenMode pushes bedtime-inactive for us.
+                                val controller = BedtimeController(context, classLoader) { msg -> log(msg) }
+                                val steps = controller.exitActiveBedtime()
+                                log("skip during active bedtime -> exitActiveBedtime: ${steps.joinToString { it.format() }}")
+                            } else {
+                                // Daytime pre-skip: no active session, just notify
+                                // HyperModes to turn OFF bedtime mode.
+                                context.sendBroadcast(Intent(Protocol.ACTION_BEDTIME_ACTIVE).apply {
+                                    putExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
+                                })
+                            }
                         }
                     } catch (t: Throwable) {
                         log("skip hook broadcast failed: $t")
@@ -295,6 +308,7 @@ class DeskClockHook(private val module: XposedModule) {
                     Protocol.ACTION_ENABLE_WAKE_ALARM -> controller.enableWakeAlarm()
                     Protocol.ACTION_DISABLE_WAKE_ALARM -> controller.disableWakeAlarm()
                     Protocol.ACTION_SKIP_WAKE_ALARM_ONCE -> controller.skipWakeAlarmOnce()
+                    Protocol.ACTION_EXIT_BEDTIME -> controller.exitActiveBedtime()
                     Protocol.ACTION_SET_SLEEP_REMINDER -> controller.setSleepReminder(
                         intent.getIntExtra(Protocol.EXTRA_REMINDER_MINUTES, 15)
                     )
@@ -327,6 +341,7 @@ class DeskClockHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_ENABLE_WAKE_ALARM)
             addAction(Protocol.ACTION_DISABLE_WAKE_ALARM)
             addAction(Protocol.ACTION_SKIP_WAKE_ALARM_ONCE)
+            addAction(Protocol.ACTION_EXIT_BEDTIME)
             addAction(Protocol.ACTION_SET_SLEEP_REMINDER)
             addAction(Protocol.ACTION_DISABLE_BEDTIME)
             addAction(Protocol.ACTION_QUERY_STATE)
@@ -335,7 +350,11 @@ class DeskClockHook(private val module: XposedModule) {
         }
         app.registerReceiver(
             receiver, filter,
-            Protocol.PERMISSION_CONTROL, null,
+            // No broadcastPermission: PERMISSION_CONTROL is signature-level and can
+            // only be held by our own app — system_server (RoutineCoreEngine) could
+            // never pass that check, which silently killed every engine->DeskClock
+            // command. Exported is required since senders are other uids.
+            null, null,
             Context.RECEIVER_EXPORTED
         )
         log("command receiver registered in DeskClock")
@@ -349,12 +368,20 @@ class DeskClockHook(private val module: XposedModule) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as? android.app.NotificationManager ?: return emptyList()
 
-        // Check if any AutomaticZenRule with "bedtime" in name is active
+        // Check if any EXTERNAL AutomaticZenRule with "bedtime" in name is FIRING.
+        // Two guards against self-triggering (this runs on every interruption-
+        // filter change, including our own DND apply/revert):
+        //  1. Exclude our own "HyperModes Bedtime" rule — it is created
+        //     setEnabled(true) permanently, so an enabled-check alone always
+        //     matched it and restarted bedtime right after every manual turn-off.
+        //  2. Require the rule's condition to actually be STATE_TRUE (firing),
+        //     not merely enabled.
         val rules = notificationManager.automaticZenRules ?: return emptyList()
         val bedtimeActive = rules.values.any { rule ->
             rule.isEnabled &&
                     rule.name.contains("bedtime", ignoreCase = true) &&
-                    rule.conditionId != null
+                    !rule.name.contains("hypermodes", ignoreCase = true) &&
+                    isRuleFiring(rule)
         }
 
         val currentlyInSleep = controller.querySleepModeState()
@@ -371,6 +398,22 @@ class DeskClockHook(private val module: XposedModule) {
         }
 
         return emptyList()
+    }
+
+    /**
+     * True if the rule's condition is currently STATE_TRUE (i.e. the rule is
+     * firing, not just enabled). AutomaticZenRule.getCondition() is @SystemApi —
+     * absent from the compile-time android.jar, but callable via reflection
+     * inside DeskClock, which as a system app passes hidden-API enforcement.
+     * Falls back to "has a conditionId" so external rules still register if the
+     * lookup ever fails.
+     */
+    private fun isRuleFiring(rule: android.app.AutomaticZenRule): Boolean = try {
+        val condition = rule.javaClass.getMethod("getCondition").invoke(rule)
+            as? android.service.notification.Condition
+        condition?.state == android.service.notification.Condition.STATE_TRUE
+    } catch (t: Throwable) {
+        rule.conditionId != null
     }
 
     private fun sendResult(
