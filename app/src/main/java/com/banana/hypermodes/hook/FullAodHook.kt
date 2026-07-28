@@ -36,40 +36,36 @@ class FullAodHook(
         }
     }
 
-    // The native Full-AOD transition entry point. Captures the notification
-    // panel (the view that stays visible and inherits burn-in translation) and
-    // the depth-video flag that decides whether the panel itself is scaled.
+    // Diagnostic hook on the native Full-AOD transition entry point. Kept as a
+    // transition marker in the logs; the parking host is captured from the
+    // aod_root_view ancestor chain instead (see hookDreamingStarted).
     private fun hookLinkageAnim(classLoader: ClassLoader) {
         try {
             val controllerClass = classLoader.loadClass(
                 "com.android.keyguard.panel.KeyguardPanelViewController"
             )
-            val method = controllerClass.getDeclaredMethod(
-                "linkageViewAnim\$default",
-                controllerClass,
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-                Int::class.javaPrimitiveType
-            )
-            module.hook(method)
-                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                .intercept(object : XposedInterface.Hooker {
-                    override fun intercept(chain: XposedInterface.Chain): Any? {
-                        val result = chain.proceed()
-                        try {
-                            val controller = HookUtils.getArgs(chain).getOrNull(0)
-                                ?: return result
-                            val panel = Reflect.getField(controller, "notificationPanelView")
-                                as? android.view.ViewGroup
-                            val depth = Reflect.getField(controller, "depthVideoEnable") as? Boolean
-                                ?: false
-                            coordinator.updatePanelHost(panel, depth)
-                        } catch (t: Throwable) {
-                            log("linkageViewAnim panel capture failed: ${t.message}")
+            // linkageViewAnim$default is a Kotlin default-args synthetic: the
+            // real bytecode carries extra mask/marker params that decompilers
+            // hide, so match by name instead of an exact signature.
+            val methods = controllerClass.declaredMethods.filter {
+                it.name == "linkageViewAnim\$default"
+            }
+            if (methods.isEmpty()) {
+                log("linkageViewAnim\$default not found")
+                return
+            }
+            methods.forEach { method ->
+                module.hook(method)
+                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                    .intercept(object : XposedInterface.Hooker {
+                        override fun intercept(chain: XposedInterface.Chain): Any? {
+                            val result = chain.proceed()
+                            log("linkageViewAnim fired")
+                            return result
                         }
-                        return result
-                    }
-                })
+                    })
+            }
+            log("linkageViewAnim hook installed on ${methods.size} method(s)")
         } catch (t: Throwable) {
             log("linkageViewAnim hook failed: ${t.message}")
         }
@@ -90,6 +86,18 @@ class FullAodHook(
                             ?: return result
                         val fullAod = FullAodSignal.isFullAod(root)
                         log("onDreamingStarted: fullAod=$fullAod root=$root")
+                        logViewChain(root)
+                        // The aod_root_view's only persistent ancestor is the
+                        // shade window root (see the chain log): it stays
+                        // visible and unfaded through the whole transition,
+                        // unlike the bottom area (fades) or aod_root_view
+                        // (GONE until steady AOD). It is never scaled by the
+                        // native animation, so the coordinator always mirrors
+                        // the shrink with its glide path (isDepthMode = true).
+                        coordinator.updatePanelHost(
+                            root.parent as? android.view.ViewGroup,
+                            isDepthMode = true
+                        )
                         coordinator.onFullAodStarted(fullAod)
                     } catch (t: Throwable) {
                         log("onDreamingStarted handling failed: ${t.message}")
@@ -97,6 +105,29 @@ class FullAodHook(
                     return result
                 }
             })
+    }
+
+    // Diagnostic: walk the aod_root_view ancestor chain so we can pick a host
+    // that stays visible through the whole lockscreen->AOD transition without
+    // depending on controller internals.
+    private fun logViewChain(root: View) {
+        try {
+            val sb = StringBuilder("aod view chain: ")
+            var current: Any? = root
+            var depth = 0
+            while (current is View && depth < 15) {
+                sb.append(
+                    "[${current.javaClass.simpleName} id=${current.id} " +
+                        "vis=${current.visibility} ${current.width}x${current.height}]"
+                )
+                current = current.parent
+                depth++
+            }
+            sb.append(" top=${current?.javaClass?.simpleName}")
+            log(sb.toString())
+        } catch (t: Throwable) {
+            log("view chain log failed: ${t.message}")
+        }
     }
 
     private fun hookDreamingStopped(serviceClass: Class<*>) {
@@ -136,6 +167,7 @@ class FullAodHook(
 
     private fun log(message: String) {
         module.log(android.util.Log.WARN, TAG, message)
+        android.util.Log.w(TAG, message)
     }
 
     companion object {

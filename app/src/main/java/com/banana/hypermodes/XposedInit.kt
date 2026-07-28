@@ -23,6 +23,7 @@ class XposedInit : XposedModule() {
     private val modeDisplayCoordinator by lazy {
         ModeDisplayCoordinator { message ->
             log(Log.WARN, "HyperModes.ModeDisplay", message)
+            Log.w("HyperModes.ModeDisplay", message)
         }
     }
     private val lockscreenHook by lazy { LockscreenHook(this, modeDisplayCoordinator) }

@@ -57,7 +57,12 @@ class ModeDisplayCoordinator(
         if (previous !== view) {
             val listener = View.OnLayoutChangeListener { current, _, _, _, _, _, _, _, _ ->
                 if (!isParked()) {
-                    captureLockscreenBounds(current, clearWhenUnavailable = true)
+                    // Keep the last good bounds when a read fails (e.g. the
+                    // view is momentarily unlaid-out right after a restore);
+                    // otherwise a doze restart without a lockscreen showing in
+                    // between would have no position to park at. A genuinely
+                    // new view clears stale bounds in the attach path above.
+                    captureLockscreenBounds(current, clearWhenUnavailable = false)
                 }
             }
             view.addOnLayoutChangeListener(listener)
@@ -121,19 +126,25 @@ class ModeDisplayCoordinator(
             logger("park skipped: panel not laid out")
             return
         }
-        captureLockscreenBounds(view)
-        val bounds = lastLockscreenBounds ?: run {
-            logger("park skipped: no lockscreen bounds")
-            return
-        }
-
         if (view.parent === panel) {
-            reassertParked(view, panel, bounds)
+            val parkedBounds = lastLockscreenBounds ?: run {
+                logger("reassert skipped: no lockscreen bounds")
+                return
+            }
+            reassertParked(view, panel, parkedBounds)
             return
         }
 
         val homeParent = view.parent as? ViewGroup ?: run {
             logger("park skipped: display has no parent")
+            return
+        }
+        // Use the last steady-lockscreen bounds. By dream start the bottom area
+        // is already mid-transition, so a fresh on-screen read would be
+        // distorted, and once parked a fresh read would describe the panel
+        // position rather than the lockscreen home.
+        val bounds = lastLockscreenBounds ?: run {
+            logger("park skipped: no lockscreen bounds")
             return
         }
         val raw = ModeDisplayPositioner.calculateRaw(bounds, panelBounds(panel)) ?: run {
@@ -147,7 +158,11 @@ class ModeDisplayCoordinator(
         params.leftMargin = raw.x
         params.topMargin = raw.y
         panel.addView(view, params)
-        logger("display parked in panel at raw $raw depthMode=$depthMode")
+        val applied = view.layoutParams as? FrameLayout.LayoutParams
+        logger(
+            "display parked in panel at raw $raw depthMode=$depthMode " +
+                "appliedMargins=(${applied?.leftMargin}, ${applied?.topMargin})"
+        )
 
         if (depthMode) {
             // Depth-video mode scales only the bottom area and status bar, not

@@ -100,5 +100,6 @@ class LockscreenHook(
 
     private fun log(msg: String) {
         module.log(android.util.Log.WARN, TAG, msg)
+        android.util.Log.w(TAG, msg)
     }
 }
