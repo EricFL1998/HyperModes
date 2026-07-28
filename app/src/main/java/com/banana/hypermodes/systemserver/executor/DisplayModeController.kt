@@ -49,6 +49,14 @@ class DisplayModeController(private val context: Context) {
         try {
             // Apply dark mode
             if (display.darkMode) {
+                val cr = context.contentResolver
+                // HyperOS tracks dark mode through its own switch (dark_mode_enable)
+                // with DarkModeStatusTracker driving the visible flip. Writing it
+                // directly triggers the tracker immediately — going through
+                // UiModeManager alone leaves the flip deferred to the next screen-off.
+                saveOriginal(KEY_ORIG_DARK_ENABLE, Settings.System.getInt(cr, DARK_MODE_ENABLE, 0))
+                Settings.System.putInt(cr, DARK_MODE_ENABLE, 1)
+                Settings.System.putInt(cr, DARK_MODE_SWITCH_NOW, 1)
                 val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
                 saveOriginal(KEY_ORIG_NIGHT_MODE, uiModeManager.nightMode)
                 uiModeManager.nightMode = UiModeManager.MODE_NIGHT_YES
@@ -117,6 +125,13 @@ class DisplayModeController(private val context: Context) {
             val cr = context.contentResolver
 
             // Restore dark mode
+            takeOriginal(KEY_ORIG_DARK_ENABLE)?.let { original ->
+                // Restore the HyperOS dark switch and poke dark_mode_switch_now so
+                // DarkModeStatusTracker applies the flip NOW instead of at the
+                // next screen-off (the lock-once-to-go-light symptom).
+                Settings.System.putInt(cr, DARK_MODE_ENABLE, original)
+                Settings.System.putInt(cr, DARK_MODE_SWITCH_NOW, 1)
+            }
             takeOriginal(KEY_ORIG_NIGHT_MODE)?.let { original ->
                 val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
                 uiModeManager.nightMode = original
@@ -197,6 +212,9 @@ class DisplayModeController(private val context: Context) {
         private const val TAG = "DisplayModeController"
 
         private const val KEY_ORIG_NIGHT_MODE = "hypermodes_orig_night_mode"
+        private const val KEY_ORIG_DARK_ENABLE = "hypermodes_orig_dark_enable"
+        private const val DARK_MODE_ENABLE = "dark_mode_enable"
+        private const val DARK_MODE_SWITCH_NOW = "dark_mode_switch_now"
         private const val KEY_ORIG_DALTONIZER_ENABLED = "hypermodes_orig_daltonizer_enabled"
         private const val KEY_ORIG_DALTONIZER = "hypermodes_orig_daltonizer"
         private const val KEY_ORIG_PWM = "hypermodes_orig_mimotion_pwm"
