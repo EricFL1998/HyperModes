@@ -20,6 +20,11 @@ import com.banana.hypermodes.systemserver.config.DisplayConfig
  */
 class DisplayModeController(private val context: Context) {
 
+    private var originalDarkMode: Int? = null
+    private var originalGrayscaleEnabled: Int? = null
+    private var originalGrayscaleMode: Int? = null
+    private var originalAdaptiveRefreshRatePro: Int? = null
+    private var originalEyeCare: Int? = null
     private var originalRefreshRate: Int? = null
 
     /**
@@ -32,22 +37,24 @@ class DisplayModeController(private val context: Context) {
             // Apply dark mode
             if (display.darkMode) {
                 val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+                if (originalDarkMode == null) {
+                    originalDarkMode = uiModeManager.nightMode
+                    log("apply: saved original dark mode: $originalDarkMode")
+                }
                 uiModeManager.nightMode = UiModeManager.MODE_NIGHT_YES
                 log("apply: enabled dark mode")
             }
 
             // Apply grayscale
             if (display.grayscale) {
-                Settings.Secure.putInt(
-                    context.contentResolver,
-                    "accessibility_display_daltonizer_enabled",
-                    1
-                )
-                Settings.Secure.putInt(
-                    context.contentResolver,
-                    "accessibility_display_daltonizer",
-                    0  // 0 = grayscale mode
-                )
+                val cr = context.contentResolver
+                if (originalGrayscaleEnabled == null) {
+                    originalGrayscaleEnabled = Settings.Secure.getInt(cr, "accessibility_display_daltonizer_enabled", 0)
+                    originalGrayscaleMode = Settings.Secure.getInt(cr, "accessibility_display_daltonizer", 0)
+                    log("apply: saved original grayscale: enabled=$originalGrayscaleEnabled, mode=$originalGrayscaleMode")
+                }
+                Settings.Secure.putInt(cr, "accessibility_display_daltonizer_enabled", 1)
+                Settings.Secure.putInt(cr, "accessibility_display_daltonizer", 0) // 0 = grayscale
                 log("apply: enabled grayscale")
             }
 
@@ -62,29 +69,30 @@ class DisplayModeController(private val context: Context) {
             // Apply Adaptive Refresh Rate Pro (mimotion_pwm_enable)
             display.adaptiveRefreshRatePro?.let { enabled ->
                 if (isAdaptiveRefreshRateProSupported()) {
-                    Settings.Secure.putInt(
-                        context.contentResolver,
-                        "mimotion_pwm_enable",
-                        if (enabled) 2 else 1
-                    )
+                    val cr = context.contentResolver
+                    if (originalAdaptiveRefreshRatePro == null) {
+                        originalAdaptiveRefreshRatePro = Settings.Secure.getInt(cr, "mimotion_pwm_enable", 1)
+                        log("apply: saved original adaptiveRefreshRatePro: $originalAdaptiveRefreshRatePro")
+                    }
+                    Settings.Secure.putInt(cr, "mimotion_pwm_enable", if (enabled) 2 else 1)
                     log("apply: set adaptiveRefreshRatePro to $enabled")
                 }
             }
 
             // Apply Eye Care (screen_paper_mode_enabled)
             if (display.eyeCare) {
-                Settings.System.putInt(
-                    context.contentResolver,
-                    "screen_paper_mode_enabled",
-                    1
-                )
+                val cr = context.contentResolver
+                if (originalEyeCare == null) {
+                    originalEyeCare = Settings.System.getInt(cr, "screen_paper_mode_enabled", 0)
+                    log("apply: saved original eyeCare: $originalEyeCare")
+                }
+                Settings.System.putInt(cr, "screen_paper_mode_enabled", 1)
                 log("apply: enabled eyeCare")
             }
 
             // Apply custom Refresh Rate (user_refresh_rate)
             if (display.enableRefreshRate) {
                 val cr = context.contentResolver
-                // Save current refresh rate if not already saved
                 if (originalRefreshRate == null) {
                     originalRefreshRate = Settings.Secure.getInt(cr, "user_refresh_rate", 60)
                     log("apply: saved original refresh rate: $originalRefreshRate")
@@ -100,44 +108,48 @@ class DisplayModeController(private val context: Context) {
     }
 
     /**
-     * Restore default display settings by disabling dark mode and grayscale.
+     * Restore default display settings by reverting to saved original values.
      */
     fun restore() {
         try {
-            // Restore dark mode to auto
-            val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-            uiModeManager.nightMode = UiModeManager.MODE_NIGHT_AUTO
-            log("restore: reset dark mode to auto")
+            val cr = context.contentResolver
 
-            // Disable grayscale
-            Settings.Secure.putInt(
-                context.contentResolver,
-                "accessibility_display_daltonizer_enabled",
-                0
-            )
-            log("restore: disabled grayscale")
-
-            // Restore Adaptive Refresh Rate Pro to default (disabled/1)
-            if (isAdaptiveRefreshRateProSupported()) {
-                Settings.Secure.putInt(
-                    context.contentResolver,
-                    "mimotion_pwm_enable",
-                    1
-                )
-                log("restore: reset adaptiveRefreshRatePro to default")
+            // Restore dark mode
+            originalDarkMode?.let { original ->
+                val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+                uiModeManager.nightMode = original
+                log("restore: reverted dark mode to $original")
+                originalDarkMode = null
             }
 
-            // Restore Eye Care to default (disabled/0)
-            Settings.System.putInt(
-                context.contentResolver,
-                "screen_paper_mode_enabled",
-                0
-            )
-            log("restore: disabled eyeCare")
+            // Restore grayscale
+            if (originalGrayscaleEnabled != null) {
+                Settings.Secure.putInt(cr, "accessibility_display_daltonizer_enabled", originalGrayscaleEnabled!!)
+                if (originalGrayscaleMode != null) {
+                    Settings.Secure.putInt(cr, "accessibility_display_daltonizer", originalGrayscaleMode!!)
+                }
+                log("restore: reverted grayscale to enabled=$originalGrayscaleEnabled, mode=$originalGrayscaleMode")
+                originalGrayscaleEnabled = null
+                originalGrayscaleMode = null
+            }
+
+            // Restore Adaptive Refresh Rate Pro
+            originalAdaptiveRefreshRatePro?.let { original ->
+                Settings.Secure.putInt(cr, "mimotion_pwm_enable", original)
+                log("restore: reverted adaptiveRefreshRatePro to $original")
+                originalAdaptiveRefreshRatePro = null
+            }
+
+            // Restore Eye Care
+            originalEyeCare?.let { original ->
+                Settings.System.putInt(cr, "screen_paper_mode_enabled", original)
+                log("restore: reverted eyeCare to $original")
+                originalEyeCare = null
+            }
 
             // Restore Refresh Rate
             originalRefreshRate?.let { original ->
-                Settings.Secure.putInt(context.contentResolver, "user_refresh_rate", original)
+                Settings.Secure.putInt(cr, "user_refresh_rate", original)
                 log("restore: reverted refresh rate to $original")
                 originalRefreshRate = null
             }
