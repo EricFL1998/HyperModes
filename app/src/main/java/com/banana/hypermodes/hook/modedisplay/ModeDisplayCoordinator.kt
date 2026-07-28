@@ -4,6 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -31,6 +35,7 @@ class ModeDisplayCoordinator(
     private var lastLockscreenBounds: DisplayBounds? = null
     private var receiverRegistered = false
     private var receiver: BroadcastReceiver? = null
+    private var settingsObserver: ContentObserver? = null
 
     private var panelRef = WeakReference<ViewGroup>(null)
     private var depthMode = false
@@ -69,6 +74,7 @@ class ModeDisplayCoordinator(
             lockscreenLayoutListener = listener
         }
         ensureReceiverRegistered(view.context)
+        ensureSettingsObserver(view.context)
         refresh(view.context)
         logger("lockscreen attached: view=$view")
     }
@@ -264,6 +270,31 @@ class ModeDisplayCoordinator(
         if (bounds != lastLockscreenBounds) {
             lastLockscreenBounds = bounds
             logger("lockscreen bounds: $bounds")
+        }
+    }
+
+    // The engine writes Settings.Global on every activation/deactivation, and
+    // that push reaches SystemUI even when the mode-state broadcast does not
+    // (steady AOD has no frequent dream pulses to fall back on).
+    private fun ensureSettingsObserver(context: Context) {
+        if (settingsObserver != null) return
+        val appContext = context.applicationContext ?: context
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                refresh(appContext)
+            }
+        }
+        runCatching {
+            appContext.contentResolver.registerContentObserver(
+                Settings.Global.getUriFor(ModeDisplayStateReader.CONFIG_KEY),
+                false,
+                observer
+            )
+        }.onSuccess {
+            settingsObserver = observer
+            logger("settings observer registered")
+        }.onFailure {
+            logger("settings observer registration failed: ${it.message}")
         }
     }
 
