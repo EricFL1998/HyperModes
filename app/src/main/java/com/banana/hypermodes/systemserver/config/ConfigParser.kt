@@ -3,6 +3,7 @@ package com.banana.hypermodes.systemserver.config
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -39,15 +40,42 @@ object ConfigParser {
      * darkMode true -> 1, false -> absent; toggle false -> absent, true -> kept.
      * A boolean darkMode marks a display object as legacy (it is Int? since v1.2).
      */
+    /**
+     * Rewrite legacy config shapes so they decode into the current schema:
+     * - pre-v1.2: display toggles were always-encoded booleans (see below)
+     * - v1.2: raise-to-wake / wake-for-notifications lived under "device"
+     */
     private fun migrateLegacyDisplayConfigs(root: JsonElement): JsonElement {
         val obj = root as? JsonObject ?: return root
         val modes = obj["modes"] as? JsonArray ?: return root
         val migratedModes = modes.map { modeElement ->
-            val mode = modeElement as? JsonObject ?: return@map modeElement
-            val display = mode["display"] as? JsonObject ?: return@map modeElement
-            JsonObject(mode.toMutableMap().apply { put("display", migrateLegacyDisplay(display)) })
+            (modeElement as? JsonObject)?.let { migrateMode(it) } ?: modeElement
         }
         return JsonObject(obj.toMutableMap().apply { put("modes", JsonArray(migratedModes)) })
+    }
+
+    private fun migrateMode(mode: JsonObject): JsonObject {
+        val fields = mode.toMutableMap()
+        (fields["display"] as? JsonObject)?.let { fields["display"] = migrateLegacyDisplay(it) }
+        hoistV12DeviceWakeKeys(fields)
+        return JsonObject(fields)
+    }
+
+    /**
+     * v1.2 stored raise-to-wake and wake-for-notifications under "device"; v1.3
+     * moved them into "display". Hoist non-null values so existing configs keep
+     * them; a value already present in "display" wins.
+     */
+    private fun hoistV12DeviceWakeKeys(fields: MutableMap<String, JsonElement>) {
+        val device = fields["device"] as? JsonObject ?: return
+        val display = (fields["display"] as? JsonObject)?.toMutableMap() ?: return
+        val deviceFields = device.toMutableMap()
+        for (key in listOf("enableRaiseToWake", "enableWakeForNotifications")) {
+            val value = deviceFields.remove(key) ?: continue
+            if (value !is JsonNull) display.putIfAbsent(key, value)
+        }
+        fields["display"] = JsonObject(display)
+        fields["device"] = JsonObject(deviceFields)
     }
 
     private fun migrateLegacyDisplay(display: JsonObject): JsonObject {

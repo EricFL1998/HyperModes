@@ -25,8 +25,7 @@ class ConfigParserTest {
                     },
                     "display": {
                         "darkMode": 0,
-                        "grayscale": true,
-                        "keepScreenOff": false
+                        "grayscale": true
                     },
                     "pausedApps": ["com.facebook.katana", "com.instagram.android"],
                     "contactFilter": "STARRED"
@@ -56,7 +55,6 @@ class ConfigParserTest {
 
         assertEquals(0, mode.display.darkMode)
         assertEquals(true, mode.display.grayscale)
-        assertEquals(false, mode.display.keepScreenOff)
 
         assertEquals(2, mode.pausedApps.size)
         assertEquals(ContactFilter.STARRED, mode.contactFilter)
@@ -131,8 +129,7 @@ class ConfigParserTest {
                     ),
                     display = DisplayConfig(
                         darkMode = 1,
-                        grayscale = true,
-                        keepScreenOff = false
+                        grayscale = true
                     ),
                     pausedApps = emptyList(),
                     contactFilter = ContactFilter.STARRED
@@ -307,7 +304,6 @@ class ConfigParserTest {
         assertEquals(1, bedtime.display.darkMode)
         assertEquals(true, bedtime.display.grayscale)
         // "off" toggles meant "ignore", not "force off"
-        assertNull(bedtime.display.keepScreenOff)
         assertNull(bedtime.display.eyeCare)
         assertNull(bedtime.display.enableRefreshRate)
 
@@ -352,5 +348,44 @@ class ConfigParserTest {
         assertEquals(false, display.enableRefreshRate)
         assertEquals(false, display.enableAod)
         assertEquals(120, display.refreshRate)
+    }
+
+    @Test
+    fun testV12DeviceWakeKeysMoveToDisplay() {
+        // v1.2 stored raise-to-wake / wake-for-notifications under "device";
+        // v1.3 moved them into "display". The values must follow the move,
+        // including explicit false ("force off").
+        val json = """
+        {
+            "activeModeId": null,
+            "modes": [{
+                "id": "work",
+                "name": "Work",
+                "icon": "work",
+                "type": "SCHEDULED",
+                "notification": { "dndLevel": "PRIORITY", "allowedApps": [] },
+                "display": {
+                    "darkMode": 1,
+                    "grayscale": true
+                },
+                "device": {
+                    "performanceMode": 1,
+                    "enable5g": false,
+                    "enableRaiseToWake": true,
+                    "enableWakeForNotifications": false
+                },
+                "pausedApps": [],
+                "contactFilter": "ALL"
+            }]
+        }
+        """.trimIndent()
+
+        val mode = ConfigParser.parseConfig(json).modes.single()
+
+        assertEquals(true, mode.display.enableRaiseToWake)
+        assertEquals(false, mode.display.enableWakeForNotifications)
+        // keys that belong to device stay in device
+        assertEquals(1, mode.device?.performanceMode)
+        assertEquals(false, mode.device?.enable5g)
     }
 }
