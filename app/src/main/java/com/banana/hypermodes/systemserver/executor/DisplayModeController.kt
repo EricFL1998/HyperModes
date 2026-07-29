@@ -57,6 +57,20 @@ class DisplayModeController(private val context: Context) {
                 log("apply: set AOD to $enabled")
             }
 
+            // Raise to Wake
+            display.enableRaiseToWake?.let { enabled ->
+                saveOriginal(KEY_ORIG_GESTURE_WAKEUP, Settings.System.getInt(cr, GESTURE_WAKEUP, 0))
+                Settings.System.putInt(cr, GESTURE_WAKEUP, if (enabled) 1 else 0)
+                log("apply: set raiseToWake to $enabled")
+            }
+
+            // Wake for Notifications
+            display.enableWakeForNotifications?.let { enabled ->
+                saveOriginal(KEY_ORIG_WAKEUP_FOR_NOTIFICATION, Settings.System.getInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, 0))
+                Settings.System.putInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, if (enabled) 1 else 0)
+                log("apply: set wakeForNotifications to $enabled")
+            }
+
             // Adaptive Refresh Rate Pro
             display.adaptiveRefreshRatePro?.let { enabled ->
                 if (isAdaptiveRefreshRateProSupported()) {
@@ -112,6 +126,14 @@ class DisplayModeController(private val context: Context) {
                 Settings.Secure.putInt(cr, "aod_mode", original)
             }
 
+            takeOriginal(KEY_ORIG_GESTURE_WAKEUP)?.let { original ->
+                Settings.System.putInt(cr, GESTURE_WAKEUP, original)
+            }
+
+            takeOriginal(KEY_ORIG_WAKEUP_FOR_NOTIFICATION)?.let { original ->
+                Settings.System.putInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, original)
+            }
+
             takeOriginal(KEY_ORIG_PWM)?.let { original ->
                 Settings.Secure.putInt(cr, "mimotion_pwm_enable", original)
             }
@@ -162,5 +184,10 @@ class DisplayModeController(private val context: Context) {
         private const val KEY_ORIG_PAPER = "hypermodes_orig_paper_mode"
         private const val KEY_ORIG_REFRESH = "hypermodes_orig_refresh_rate"
         private const val KEY_ORIG_AOD_MODE = "hypermodes_orig_aod_mode"
+        private const val KEY_ORIG_GESTURE_WAKEUP = "hypermodes_orig_gesture_wakeup"
+        private const val KEY_ORIG_WAKEUP_FOR_NOTIFICATION = "hypermodes_orig_wakeup_for_notification"
+
+        private const val GESTURE_WAKEUP = "gesture_wakeup"
+        private const val WAKEUP_FOR_KEYGUARD_NOTIFICATION = "wakeup_for_keyguard_notification"
     }
 }

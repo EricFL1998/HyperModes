@@ -104,6 +104,10 @@
     <string name="performance_power_save">省电模式</string>
     <string name="five_g_network">5G 网络</string>
     <string name="five_g_network_desc">开启或关闭 5G 网络</string>
+    <string name="wifi_control">WLAN</string>
+    <string name="wifi_control_desc">开启或关闭 WLAN</string>
+    <string name="bluetooth_control">蓝牙</string>
+    <string name="bluetooth_control_desc">开启或关闭蓝牙</string>
     <string name="raise_to_wake">抬起亮屏</string>
     <string name="raise_to_wake_desc">抬起手机时亮屏</string>
     <string name="wake_for_notifications">来通知亮屏</string>

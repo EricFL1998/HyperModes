@@ -6,7 +6,7 @@ import android.util.Log
 import com.banana.hypermodes.systemserver.config.DeviceConfig
 
 /**
- * Controller for managing device-related settings with optional overrides.
+ * Controller for managing device-related settings (Radios, Performance) with optional overrides.
  */
 class DeviceController(private val context: Context) {
 
@@ -42,18 +42,18 @@ class DeviceController(private val context: Context) {
                 log("apply: set 5G to $enabled")
             }
 
-            // Raise to Wake
-            device.enableRaiseToWake?.let { enabled ->
-                saveOriginal(KEY_ORIG_GESTURE_WAKEUP, Settings.System.getInt(cr, GESTURE_WAKEUP, 0))
-                Settings.System.putInt(cr, GESTURE_WAKEUP, if (enabled) 1 else 0)
-                log("apply: set raiseToWake to $enabled")
+            // WiFi
+            device.enableWifi?.let { enabled ->
+                saveOriginal(KEY_ORIG_WIFI_ON, Settings.Global.getInt(cr, Settings.Global.WIFI_ON, 1))
+                Settings.Global.putInt(cr, Settings.Global.WIFI_ON, if (enabled) 1 else 0)
+                log("apply: set WiFi to $enabled")
             }
 
-            // Wake for Notifications
-            device.enableWakeForNotifications?.let { enabled ->
-                saveOriginal(KEY_ORIG_WAKEUP_FOR_NOTIFICATION, Settings.System.getInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, 0))
-                Settings.System.putInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, if (enabled) 1 else 0)
-                log("apply: set wakeForNotifications to $enabled")
+            // Bluetooth
+            device.enableBluetooth?.let { enabled ->
+                saveOriginal(KEY_ORIG_BLUETOOTH_ON, Settings.Global.getInt(cr, Settings.Global.BLUETOOTH_ON, 1))
+                Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, if (enabled) 1 else 0)
+                log("apply: set Bluetooth to $enabled")
             }
 
         } catch (e: Exception) {
@@ -72,12 +72,12 @@ class DeviceController(private val context: Context) {
                 Settings.Global.putInt(cr, ENABLED_5G_MODE, original)
             }
 
-            takeOriginal(KEY_ORIG_GESTURE_WAKEUP)?.let { original ->
-                Settings.System.putInt(cr, GESTURE_WAKEUP, original)
+            takeOriginal(KEY_ORIG_WIFI_ON)?.let { original ->
+                Settings.Global.putInt(cr, Settings.Global.WIFI_ON, original)
             }
 
-            takeOriginal(KEY_ORIG_WAKEUP_FOR_NOTIFICATION)?.let { original ->
-                Settings.System.putInt(cr, WAKEUP_FOR_KEYGUARD_NOTIFICATION, original)
+            takeOriginal(KEY_ORIG_BLUETOOTH_ON)?.let { original ->
+                Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, original)
             }
         } catch (e: Exception) {
             log("restore: failed: ${e.message}")
@@ -90,11 +90,9 @@ class DeviceController(private val context: Context) {
         private const val TAG = "DeviceController"
         private const val POWER_PERFORMANCE_MODE_OPEN = "performance_mode"
         private const val ENABLED_5G_MODE = "enabled_5g_mode"
-        private const val GESTURE_WAKEUP = "gesture_wakeup"
-        private const val WAKEUP_FOR_KEYGUARD_NOTIFICATION = "wakeup_for_keyguard_notification"
         private const val KEY_ORIG_PERFORMANCE_MODE = "hypermodes_orig_performance_mode"
         private const val KEY_ORIG_5G_MODE = "hypermodes_orig_5g_mode"
-        private const val KEY_ORIG_GESTURE_WAKEUP = "hypermodes_orig_gesture_wakeup"
-        private const val KEY_ORIG_WAKEUP_FOR_NOTIFICATION = "hypermodes_orig_wakeup_for_notification"
+        private const val KEY_ORIG_WIFI_ON = "hypermodes_orig_wifi_on"
+        private const val KEY_ORIG_BLUETOOTH_ON = "hypermodes_orig_bluetooth_on"
     }
 }

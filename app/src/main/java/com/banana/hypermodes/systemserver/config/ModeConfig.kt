@@ -84,20 +84,21 @@ enum class DndLevel {
 data class DisplayConfig(
     val darkMode: Int? = null, // null: Ignore, 0: Light, 1: Dark
     val grayscale: Boolean? = null,
-    val keepScreenOff: Boolean? = null,
     val adaptiveRefreshRatePro: Boolean? = null,
     val eyeCare: Boolean? = null,
     val enableRefreshRate: Boolean? = null,
     val refreshRate: Int = 60,
-    val enableAod: Boolean? = null
+    val enableAod: Boolean? = null,
+    val enableRaiseToWake: Boolean? = null,
+    val enableWakeForNotifications: Boolean? = null
 )
 
 @Serializable
 data class DeviceConfig(
     val performanceMode: Int? = null,
     val enable5g: Boolean? = null,
-    val enableRaiseToWake: Boolean? = null,
-    val enableWakeForNotifications: Boolean? = null
+    val enableWifi: Boolean? = null,
+    val enableBluetooth: Boolean? = null
 )
 
 @Serializable

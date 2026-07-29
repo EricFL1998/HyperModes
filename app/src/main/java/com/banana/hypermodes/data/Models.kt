@@ -41,7 +41,6 @@ data class ModeSettings(
     val allowedApps: Set<String> = emptySet(),
 
     // Screen settings
-    val keepScreenOn: Boolean = false,
     val hideNotifications: Boolean = false,
 
     // Display settings (continued)
@@ -50,6 +49,8 @@ data class ModeSettings(
     // Device settings
     val performanceMode: Int? = null, // 0: Balanced, 1: Performance
     val enable5g: Boolean? = null,
+    val enableWifi: Boolean? = null,
+    val enableBluetooth: Boolean? = null,
     val enableRaiseToWake: Boolean? = null,
     val enableWakeForNotifications: Boolean? = null,
 
@@ -198,13 +199,15 @@ fun Mode.toModeConfig(): ModeConfig {
             eyeCare = s.enableEyeCare,
             enableRefreshRate = s.enableRefreshRate,
             refreshRate = s.refreshRate,
-            enableAod = s.enableAod
+            enableAod = s.enableAod,
+            enableRaiseToWake = s.enableRaiseToWake,
+            enableWakeForNotifications = s.enableWakeForNotifications
         ),
         device = DeviceConfig(
             performanceMode = s.performanceMode,
             enable5g = s.enable5g,
-            enableRaiseToWake = s.enableRaiseToWake,
-            enableWakeForNotifications = s.enableWakeForNotifications
+            enableWifi = s.enableWifi,
+            enableBluetooth = s.enableBluetooth
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -295,13 +298,14 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enableAod = display.enableAod,
             performanceMode = device?.performanceMode,
             enable5g = device?.enable5g,
-            enableRaiseToWake = device?.enableRaiseToWake,
-            enableWakeForNotifications = device?.enableWakeForNotifications,
+            enableWifi = device?.enableWifi,
+            enableBluetooth = device?.enableBluetooth,
+            enableRaiseToWake = display.enableRaiseToWake,
+            enableWakeForNotifications = display.enableWakeForNotifications,
             pausedApps = pausedApps.toSet(),
             allowedContacts = emptySet(),
             contactFilter = contactFilterValue,
             allowedApps = notification.allowedApps.toSet(),
-            keepScreenOn = false,
             hideNotifications = false,
             drivingAutoDetect = drivingAutoDetect,
             drivingDetectMode = drivingDetectMode,

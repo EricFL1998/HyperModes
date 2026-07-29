@@ -746,6 +746,8 @@ fun displayOptionsSummary(settings: ModeSettings): String {
         if (settings.enableGrayscale != null) add(stringResource(R.string.grayscale_mode))
         if (settings.enableRefreshRate != null) add(stringResource(R.string.refresh_rate_option))
         if (settings.enableEyeCare != null) add(stringResource(R.string.eye_care_mode))
+        if (settings.enableRaiseToWake != null) add(stringResource(R.string.raise_to_wake))
+        if (settings.enableWakeForNotifications != null) add(stringResource(R.string.wake_for_notifications))
     }
     return when {
         enabled.isEmpty() -> stringResource(R.string.options_none)
@@ -766,8 +768,8 @@ fun deviceControlSummary(settings: ModeSettings): String {
             add(label)
         }
         if (settings.enable5g != null) add(stringResource(R.string.five_g_network))
-        if (settings.enableRaiseToWake != null) add(stringResource(R.string.raise_to_wake))
-        if (settings.enableWakeForNotifications != null) add(stringResource(R.string.wake_for_notifications))
+        if (settings.enableWifi != null) add(stringResource(R.string.wifi_control))
+        if (settings.enableBluetooth != null) add(stringResource(R.string.bluetooth_control))
     }
     return when {
         enabled.isEmpty() -> stringResource(R.string.options_none)

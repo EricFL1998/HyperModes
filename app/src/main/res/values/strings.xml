@@ -104,6 +104,10 @@
     <string name="performance_power_save">Save Power</string>
     <string name="five_g_network">5G Network</string>
     <string name="five_g_network_desc">Enable or disable 5G</string>
+    <string name="wifi_control">WiFi</string>
+    <string name="wifi_control_desc">Enable or disable WiFi</string>
+    <string name="bluetooth_control">Bluetooth</string>
+    <string name="bluetooth_control_desc">Enable or disable Bluetooth</string>
     <string name="raise_to_wake">Raise to wake</string>
     <string name="raise_to_wake_desc">Enable or disable raise to wake</string>
     <string name="wake_for_notifications">Wake for notifications</string>

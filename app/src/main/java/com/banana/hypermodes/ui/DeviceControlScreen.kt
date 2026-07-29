@@ -31,12 +31,11 @@ fun DeviceControlScreen(
     val scrollBehavior = MiuixScrollBehavior()
 
     val is5gSupported = remember {
-        // Broaden the check for 5G: most modern Xiaomi devices support it.
         runCatching {
             val systemPropertiesClass = Class.forName("android.os.SystemProperties")
             val getMethod = systemPropertiesClass.getMethod("get", String::class.java)
             val support5g = getMethod.invoke(null, "ro.miui.support_5g_choice") as String
-            support5g.isNotEmpty() || android.os.Build.VERSION.SDK_INT >= 30
+            support5g.isNotEmpty()
         }.getOrDefault(defaultValue = true)
     }
 
@@ -127,6 +126,54 @@ fun DeviceControlScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
+            }
+
+            // WiFi Control
+            item {
+                DropdownSettingItem(
+                    title = stringResource(R.string.wifi_control),
+                    subtitle = stringResource(R.string.wifi_control_desc),
+                    selected = editedMode.settings.enableWifi != null,
+                    onToggle = { enabled ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableWifi = if (enabled) true else null)
+                        )
+                        onSave(editedMode)
+                    },
+                    value = editedMode.settings.enableWifi ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableWifi = value)
+                        )
+                        onSave(editedMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+
+            // Bluetooth Control
+            item {
+                DropdownSettingItem(
+                    title = stringResource(R.string.bluetooth_control),
+                    subtitle = stringResource(R.string.bluetooth_control_desc),
+                    selected = editedMode.settings.enableBluetooth != null,
+                    onToggle = { enabled ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableBluetooth = if (enabled) true else null)
+                        )
+                        onSave(editedMode)
+                    },
+                    value = editedMode.settings.enableBluetooth ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableBluetooth = value)
+                        )
+                        onSave(editedMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
 
             item {
