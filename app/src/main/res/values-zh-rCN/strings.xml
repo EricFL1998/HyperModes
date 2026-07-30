@@ -246,4 +246,6 @@
     <string name="search_bluetooth">搜索蓝牙</string>
     <string name="no_wifi_networks">未找到 WLAN 网络。请连接到网络并授予定位权限后再选择。</string>
     <string name="no_bluetooth_devices">未找到已配对设备。请先在系统设置中配对设备并授予蓝牙权限。</string>
+    <string name="driving_devices_title">蓝牙设备</string>
+    <string name="add_device">添加设备</string>
 </resources>

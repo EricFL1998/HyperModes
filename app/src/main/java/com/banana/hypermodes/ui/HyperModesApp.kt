@@ -58,6 +58,7 @@ sealed class Screen {
     data class AppTriggerPicker(val mode: Mode) : Screen()
     data class WifiTriggerPicker(val mode: Mode) : Screen()
     data class BluetoothTriggerPicker(val mode: Mode) : Screen()
+    data class DrivingBluetoothPicker(val mode: Mode) : Screen()
 }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -350,6 +351,10 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.BluetoothTriggerPicker(updated)
                         },
+                        onOpenDrivingBluetoothPicker = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.DrivingBluetoothPicker(updated)
+                        },
                         onOpenDeviceControl = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DeviceControl(updated)
@@ -546,6 +551,26 @@ fun HyperModesApp() {
                         }
                     )
                 }
+                is Screen.DrivingBluetoothPicker -> {
+                    val mode = editingMode ?: screen.mode
+                    BluetoothPickerScreen(
+                        onBack = {
+                            currentScreen = Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onSelect = { device ->
+                            if (!mode.settings.drivingTargetDevices.contains(device.address)) {
+                                val updated = mode.copy(
+                                    settings = mode.settings.copy(
+                                        drivingTargetDevices =
+                                            mode.settings.drivingTargetDevices + device.address
+                                    )
+                                )
+                                editingMode = updated
+                                upsertMode(updated)
+                            }
+                        }
+                    )
+                }
                 is Screen.DrivingDetect -> {
                     DrivingDetectScreen(
                         mode = editingMode ?: screen.mode,
@@ -707,6 +732,7 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
+    is Screen.DrivingBluetoothPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }

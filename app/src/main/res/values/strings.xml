@@ -246,4 +246,6 @@
     <string name="search_bluetooth">Search Bluetooth</string>
     <string name="no_wifi_networks">No WiFi networks found. Connect to a network and grant location permission to pick it here.</string>
     <string name="no_bluetooth_devices">No paired devices found. Pair a device in system settings and grant Bluetooth permission.</string>
+    <string name="driving_devices_title">Bluetooth devices</string>
+    <string name="add_device">Add device</string>
 </resources>

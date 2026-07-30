@@ -1,5 +1,6 @@
 package com.banana.hypermodes.ui
 
+import android.bluetooth.BluetoothManager
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -52,6 +53,7 @@ fun ModeDetailScreen(
     onOpenAppTriggerPicker: (Mode) -> Unit,
     onOpenWifiTriggerPicker: (Mode) -> Unit,
     onOpenBluetoothTriggerPicker: (Mode) -> Unit,
+    onOpenDrivingBluetoothPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
     onRename: (Mode) -> Unit,
@@ -66,6 +68,21 @@ fun ModeDetailScreen(
     BackHandler(onBack = onBack)
     var editedMode by remember(mode) { mutableStateOf(mode) }
     val context = LocalContext.current
+
+    // Resolve bonded-device names for display; falls back to the raw MAC when
+    // unpaired or BLUETOOTH_CONNECT is denied.
+    val deviceNames = remember(editedMode.settings.drivingTargetDevices) {
+        val names = mutableMapOf<String, String>()
+        try {
+            val manager = context.getSystemService(BluetoothManager::class.java)
+            manager?.adapter?.bondedDevices?.forEach { device ->
+                device.name?.let { names[device.address] = it }
+            }
+        } catch (_: SecurityException) {
+            // Permission denied: labels fall back to MAC addresses
+        }
+        names
+    }
     var showContactDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
@@ -351,6 +368,57 @@ fun ModeDetailScreen(
                                     onSave(editedMode)
                                 }
                             )
+                        }
+                    }
+                }
+
+                if (editedMode.settings.drivingAutoDetect) {
+                    item {
+                        SmallTitle(
+                            text = stringResource(R.string.driving_devices_title),
+                            modifier = Modifier.padding(start = 28.dp, top = 4.dp, bottom = 8.dp)
+                        )
+                    }
+
+                    editedMode.settings.drivingTargetDevices.forEach { address ->
+                        item {
+                            TriggerRowCard(
+                                icon = "🎧",
+                                label = deviceNames[address] ?: address,
+                                onDelete = {
+                                    editedMode = editedMode.copy(
+                                        settings = editedMode.settings.copy(
+                                            drivingTargetDevices =
+                                                editedMode.settings.drivingTargetDevices - address
+                                        )
+                                    )
+                                    onSave(editedMode)
+                                }
+                            )
+                        }
+                    }
+
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                                .padding(bottom = 12.dp),
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                            onClick = { onOpenDrivingBluetoothPicker(editedMode) }
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "＋",
+                                    style = MiuixTheme.textStyles.title2,
+                                    color = MiuixTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = stringResource(R.string.add_device),
+                                    style = MiuixTheme.textStyles.body1
+                                )
+                            }
                         }
                     }
                 }
@@ -809,6 +877,15 @@ fun TriggerCard(
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
     }
 
+    TriggerRowCard(icon = icon, label = label, onDelete = onDelete)
+}
+
+@Composable
+fun TriggerRowCard(
+    icon: String,
+    label: String,
+    onDelete: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
