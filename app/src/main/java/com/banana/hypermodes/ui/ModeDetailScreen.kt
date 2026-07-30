@@ -1,8 +1,8 @@
 package com.banana.hypermodes.ui
 
 import android.bluetooth.BluetoothManager
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -848,12 +848,32 @@ fun TriggerCard(
     trigger: ModeTrigger,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
+
     val icon = when (trigger) {
         is ModeTrigger.Time -> "🕐"
         is ModeTrigger.App -> "📱"
         is ModeTrigger.Wifi -> "📶"
         is ModeTrigger.Bluetooth -> "🎧"
         is ModeTrigger.Music -> "🎵"
+    }
+
+    // Resolve display names for App triggers; fall back to the package name
+    // if the app was uninstalled after the trigger was created.
+    val appNames = remember(trigger) {
+        if (trigger is ModeTrigger.App) {
+            val pm = context.packageManager
+            trigger.packageNames.map { pkg ->
+                try {
+                    pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0))
+                        .loadLabel(pm).toString()
+                } catch (_: PackageManager.NameNotFoundException) {
+                    pkg
+                }
+            }
+        } else {
+            emptyList()
+        }
     }
 
     val label = when (trigger) {
@@ -863,14 +883,14 @@ fun TriggerCard(
             String.format("%02d:%02d", trigger.schedule.endHour, trigger.schedule.endMinute)
         )
         is ModeTrigger.App -> {
-            val appCount = trigger.packageNames.size
-            if (appCount <= 1) {
-                stringResource(R.string.trigger_on_app, trigger.packageNames.firstOrNull() ?: "")
+            val first = appNames.firstOrNull() ?: ""
+            if (appNames.size <= 1) {
+                stringResource(R.string.trigger_on_app, first)
             } else {
                 stringResource(
                     R.string.trigger_on_app_multi,
-                    trigger.packageNames.firstOrNull() ?: "",
-                    appCount - 1
+                    first,
+                    appNames.size - 1
                 )
             }
         }
