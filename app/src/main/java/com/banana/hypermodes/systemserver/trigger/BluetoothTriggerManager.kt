@@ -40,7 +40,11 @@ class BluetoothTriggerManager(
             context.registerReceiver(receiver, filter)
             isReceiverRegistered = true
         } else if (configs.isEmpty() && isReceiverRegistered) {
-            context.unregisterReceiver(receiver)
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: IllegalArgumentException) {
+                // Already unregistered; ignore.
+            }
             isReceiverRegistered = false
         }
         check()

@@ -198,8 +198,9 @@ class RoutineCoreEngine private constructor() {
             if (json.isNullOrBlank()) {
                 log("No config found in Settings.Global[$CONFIG_KEY] - treating as empty")
                 // treat as empty config: cancel schedules and revert current mode
-                scheduledModeManager?.updateSchedules(emptyList())
+                scheduledModeManager?.updateSchedules(emptyList(), allowActivation = false)
                 drivingTriggerManager?.init(emptyList())
+                complexTriggerManager?.updateModes(emptyList())
                 currentActiveMode?.let {
                     log("Reverting active mode due to missing config: ${it.name}")
                     modeActionExecutor?.revertMode(it)
@@ -222,7 +223,7 @@ class RoutineCoreEngine private constructor() {
             }
 
             // Update schedulers with new mode list
-            scheduledModeManager?.updateSchedules(config.modes)
+            scheduledModeManager?.updateSchedules(config.modes, allowActivation = true)
 
             // Update driving trigger manager with new mode list
             drivingTriggerManager?.init(config.modes)
@@ -366,7 +367,7 @@ class RoutineCoreEngine private constructor() {
         broadcastModeState(modeId)
 
         // Reschedule alarms (next occurrence after activation)
-        scheduledModeManager?.updateSchedules(allModes)
+        scheduledModeManager?.updateSchedules(allModes, allowActivation = false)
 
         log("Mode activated successfully: ${mode.name}")
     }
@@ -397,6 +398,9 @@ class RoutineCoreEngine private constructor() {
             // Automatic deactivation. Check if any other trigger still wants this mode active.
             if (isAnyTriggerActive(modeId)) {
                 log("Deactivation skipped for $modeId: other triggers are still active")
+                // The end alarm that brought us here was one-shot; re-arm it
+                // (and everything else) for the next occurrence.
+                scheduledModeManager?.updateSchedules(allModes, allowActivation = false)
                 return
             }
         }
@@ -419,7 +423,7 @@ class RoutineCoreEngine private constructor() {
         broadcastModeState(null)
 
         // Reschedule alarms (next occurrence after deactivation)
-        scheduledModeManager?.updateSchedules(allModes)
+        scheduledModeManager?.updateSchedules(allModes, allowActivation = false)
 
         log("Mode deactivated successfully: ${mode.name}")
     }
@@ -696,7 +700,7 @@ class RoutineCoreEngine private constructor() {
 
         // 3. Unregister triggers and listeners without normal deactivation side effects
         drivingTriggerManager?.cleanupForPackageRemoval()
-        complexTriggerManager?.updateModes(emptyList()) // Stops all sub-managers
+        complexTriggerManager?.release() // Stops all sub-managers
         bedtimeListener?.cleanupForPackageRemoval()
 
         // 4. Revert active mode

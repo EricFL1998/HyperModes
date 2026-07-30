@@ -772,7 +772,10 @@ fun ModesListScreen(
     }
     val exactAlarmsMissing = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms() &&
-            modes.any { it.settings.schedule?.enabled == true && it.id != "bedtime" }
+            modes.any {
+                (it.settings.schedule?.enabled == true && it.id != "bedtime") ||
+                        it.settings.triggers.any { trigger -> trigger is ModeTrigger.Time }
+            }
 
     // Format like "23:00" (24-hour)
     fun formatTime(hour: Int, minute: Int): String = "%02d:%02d".format(hour, minute)

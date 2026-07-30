@@ -29,13 +29,6 @@ class ComplexTriggerManager(
 
     private val activeModesByTrigger = mutableMapOf<String, MutableSet<String>>() // modeId -> active trigger tags
 
-    /**
-     * Modes this manager activated itself. A trigger going inactive only pulls
-     * a mode down if we put it up — a mode the user enabled manually must stay
-     * on when some trigger edge later goes false.
-     */
-    private val activatedByThisManager = mutableSetOf<String>()
-
     fun init(modes: List<ModeConfig>) {
         log("Initializing ComplexTriggerManager with ${modes.size} modes")
         allModes = modes
@@ -72,9 +65,16 @@ class ComplexTriggerManager(
 
             mode.complexTriggers.forEach { trigger ->
                 when (trigger) {
-                    is ComplexTrigger.Wifi -> wifiConfigs[mode.id] = trigger.ssids
-                    is ComplexTrigger.App -> appConfigs[mode.id] = trigger.packageNames
-                    is ComplexTrigger.Bluetooth -> bluetoothConfigs[mode.id] = trigger.deviceAddresses to trigger.matchAnyCarAudio
+                    is ComplexTrigger.Wifi ->
+                        wifiConfigs[mode.id] = ((wifiConfigs[mode.id] ?: emptyList()) + trigger.ssids).distinct()
+                    is ComplexTrigger.App ->
+                        appConfigs[mode.id] = ((appConfigs[mode.id] ?: emptyList()) + trigger.packageNames).distinct()
+                    is ComplexTrigger.Bluetooth -> {
+                        val prev = bluetoothConfigs[mode.id]
+                        bluetoothConfigs[mode.id] =
+                            (((prev?.first ?: emptyList()) + trigger.deviceAddresses).distinct()) to
+                                    ((prev?.second ?: false) || trigger.matchAnyCarAudio)
+                    }
                     is ComplexTrigger.Music -> musicModeIds.add(mode.id)
                     is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                 }
@@ -111,21 +111,21 @@ class ComplexTriggerManager(
 
         if (isNowActive && !wasActive) {
             log("Mode $modeId activated by $triggerType")
-            // Only record ownership when we actually flip the engine on. If the
-            // mode is already active (manual toggle or schedule), leave ownership
-            // alone so a later trigger-off edge doesn't tear it down.
-            if (engine.getCurrentActiveMode()?.id != modeId) {
-                engine.activateMode(modeId)
-                activatedByThisManager.add(modeId)
-            }
+            engine.activateMode(modeId)
         } else if (!isNowActive && wasActive) {
-            if (activatedByThisManager.remove(modeId)) {
-                log("Mode $modeId deactivated (no active triggers left)")
-                engine.deactivateMode(modeId, isManualDismiss = false)
-            } else {
-                log("Mode $modeId triggers cleared, but activation is not owned here — leaving as is")
-            }
+            // Always let the engine decide: its isAnyTriggerActive guard keeps
+            // the mode up while a schedule or another trigger still holds it.
+            // (A manually toggled mode that has triggers follows trigger
+            // semantics — the same rule schedules have always had.)
+            log("Mode $modeId deactivated (no active triggers left)")
+            engine.deactivateMode(modeId, isManualDismiss = false)
         }
+    }
+
+    /** Stop all sub-managers and release their resources (engine shutdown). */
+    fun release() {
+        updateModes(emptyList()) // stops callbacks and unregisters receivers
+        appManager.release()
     }
 
     private fun log(msg: String) {

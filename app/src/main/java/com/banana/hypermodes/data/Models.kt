@@ -345,13 +345,14 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
         )
     } else null
 
+    // A custom mode whose legacy schedule is migrated into complex triggers
+    // must NOT keep the legacy schedule in the UI model — otherwise the next
+    // save writes both representations (double-scheduling) and a deleted
+    // trigger card resurrects on the next load. Dropping it here makes the
+    // first post-migration save write complexTriggers only.
+    val migratedLegacySchedule = complexTriggers.isEmpty() && hasStoredSchedule && id != "bedtime"
+
     val triggersList = if (id == "driving") {
-        // Driving auto-detect stays on the legacy DrivingTriggerManager path
-        // (TriggerConfig + DYNAMIC_TRIGGER type). Surfacing complex triggers
-        // here would make ComplexTriggerManager double-manage the mode, and
-        // dropping them self-heals configs written by early v1.3 builds.
-        emptyList()
-    } else if (complexTriggers.isNotEmpty()) {
         complexTriggers.map { it.toModeTrigger() }
     } else if (hasStoredSchedule && id != "bedtime") {
         // Migrate legacy schedule to complex triggers for custom modes
@@ -392,7 +393,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             drivingDetectMode = drivingDetectMode,
             drivingTargetDevices = triggers?.bluetooth?.targetMacs?.toSet() ?: emptySet(),
             triggers = triggersList,
-            schedule = schedule
+            schedule = if (migratedLegacySchedule) null else schedule
         )
     )
 }

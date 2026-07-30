@@ -91,7 +91,6 @@ fun ModeDetailScreen(
     // v1.3 Trigger UI State
     var showTriggerSelector by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    var tempSchedule by remember { mutableStateOf(ModeSchedule()) }
 
     // For bedtime: refresh the schedule from DeskClock when this screen opens,
     // and keep the UI in sync with whatever the Clock actually stores.
@@ -424,7 +423,7 @@ fun ModeDetailScreen(
                 }
             }
 
-            // Custom modes: Complex trigger UI (v1.4)
+            // Complex trigger UI (v1.3)
             if (editedMode.id != "bedtime" && editedMode.id != "driving" && editedMode.id != "dnd") {
                 item {
                     SmallTitle(
@@ -639,12 +638,12 @@ fun ModeDetailScreen(
         // Time Picker for adding a new time trigger
         TimePickerDialog(
             title = stringResource(R.string.trigger_time),
-            initialHour = tempSchedule.startHour,
-            initialMinute = tempSchedule.startMinute,
+            initialHour = ModeSchedule().startHour,
+            initialMinute = ModeSchedule().startMinute,
             show = showTimePicker,
             onDismissRequest = { showTimePicker = false },
             onConfirm = { h, m ->
-                val newTriggers = editedMode.settings.triggers + ModeTrigger.Time(
+                val newTrigger = ModeTrigger.Time(
                     ModeSchedule(
                         enabled = true,
                         startHour = h,
@@ -653,10 +652,13 @@ fun ModeDetailScreen(
                         endMinute = m
                     )
                 )
-                editedMode = editedMode.copy(
-                    settings = editedMode.settings.copy(triggers = newTriggers)
-                )
-                onSave(editedMode)
+                if (!editedMode.settings.triggers.contains(newTrigger)) {
+                    val newTriggers = editedMode.settings.triggers + newTrigger
+                    editedMode = editedMode.copy(
+                        settings = editedMode.settings.copy(triggers = newTriggers)
+                    )
+                    onSave(editedMode)
+                }
                 showTimePicker = false
             }
         )
@@ -1312,88 +1314,6 @@ fun WakeAlarmTurnOffDialog(
             )
         }
     }
-}
-
-/** Legacy/Simple time-schedule card (unused in v1.4 custom modes but kept for compatibility/bedtime logic reference). */
-@Composable
-fun CustomScheduleCard(
-    schedule: ModeSchedule,
-    onScheduleChange: (ModeSchedule) -> Unit
-) {
-    var showStartPicker by remember { mutableStateOf(false) }
-    var showEndPicker by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.set_schedule),
-                    style = MiuixTheme.textStyles.body1,
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(
-                    checked = schedule.enabled,
-                    onCheckedChange = { onScheduleChange(schedule.copy(enabled = it)) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TimeColumn(
-                    icon = "🕐",
-                    label = stringResource(R.string.start_time),
-                    hour = schedule.startHour,
-                    minute = schedule.startMinute,
-                    onClick = { showStartPicker = true },
-                    modifier = Modifier.weight(1f)
-                )
-                TimeColumn(
-                    icon = "🕑",
-                    label = stringResource(R.string.end_time),
-                    hour = schedule.endHour,
-                    minute = schedule.endMinute,
-                    onClick = { showEndPicker = true },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-
-    TimePickerDialog(
-        title = stringResource(R.string.start_time),
-        initialHour = schedule.startHour,
-        initialMinute = schedule.startMinute,
-        show = showStartPicker,
-        onDismissRequest = { showStartPicker = false },
-        onConfirm = { hour, minute ->
-            onScheduleChange(schedule.copy(startHour = hour, startMinute = minute))
-        }
-    )
-
-    TimePickerDialog(
-        title = stringResource(R.string.end_time),
-        initialHour = schedule.endHour,
-        initialMinute = schedule.endMinute,
-        show = showEndPicker,
-        onDismissRequest = { showEndPicker = false },
-        onConfirm = { hour, minute ->
-            onScheduleChange(schedule.copy(endHour = hour, endMinute = minute))
-        }
-    )
 }
 
 @Composable

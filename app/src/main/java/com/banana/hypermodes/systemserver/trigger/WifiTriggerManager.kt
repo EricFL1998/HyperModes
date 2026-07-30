@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
-import android.util.Log
 
 class WifiTriggerManager(
     private val context: Context,
@@ -33,7 +32,11 @@ class WifiTriggerManager(
             context.registerReceiver(receiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
             isReceiverRegistered = true
         } else if (configs.isEmpty() && isReceiverRegistered) {
-            context.unregisterReceiver(receiver)
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: IllegalArgumentException) {
+                // Already unregistered; ignore.
+            }
             isReceiverRegistered = false
         }
         check()

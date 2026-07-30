@@ -33,7 +33,7 @@ class ScheduledModeManager(
      * Update schedules for all modes.
      * Cancels all existing alarms and reschedules based on the new mode list.
      */
-    fun updateSchedules(modes: List<ModeConfig>) {
+    fun updateSchedules(modes: List<ModeConfig>, allowActivation: Boolean) {
         log("Updating schedules for ${modes.size} modes")
 
         // Cancel alarms from the previous configuration before rebuilding it.
@@ -44,7 +44,7 @@ class ScheduledModeManager(
         modes.filter {
             (it.type == ModeType.SCHEDULED) && (it.scheduleEnabled != false)
         }.forEach { mode ->
-            scheduleMode(mode)
+            scheduleMode(mode, allowActivation)
         }
 
         // v1.3 complex time triggers: each mode may carry several Time triggers,
@@ -52,7 +52,7 @@ class ScheduledModeManager(
         modes.forEach { mode ->
             mode.complexTriggers.forEachIndexed { index, trigger ->
                 if (trigger is ComplexTrigger.Time) {
-                    scheduleTimeTrigger(mode, index, trigger)
+                    scheduleTimeTrigger(mode, index, trigger, allowActivation)
                 }
             }
         }
@@ -103,7 +103,7 @@ class ScheduledModeManager(
      * Creates start and end alarms based on mode configuration.
      * If current time is within the scheduled period, activate immediately.
      */
-    private fun scheduleMode(mode: ModeConfig) {
+    private fun scheduleMode(mode: ModeConfig, allowActivation: Boolean) {
         if (mode.type != ModeType.SCHEDULED) {
             log("Skipping non-scheduled mode: ${mode.name}")
             return
@@ -129,7 +129,7 @@ class ScheduledModeManager(
         log("Scheduling mode: ${mode.name}, start=$startTime, end=$endTime, days=$repeatDays")
 
         // Check if current time is within the scheduled period
-        if (isCurrentlyInSchedule(startTime, endTime, repeatDays)) {
+        if (allowActivation && isCurrentlyInSchedule(startTime, endTime, repeatDays)) {
             val periodStart = getCurrentPeriodStart(startTime, repeatDays)
             if (engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
                 log("Current time is within schedule but mode was dismissed this period: ${mode.name}")
@@ -150,7 +150,7 @@ class ScheduledModeManager(
      * Activation/deactivation still goes through the mode ID, and the engine's
      * isAnyTriggerActive check keeps the mode on while another trigger holds it.
      */
-    private fun scheduleTimeTrigger(mode: ModeConfig, index: Int, trigger: ComplexTrigger.Time) {
+    private fun scheduleTimeTrigger(mode: ModeConfig, index: Int, trigger: ComplexTrigger.Time, allowActivation: Boolean) {
         if (mode.type == ModeType.BEDTIME) {
             // The bedtime window is owned by the bedtime listener/reconciler.
             log("Skipping time trigger on bedtime mode: ${mode.name}")
@@ -165,7 +165,7 @@ class ScheduledModeManager(
 
         // If the window is open right now, activate immediately unless the
         // user dismissed this mode during the current period.
-        if (isCurrentlyInSchedule(trigger.startTime, trigger.endTime, repeatDays)) {
+        if (allowActivation && isCurrentlyInSchedule(trigger.startTime, trigger.endTime, repeatDays)) {
             val periodStart = getCurrentPeriodStart(trigger.startTime, repeatDays)
             if (engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
                 log("Within time trigger window but mode was dismissed this period: ${mode.name}")
