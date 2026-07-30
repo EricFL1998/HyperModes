@@ -59,6 +59,10 @@ data class ModeSettings(
     val drivingAutoDetect: Boolean = false,
     val drivingDetectMode: Int = DRIVING_DETECT_BLUETOOTH,
 
+    // Specific Bluetooth devices that trigger driving detection in addition
+    // to any car-audio device (MAC addresses).
+    val drivingTargetDevices: Set<String> = emptySet(),
+
     // Triggers (v1.3)
     val triggers: List<ModeTrigger> = emptyList(),
 
@@ -196,14 +200,17 @@ fun Mode.toModeConfig(): ModeConfig {
         }
     }
 
-    // Build trigger config only for the built-in driving mode.
-    val triggers = if (id == "driving" && s.drivingAutoDetect) {
+    // Build trigger config for the built-in driving mode. Written even when
+    // auto-detection is off so the detect mode and picked devices survive
+    // toggling — DrivingTriggerManager only reads this for DYNAMIC_TRIGGER
+    // modes, so it stays inert while detection is disabled.
+    val triggers = if (id == "driving") {
         TriggerConfig(
             bluetooth = BluetoothTrigger(
                 enabled = s.drivingDetectMode == DRIVING_DETECT_BLUETOOTH ||
                          s.drivingDetectMode == DRIVING_DETECT_MOTION_BLUETOOTH,
                 matchAnyCarAudio = true,
-                targetMacs = emptyList()
+                targetMacs = s.drivingTargetDevices.toList()
             ),
             motion = if (s.drivingDetectMode == DRIVING_DETECT_MOTION_BLUETOOTH) {
                 MotionTrigger(
@@ -383,6 +390,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             hideNotifications = false,
             drivingAutoDetect = drivingAutoDetect,
             drivingDetectMode = drivingDetectMode,
+            drivingTargetDevices = triggers?.bluetooth?.targetMacs?.toSet() ?: emptySet(),
             triggers = triggersList,
             schedule = schedule
         )
