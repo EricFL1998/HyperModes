@@ -33,6 +33,9 @@ import io.github.libxposed.api.XposedModule
  */
 class SystemModeHook(private val module: XposedModule) {
 
+    /** Kept so a package replace/reinstall can re-grant runtime permissions. */
+    private var permissionHook: UniversalPermissionHook? = null
+
     fun install(classLoader: ClassLoader) {
         val ams = try {
             classLoader.loadClass(AMS)
@@ -58,7 +61,8 @@ class SystemModeHook(private val module: XposedModule) {
                             .apply { isAccessible = true }[thisObject] as Context
 
                         // Install UniversalPermissionHook for automatic permission grant
-                        UniversalPermissionHook(module).install(classLoader)
+                        permissionHook = UniversalPermissionHook(module)
+                        permissionHook?.install(classLoader)
 
                         clearStoppedState(context)
                         registerBridge(context)
@@ -285,11 +289,16 @@ class SystemModeHook(private val module: XposedModule) {
                     PackageLifecyclePolicy.Action.REPLACEMENT_FINISHED -> {
                         log("Package replacement finished")
                         engine.setLifecycleState(RoutineCoreEngine.LifecycleState.RUNNING)
+                        // An update may declare new runtime permissions — re-grant.
+                        permissionHook?.grantRuntimePermissions()
                     }
                     PackageLifecyclePolicy.Action.INSTALL -> {
                         log("Fresh installation detected, resetting engine to RUNNING")
                         // Use a transition that ensures we reload config
                         engine.setLifecycleState(RoutineCoreEngine.LifecycleState.RUNNING)
+                        // A fresh install starts with every runtime permission
+                        // denied — grant them without waiting for a reboot.
+                        permissionHook?.grantRuntimePermissions()
                     }
                     else -> {}
                 }

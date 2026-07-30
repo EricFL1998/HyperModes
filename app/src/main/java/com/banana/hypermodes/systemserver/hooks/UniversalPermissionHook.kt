@@ -3,32 +3,30 @@ package com.banana.hypermodes.systemserver.hooks
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Binder
+import android.os.IBinder
 import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
+import java.lang.reflect.Method
 
 /**
- * Universal Permission Hook - Magic Grant for all permissions.
+ * Universal Permission Hook - real grants + Magic Grant fallback.
  *
- * Instead of actually granting permissions (which requires GRANT_RUNTIME_PERMISSIONS),
- * we intercept permission checks at the framework level and return "granted" for our app.
+ * Runtime (dangerous) permissions declared in our manifest are granted for
+ * real from inside system_server (the same operation `pm grant` performs):
+ * every check path returns GRANTED natively and the matching app-ops are
+ * allowed. This runs at boot and again when our package is replaced or
+ * reinstalled (see SystemModeHook's lifecycle receiver), so newly added
+ * permissions never need a reboot or a user prompt.
  *
- * This is more native than granting permissions because:
- * 1. No need for special permissions or shell commands
- * 2. Works seamlessly without user intervention
- * 3. Only affects our app - surgical and safe
- * 4. Survives app reinstalls
- *
- * Android 16 compatibility:
- * - Uses multiple fallback strategies to find permission check methods
- * - Robust CallingPackage detection with multiple approaches
- * - Strict filtering to only affect our app
- *
- * Intercepted locations:
+ * The interception hooks below remain for what real grants cannot cover
+ * (WRITE_SECURE_SETTINGS is signature-level and not runtime-grantable):
  * - ContextImpl.checkPermission / enforcePermission
- * - PackageManagerService permission checks
  * - SettingsProvider permission checks for WRITE_SECURE_SETTINGS
+ * - PackageManagerService permission checks
+ *
+ * Only affects our app - surgical and safe.
  */
 class UniversalPermissionHook(private val module: XposedModule) {
 
@@ -61,6 +59,11 @@ class UniversalPermissionHook(private val module: XposedModule) {
 
             // Hook 3: PackageManagerService for runtime permission checks
             hookPackageManagerService(classLoader)
+
+            // Real-grant every runtime permission declared in the manifest.
+            // Real grants beat interception: checkSelfPermission() in the app
+            // returns GRANTED natively and the matching app-ops are allowed.
+            grantRuntimePermissions()
 
             log("UniversalPermissionHook installed successfully")
         } catch (t: Throwable) {
@@ -224,6 +227,131 @@ class UniversalPermissionHook(private val module: XposedModule) {
         }
     }
 
+    /**
+     * Actually grant every dangerous (runtime) permission declared in our
+     * manifest, using system_server's privileges (the same operation
+     * `pm grant` performs). Called at boot from install() and again from
+     * SystemModeHook's package lifecycle receiver, because a fresh install —
+     * or an update that adds permissions — leaves them denied until granted.
+     *
+     * Real grants also put the matching app-ops (BLUETOOTH_CONNECT,
+     * FINE_LOCATION, ACTIVITY_RECOGNITION) into their allowed state, which
+     * pure check-interception does not.
+     */
+    fun grantRuntimePermissions() {
+        try {
+            val context = systemContext
+            if (context == null) {
+                log("grantRuntimePermissions: system context unavailable")
+                return
+            }
+            val pm = context.packageManager
+
+            @Suppress("DEPRECATION")
+            val requested = pm.getPackageInfo(
+                Protocol.MODULE_PACKAGE, PackageManager.GET_PERMISSIONS
+            ).requestedPermissions
+            if (requested.isNullOrEmpty()) {
+                log("grantRuntimePermissions: no declared permissions")
+                return
+            }
+
+            val (target, grantMethod) = resolveGrantTarget() ?: run {
+                log("grantRuntimePermissions: no grant path available")
+                return
+            }
+            val userId = getCurrentUserId()
+
+            var grantedCount = 0
+            for (permission in requested) {
+                try {
+                    if (!isDangerous(pm, permission)) continue
+                    if (pm.checkPermission(permission, Protocol.MODULE_PACKAGE) ==
+                        PackageManager.PERMISSION_GRANTED
+                    ) continue
+
+                    grantMethod.invoke(target, Protocol.MODULE_PACKAGE, permission, userId)
+                    grantedCount++
+                    log("Granted runtime permission: $permission")
+                } catch (t: Throwable) {
+                    log("Failed to grant $permission: $t")
+                }
+            }
+            log("grantRuntimePermissions: $grantedCount newly granted " +
+                "(${requested.size} declared, user $userId)")
+        } catch (t: Throwable) {
+            log("grantRuntimePermissions failed: $t")
+        }
+    }
+
+    private fun isDangerous(pm: PackageManager, permission: String): Boolean {
+        return try {
+            @Suppress("DEPRECATION")
+            val info = pm.getPermissionInfo(permission, 0)
+            info.protectionLevel and PROTECTION_MASK_BASE == PROTECTION_DANGEROUS
+        } catch (t: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * Find a grantRuntimePermission(String packageName, String permission,
+     * int userId) implementation. Primary: IPackageManager via AppGlobals
+     * (local proxy inside system_server). Fallback: the "permissionmgr"
+     * binder from the Android 13+ permission split. Same argument order on
+     * both interfaces.
+     */
+    private fun resolveGrantTarget(): Pair<Any, Method>? {
+        try {
+            val ipm = Class.forName("android.app.AppGlobals")
+                .getMethod("getPackageManager")
+                .invoke(null)
+            if (ipm != null) {
+                val method = findGrantMethod(ipm)
+                if (method != null) return ipm to method
+            }
+        } catch (t: Throwable) {
+            log("AppGlobals grant path unavailable: ${t.message}")
+        }
+
+        try {
+            val binder = Class.forName("android.os.ServiceManager")
+                .getMethod("getService", String::class.java)
+                .invoke(null, "permissionmgr") as? IBinder
+            val mgr = Class.forName("android.permission.IPermissionManager\$Stub")
+                .getMethod("asInterface", IBinder::class.java)
+                .invoke(null, binder)
+            if (mgr != null) {
+                val method = findGrantMethod(mgr)
+                if (method != null) return mgr to method
+            }
+        } catch (t: Throwable) {
+            log("permissionmgr grant path unavailable: ${t.message}")
+        }
+
+        return null
+    }
+
+    private fun findGrantMethod(target: Any): Method? {
+        return target.javaClass.methods.firstOrNull {
+            it.name == "grantRuntimePermission" &&
+                it.parameterTypes.size == 3 &&
+                it.parameterTypes[0] == String::class.java &&
+                it.parameterTypes[1] == String::class.java &&
+                it.parameterTypes[2] == Int::class.javaPrimitiveType
+        }
+    }
+
+    private fun getCurrentUserId(): Int {
+        return try {
+            Class.forName("android.app.ActivityManager")
+                .getMethod("getCurrentUser")
+                .invoke(null) as? Int ?: 0
+        } catch (t: Throwable) {
+            0
+        }
+    }
+
     private fun hookMethod(clazz: Class<*>, methodName: String, paramTypes: Array<Class<*>>, grantedValue: Int) {
         try {
             val method = clazz.getDeclaredMethod(methodName, *paramTypes)
@@ -346,5 +474,10 @@ class UniversalPermissionHook(private val module: XposedModule) {
     companion object {
         private const val TAG = "HyperModes.UniversalPermission"
         private const val SETTINGS_PROVIDER = "com.android.providers.settings.SettingsProvider"
+
+        // PermissionInfo.PROTECTION_MASK_BASE / PROTECTION_DANGEROUS (the
+        // mask constant is @SystemApi, so mirror both values locally).
+        private const val PROTECTION_MASK_BASE = 0xF
+        private const val PROTECTION_DANGEROUS = 1
     }
 }
