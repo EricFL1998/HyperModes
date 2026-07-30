@@ -903,6 +903,22 @@ fun TriggerCard(
         }
     }
 
+    // Resolve bonded-device names for Bluetooth triggers; fall back to the
+    // raw MAC when the device was unpaired or BLUETOOTH_CONNECT is denied.
+    val btNames = remember(trigger) {
+        if (trigger is ModeTrigger.Bluetooth) {
+            val bonded = try {
+                val manager = context.getSystemService(BluetoothManager::class.java)
+                manager?.adapter?.bondedDevices?.associate { it.address to it.name }
+            } catch (_: SecurityException) {
+                null
+            }
+            trigger.deviceAddresses.map { mac -> bonded?.get(mac) ?: mac }
+        } else {
+            emptyList()
+        }
+    }
+
     val label = when (trigger) {
         is ModeTrigger.Time -> stringResource(
             R.string.trigger_at_time,
@@ -922,7 +938,10 @@ fun TriggerCard(
             }
         }
         is ModeTrigger.Wifi -> stringResource(R.string.trigger_on_wifi, trigger.ssids.firstOrNull() ?: "")
-        is ModeTrigger.Bluetooth -> stringResource(R.string.trigger_on_bluetooth, trigger.deviceAddresses.firstOrNull() ?: "")
+        is ModeTrigger.Bluetooth -> stringResource(
+            R.string.trigger_on_bluetooth,
+            btNames.firstOrNull() ?: trigger.deviceAddresses.firstOrNull() ?: ""
+        )
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
     }
 
