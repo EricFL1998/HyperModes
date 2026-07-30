@@ -26,6 +26,7 @@ import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
+import com.banana.hypermodes.data.ModeTrigger
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.utils.UpdateManager
@@ -54,6 +55,9 @@ sealed class Screen {
     data class CustomRepeat(val mode: Mode) : Screen()
     data class DrivingDetect(val mode: Mode) : Screen()
     data class AppPicker(val mode: Mode, val paused: Boolean = false) : Screen()
+    data class AppTriggerPicker(val mode: Mode) : Screen()
+    data class WifiTriggerPicker(val mode: Mode) : Screen()
+    data class BluetoothTriggerPicker(val mode: Mode) : Screen()
 }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -334,6 +338,18 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.AppPicker(updated, paused = true)
                         },
+                        onOpenAppTriggerPicker = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.AppTriggerPicker(updated)
+                        },
+                        onOpenWifiTriggerPicker = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.WifiTriggerPicker(updated)
+                        },
+                        onOpenBluetoothTriggerPicker = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.BluetoothTriggerPicker(updated)
+                        },
                         onOpenDeviceControl = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DeviceControl(updated)
@@ -446,13 +462,87 @@ fun HyperModesApp() {
                     )
                 }
                 is Screen.AppPicker -> {
+                    val mode = editingMode ?: screen.mode
                     AppPickerScreen(
-                        mode = editingMode ?: screen.mode,
-                        paused = screen.paused,
+                        title = stringResource(if (screen.paused) R.string.paused_apps else R.string.select_apps),
+                        initialSelection = if (screen.paused) mode.settings.pausedApps else mode.settings.allowedApps,
                         onBack = { currentScreen = Screen.ModeDetail(editingMode ?: screen.mode) },
-                        onSave = { updatedMode ->
-                            editingMode = updatedMode
-                            upsertMode(updatedMode)
+                        onSelectionChanged = { selectedApps ->
+                            val updated = mode.copy(
+                                settings = if (screen.paused) {
+                                    mode.settings.copy(pausedApps = selectedApps)
+                                } else {
+                                    mode.settings.copy(allowedApps = selectedApps)
+                                }
+                            )
+                            editingMode = updated
+                            upsertMode(updated)
+                        }
+                    )
+                }
+                is Screen.AppTriggerPicker -> {
+                    val mode = editingMode ?: screen.mode
+                    AppPickerScreen(
+                        title = stringResource(R.string.trigger_app),
+                        initialSelection = emptySet(),
+                        singleSelection = true,
+                        onBack = {
+                            currentScreen = Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onSelectionChanged = { selectedApps ->
+                            if (selectedApps.isNotEmpty()) {
+                                val trigger = ModeTrigger.App(selectedApps)
+                                // Guard against duplicates of an identical trigger
+                                if (!mode.settings.triggers.contains(trigger)) {
+                                    val updated = mode.copy(
+                                        settings = mode.settings.copy(
+                                            triggers = mode.settings.triggers + trigger
+                                        )
+                                    )
+                                    editingMode = updated
+                                    upsertMode(updated)
+                                }
+                            }
+                        }
+                    )
+                }
+                is Screen.WifiTriggerPicker -> {
+                    val mode = editingMode ?: screen.mode
+                    WifiPickerScreen(
+                        onBack = {
+                            currentScreen = Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onSelect = { ssid ->
+                            val trigger = ModeTrigger.Wifi(setOf(ssid))
+                            if (!mode.settings.triggers.contains(trigger)) {
+                                val updated = mode.copy(
+                                    settings = mode.settings.copy(
+                                        triggers = mode.settings.triggers + trigger
+                                    )
+                                )
+                                editingMode = updated
+                                upsertMode(updated)
+                            }
+                        }
+                    )
+                }
+                is Screen.BluetoothTriggerPicker -> {
+                    val mode = editingMode ?: screen.mode
+                    BluetoothPickerScreen(
+                        onBack = {
+                            currentScreen = Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onSelect = { device ->
+                            val trigger = ModeTrigger.Bluetooth(setOf(device.address))
+                            if (!mode.settings.triggers.contains(trigger)) {
+                                val updated = mode.copy(
+                                    settings = mode.settings.copy(
+                                        triggers = mode.settings.triggers + trigger
+                                    )
+                                )
+                                editingMode = updated
+                                upsertMode(updated)
+                            }
                         }
                     )
                 }
@@ -616,6 +706,7 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.ModesList -> 0
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
+    is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }

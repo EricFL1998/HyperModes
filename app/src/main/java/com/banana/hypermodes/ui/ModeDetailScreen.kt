@@ -18,6 +18,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,13 +27,14 @@ import com.banana.hypermodes.data.*
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.TimePickerDialog
+import com.banana.hypermodes.ui.components.TriggerSelectionDialog
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.icon.basic.Close
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.squircle.squircleBackground
-import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
@@ -47,6 +49,9 @@ fun ModeDetailScreen(
     onOpenRepeat: (Mode) -> Unit,
     onOpenApps: (Mode) -> Unit,
     onOpenPausedApps: (Mode) -> Unit,
+    onOpenAppTriggerPicker: (Mode) -> Unit,
+    onOpenWifiTriggerPicker: (Mode) -> Unit,
+    onOpenBluetoothTriggerPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
     onRename: (Mode) -> Unit,
@@ -65,6 +70,11 @@ fun ModeDetailScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // v1.3 Trigger UI State
+    var showTriggerSelector by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var tempSchedule by remember { mutableStateOf(ModeSchedule()) }
 
     // For bedtime: refresh the schedule from DeskClock when this screen opens,
     // and keep the UI in sync with whatever the Clock actually stores.
@@ -339,7 +349,6 @@ fun ModeDetailScreen(
                                         settings = editedMode.settings.copy(drivingAutoDetect = on)
                                     )
                                     onSave(editedMode)
-                                    // TODO: Activity Recognition now handled by DrivingTriggerManager in system_server
                                 }
                             )
                         }
@@ -347,71 +356,53 @@ fun ModeDetailScreen(
                 }
             }
 
-            // Custom modes: 何时自动开启 + time schedule (official "Set a schedule";
-            // the manual DND mode has no trigger section in the official layout)
+            // Custom modes: Complex trigger UI (v1.4)
             if (editedMode.id != "bedtime" && editedMode.id != "driving" && editedMode.id != "dnd") {
-                val schedule = editedMode.settings.schedule ?: ModeSchedule()
                 item {
                     SmallTitle(
                         text = stringResource(R.string.when_to_turn_on),
                         modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
                     )
                 }
-                if (!schedule.enabled) {
-                    // Official default: a compact "＋ 设置时间表" row; tapping it
-                    // enables the schedule and expands the full time editor.
+
+                // List of existing triggers
+                editedMode.settings.triggers.forEach { trigger ->
                     item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                                .padding(bottom = 12.dp),
-                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                            onClick = {
+                        TriggerCard(
+                            trigger = trigger,
+                            onDelete = {
+                                val newList = editedMode.settings.triggers.filter { it != trigger }
                                 editedMode = editedMode.copy(
-                                    settings = editedMode.settings.copy(
-                                        schedule = schedule.copy(enabled = true)
-                                    )
+                                    settings = editedMode.settings.copy(triggers = newList)
                                 )
                                 onSave(editedMode)
                             }
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "＋",
-                                    style = MiuixTheme.textStyles.title2,
-                                    color = MiuixTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = stringResource(R.string.set_schedule),
-                                    style = MiuixTheme.textStyles.body1
-                                )
-                            }
+                        )
+                    }
+                }
+
+                // Add Schedule card
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp),
+                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        onClick = { showTriggerSelector = true }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "＋",
+                                style = MiuixTheme.textStyles.title2,
+                                color = MiuixTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = stringResource(R.string.add_trigger),
+                                style = MiuixTheme.textStyles.body1
+                            )
                         }
-                    }
-                } else {
-                    item {
-                        CustomScheduleCard(
-                            schedule = schedule,
-                            onScheduleChange = { newSchedule ->
-                                editedMode = editedMode.copy(
-                                    settings = editedMode.settings.copy(schedule = newSchedule)
-                                )
-                                onSave(editedMode)
-                            }
-                        )
-                    }
-                    item {
-                        ValueSettingItem(
-                            title = stringResource(R.string.repeat_cycle),
-                            subtitle = "",
-                            value = repeatSummary(schedule.repeatDays),
-                            onClick = { onOpenRepeat(editedMode) },
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp)
-                                .padding(bottom = 12.dp)
-                        )
                     }
                 }
             }
@@ -551,10 +542,58 @@ fun ModeDetailScreen(
             }
         }
 
-        // Dialogs must live INSIDE the Scaffold content — OverlayDialog renders
-        // via LocalDialogStates, which only the Scaffold provides.
+        // Dialogs
 
-        // 就寝提醒 lead-time picker: official options 0/15/30/60/-1
+        // Trigger Selection Dialog
+        TriggerSelectionDialog(
+            show = showTriggerSelector,
+            onDismissRequest = { showTriggerSelector = false },
+            onSelect = { type ->
+                showTriggerSelector = false
+                when (type) {
+                    "time" -> showTimePicker = true
+                    "app" -> onOpenAppTriggerPicker(editedMode)
+                    "wifi" -> onOpenWifiTriggerPicker(editedMode)
+                    "bluetooth" -> onOpenBluetoothTriggerPicker(editedMode)
+                    "music" -> {
+                        if (!editedMode.settings.triggers.contains(ModeTrigger.Music)) {
+                            val newTriggers = editedMode.settings.triggers + ModeTrigger.Music
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(triggers = newTriggers)
+                            )
+                            onSave(editedMode)
+                        }
+                    }
+                }
+            }
+        )
+
+        // Time Picker for adding a new time trigger
+        TimePickerDialog(
+            title = stringResource(R.string.trigger_time),
+            initialHour = tempSchedule.startHour,
+            initialMinute = tempSchedule.startMinute,
+            show = showTimePicker,
+            onDismissRequest = { showTimePicker = false },
+            onConfirm = { h, m ->
+                val newTriggers = editedMode.settings.triggers + ModeTrigger.Time(
+                    ModeSchedule(
+                        enabled = true,
+                        startHour = h,
+                        startMinute = m,
+                        endHour = (h + 1) % 24,
+                        endMinute = m
+                    )
+                )
+                editedMode = editedMode.copy(
+                    settings = editedMode.settings.copy(triggers = newTriggers)
+                )
+                onSave(editedMode)
+                showTimePicker = false
+            }
+        )
+
+        // 就寝提醒 lead-time picker
         SleepReminderDialog(
             show = showReminderDialog,
             current = DeskClockState.reminderMinutes,
@@ -568,7 +607,7 @@ fun ModeDetailScreen(
             }
         )
 
-        // Contact filter picker: none / all / starred
+        // Contact filter picker
         ContactFilterDialog(
             show = showContactDialog,
             current = editedMode.settings.contactFilter,
@@ -582,7 +621,7 @@ fun ModeDetailScreen(
             }
         )
 
-        // Delete confirmation dialog (HyperOS style - centered title and text)
+        // Delete confirmation dialog
         top.yukonga.miuix.kmp.overlay.OverlayDialog(
             show = showDeleteConfirm,
             onDismissRequest = { showDeleteConfirm = false }
@@ -593,14 +632,12 @@ fun ModeDetailScreen(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Centered title with larger font
                 Text(
                     text = stringResource(R.string.delete_mode_title),
                     style = MiuixTheme.textStyles.title3,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                // Centered message text with medium weight
                 Text(
                     text = stringResource(R.string.delete_mode_confirm, localizedName),
                     style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
@@ -608,7 +645,6 @@ fun ModeDetailScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 20.dp)
                 )
-                // Buttons: cancel | delete - wider buttons closer to edges
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -733,6 +769,74 @@ fun ContactFilterDialog(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+fun TriggerCard(
+    trigger: ModeTrigger,
+    onDelete: () -> Unit
+) {
+    val icon = when (trigger) {
+        is ModeTrigger.Time -> "🕐"
+        is ModeTrigger.App -> "📱"
+        is ModeTrigger.Wifi -> "📶"
+        is ModeTrigger.Bluetooth -> "🎧"
+        is ModeTrigger.Music -> "🎵"
+    }
+
+    val label = when (trigger) {
+        is ModeTrigger.Time -> stringResource(
+            R.string.trigger_at_time,
+            String.format("%02d:%02d", trigger.schedule.startHour, trigger.schedule.startMinute),
+            String.format("%02d:%02d", trigger.schedule.endHour, trigger.schedule.endMinute)
+        )
+        is ModeTrigger.App -> {
+            val appCount = trigger.packageNames.size
+            if (appCount <= 1) {
+                stringResource(R.string.trigger_on_app, trigger.packageNames.firstOrNull() ?: "")
+            } else {
+                stringResource(
+                    R.string.trigger_on_app_multi,
+                    trigger.packageNames.firstOrNull() ?: "",
+                    appCount - 1
+                )
+            }
+        }
+        is ModeTrigger.Wifi -> stringResource(R.string.trigger_on_wifi, trigger.ssids.firstOrNull() ?: "")
+        is ModeTrigger.Bluetooth -> stringResource(R.string.trigger_on_bluetooth, trigger.deviceAddresses.firstOrNull() ?: "")
+        is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 8.dp),
+        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = icon, fontSize = 20.sp)
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = label,
+                style = MiuixTheme.textStyles.body1,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = MiuixIcons.Basic.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+                )
+            }
         }
     }
 }
@@ -986,13 +1090,11 @@ fun ScheduleCard(
                     checked = schedule.enabled,
                     onCheckedChange = { enabled ->
                         if (enabled) {
-                            // Toggle ON: AlarmHelper.enableAlarm(context, MIN_VALUE, true)
                             sendToDeskClock(
                                 Protocol.ACTION_ENABLE_WAKE_ALARM
                             )
                             onScheduleChange(schedule.copy(enabled = true))
                         } else {
-                            // Toggle OFF: official app shows once/always popup
                             showTurnOffDialog = true
                         }
                     }
@@ -1068,20 +1170,16 @@ fun ScheduleCard(
         }
     )
 
-    // Turn-off dialog: once / always / cancel (matches official DeskClock ActionSheet)
     WakeAlarmTurnOffDialog(
         show = showTurnOffDialog,
         onDismiss = { showTurnOffDialog = false },
         onOnce = {
-            // AlarmHelper.skipAlarmForOnce(context, MIN_VALUE) + registerWakeAlarm
             sendToDeskClock(
                 Protocol.ACTION_SKIP_WAKE_ALARM_ONCE
             )
             showTurnOffDialog = false
-            // Alarm stays enabled, only this occurrence is skipped
         },
         onAlways = {
-            // AlarmHelper.enableAlarm(context, MIN_VALUE, false) + registerWakeAlarm
             sendToDeskClock(
                 Protocol.ACTION_DISABLE_WAKE_ALARM
             )
@@ -1139,10 +1237,7 @@ fun WakeAlarmTurnOffDialog(
     }
 }
 
-/**
- * Generic time-schedule card for custom modes (official "Set a schedule"):
- * enable switch + start/end times stored locally in the mode's settings.
- */
+/** Legacy/Simple time-schedule card (unused in v1.4 custom modes but kept for compatibility/bedtime logic reference). */
 @Composable
 fun CustomScheduleCard(
     schedule: ModeSchedule,

@@ -1,0 +1,138 @@
+package com.banana.hypermodes.systemserver.trigger
+
+import android.content.Context
+import android.util.Log
+import com.banana.hypermodes.systemserver.RoutineCoreEngine
+import com.banana.hypermodes.systemserver.config.ModeConfig
+import com.banana.hypermodes.systemserver.config.ComplexTrigger
+import com.banana.hypermodes.systemserver.config.ModeType
+
+/**
+ * Manages complex triggers (v1.3) for all modes.
+ * Aggregates states from specialized sub-managers (WiFi, Music, Apps, etc.).
+ * A mode is activated if ANY of its complex triggers are active (OR logic).
+ */
+class ComplexTriggerManager(
+    private val context: Context,
+    private val engine: RoutineCoreEngine
+) {
+    private var allModes: List<ModeConfig> = emptyList()
+    
+    // Sub-managers
+    private val wifiManager = WifiTriggerManager(context, ::onTriggerChanged)
+    private val musicManager = MusicTriggerManager(context, ::onTriggerChanged)
+    private val appManager = AppTriggerManager(context, ::onTriggerChanged)
+    private val bluetoothManager = BluetoothTriggerManager(context, ::onTriggerChanged)
+    // ScheduledModeManager still handles the Time triggers for now as it's complex,
+    // but we can integrate it here if we want to unify everything.
+    // For now, let's keep ScheduledModeManager as is and focus on the new ones.
+
+    private val activeModesByTrigger = mutableMapOf<String, MutableSet<String>>() // modeId -> active trigger tags
+
+    /**
+     * Modes this manager activated itself. A trigger going inactive only pulls
+     * a mode down if we put it up — a mode the user enabled manually must stay
+     * on when some trigger edge later goes false.
+     */
+    private val activatedByThisManager = mutableSetOf<String>()
+
+    fun init(modes: List<ModeConfig>) {
+        log("Initializing ComplexTriggerManager with ${modes.size} modes")
+        allModes = modes
+        
+        // Update sub-managers with relevant configs
+        updateSubManagers()
+        
+        // Initial check
+        checkAllConditions()
+    }
+
+    fun updateModes(modes: List<ModeConfig>) {
+        log("Updating ComplexTriggerManager modes")
+        allModes = modes
+        updateSubManagers()
+        checkAllConditions()
+    }
+
+    fun isModeActiveByTrigger(modeId: String): Boolean {
+        return activeModesByTrigger[modeId]?.isNotEmpty() ?: false
+    }
+
+    private fun updateSubManagers() {
+        val wifiConfigs = mutableMapOf<String, List<String>>()
+        val appConfigs = mutableMapOf<String, List<String>>()
+        val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
+        var musicModeIds = mutableSetOf<String>()
+
+        allModes.forEach { mode ->
+            // DYNAMIC_TRIGGER modes (built-in driving) are owned by the legacy
+            // DrivingTriggerManager with its own bluetooth-priority logic —
+            // feeding their triggers here would double-manage the mode.
+            if (mode.type == ModeType.DYNAMIC_TRIGGER) return@forEach
+
+            mode.complexTriggers.forEach { trigger ->
+                when (trigger) {
+                    is ComplexTrigger.Wifi -> wifiConfigs[mode.id] = trigger.ssids
+                    is ComplexTrigger.App -> appConfigs[mode.id] = trigger.packageNames
+                    is ComplexTrigger.Bluetooth -> bluetoothConfigs[mode.id] = trigger.deviceAddresses to trigger.matchAnyCarAudio
+                    is ComplexTrigger.Music -> musicModeIds.add(mode.id)
+                    is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
+                }
+            }
+        }
+
+        wifiManager.updateConfigs(wifiConfigs)
+        appManager.updateConfigs(appConfigs)
+        bluetoothManager.updateConfigs(bluetoothConfigs)
+        musicManager.updateConfigs(musicModeIds)
+    }
+
+    private fun checkAllConditions() {
+        wifiManager.check()
+        appManager.check()
+        bluetoothManager.check()
+        musicManager.check()
+    }
+
+    private fun onTriggerChanged(modeId: String, triggerType: String, isActive: Boolean) {
+        val activeTriggers = activeModesByTrigger.getOrPut(modeId) { mutableSetOf() }
+        val wasActive = activeTriggers.isNotEmpty()
+
+        if (isActive) {
+            activeTriggers.add(triggerType)
+        } else {
+            activeTriggers.remove(triggerType)
+            if (activeTriggers.isEmpty()) {
+                activeModesByTrigger.remove(modeId)
+            }
+        }
+
+        val isNowActive = activeTriggers.isNotEmpty()
+
+        if (isNowActive && !wasActive) {
+            log("Mode $modeId activated by $triggerType")
+            // Only record ownership when we actually flip the engine on. If the
+            // mode is already active (manual toggle or schedule), leave ownership
+            // alone so a later trigger-off edge doesn't tear it down.
+            if (engine.getCurrentActiveMode()?.id != modeId) {
+                engine.activateMode(modeId)
+                activatedByThisManager.add(modeId)
+            }
+        } else if (!isNowActive && wasActive) {
+            if (activatedByThisManager.remove(modeId)) {
+                log("Mode $modeId deactivated (no active triggers left)")
+                engine.deactivateMode(modeId, isManualDismiss = false)
+            } else {
+                log("Mode $modeId triggers cleared, but activation is not owned here — leaving as is")
+            }
+        }
+    }
+
+    private fun log(msg: String) {
+        Log.i(TAG, msg)
+    }
+
+    companion object {
+        private const val TAG = "ComplexTriggerManager"
+    }
+}

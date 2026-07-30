@@ -17,6 +17,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- WiFi trigger picker: reading the current SSID needs WiFi state +
+         fine location (Android 8.1+); requested at runtime in the picker -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Re-register driving detection after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Scheduled modes: exact alarms fire on time even in doze -->

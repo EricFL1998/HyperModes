@@ -36,9 +36,41 @@ data class ModeConfig(
     // Paused apps
     val pausedApps: List<String>,
 
+    // Complex triggers (v1.3)
+    val complexTriggers: List<ComplexTrigger> = emptyList(),
+
     // Contact filter
     val contactFilter: ContactFilter = ContactFilter.ALL
 )
+
+@Serializable
+sealed class ComplexTrigger {
+    @Serializable
+    data class Time(
+        val startTime: String,
+        val endTime: String,
+        val repeatDays: List<Int>
+    ) : ComplexTrigger()
+
+    @Serializable
+    data class App(
+        val packageNames: List<String>
+    ) : ComplexTrigger()
+
+    @Serializable
+    data class Wifi(
+        val ssids: List<String>
+    ) : ComplexTrigger()
+
+    @Serializable
+    data class Bluetooth(
+        val deviceAddresses: List<String>,
+        val matchAnyCarAudio: Boolean = false
+    ) : ComplexTrigger()
+
+    @Serializable
+    object Music : ComplexTrigger()
+}
 
 @Serializable
 enum class ModeType {

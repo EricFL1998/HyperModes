@@ -41,19 +41,19 @@ private data class AppEntry(
 )
 
 /**
- * App picker. [paused] = false: tick apps that may interrupt (allowedApps);
- * [paused] = true: tick apps to suspend while the mode is on (pausedApps).
+ * App picker. Generic version for allowed apps, paused apps, or trigger apps.
  */
 @Composable
 fun AppPickerScreen(
-    mode: Mode,
-    paused: Boolean = false,
+    title: String,
+    initialSelection: Set<String>,
+    singleSelection: Boolean = false,
     onBack: () -> Unit,
-    onSave: (Mode) -> Unit
+    onSelectionChanged: (Set<String>) -> Unit
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
-    var editedMode by remember { mutableStateOf(mode) }
+    var selectedApps by remember { mutableStateOf(initialSelection) }
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var query by remember { mutableStateOf("") }
 
@@ -82,7 +82,7 @@ fun AppPickerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = stringResource(if (paused) R.string.paused_apps else R.string.select_apps),
+                title = title,
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -107,7 +107,7 @@ fun AppPickerScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Search bar (collapsed state only — it filters the list inline).
+            // Search bar
             item {
                 SearchBar(
                     modifier = Modifier.padding(bottom = 12.dp),
@@ -144,15 +144,19 @@ fun AppPickerScreen(
                             it.packageName.contains(query, ignoreCase = true)
                 }
                 items(filtered, key = { it.packageName }) { app ->
-                    val selectedSet = if (paused) editedMode.settings.pausedApps
-                    else editedMode.settings.allowedApps
-                    val allowed = selectedSet.contains(app.packageName)
+                    val isSelected = selectedApps.contains(app.packageName)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
                             .padding(bottom = 12.dp),
-                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        onClick = if (singleSelection) {
+                            {
+                                onSelectionChanged(setOf(app.packageName))
+                                onBack()
+                            }
+                        } else null
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -177,21 +181,26 @@ fun AppPickerScreen(
                                     style = MiuixTheme.textStyles.body1
                                 )
                             }
-                            Switch(
-                                checked = allowed,
-                                onCheckedChange = { on ->
-                                    val newApps = if (on) selectedSet + app.packageName
-                                    else selectedSet - app.packageName
-                                    editedMode = editedMode.copy(
-                                        settings = if (paused) {
-                                            editedMode.settings.copy(pausedApps = newApps)
-                                        } else {
-                                            editedMode.settings.copy(allowedApps = newApps)
-                                        }
+                            
+                            if (singleSelection) {
+                                if (isSelected) {
+                                    Text(
+                                        text = "✓",
+                                        style = MiuixTheme.textStyles.body1,
+                                        color = MiuixTheme.colorScheme.primary
                                     )
-                                    onSave(editedMode)
                                 }
-                            )
+                            } else {
+                                Switch(
+                                    checked = isSelected,
+                                    onCheckedChange = { on ->
+                                        val newApps = if (on) selectedApps + app.packageName
+                                        else selectedApps - app.packageName
+                                        selectedApps = newApps
+                                        onSelectionChanged(newApps)
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -14,6 +14,7 @@ import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
 import com.banana.hypermodes.systemserver.trigger.BedtimeReconciler
+import com.banana.hypermodes.systemserver.trigger.ComplexTriggerManager
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
 
@@ -59,6 +60,7 @@ class RoutineCoreEngine private constructor() {
 
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
+    private var complexTriggerManager: ComplexTriggerManager? = null
     private var bedtimeListener: BedtimeListener? = null
     private var modeActionExecutor: ModeActionExecutor? = null
 
@@ -98,6 +100,7 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
+        complexTriggerManager = ComplexTriggerManager(context, this)
         bedtimeListener = BedtimeListener(context, this).also {
             it.registerStateSources()
         }
@@ -223,6 +226,9 @@ class RoutineCoreEngine private constructor() {
 
             // Update driving trigger manager with new mode list
             drivingTriggerManager?.init(config.modes)
+
+            // Update complex trigger manager
+            complexTriggerManager?.init(config.modes)
 
             // Handle active mode changes before synchronizing external trigger state.
             if (config.activeModeId != null) {
@@ -386,6 +392,14 @@ class RoutineCoreEngine private constructor() {
         }
 
         log("Deactivating mode: ${mode.name} (id=$modeId, manual=$isManualDismiss)")
+
+        if (!isManualDismiss) {
+            // Automatic deactivation. Check if any other trigger still wants this mode active.
+            if (isAnyTriggerActive(modeId)) {
+                log("Deactivation skipped for $modeId: other triggers are still active")
+                return
+            }
+        }
 
         // Revert mode actions
         modeActionExecutor?.revertMode(mode)
@@ -557,6 +571,22 @@ class RoutineCoreEngine private constructor() {
     /** When the current mode was activated (ms); 0 when no mode is active. */
     fun getCurrentModeActivatedAt(): Long = currentModeActivatedAt
 
+    private fun isAnyTriggerActive(modeId: String): Boolean {
+        val mode = allModes.find { it.id == modeId } ?: return false
+
+        // Check Time schedule
+        if (scheduledModeManager?.isModeActive(mode) == true) return true
+
+        // Check Complex triggers
+        if (complexTriggerManager?.isModeActiveByTrigger(modeId) == true) return true
+
+        // Driving (legacy DYNAMIC_TRIGGER) is currently handled by DrivingTriggerManager.
+        // It calls deactivateMode directly, so we don't necessarily need to check it here
+        // if we assume it only manages its own mode.
+
+        return false
+    }
+
     /**
      * Check if a mode was manually dismissed during the current scheduled period.
      * Used by scheduler to prevent re-activation after manual dismissal.
@@ -666,6 +696,7 @@ class RoutineCoreEngine private constructor() {
 
         // 3. Unregister triggers and listeners without normal deactivation side effects
         drivingTriggerManager?.cleanupForPackageRemoval()
+        complexTriggerManager?.updateModes(emptyList()) // Stops all sub-managers
         bedtimeListener?.cleanupForPackageRemoval()
 
         // 4. Revert active mode

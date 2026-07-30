@@ -59,9 +59,36 @@ data class ModeSettings(
     val drivingAutoDetect: Boolean = false,
     val drivingDetectMode: Int = DRIVING_DETECT_BLUETOOTH,
 
-    // Schedule
+    // Triggers (v1.3)
+    val triggers: List<ModeTrigger> = emptyList(),
+
+    // Schedule (Legacy/Bedtime)
     val schedule: ModeSchedule? = null
 )
+
+/**
+ * Triggers for automatic mode activation
+ */
+sealed class ModeTrigger {
+    data class Time(
+        val schedule: ModeSchedule
+    ) : ModeTrigger()
+
+    data class App(
+        val packageNames: Set<String>
+    ) : ModeTrigger()
+
+    data class Wifi(
+        val ssids: Set<String>
+    ) : ModeTrigger()
+
+    data class Bluetooth(
+        val deviceAddresses: Set<String>,
+        val matchAnyCarAudio: Boolean = false
+    ) : ModeTrigger()
+
+    object Music : ModeTrigger()
+}
 
 /**
  * DND interruption filter levels
@@ -109,6 +136,35 @@ data class PausableApp(
 )
 
 // Extension functions for converting between UI models and system_server config models
+
+fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
+    is ModeTrigger.Time -> ComplexTrigger.Time(
+        startTime = "%02d:%02d".format(schedule.startHour, schedule.startMinute),
+        endTime = "%02d:%02d".format(schedule.endHour, schedule.endMinute),
+        repeatDays = (1..7).filter { day -> (schedule.repeatDays and (1 shl (day - 1))) != 0 }
+    )
+    is ModeTrigger.App -> ComplexTrigger.App(packageNames.toList())
+    is ModeTrigger.Wifi -> ComplexTrigger.Wifi(ssids.toList())
+    is ModeTrigger.Bluetooth -> ComplexTrigger.Bluetooth(deviceAddresses.toList(), matchAnyCarAudio)
+    is ModeTrigger.Music -> ComplexTrigger.Music
+}
+
+fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
+    is ComplexTrigger.Time -> {
+        val parts = startTime.split(":")
+        val startH = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val startM = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val endParts = endTime.split(":")
+        val endH = endParts.getOrNull(0)?.toIntOrNull() ?: 0
+        val endM = endParts.getOrNull(1)?.toIntOrNull() ?: 0
+        val repeatMask = repeatDays.fold(0) { acc, day -> acc or (1 shl (day - 1)) }
+        ModeTrigger.Time(ModeSchedule(true, startH, startM, endH, endM, repeatMask))
+    }
+    is ComplexTrigger.App -> ModeTrigger.App(packageNames.toSet())
+    is ComplexTrigger.Wifi -> ModeTrigger.Wifi(ssids.toSet())
+    is ComplexTrigger.Bluetooth -> ModeTrigger.Bluetooth(deviceAddresses.toSet(), matchAnyCarAudio)
+    is ComplexTrigger.Music -> ModeTrigger.Music
+}
 
 /**
  * Convert UI Mode to system_server ModeConfig
@@ -177,6 +233,8 @@ fun Mode.toModeConfig(): ModeConfig {
         else -> ContactFilter.NONE
     }
 
+    val complexTriggers = s.triggers.map { it.toComplexTrigger() }
+
     return ModeConfig(
         id = id,
         name = name,
@@ -188,6 +246,7 @@ fun Mode.toModeConfig(): ModeConfig {
         repeatDays = repeatDays,
         scheduleEnabled = s.schedule?.enabled ?: false,
         triggers = triggers,
+        complexTriggers = complexTriggers,
         notification = NotificationConfig(
             dndLevel = dndLevel,
             allowedApps = s.allowedApps.toList()
@@ -279,6 +338,21 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
         )
     } else null
 
+    val triggersList = if (id == "driving") {
+        // Driving auto-detect stays on the legacy DrivingTriggerManager path
+        // (TriggerConfig + DYNAMIC_TRIGGER type). Surfacing complex triggers
+        // here would make ComplexTriggerManager double-manage the mode, and
+        // dropping them self-heals configs written by early v1.3 builds.
+        emptyList()
+    } else if (complexTriggers.isNotEmpty()) {
+        complexTriggers.map { it.toModeTrigger() }
+    } else if (hasStoredSchedule && id != "bedtime") {
+        // Migrate legacy schedule to complex triggers for custom modes
+        listOf(ModeTrigger.Time(schedule!!))
+    } else {
+        emptyList()
+    }
+
     return Mode(
         id = id,
         name = name,
@@ -309,6 +383,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             hideNotifications = false,
             drivingAutoDetect = drivingAutoDetect,
             drivingDetectMode = drivingDetectMode,
+            triggers = triggersList,
             schedule = schedule
         )
     )
