@@ -79,7 +79,11 @@ fun EditModeDialog(
     
     var name by remember(show, mode) {
         mutableStateOf(
-            if (englishDefaults[mode.id] == mode.name) {
+            if (isNew) {
+                // Start empty: the default name renders as a placeholder hint,
+                // and onDone falls back to it when nothing is typed.
+                ""
+            } else if (englishDefaults[mode.id] == mode.name) {
                 when (mode.id) {
                     "dnd" -> context.getString(R.string.mode_dnd)
                     "bedtime" -> context.getString(R.string.mode_bedtime)
@@ -148,6 +152,8 @@ fun EditModeDialog(
                             .fillMaxWidth()
                             .padding(horizontal = 5.dp)
                             .padding(bottom = 24.dp),
+                        label = if (isNew) mode.name else "",
+                        useLabelAsPlaceholder = true,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(
