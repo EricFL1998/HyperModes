@@ -353,6 +353,12 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
     val migratedLegacySchedule = complexTriggers.isEmpty() && hasStoredSchedule && id != "bedtime"
 
     val triggersList = if (id == "driving") {
+        // Driving auto-detect stays on the legacy DrivingTriggerManager path
+        // (TriggerConfig + DYNAMIC_TRIGGER type). Surfacing complex triggers
+        // here would make ComplexTriggerManager double-manage the mode, and
+        // dropping them self-heals configs written by early v1.3 builds.
+        emptyList()
+    } else if (complexTriggers.isNotEmpty()) {
         complexTriggers.map { it.toModeTrigger() }
     } else if (hasStoredSchedule && id != "bedtime") {
         // Migrate legacy schedule to complex triggers for custom modes
