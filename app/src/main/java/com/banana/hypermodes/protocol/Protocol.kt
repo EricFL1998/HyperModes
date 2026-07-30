@@ -41,6 +41,10 @@ object Protocol {
     // App -> system_server hook (SystemModeHook bridge)
     const val ACTION_SET_PACKAGES_SUSPENDED = "com.banana.hypermodes.SET_PACKAGES_SUSPENDED"
     const val ACTION_SET_CHANNELS_BYPASS_DND = "com.banana.hypermodes.SET_CHANNELS_BYPASS_DND"
+    /** Ask system_server for the saved (configured) WiFi SSID list; the result
+     *  comes back on the ResultReceiver in EXTRA_RESULT_RECEIVER. Apps lost
+     *  WifiManager.getConfiguredNetworks() in Android 10 — system_server hasn't. */
+    const val ACTION_GET_CONFIGURED_WIFI = "com.banana.hypermodes.GET_CONFIGURED_WIFI"
 
     // Engine extras
     const val EXTRA_MODE_ID = "modeId"
@@ -48,6 +52,8 @@ object Protocol {
     const val EXTRA_PACKAGES = "packages"
     const val EXTRA_SUSPENDED = "suspended"
     const val EXTRA_BYPASS = "bypass"
+    const val EXTRA_RESULT_RECEIVER = "resultReceiver"
+    const val EXTRA_SSIDS = "ssids"
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"
     /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
      * (scheduled sleep/wake alarms or the Clock app's own toggle). */

@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.wifi.WifiManager
 import android.os.IBinder
+import android.os.ResultReceiver
 import android.util.Log
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
@@ -28,6 +30,9 @@ import io.github.libxposed.api.XposedModule
  * - ACTION_SET_CHANNELS_BYPASS_DND: set/clear bypass-Dnd on every channel
  *   of the given packages via the "notification" binder. Original per-channel
  *   bypass flags are remembered in memory and restored on clear.
+ * - ACTION_GET_CONFIGURED_WIFI: return saved WiFi SSIDs via ResultReceiver
+ *   (apps lost getConfiguredNetworks in Android 10; system_server still
+ *   qualifies).
  *
  * Also initializes RoutineCoreEngine which runs entirely in system_server.
  */
@@ -118,6 +123,11 @@ class SystemModeHook(private val module: XposedModule) {
     private fun registerBridge(context: Context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
+                // No EXTRA_PACKAGES on this one — handle before the extraction below.
+                if (intent.action == Protocol.ACTION_GET_CONFIGURED_WIFI) {
+                    sendConfiguredWifi(c, intent)
+                    return
+                }
                 val packages = intent.getStringArrayExtra(Protocol.EXTRA_PACKAGES)
                     ?.toList() ?: return
                 when (intent.action) {
@@ -137,6 +147,7 @@ class SystemModeHook(private val module: XposedModule) {
         val filter = IntentFilter().apply {
             addAction(Protocol.ACTION_SET_PACKAGES_SUSPENDED)
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
+            addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
         }
         context.registerReceiver(
             receiver, filter,
@@ -144,6 +155,38 @@ class SystemModeHook(private val module: XposedModule) {
             Context.RECEIVER_EXPORTED
         )
         log("mode bridge receiver registered in system_server")
+    }
+
+    /**
+     * Return the device's saved WiFi SSIDs to the picker via ResultReceiver.
+     * Regular apps lost WifiManager.getConfiguredNetworks() in Android 10,
+     * but system_server still qualifies.
+     */
+    private fun sendConfiguredWifi(context: Context, intent: Intent) {
+        @Suppress("DEPRECATION")
+        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        if (resultReceiver == null) {
+            log("GET_CONFIGURED_WIFI without ResultReceiver")
+            return
+        }
+        val ssids = try {
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as WifiManager
+            @Suppress("DEPRECATION")
+            wifi.configuredNetworks
+                ?.mapNotNull { it.SSID?.removeSurrounding("\"") }
+                ?.filter { it.isNotEmpty() && it != "<unknown ssid>" }
+                ?.distinct()
+                ?.sorted()
+                ?: emptyList()
+        } catch (t: Throwable) {
+            log("getConfiguredNetworks failed: ${t.message}")
+            emptyList()
+        }
+        log("GET_CONFIGURED_WIFI: returning ${ssids.size} saved networks")
+        resultReceiver.send(0, android.os.Bundle().apply {
+            putStringArray(Protocol.EXTRA_SSIDS, ssids.toTypedArray())
+        })
     }
 
     /** Original bypass flag per "pkg/channelId", captured before our first

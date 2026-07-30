@@ -1,8 +1,13 @@
 package com.banana.hypermodes.ui
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.banana.hypermodes.R
+import com.banana.hypermodes.protocol.Protocol
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -54,15 +60,13 @@ fun WifiPickerScreen(
     }
 
     LaunchedEffect(permissionVersion) {
-        // Only the currently-connected SSID is reliably readable; scanning or
-        // listing configured networks needs extra privileges we don't have.
-        val list = mutableSetOf<String>()
-        val info = wifiManager.connectionInfo
-        if (info != null && info.networkId != -1) {
-            val ssid = info.ssid?.removeSurrounding("\"")
-            if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") list.add(ssid)
+        // Saved networks are only visible to system_server since Android 10 —
+        // ask the module bridge for them and fall back to the current SSID.
+        val current = currentSsid(wifiManager)
+        querySavedSsids(context) { saved ->
+            val merged = (saved.orEmpty() + listOfNotNull(current)).distinct()
+            ssids = merged.sortedWith(compareBy({ it != current }, { it.lowercase() }))
         }
-        ssids = list.toList().sorted()
     }
 
     val scrollBehavior = MiuixScrollBehavior()
@@ -166,5 +170,45 @@ fun WifiPickerScreen(
                 Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
             }
         }
+    }
+}
+
+private fun currentSsid(wifiManager: WifiManager): String? {
+    val info = wifiManager.connectionInfo
+    if (info == null || info.networkId == -1) return null
+    val ssid = info.ssid?.removeSurrounding("\"")
+    return if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") ssid else null
+}
+
+/**
+ * Ask the system_server bridge for saved networks. onResult runs on the main
+ * thread exactly once; null means the bridge is unavailable (module disabled
+ * or an older build) and the caller falls back to the current SSID.
+ */
+private fun querySavedSsids(context: Context, onResult: (List<String>?) -> Unit) {
+    val handler = Handler(Looper.getMainLooper())
+    var delivered = false
+    fun deliver(result: List<String>?) {
+        if (delivered) return
+        delivered = true
+        onResult(result)
+    }
+    val timeout = Runnable { deliver(null) }
+    handler.postDelayed(timeout, 1500)
+
+    val receiver = object : ResultReceiver(handler) {
+        override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+            handler.removeCallbacks(timeout)
+            deliver(resultData?.getStringArray(Protocol.EXTRA_SSIDS)?.toList())
+        }
+    }
+    try {
+        context.sendBroadcast(Intent(Protocol.ACTION_GET_CONFIGURED_WIFI).apply {
+            setPackage(Protocol.FRAMEWORK_PACKAGE)
+            putExtra(Protocol.EXTRA_RESULT_RECEIVER, receiver)
+        })
+    } catch (t: Throwable) {
+        handler.removeCallbacks(timeout)
+        deliver(null)
     }
 }
