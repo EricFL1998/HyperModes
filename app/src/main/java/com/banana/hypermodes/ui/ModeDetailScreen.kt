@@ -91,6 +91,8 @@ fun ModeDetailScreen(
     // v1.3 Trigger UI State
     var showTriggerSelector by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+    var pendingStartTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // For bedtime: refresh the schedule from DeskClock when this screen opens,
     // and keep the UI in sync with whatever the Clock actually stores.
@@ -635,31 +637,54 @@ fun ModeDetailScreen(
             }
         )
 
-        // Time Picker for adding a new time trigger
+        // Start-time picker for a new time trigger; confirming chains into
+        // the end-time picker below.
         TimePickerDialog(
-            title = stringResource(R.string.trigger_time),
+            title = stringResource(R.string.start_time),
             initialHour = ModeSchedule().startHour,
             initialMinute = ModeSchedule().startMinute,
             show = showTimePicker,
             onDismissRequest = { showTimePicker = false },
             onConfirm = { h, m ->
-                val newTrigger = ModeTrigger.Time(
-                    ModeSchedule(
-                        enabled = true,
-                        startHour = h,
-                        startMinute = m,
-                        endHour = (h + 1) % 24,
-                        endMinute = m
-                    )
-                )
-                if (!editedMode.settings.triggers.contains(newTrigger)) {
-                    val newTriggers = editedMode.settings.triggers + newTrigger
-                    editedMode = editedMode.copy(
-                        settings = editedMode.settings.copy(triggers = newTriggers)
-                    )
-                    onSave(editedMode)
-                }
+                pendingStartTime = h to m
                 showTimePicker = false
+                showEndTimePicker = true
+            }
+        )
+
+        // End-time picker, pre-filled with start + 1h. Overnight windows
+        // (end earlier than start) are supported by the schedule engine.
+        TimePickerDialog(
+            title = stringResource(R.string.end_time),
+            initialHour = pendingStartTime?.let { (it.first + 1) % 24 } ?: ModeSchedule().endHour,
+            initialMinute = pendingStartTime?.second ?: ModeSchedule().endMinute,
+            show = showEndTimePicker,
+            onDismissRequest = {
+                pendingStartTime = null
+                showEndTimePicker = false
+            },
+            onConfirm = { endH, endM ->
+                val start = pendingStartTime
+                if (start != null) {
+                    val newTrigger = ModeTrigger.Time(
+                        ModeSchedule(
+                            enabled = true,
+                            startHour = start.first,
+                            startMinute = start.second,
+                            endHour = endH,
+                            endMinute = endM
+                        )
+                    )
+                    if (!editedMode.settings.triggers.contains(newTrigger)) {
+                        val newTriggers = editedMode.settings.triggers + newTrigger
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(triggers = newTriggers)
+                        )
+                        onSave(editedMode)
+                    }
+                }
+                pendingStartTime = null
+                showEndTimePicker = false
             }
         )
 
