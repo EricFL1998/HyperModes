@@ -231,6 +231,19 @@ class RoutineCoreEngine private constructor() {
             // Update complex trigger manager
             complexTriggerManager?.init(config.modes)
 
+            // The manager syncs above may have RE-ENTRANTLY activated a mode:
+            // a trigger (or schedule) that is already active fires during
+            // init and activateMode() writes the new activeModeId to
+            // Settings.Global. The `config` parsed at entry is then stale, and
+            // reconciling against it below would instantly tear the mode back
+            // down and record a bogus manual dismiss. Bail out instead — the
+            // activation's observer echo reloads us with a fresh parse.
+            val latestJson = Settings.Global.getString(context.contentResolver, CONFIG_KEY)
+            if (latestJson != json) {
+                log("Config changed during manager sync (trigger fired) - deferring to reload")
+                return
+            }
+
             // Handle active mode changes before synchronizing external trigger state.
             if (config.activeModeId != null) {
                 if (currentActiveMode?.id != config.activeModeId) {
