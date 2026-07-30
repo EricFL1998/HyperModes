@@ -425,8 +425,10 @@ fun ModeDetailScreen(
                 }
             }
 
-            // Complex trigger UI (v1.3)
-            if (editedMode.id != "bedtime" && editedMode.id != "driving" && editedMode.id != "dnd") {
+            // Complex trigger UI (v1.3). Bedtime keeps its own Clock-driven
+            // schedule UI and driving keeps its auto-detect section; every
+            // other mode — built-in dnd included — gets complex triggers.
+            if (editedMode.id != "bedtime" && editedMode.id != "driving") {
                 item {
                     SmallTitle(
                         text = stringResource(R.string.when_to_turn_on),
