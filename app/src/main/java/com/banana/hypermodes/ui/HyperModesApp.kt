@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
@@ -33,9 +36,11 @@ import com.banana.hypermodes.utils.UpdateManager
 import com.banana.hypermodes.utils.UpdateInfo
 import com.banana.hypermodes.utils.RefreshRateManager
 import com.banana.hypermodes.ui.components.UpdateDialog
+import com.banana.hypermodes.ui.components.BottomTabBar
+import com.banana.hypermodes.ui.components.TabItem
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.*
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -45,6 +50,7 @@ private const val KEY_DRIVING_SETUP = "driving_setup_done"
 private const val KEY_BEDTIME_DELETED = "bedtime_deleted"
 
 sealed class Screen {
+    object MainTabs : Screen()
     object ModesList : Screen()
     object BedtimeIntro : Screen()
     object DrivingIntro : Screen()
@@ -75,8 +81,8 @@ fun HyperModesApp() {
     val prefs = remember { context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE) }
     var currentScreen by remember {
         // No landing page: the module hooks system_server, so a reboot is
-        // required anyway — go straight to the modes list.
-        mutableStateOf<Screen>(Screen.ModesList)
+        // required anyway — go straight to the main tabs (modes/automations).
+        mutableStateOf<Screen>(Screen.MainTabs)
     }
 
     // Restore the last known schedule immediately so the UI never flashes
@@ -239,6 +245,59 @@ fun HyperModesApp() {
             label = "screen"
         ) { screen ->
             when (screen) {
+                is Screen.MainTabs -> {
+                    MainTabsScreen(
+                        modes = modes,
+                        onBack = { (context as? android.app.Activity)?.finish() },
+                        onModeClick = { mode ->
+                            when {
+                                // Bedtime shows the intro page when never set up in the
+                                // Clock app, or right after the user deleted the mode.
+                                mode.id == "bedtime" && (!DeskClockState.configured ||
+                                        prefs.getBoolean(KEY_BEDTIME_DELETED, false)) -> {
+                                    currentScreen = Screen.BedtimeIntro
+                                }
+                                // Driving intro until the user has set it up once
+                                mode.id == "driving" && !prefs.getBoolean(KEY_DRIVING_SETUP, false) -> {
+                                    currentScreen = Screen.DrivingIntro
+                                }
+                                else -> {
+                                    editingMode = mode
+                                    currentScreen = Screen.ModeDetail(mode)
+                                }
+                            }
+                        },
+                        onCreateCustom = {
+                            val newMode = Mode(
+                                id = "custom_${System.currentTimeMillis()}",
+                                name = context.getString(R.string.custom_mode_default),
+                                icon = "⭐",
+                                description = "",
+                                settings = com.banana.hypermodes.data.ModeSettings(
+                                    drivingAutoDetect = false,
+                                    schedule = com.banana.hypermodes.data.ModeSchedule(enabled = false)
+                                )
+                            )
+                            modeToEditInDialog = newMode
+                            isCreatingNewModeInDialog = true
+                            showEditDialog = true
+                        },
+                        onRestoreBuiltIn = { builtIn ->
+                            upsertMode(builtIn)
+                        },
+                        showEditDialog = showEditDialog,
+                        modeToEdit = modeToEditInDialog,
+                        isCreatingNewMode = isCreatingNewModeInDialog,
+                        onDismissEdit = { showEditDialog = false },
+                        onDoneEdit = { done ->
+                            upsertMode(done)
+                            if (isCreatingNewModeInDialog) {
+                                editingMode = done
+                                currentScreen = Screen.ModeDetail(done)
+                            }
+                        }
+                    )
+                }
                 is Screen.ModesList -> {
                     ModesListScreen(
                         modes = modes,
@@ -295,7 +354,7 @@ fun HyperModesApp() {
                 }
                 is Screen.BedtimeIntro -> {
                     BedtimeIntroScreen(
-                        onBack = { currentScreen = Screen.ModesList },
+                        onBack = { currentScreen = Screen.MainTabs },
                         onSetup = {
                             // User went through the landing page — don't gate on it again.
                             prefs.edit().putBoolean(KEY_BEDTIME_DELETED, false).apply()
@@ -304,7 +363,7 @@ fun HyperModesApp() {
                 }
                 is Screen.DrivingIntro -> {
                     DrivingIntroScreen(
-                        onBack = { currentScreen = Screen.ModesList },
+                        onBack = { currentScreen = Screen.MainTabs },
                         onSetup = {
                             prefs.edit().putBoolean(KEY_DRIVING_SETUP, true).apply()
                             val driving = modes.firstOrNull { it.id == "driving" }
@@ -322,7 +381,7 @@ fun HyperModesApp() {
                     }
                     ModeDetailScreen(
                         mode = editingMode ?: currentMode,
-                        onBack = { currentScreen = Screen.ModesList },
+                        onBack = { currentScreen = Screen.MainTabs },
                         onOpenDisplayOptions = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DisplayOptions(updated)
@@ -387,7 +446,7 @@ fun HyperModesApp() {
                                 }
                             }
                             editingMode = null
-                            currentScreen = Screen.ModesList
+                            currentScreen = Screen.MainTabs
                         },
                         onSave = { updatedMode ->
                             editingMode = updatedMode
@@ -728,6 +787,7 @@ private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hyper
 
 /** Navigation depth of a screen, used to pick the slide direction. */
 private fun Screen.depth(): Int = when (this) {
+    is Screen.MainTabs -> 0
     is Screen.ModesList -> 0
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
@@ -735,6 +795,163 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.DrivingBluetoothPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
+}
+
+@Composable
+fun MainTabsScreen(
+    modes: List<Mode>,
+    onBack: () -> Unit,
+    onModeClick: (Mode) -> Unit,
+    onCreateCustom: () -> Unit,
+    onRestoreBuiltIn: (Mode) -> Unit,
+    showEditDialog: Boolean,
+    modeToEdit: Mode?,
+    isCreatingNewMode: Boolean,
+    onDismissEdit: () -> Unit,
+    onDoneEdit: (Mode) -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Local state for CreateModeDialog
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    // Tab items - using MIUIX icons
+    // 模式: Settings (represents switching/toggling modes)
+    // 自动化: Refresh (represents automation/workflow/forward action)
+    val tabs = remember {
+        listOf(
+            TabItem(icon = MiuixIcons.Settings, label = context.getString(R.string.modes)),
+            TabItem(icon = MiuixIcons.Refresh, label = context.getString(R.string.automations))
+        )
+    }
+
+    // Pager state for horizontal swiping
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
+
+    // Full-screen root Box: pager/content layer, floating capsule overlay, FAB overlay
+    // Wrap in Scaffold only for dialog support (no topBar/bottomBar)
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0) // Don't consume system insets
+    ) { scaffoldPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Content layer: pager with pages that have bottom padding for the floating capsule
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = true
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        // Modes tab
+                        ModesListScreenContent(
+                            modes = modes,
+                            onBack = onBack,
+                            onModeClick = onModeClick,
+                            onCreateCustom = onCreateCustom,
+                            onRestoreBuiltIn = onRestoreBuiltIn,
+                            showEditDialog = showEditDialog,
+                            modeToEdit = modeToEdit,
+                            isCreatingNewMode = isCreatingNewMode,
+                            onDismissEdit = onDismissEdit,
+                            onDoneEdit = onDoneEdit,
+                            showBackButton = true,
+                            showFab = false, // FAB will be shown as overlay
+                            showCreateDialog = false, // Dialog will be shown at root level
+                            useFloatingLayout = true // Signal to use shared bottom padding
+                        )
+                    }
+                    1 -> {
+                        // Automations tab
+                        AutomationsScreen(
+                            onBack = onBack,
+                            showBackButton = false,
+                            showFab = false, // FAB will be shown as overlay
+                            useFloatingLayout = true // Signal to use shared bottom padding
+                        )
+                    }
+                }
+            }
+
+            // Floating navigation capsule overlay - positioned absolutely at bottom
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = BottomLayoutGeometry.capsuleBottomOffset())
+                    .padding(horizontal = BottomLayoutGeometry.capsuleMargin)
+            ) {
+                FloatingNavigationBar {
+                    tabs.forEachIndexed { index, tab ->
+                        FloatingNavigationBarItem(
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+                            icon = tab.icon,
+                            label = tab.label
+                        )
+                    }
+                }
+            }
+
+            // Floating Action Button overlay - positioned absolutely above the capsule
+            FloatingActionButton(
+                onClick = {
+                    if (pagerState.currentPage == 0) {
+                        // Modes tab
+                        val deleted = DefaultModes.get()
+                            .filter { builtIn -> modes.none { it.id == builtIn.id } }
+                        if (deleted.isNotEmpty()) {
+                            showCreateDialog = true
+                        } else {
+                            onCreateCustom()
+                        }
+                    } else {
+                        // Automations tab - TODO
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp)
+                    .padding(bottom = BottomLayoutGeometry.fabBottomOffset())
+            ) {
+                Text(
+                    text = "+",
+                    fontSize = 32.sp,
+                    color = MiuixTheme.colorScheme.onPrimary
+                )
+            }
+
+            // CreateModeDialog at the top level - will appear above bottom bar
+            CreateModeDialog(
+                show = showCreateDialog,
+                deletedBuiltIns = DefaultModes.get()
+                    .filter { builtIn -> modes.none { it.id == builtIn.id } },
+                onDismiss = { showCreateDialog = false },
+                onCreateCustom = {
+                    showCreateDialog = false
+                    onCreateCustom()
+                },
+                onRestoreBuiltIn = { builtIn ->
+                    showCreateDialog = false
+                    onRestoreBuiltIn(builtIn)
+                }
+            )
+
+            // EditModeDialog at the top level
+            modeToEdit?.let { mode ->
+                EditModeDialog(
+                    show = showEditDialog,
+                    mode = mode,
+                    isNew = isCreatingNewMode,
+                    onDismissRequest = onDismissEdit,
+                    onDone = onDoneEdit
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -750,8 +967,40 @@ fun ModesListScreen(
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit
 ) {
+    ModesListScreenContent(
+        modes = modes,
+        onBack = onBack,
+        onModeClick = onModeClick,
+        onCreateCustom = onCreateCustom,
+        onRestoreBuiltIn = onRestoreBuiltIn,
+        showEditDialog = showEditDialog,
+        modeToEdit = modeToEdit,
+        isCreatingNewMode = isCreatingNewMode,
+        onDismissEdit = onDismissEdit,
+        onDoneEdit = onDoneEdit,
+        showBackButton = true
+    )
+}
+
+@Composable
+fun ModesListScreenContent(
+    modes: List<Mode>,
+    onBack: () -> Unit,
+    onModeClick: (Mode) -> Unit,
+    onCreateCustom: () -> Unit,
+    onRestoreBuiltIn: (Mode) -> Unit,
+    showEditDialog: Boolean,
+    modeToEdit: Mode?,
+    isCreatingNewMode: Boolean,
+    onDismissEdit: () -> Unit,
+    onDoneEdit: (Mode) -> Unit,
+    showBackButton: Boolean = true,
+    showFab: Boolean = true,
+    showCreateDialog: Boolean = true,
+    useFloatingLayout: Boolean = false
+) {
     val context = LocalContext.current
-    var showCreateDialog by remember { mutableStateOf(false) }
+    var showCreateDialogLocal by remember { mutableStateOf(false) }
 
     // Ask the hook for the real schedule whenever this screen is shown.
     LaunchedEffect(Unit) {
@@ -790,34 +1039,42 @@ fun ModesListScreen(
                 // Matches the official Settings detail page: a back arrow that
                 // finishes the activity. Uses miuix's default navigation-icon /
                 // title spacing so it lines up with the stock Settings UI.
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = MiuixIcons.Back,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                navigationIcon = if (showBackButton) {
+                    {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = MiuixIcons.Back,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
+                } else {
+                    { }
                 }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    val deleted = DefaultModes.get()
-                        .filter { builtIn -> modes.none { it.id == builtIn.id } }
-                    if (deleted.isNotEmpty()) {
-                        showCreateDialog = true
-                    } else {
-                        onCreateCustom()
+        floatingActionButton = if (showFab) {
+            {
+                FloatingActionButton(
+                    onClick = {
+                        val deleted = DefaultModes.get()
+                            .filter { builtIn -> modes.none { it.id == builtIn.id } }
+                        if (deleted.isNotEmpty()) {
+                            showCreateDialogLocal = true
+                        } else {
+                            onCreateCustom()
+                        }
                     }
+                ) {
+                    Text(
+                        text = "+",
+                        fontSize = 32.sp,
+                        color = MiuixTheme.colorScheme.onPrimary
+                    )
                 }
-            ) {
-                Text(
-                    text = "+",
-                    fontSize = 32.sp,
-                    color = MiuixTheme.colorScheme.onPrimary
-                )
             }
+        } else {
+            { }
         }
     ) { padding ->
         LazyColumn(
@@ -826,7 +1083,19 @@ fun ModesListScreen(
                 .scrollEndHaptic()
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = PaddingValues(top = padding.calculateTopPadding())
+            contentPadding = if (useFloatingLayout) {
+                // Floating layout: use shared geometry, no top padding from Scaffold
+                PaddingValues(
+                    top = 0.dp,
+                    bottom = BottomLayoutGeometry.contentBottomPadding().calculateBottomPadding()
+                )
+            } else {
+                // Standard layout: use Scaffold's top padding + navigationBarsPadding
+                PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = 0.dp
+                )
+            }
         ) {
             // Description text
             item {
@@ -945,37 +1214,45 @@ fun ModesListScreen(
 
             // Bottom spacer with navigation bar padding
             item {
-                Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
+                if (!useFloatingLayout) {
+                    Spacer(modifier = Modifier.height(if (showBackButton) 24.dp else 80.dp).navigationBarsPadding())
+                }
+                // When useFloatingLayout=true, bottom padding is already in contentPadding
             }
         }
 
         // 创建模式 dialog: 自定义 + individually listed built-ins that were deleted.
         // Must live INSIDE the Scaffold content — OverlayDialog renders via
         // LocalDialogStates, which only the Scaffold provides.
-        CreateModeDialog(
-            show = showCreateDialog,
-            deletedBuiltIns = DefaultModes.get()
-                .filter { builtIn -> modes.none { it.id == builtIn.id } },
-            onDismiss = { showCreateDialog = false },
-            onCreateCustom = {
-                showCreateDialog = false
-                onCreateCustom()
-            },
-            onRestoreBuiltIn = { builtIn ->
-                showCreateDialog = false
-                onRestoreBuiltIn(builtIn)
-            }
-        )
-
-        // 修改/创建模式 dialog
-        modeToEdit?.let { mode ->
-            EditModeDialog(
-                show = showEditDialog,
-                mode = mode,
-                isNew = isCreatingNewMode,
-                onDismissRequest = onDismissEdit,
-                onDone = onDoneEdit
+        // Only show if showCreateDialog is true (for standalone ModesListScreen)
+        if (showCreateDialog) {
+            CreateModeDialog(
+                show = showCreateDialogLocal,
+                deletedBuiltIns = DefaultModes.get()
+                    .filter { builtIn -> modes.none { it.id == builtIn.id } },
+                onDismiss = { showCreateDialogLocal = false },
+                onCreateCustom = {
+                    showCreateDialogLocal = false
+                    onCreateCustom()
+                },
+                onRestoreBuiltIn = { builtIn ->
+                    showCreateDialogLocal = false
+                    onRestoreBuiltIn(builtIn)
+                }
             )
+        }
+
+        // 修改/创建模式 dialog - only show if showCreateDialog is true
+        if (showCreateDialog) {
+            modeToEdit?.let { mode ->
+                EditModeDialog(
+                    show = showEditDialog,
+                    mode = mode,
+                    isNew = isCreatingNewMode,
+                    onDismissRequest = onDismissEdit,
+                    onDone = onDoneEdit
+                )
+            }
         }
     }
 }
