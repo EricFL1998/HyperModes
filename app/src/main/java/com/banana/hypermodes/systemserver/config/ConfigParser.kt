@@ -58,7 +58,30 @@ object ConfigParser {
         val fields = mode.toMutableMap()
         (fields["display"] as? JsonObject)?.let { fields["display"] = migrateLegacyDisplay(it) }
         hoistV12DeviceWakeKeys(fields)
+        normalizeBuiltInModeNames(fields)
         return JsonObject(fields)
+    }
+
+    /**
+     * Normalize built-in mode names to their canonical English defaults.
+     * Legacy configs may have stored localized names (勿扰模式, 睡眠模式, 驾驶模式)
+     * or old English names. Standardize to clean defaults so display resolution
+     * works correctly and configs are cleaner.
+     */
+    private fun normalizeBuiltInModeNames(fields: MutableMap<String, JsonElement>) {
+        val id = (fields["id"] as? JsonPrimitive)?.content ?: return
+        val currentName = (fields["name"] as? JsonPrimitive)?.content ?: return
+
+        val canonicalName = when (id) {
+            "dnd" -> if (currentName in setOf("勿扰", "勿扰模式", "Do Not Disturb")) "Do Not Disturb" else null
+            "bedtime" -> if (currentName in setOf("睡眠", "睡眠模式", "Bedtime")) "Bedtime" else null
+            "driving" -> if (currentName in setOf("驾驶", "驾驶模式", "Driving")) "Driving" else null
+            else -> null
+        }
+
+        if (canonicalName != null) {
+            fields["name"] = JsonPrimitive(canonicalName)
+        }
     }
 
     /**
