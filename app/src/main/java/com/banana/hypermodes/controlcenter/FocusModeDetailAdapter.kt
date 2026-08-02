@@ -19,9 +19,16 @@ class FocusModeDetailAdapter(
     modeDisplayNameProvider: ((ModeConfig) -> String)? = null
 ) {
     private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
-    private val displayNameResolver = FocusModeDisplayNameResolver(moduleContext::getString)
+    private val displayNameResolver = runCatching {
+        FocusModeDisplayNameResolver(
+            moduleContext.resources,
+            moduleContext.packageName
+        )
+    }.getOrNull()
     private val resolvedModeIconProvider = modeIconProvider ?: iconResolver::resolve
-    private val resolvedModeDisplayNameProvider = modeDisplayNameProvider ?: displayNameResolver::resolve
+    private val resolvedModeDisplayNameProvider = modeDisplayNameProvider
+        ?: (displayNameResolver?.let { resolver -> { mode: ModeConfig -> resolver.resolve(mode) } }
+            ?: { mode: ModeConfig -> mode.name })
 
     val session = FocusModeDetailSession(
         repository = repository,

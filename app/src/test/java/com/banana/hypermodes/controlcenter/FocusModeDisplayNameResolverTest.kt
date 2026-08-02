@@ -1,6 +1,6 @@
 package com.banana.hypermodes.controlcenter
 
-import com.banana.hypermodes.R
+import android.content.res.Resources
 import com.banana.hypermodes.systemserver.config.DisplayConfig
 import com.banana.hypermodes.systemserver.config.DndLevel
 import com.banana.hypermodes.systemserver.config.ModeConfig
@@ -13,7 +13,7 @@ class FocusModeDisplayNameResolverTest {
 
     @Test
     fun `dnd English default resolves to supplied localized dnd string`() {
-        val resolver = resolver(R.string.mode_dnd to "Localized DND")
+        val resolver = resolver("mode_dnd" to "Localized DND")
 
         val resolved = resolver.resolve(mode(id = "dnd", name = "Do Not Disturb"))
 
@@ -22,7 +22,7 @@ class FocusModeDisplayNameResolverTest {
 
     @Test
     fun `dnd Chinese default resolves to supplied localized dnd string`() {
-        val resolver = resolver(R.string.mode_dnd to "Localized DND")
+        val resolver = resolver("mode_dnd" to "Localized DND")
 
         val resolved = resolver.resolve(mode(id = "dnd", name = "勿扰"))
 
@@ -30,10 +30,19 @@ class FocusModeDisplayNameResolverTest {
     }
 
     @Test
+    fun `dnd legacy Chinese default resolves to supplied localized dnd string`() {
+        val resolver = resolver("mode_dnd" to "Localized DND")
+
+        val resolved = resolver.resolve(mode(id = "dnd", name = "勿扰模式"))
+
+        assertEquals("Localized DND", resolved)
+    }
+
+    @Test
     fun `bedtime and driving default language variants resolve to supplied localized strings`() {
         val resolver = resolver(
-            R.string.mode_bedtime to "Localized Bedtime",
-            R.string.mode_driving to "Localized Driving"
+            "mode_bedtime" to "Localized Bedtime",
+            "mode_driving" to "Localized Driving"
         )
 
         val resolved = listOf(
@@ -55,8 +64,29 @@ class FocusModeDisplayNameResolverTest {
     }
 
     @Test
+    fun `legacy Chinese defaults resolve to supplied localized strings`() {
+        val resolver = resolver(
+            "mode_bedtime" to "Localized Bedtime",
+            "mode_driving" to "Localized Driving"
+        )
+
+        val resolved = listOf(
+            resolver.resolve(mode(id = "bedtime", name = "睡眠模式")),
+            resolver.resolve(mode(id = "driving", name = "驾驶模式"))
+        )
+
+        assertEquals(
+            listOf(
+                "Localized Bedtime",
+                "Localized Driving"
+            ),
+            resolved
+        )
+    }
+
+    @Test
     fun `built in user rename is preserved exactly`() {
-        val resolver = resolver(R.string.mode_dnd to "Localized DND")
+        val resolver = resolver("mode_dnd" to "Localized DND")
 
         val resolved = resolver.resolve(mode(id = "dnd", name = "Do Not Disturb except family"))
 
@@ -65,7 +95,7 @@ class FocusModeDisplayNameResolverTest {
 
     @Test
     fun `custom mode name is preserved exactly`() {
-        val resolver = resolver(R.string.mode_dnd to "Localized DND")
+        val resolver = resolver("mode_dnd" to "Localized DND")
 
         val resolved = resolver.resolve(mode(id = "custom-id", name = "Deep Work"))
 
@@ -74,16 +104,34 @@ class FocusModeDisplayNameResolverTest {
 
     @Test
     fun `blank custom name returns Focus mode`() {
-        val resolver = resolver(R.string.mode_dnd to "Localized DND")
+        val resolver = resolver("mode_dnd" to "Localized DND")
 
         val resolved = resolver.resolve(mode(id = "custom-id", name = "   "))
 
         assertEquals("Focus mode", resolved)
     }
 
-    private fun resolver(vararg strings: Pair<Int, String>): FocusModeDisplayNameResolver {
+    @Test
+    fun `missing resource entry name returns mode name unchanged`() {
+        val resolver = resolver() // No mappings
+
+        val resolved = resolver.resolve(mode(id = "dnd", name = "Do Not Disturb"))
+
+        assertEquals("Do Not Disturb", resolved)
+    }
+
+    private fun resolver(vararg strings: Pair<String, String>): FocusModeDisplayNameResolver {
         val values = strings.toMap()
-        return FocusModeDisplayNameResolver { id -> values[id] ?: "string-$id" }
+        val mockResources = object : Resources(null, null, null) {
+            override fun getIdentifier(name: String, defType: String?, defPackage: String?): Int {
+                return if (values.containsKey(name)) name.hashCode() else 0
+            }
+            override fun getString(id: Int): String {
+                return values.entries.find { it.key.hashCode() == id }?.value
+                    ?: throw Resources.NotFoundException("string/$id")
+            }
+        }
+        return FocusModeDisplayNameResolver(mockResources, "com.banana.hypermodes")
     }
 
     private fun mode(id: String, name: String): ModeConfig {

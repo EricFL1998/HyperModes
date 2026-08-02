@@ -68,9 +68,12 @@ private class TileInvocationHandler(
     private var detailAdapter: Any? = null
     private var detailSession: FocusModeDetailSession? = null
     private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
-    private val displayNameResolver = FocusModeDisplayNameResolver { id ->
-        stringFromContext(id, "HyperModes")
-    }
+    private val displayNameResolver = runCatching {
+        FocusModeDisplayNameResolver(
+            moduleContext.resources,
+            moduleContext.packageName
+        )
+    }.getOrNull()
 
     override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
         val arguments = args ?: emptyArray()
@@ -248,7 +251,7 @@ private class TileInvocationHandler(
         val snapshot = repository.loadOrInitialize()
         val mode = snapshot.displayedMode
         val active = snapshot.isActive && mode != null
-        val label = mode?.let { displayNameResolver.resolve(it) } ?: fallbackLabel()
+        val label = mode?.let { displayNameResolver?.resolve(it) ?: it.name } ?: fallbackLabel()
         setObjectFieldIfPresent(state, "spec", tileSpec)
         setObjectFieldIfPresent(state, "label", label)
         setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, active, mode != null))
@@ -270,7 +273,7 @@ private class TileInvocationHandler(
 
     private fun tileLabel(): CharSequence {
         return repository.loadOrInitialize().displayedMode?.let {
-            displayNameResolver.resolve(it)
+            displayNameResolver?.resolve(it) ?: it.name
         } ?: fallbackLabel()
     }
 

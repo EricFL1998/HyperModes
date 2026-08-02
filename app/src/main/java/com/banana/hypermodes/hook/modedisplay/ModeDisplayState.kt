@@ -51,7 +51,7 @@ object ModeDisplayStateReader {
                 Protocol.MODULE_PACKAGE,
                 Context.CONTEXT_IGNORE_SECURITY
             )
-            FocusModeDisplayNameResolver { resId -> moduleContext.getString(resId) }
+            FocusModeDisplayNameResolver(moduleContext.resources, Protocol.MODULE_PACKAGE)
                 .resolve(mode)
         }.getOrDefault(mode.name)
 }
