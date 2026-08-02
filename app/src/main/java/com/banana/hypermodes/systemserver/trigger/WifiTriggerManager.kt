@@ -55,6 +55,7 @@ class WifiTriggerManager(
     }
 
     private fun getCurrentSsid(): String? {
+        @Suppress("DEPRECATION")
         val info = wifiManager.connectionInfo
         if (info == null || info.networkId == -1) return null
         var ssid = info.ssid

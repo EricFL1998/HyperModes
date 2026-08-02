@@ -174,6 +174,7 @@ fun WifiPickerScreen(
 }
 
 private fun currentSsid(wifiManager: WifiManager): String? {
+    @Suppress("DEPRECATION")
     val info = wifiManager.connectionInfo
     if (info == null || info.networkId == -1) return null
     val ssid = info.ssid?.removeSurrounding("\"")
