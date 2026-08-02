@@ -13,6 +13,7 @@ import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
+import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceAdapter
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
@@ -123,10 +124,16 @@ class SystemModeHook(private val module: XposedModule) {
     private fun registerBridge(context: Context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
-                // No EXTRA_PACKAGES on this one — handle before the extraction below.
-                if (intent.action == Protocol.ACTION_GET_CONFIGURED_WIFI) {
-                    sendConfiguredWifi(c, intent)
-                    return
+                // Actions without EXTRA_PACKAGES — handle before the extraction below.
+                when (intent.action) {
+                    Protocol.ACTION_GET_CONFIGURED_WIFI -> {
+                        sendConfiguredWifi(c, intent)
+                        return
+                    }
+                    Protocol.ACTION_PROBE_POLARIS -> {
+                        probePolaris(c, intent)
+                        return
+                    }
                 }
                 val packages = intent.getStringArrayExtra(Protocol.EXTRA_PACKAGES)
                     ?.toList() ?: return
@@ -148,6 +155,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_PACKAGES_SUSPENDED)
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
+            addAction(Protocol.ACTION_PROBE_POLARIS)
         }
         context.registerReceiver(
             receiver, filter,
@@ -187,6 +195,30 @@ class SystemModeHook(private val module: XposedModule) {
         resultReceiver.send(0, android.os.Bundle().apply {
             putStringArray(Protocol.EXTRA_SSIDS, ssids.toTypedArray())
         })
+    }
+
+    /**
+     * Probe Xiaomi Polaris geofencing capability and return structured result.
+     * This is a fail-closed gate: location triggers are NOT implemented unless
+     * the probe confirms Polaris is available and allows non-SecurityCenter callers.
+     */
+    private fun probePolaris(context: Context, intent: Intent) {
+        @Suppress("DEPRECATION")
+        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        if (resultReceiver == null) {
+            log("PROBE_POLARIS without ResultReceiver")
+            return
+        }
+
+        log("PROBE_POLARIS: starting capability detection")
+        val adapter = PolarisGeofenceAdapter(context)
+        val report = adapter.getCapabilityReport()
+
+        val supported = report.getBoolean("supported", false)
+        val message = report.getString("message", "Unknown result")
+
+        log("PROBE_POLARIS result: supported=$supported, message=$message")
+        resultReceiver.send(0, report)
     }
 
     /** Original bypass flag per "pkg/channelId", captured before our first

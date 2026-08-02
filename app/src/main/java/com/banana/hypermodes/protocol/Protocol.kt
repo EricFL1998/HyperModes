@@ -45,6 +45,10 @@ object Protocol {
      *  comes back on the ResultReceiver in EXTRA_RESULT_RECEIVER. Apps lost
      *  WifiManager.getConfiguredNetworks() in Android 10 — system_server hasn't. */
     const val ACTION_GET_CONFIGURED_WIFI = "com.banana.hypermodes.GET_CONFIGURED_WIFI"
+    /** Probe Xiaomi Polaris geofencing capability. Returns structured result via
+     *  ResultReceiver indicating whether Polaris service is available and allows
+     *  non-SecurityCenter callers. Fail-closed gate before location trigger UI. */
+    const val ACTION_PROBE_POLARIS = "com.banana.hypermodes.PROBE_POLARIS"
 
     // Engine extras
     const val EXTRA_MODE_ID = "modeId"

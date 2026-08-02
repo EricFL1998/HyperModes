@@ -35,6 +35,10 @@
     <queries>
         <package android:name="com.android.deskclock" />
         <package android:name="com.mi.health" />
+        <!-- Polaris geofencing service (feasibility probe; no registration until
+             on-device spike confirms non-SecurityCenter callers are allowed) -->
+        <package android:name="com.xiaomi.gnss.polaris" />
+        <package android:name="com.miui.securityadd" />
         <!-- Lets the app-exceptions picker list launchable apps. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
