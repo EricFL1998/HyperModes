@@ -50,7 +50,12 @@ fun TriggerSelectionDialog(
                 subtitle = stringResource(R.string.trigger_music_desc),
                 onClick = { onSelect("music") }
             )
-            
+            TriggerOptionItem(
+                title = stringResource(R.string.trigger_location),
+                subtitle = stringResource(R.string.trigger_location_desc),
+                onClick = { onSelect("location") }
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(
                 text = stringResource(R.string.cancel),

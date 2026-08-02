@@ -94,6 +94,32 @@ sealed class ModeTrigger {
     ) : ModeTrigger()
 
     object Music : ModeTrigger()
+
+    data class Location(
+        val id: String,
+        val target: LocationTarget,
+        val transition: LocationTransition
+    ) : ModeTrigger()
+}
+
+/**
+ * Location target for geofencing triggers
+ */
+data class LocationTarget(
+    val latitude: Double,
+    val longitude: Double,
+    val radius: Int = 500, // meters
+    val addressName: String? = null,
+    val cityName: String? = null,
+    val provinceName: String? = null
+)
+
+/**
+ * Location transition types
+ */
+enum class LocationTransition {
+    ARRIVE,  // Enter the geofence
+    LEAVE    // Exit the geofence
 }
 
 /**
@@ -153,6 +179,16 @@ fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
     is ModeTrigger.Wifi -> ComplexTrigger.Wifi(ssids.toList())
     is ModeTrigger.Bluetooth -> ComplexTrigger.Bluetooth(deviceAddresses.toList(), matchAnyCarAudio)
     is ModeTrigger.Music -> ComplexTrigger.Music
+    is ModeTrigger.Location -> ComplexTrigger.Location(
+        id = id,
+        latitude = target.latitude,
+        longitude = target.longitude,
+        radius = target.radius,
+        addressName = target.addressName,
+        cityName = target.cityName,
+        provinceName = target.provinceName,
+        transition = transition.name
+    )
 }
 
 fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
@@ -170,6 +206,22 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
     is ComplexTrigger.Wifi -> ModeTrigger.Wifi(ssids.toSet())
     is ComplexTrigger.Bluetooth -> ModeTrigger.Bluetooth(deviceAddresses.toSet(), matchAnyCarAudio)
     is ComplexTrigger.Music -> ModeTrigger.Music
+    is ComplexTrigger.Location -> ModeTrigger.Location(
+        id = id,
+        target = LocationTarget(
+            latitude = latitude,
+            longitude = longitude,
+            radius = radius,
+            addressName = addressName,
+            cityName = cityName,
+            provinceName = provinceName
+        ),
+        transition = try {
+            LocationTransition.valueOf(transition)
+        } catch (_: IllegalArgumentException) {
+            LocationTransition.ARRIVE
+        }
+    )
 }
 
 /**

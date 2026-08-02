@@ -241,6 +241,8 @@
     <string name="trigger_bluetooth_desc">When connected to specific device</string>
     <string name="trigger_music">Music</string>
     <string name="trigger_music_desc">When music is playing</string>
+    <string name="trigger_location">Location</string>
+    <string name="trigger_location_desc">When arriving or leaving a place</string>
     <string name="add_trigger">Add Schedule</string>
     <string name="trigger_at_time">During %1$s - %2$s</string>
     <string name="trigger_on_app">When opening %1$s</string>
@@ -248,10 +250,19 @@
     <string name="trigger_on_wifi">When connected to %1$s</string>
     <string name="trigger_on_bluetooth">When connected to %1$s</string>
     <string name="trigger_on_music">When music is playing</string>
+    <string name="trigger_on_location_arrive">When arriving at %1$s</string>
+    <string name="trigger_on_location_leave">When leaving %1$s</string>
     <string name="search_wifi">Search WiFi</string>
     <string name="search_bluetooth">Search Bluetooth</string>
     <string name="no_wifi_networks">No WiFi networks found. Connect to a network and grant location permission to pick it here.</string>
     <string name="no_bluetooth_devices">No paired devices found. Pair a device in system settings and grant Bluetooth permission.</string>
     <string name="driving_devices_title">Bluetooth devices</string>
     <string name="add_device">Add device</string>
+
+    <!-- Location trigger picker -->
+    <string name="location_transition_arrive">Arrive</string>
+    <string name="location_transition_leave">Leave</string>
+    <string name="location_picker_title">Select Location</string>
+    <string name="location_unsupported">Location triggers are not supported on this device</string>
+    <string name="location_permission_required">Location permission required</string>
 </resources>

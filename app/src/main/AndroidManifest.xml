@@ -21,6 +21,8 @@
          fine location (Android 8.1+); requested at runtime in the picker -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Location triggers: Polaris geofencing requires background location -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <!-- Re-register driving detection after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Scheduled modes: exact alarms fire on time even in doze -->
@@ -75,6 +77,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Polaris geofence callback receiver -->
+        <receiver
+            android:name=".systemserver.geofence.PolarisCallbackReceiver"
+            android:exported="true"
+            android:permission="com.banana.hypermodes.permission.CONTROL">
+            <intent-filter>
+                <action android:name="com.xiaomi.gnss.polaris.action.GEOFENCE_EVENT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

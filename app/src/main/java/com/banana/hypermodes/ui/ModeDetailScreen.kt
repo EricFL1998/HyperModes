@@ -53,6 +53,7 @@ fun ModeDetailScreen(
     onOpenAppTriggerPicker: (Mode) -> Unit,
     onOpenWifiTriggerPicker: (Mode) -> Unit,
     onOpenBluetoothTriggerPicker: (Mode) -> Unit,
+    onOpenLocationTriggerPicker: (Mode) -> Unit,
     onOpenDrivingBluetoothPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
@@ -626,6 +627,7 @@ fun ModeDetailScreen(
                     "app" -> onOpenAppTriggerPicker(editedMode)
                     "wifi" -> onOpenWifiTriggerPicker(editedMode)
                     "bluetooth" -> onOpenBluetoothTriggerPicker(editedMode)
+                    "location" -> onOpenLocationTriggerPicker(editedMode)
                     "music" -> {
                         if (!editedMode.settings.triggers.contains(ModeTrigger.Music)) {
                             val newTriggers = editedMode.settings.triggers + ModeTrigger.Music
@@ -883,6 +885,7 @@ fun TriggerCard(
         is ModeTrigger.Wifi -> "📶"
         is ModeTrigger.Bluetooth -> "🎧"
         is ModeTrigger.Music -> "🎵"
+        is ModeTrigger.Location -> "📍"
     }
 
     // Resolve display names for App triggers; fall back to the package name
@@ -943,6 +946,15 @@ fun TriggerCard(
             btNames.firstOrNull() ?: trigger.deviceAddresses.firstOrNull() ?: ""
         )
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
+        is ModeTrigger.Location -> {
+            val locationName = trigger.target.addressName
+                ?: trigger.target.cityName
+                ?: stringResource(R.string.location_picker_title)
+            when (trigger.transition) {
+                LocationTransition.ARRIVE -> stringResource(R.string.trigger_on_location_arrive, locationName)
+                LocationTransition.LEAVE -> stringResource(R.string.trigger_on_location_leave, locationName)
+            }
+        }
     }
 
     TriggerRowCard(icon = icon, label = label, onDelete = onDelete)

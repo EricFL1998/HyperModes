@@ -70,6 +70,18 @@ sealed class ComplexTrigger {
 
     @Serializable
     object Music : ComplexTrigger()
+
+    @Serializable
+    data class Location(
+        val id: String,
+        val latitude: Double,
+        val longitude: Double,
+        val radius: Int = 500,
+        val addressName: String? = null,
+        val cityName: String? = null,
+        val provinceName: String? = null,
+        val transition: String // "ARRIVE" or "LEAVE"
+    ) : ComplexTrigger()
 }
 
 @Serializable

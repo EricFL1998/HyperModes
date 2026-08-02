@@ -241,6 +241,8 @@
     <string name="trigger_bluetooth_desc">连接到特定蓝牙设备时</string>
     <string name="trigger_music">音乐</string>
     <string name="trigger_music_desc">正在播放音乐时</string>
+    <string name="trigger_location">位置</string>
+    <string name="trigger_location_desc">到达或离开某地时</string>
     <string name="add_trigger">添加触发方式</string>
     <string name="trigger_at_time">在 %1$s - %2$s 期间</string>
     <string name="trigger_on_app">打开 %1$s 时</string>
@@ -248,10 +250,19 @@
     <string name="trigger_on_wifi">连接到 %1$s 时</string>
     <string name="trigger_on_bluetooth">连接到 %1$s 时</string>
     <string name="trigger_on_music">正在播放音乐时</string>
+    <string name="trigger_on_location_arrive">到达 %1$s 时</string>
+    <string name="trigger_on_location_leave">离开 %1$s 时</string>
     <string name="search_wifi">搜索 WLAN</string>
     <string name="search_bluetooth">搜索蓝牙</string>
     <string name="no_wifi_networks">未找到 WLAN 网络。请连接到网络并授予定位权限后再选择。</string>
     <string name="no_bluetooth_devices">未找到已配对设备。请先在系统设置中配对设备并授予蓝牙权限。</string>
     <string name="driving_devices_title">蓝牙设备</string>
     <string name="add_device">添加设备</string>
+
+    <!-- Location trigger picker -->
+    <string name="location_transition_arrive">到达</string>
+    <string name="location_transition_leave">离开</string>
+    <string name="location_picker_title">选择位置</string>
+    <string name="location_unsupported">此设备不支持位置触发</string>
+    <string name="location_permission_required">需要位置权限</string>
 </resources>

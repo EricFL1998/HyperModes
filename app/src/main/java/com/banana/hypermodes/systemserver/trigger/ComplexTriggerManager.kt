@@ -17,12 +17,13 @@ class ComplexTriggerManager(
     private val engine: RoutineCoreEngine
 ) {
     private var allModes: List<ModeConfig> = emptyList()
-    
+
     // Sub-managers
     private val wifiManager = WifiTriggerManager(context, ::onTriggerChanged)
     private val musicManager = MusicTriggerManager(context, ::onTriggerChanged)
     private val appManager = AppTriggerManager(context, ::onTriggerChanged)
     private val bluetoothManager = BluetoothTriggerManager(context, ::onTriggerChanged)
+    private val locationManager = LocationTriggerManager(context, ::onTriggerChanged)
     // ScheduledModeManager still handles the Time triggers for now as it's complex,
     // but we can integrate it here if we want to unify everything.
     // For now, let's keep ScheduledModeManager as is and focus on the new ones.
@@ -56,6 +57,7 @@ class ComplexTriggerManager(
         val appConfigs = mutableMapOf<String, List<String>>()
         val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
         var musicModeIds = mutableSetOf<String>()
+        val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
 
         allModes.forEach { mode ->
             // DYNAMIC_TRIGGER modes (built-in driving) are owned by the legacy
@@ -76,6 +78,10 @@ class ComplexTriggerManager(
                                     ((prev?.second ?: false) || trigger.matchAnyCarAudio)
                     }
                     is ComplexTrigger.Music -> musicModeIds.add(mode.id)
+                    is ComplexTrigger.Location -> {
+                        val prev = locationConfigs[mode.id] ?: emptyList()
+                        locationConfigs[mode.id] = prev + (trigger.id to trigger)
+                    }
                     is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                 }
             }
@@ -85,6 +91,7 @@ class ComplexTriggerManager(
         appManager.updateConfigs(appConfigs)
         bluetoothManager.updateConfigs(bluetoothConfigs)
         musicManager.updateConfigs(musicModeIds)
+        locationManager.updateConfigs(locationConfigs)
     }
 
     private fun checkAllConditions() {
