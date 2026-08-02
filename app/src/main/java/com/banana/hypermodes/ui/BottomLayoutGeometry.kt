@@ -23,45 +23,46 @@ object BottomLayoutGeometry {
     /** Height of the floating navigation capsule itself */
     val capsuleHeight = 56.dp
 
-    /** Visual gap between screen edge and capsule (margin around the capsule) */
-    val capsuleMargin = 16.dp
+    /** Visual gap between screen edge and capsule (negative = overlap with nav bar area) */
+    val capsuleMargin = (-8).dp
 
     /** Breathing room between page content and the capsule */
-    val contentGap = 12.dp
+    val contentGap = 4.dp
 
     /** FAB offset above the capsule top edge */
-    val fabOffset = 16.dp
+    val fabOffset = 8.dp
 
     /**
      * Total bottom padding for page content:
-     * system nav inset + capsuleMargin + capsuleHeight + contentGap
+     * Ensures last item can scroll above the capsule with breathing room.
+     * = capsuleHeight + contentGap (capsule itself + breathing space)
+     * Note: Does NOT include navBar or capsuleMargin, as those are part of
+     * the capsule's own offset from screen bottom, not content clearance.
      */
     @Composable
     fun contentBottomPadding(): PaddingValues {
-        val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-        val bottomPadding = navBarInsets.calculateBottomPadding() +
-                     capsuleMargin + capsuleHeight + contentGap
+        val bottomPadding = capsuleHeight + contentGap
         return PaddingValues(bottom = bottomPadding)
     }
 
     /**
      * Bottom offset for the floating navigation capsule:
-     * system nav inset + capsuleMargin
+     * system nav inset + capsuleMargin, with coerceAtLeast to prevent negative padding
      */
     @Composable
     fun capsuleBottomOffset(): Dp {
         val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-        return navBarInsets.calculateBottomPadding() + capsuleMargin
+        return (navBarInsets.calculateBottomPadding() + capsuleMargin).coerceAtLeast(0.dp)
     }
 
     /**
      * Bottom offset for the FAB:
-     * system nav inset + capsuleMargin + capsuleHeight + fabOffset
+     * system nav inset + capsuleMargin + capsuleHeight + fabOffset, coerced to non-negative
      */
     @Composable
     fun fabBottomOffset(): Dp {
         val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-        return navBarInsets.calculateBottomPadding() + capsuleMargin +
-               capsuleHeight + fabOffset
+        return (navBarInsets.calculateBottomPadding() + capsuleMargin +
+               capsuleHeight + fabOffset).coerceAtLeast(0.dp)
     }
 }

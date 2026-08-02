@@ -3,6 +3,7 @@ package com.banana.hypermodes.ui
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -35,6 +36,7 @@ fun LocationTriggerPickerScreen(
     onBack: () -> Unit,
     onSave: (Mode) -> Unit
 ) {
+    BackHandler(onBack = onBack)
     val context = LocalContext.current
     var selectedTransition by remember { mutableStateOf(LocationTransition.ARRIVE) }
     var showTransitionDialog by remember { mutableStateOf(false) }

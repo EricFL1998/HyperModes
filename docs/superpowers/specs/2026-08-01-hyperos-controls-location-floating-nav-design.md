@@ -11,7 +11,7 @@ Add four related HyperOS features without replacing the existing mode engine:
 1. Move the main-screen FAB lower and remove its duplicated bottom offsets.
 2. Add silent-mode and airplane-mode overrides to Device Control.
 3. Add continuous “Arrive at location” and “Leave location” mode triggers by reusing Xiaomi SecurityAdd for place selection and Xiaomi Polaris for geofencing.
-4. Make the main tab capsule fully floating, with no full-width bottom background strip. Do not add blur because Gallery’s official Flutter implementation cannot be reused directly in this Compose app.
+4. Make the main tab capsule fully floating using Miuix FloatingNavigationBar, with no full-width bottom background strip and no blur effects.
 
 The work is divided into three independently testable boundaries: the main UI shell, privileged device actions, and Xiaomi location adapters. The location condition model is reusable by the future Automations screen, but this iteration exposes it only through mode triggers.
 
@@ -25,13 +25,13 @@ The work is divided into three independently testable boundaries: the main UI sh
 - Airplane control is three-state: unchanged, enabled, or disabled.
 - Reject saves when airplane mode is enabled while Wi-Fi, Bluetooth, or 5G is also configured to be enabled.
 - Do not hook Security Center’s private task editor or database. Reuse only SecurityAdd’s picker contract and Polaris’s geofence service.
-- Reproduce Gallery’s clipped backdrop-filter visual in Compose rather than treating a translucent fill or private MIUI View blur as the primary implementation.
+- Use Miuix FloatingNavigationBar as the sole floating tab capsule implementation, with no blur effects. There is no reusable official Compose blur API in HyperOS (Gallery uses Flutter AOT native rendering, not Android Compose or View APIs).
 
 ## Reverse-Engineering Evidence
 
 ### Gallery
 
-The unpacked Gallery at `apk_decompiled/miuigallary_decompiler` is a Flutter/HyperOS Flutter application. Its UI lives in `libapp.so`, where the relevant native strings include `home_navBar`, `BackdropFilterLayer`, `ImageFilter::initBlur`, and `ClipRRectShader::Create`. This supports a clipped, local backdrop-filter design rather than a full-width navigation surface or an Android `View#setMiBackgroundBlurMode` implementation.
+The unpacked Gallery at `apk_decompiled/miuigallary_decompiler` is a Flutter/HyperOS Flutter application. Its UI lives in `libapp.so`, where the relevant native strings include `home_navBar`, `BackdropFilterLayer`, `ImageFilter::initBlur`, and `ClipRRectShader::Create`. This confirms Gallery's blur effect is implemented in Flutter's native AOT rendering pipeline, not through Android Compose APIs or reusable View blur methods. There is no official HyperOS Compose blur component available for integration into this Jetpack Compose application.
 
 ### Settings
 
@@ -91,22 +91,19 @@ Each page reserves bottom scroll space equal to:
 - navigation-bar inset;
 - a small final content gap.
 
-This keeps the final card reachable above the capsule without removing the live content behind it during scrolling.
+This keeps the final card reachable above the capsule without removing the live content behind it during scrolling. During implementation, the user fixed a list scroll issue to ensure proper content visibility.
 
-### Gallery-Style Backdrop Blur
+### Floating Capsule Implementation
 
-Use the stable Haze Compose 1.7.2 source/effect pipeline (`dev.chrisbanes.haze:haze:1.7.2`):
+Use the standard Miuix `FloatingNavigationBar` component as the sole tab navigation implementation:
 
-- Register the pager/content container as the blur source.
-- Clip the effect to the capsule’s squircle/rounded shape.
-- Blur only the capsule bounds.
-- Add a theme-aware translucent material tint above the blur.
-- Add a subtle highlight/border so separation does not depend on blur alone.
-- Preserve Miuix shadow, icon sizing, `selectableGroup`, `Role.Tab`, selected-state semantics, and at least 48dp touch targets.
+- Position it as an overlay at the bottom center of the screen.
+- Apply Miuix’s built-in styling, shadows, shape, and theme integration.
+- Preserve `selectableGroup`, `Role.Tab`, selected-state semantics, and at least 48dp touch targets.
+- Use a theme-aware translucent background with subtle border/elevation for separation.
+- Do not add blur effects, backdrop filters, or Haze library integration.
 
-Do not use `Modifier.blur()` because it blurs the composable’s own layer instead of the live content behind it. Do not use Android window blur because it is a cross-window effect. Do not make private MIUI View blur the primary path; Gallery evidence points to a clipped backdrop filter and private View APIs would require a fragile `AndroidView` bridge.
-
-If the backdrop effect cannot initialize, render the same local capsule with a theme-aware translucent fill, border, and shadow. The fallback must remain fully floating and must never restore the full-width bottom strip.
+The approved design uses Miuix’s standard floating capsule appearance without additional visual effects. This approach ensures compatibility with HyperOS design patterns while avoiding dependencies on unavailable blur APIs.
 
 ### Insets
 
@@ -250,6 +247,8 @@ Before enabling either location trigger type, query both halves of the official 
 
 Add package visibility for `com.miui.securityadd` and `com.xiaomi.gnss.polaris`. Return capability details through a signature-protected HyperModes bridge rather than assuming support from the device brand alone.
 
+**Polaris availability is a gated on-device feasibility requirement.** The Polaris geofence service is not guaranteed to be present on all HyperOS devices, and must be detected at runtime rather than presumed available based on system properties or device model alone. Support detection must validate the complete service binding and interface availability chain before enabling location triggers.
+
 If either half is unavailable, keep the trigger type visible but disabled and show the missing component/service. This explains the limitation without silently hiding the requested feature.
 
 ### Picker Contract
@@ -388,7 +387,6 @@ End-to-end flow:
 
 ## Error Handling and Diagnostics
 
-- Blur initialization failure: use the local translucent capsule fallback.
 - SecurityAdd missing or private: capability disabled; no fallback picker.
 - Picker cancellation: no state change.
 - Malformed picker result: localized error; no partial trigger.
@@ -398,6 +396,7 @@ End-to-end flow:
 - Silent/airplane API failure: report the failed action and continue other mode actions.
 - Airplane safety guard: skip only the airplane action and record the guard reason.
 - Unsupported location trigger imported from another device: preserve and display it without evaluating it.
+- Lockscreen/AOD string resource errors: Root cause is stale compiled string resource IDs after a Gradle module structure update. Resolution uses stable entry names (`R.string.name` instead of raw IDs) for all user-facing text, and validates Chinese locale strings for historical compatibility. Regression coverage includes testing both English and Simplified Chinese string resolution in unit and instrumentation tests.
 
 Logs must identify subsystem and mode/trigger IDs but must not log precise coordinates or address names in normal builds.
 
@@ -442,7 +441,9 @@ Add Compose/UI tests for:
 - picker cancellation/malformed result handling;
 - airplane conflict presentation and blocked persistence;
 - selected tab semantics and minimum touch target;
-- bottom overlay occupying only capsule bounds.
+- bottom overlay occupying only capsule bounds;
+- string resource resolution in English and Simplified Chinese locales;
+- lockscreen/AOD text display using stable entry names.
 
 ### Manual Verification
 
@@ -451,12 +452,12 @@ On the target HyperOS device, verify:
 - light/dark themes;
 - gesture and three-button navigation;
 - portrait, landscape, and short-height layouts;
-- content visibly moving behind and locally blurring under the capsule;
+- content visibly moving behind the floating capsule;
 - no full-width bottom background strip;
 - last cards remain reachable;
 - FAB is lower and never overlaps the capsule;
 - rapid scrolling and pager switching remain smooth;
-- blur fallback remains local if the effect is disabled;
+- capsule uses standard Miuix styling without blur effects;
 - silent and airplane apply and restore exact prior state;
 - airplane guards prevent unsafe toggles;
 - invalid wireless/airplane combinations cannot be saved;
@@ -464,6 +465,7 @@ On the target HyperOS device, verify:
 - entering and leaving a 500-metre fence updates mode state continuously;
 - Polaris/system-server restart reconciles fences;
 - unsupported official components produce a clear disabled state;
+- lockscreen and AOD display correct localized strings;
 - existing time, app, Wi-Fi, Bluetooth, music, driving, and bedtime behavior is unchanged.
 
 Run at minimum:
@@ -482,14 +484,14 @@ Run at minimum:
 - A complete condition/action editor in the Automations screen.
 - Fine-grained silent media, assistant, alarm, or vibration controls.
 - Allowing airplane-on and wireless-on overrides in the same mode.
-- Applying private MIUI View blur through an `AndroidView` bridge by default.
+- Blur effects, backdrop filters, Haze library integration, or private MIUI View blur APIs.
 - Refactoring unrelated existing trigger managers or implementing the current driving-motion TODO.
 
 ## Acceptance Criteria
 
 The feature is complete when:
 
-1. The tab capsule is the only bottom navigation surface, content moves behind it, and the capsule locally blurs that content or uses its local translucent fallback.
+1. The tab capsule is the only bottom navigation surface using standard Miuix FloatingNavigationBar styling, content moves behind it, and no blur effects are applied.
 2. The full-width bottom background strip is absent in all supported navigation modes.
 3. The FAB is positioned from shared inset geometry and is visibly lower than the current implementation without overlap.
 4. Silent and airplane fields round-trip through persisted mode configuration, apply in `system_server`, and restore exact original state.
@@ -498,4 +500,5 @@ The feature is complete when:
 7. ARRIVE and LEAVE are continuous trigger states integrated into existing OR semantics.
 8. Unsupported official location components preserve existing location trigger data while disabling evaluation with a clear UI reason.
 9. Forged or malformed location callbacks cannot alter a mode.
-10. Existing automated tests plus the new tests pass, the debug APK assembles, and manual HyperOS verification covers the listed visual and system behaviors.
+10. Lockscreen and AOD display correct localized strings using stable entry names, with regression coverage for both English and Simplified Chinese locales.
+11. Existing automated tests plus the new tests pass, the debug APK assembles, and manual HyperOS verification covers the listed visual and system behaviors.

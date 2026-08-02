@@ -897,7 +897,7 @@ fun MainTabsScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = BottomLayoutGeometry.capsuleBottomOffset())
-                    .padding(horizontal = BottomLayoutGeometry.capsuleMargin)
+                    .padding(horizontal = 16.dp)
             ) {
                 FloatingNavigationBar {
                     tabs.forEachIndexed { index, tab ->
@@ -1103,9 +1103,9 @@ fun ModesListScreenContent(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = if (useFloatingLayout) {
-                // Floating layout: use shared geometry, no top padding from Scaffold
+                // Floating layout: use shared geometry, but keep top padding from Scaffold
                 PaddingValues(
-                    top = 0.dp,
+                    top = padding.calculateTopPadding(),
                     bottom = BottomLayoutGeometry.contentBottomPadding().calculateBottomPadding()
                 )
             } else {
@@ -1231,12 +1231,16 @@ fun ModesListScreenContent(
                 )
             }
 
-            // Bottom spacer with navigation bar padding
+            // Bottom spacer for navigation bar padding
+            // In floating layout, contentPadding already reserves space,
+            // but we need a final spacer to prevent scroll bounce
             item {
                 if (!useFloatingLayout) {
                     Spacer(modifier = Modifier.height(if (showBackButton) 24.dp else 80.dp).navigationBarsPadding())
+                } else {
+                    // Minimal spacer to stabilize scroll in floating layout
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                // When useFloatingLayout=true, bottom padding is already in contentPadding
             }
         }
 

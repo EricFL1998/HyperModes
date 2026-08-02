@@ -72,8 +72,11 @@ fun AutomationsScreen(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = if (useFloatingLayout) {
-                // Floating layout: use shared geometry from BottomLayoutGeometry
-                BottomLayoutGeometry.contentBottomPadding()
+                // Floating layout: combine top padding from Scaffold with shared bottom geometry
+                PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = BottomLayoutGeometry.contentBottomPadding().calculateBottomPadding()
+                )
             } else {
                 PaddingValues(top = padding.calculateTopPadding())
             }
