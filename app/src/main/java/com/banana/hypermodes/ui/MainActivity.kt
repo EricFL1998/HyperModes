@@ -20,9 +20,18 @@ class MainActivity : ComponentActivity() {
             val darkMode = isSystemInDarkTheme()
 
             DisposableEffect(darkMode) {
+                // Status bar: transparent with auto light/dark icons
+                // Navigation bar: transparent to allow bottom bar to extend behind it
                 enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkMode },
-                    navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkMode }
+                    statusBarStyle = SystemBarStyle.auto(
+                        Color.TRANSPARENT,
+                        Color.TRANSPARENT
+                    ) { darkMode },
+                    navigationBarStyle = if (darkMode) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    }
                 )
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

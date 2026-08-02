@@ -88,11 +88,11 @@ fun ModeDetailScreen(
     var showReminderDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    // v1.3 Trigger UI State
-    var showTriggerSelector by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var showEndTimePicker by remember { mutableStateOf(false) }
-    var pendingStartTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    // v1.3 Trigger UI State - keyed by mode.id to reset when mode changes
+    var showTriggerSelector by remember(mode.id) { mutableStateOf(false) }
+    var showTimePicker by remember(mode.id) { mutableStateOf(false) }
+    var showEndTimePicker by remember(mode.id) { mutableStateOf(false) }
+    var pendingStartTime by remember(mode.id) { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // For bedtime: refresh the schedule from DeskClock when this screen opens,
     // and keep the UI in sync with whatever the Clock actually stores.

@@ -11,7 +11,7 @@ Add four related HyperOS features without replacing the existing mode engine:
 1. Move the main-screen FAB lower and remove its duplicated bottom offsets.
 2. Add silent-mode and airplane-mode overrides to Device Control.
 3. Add continuous “Arrive at location” and “Leave location” mode triggers by reusing Xiaomi SecurityAdd for place selection and Xiaomi Polaris for geofencing.
-4. Make the main tab capsule fully floating, with Gallery-style local backdrop blur and no full-width bottom background strip.
+4. Make the main tab capsule fully floating, with no full-width bottom background strip. Do not add blur because Gallery’s official Flutter implementation cannot be reused directly in this Compose app.
 
 The work is divided into three independently testable boundaries: the main UI shell, privileged device actions, and Xiaomi location adapters. The location condition model is reusable by the future Automations screen, but this iteration exposes it only through mode triggers.
 

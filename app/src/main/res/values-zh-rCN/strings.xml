@@ -6,6 +6,7 @@
     <string name="back">返回</string>
     <string name="welcome">欢迎</string>
     <string name="modes">模式</string>
+    <string name="automations">自动化</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_title">欢迎使用 HyperModes</string>
@@ -108,6 +109,11 @@
     <string name="wifi_control_desc">开启或关闭 WLAN</string>
     <string name="bluetooth_control">蓝牙</string>
     <string name="bluetooth_control_desc">开启或关闭蓝牙</string>
+    <string name="silent_mode">静音模式</string>
+    <string name="silent_mode_desc">静音所有声音包括媒体</string>
+    <string name="airplane_mode">飞行模式</string>
+    <string name="airplane_mode_desc">禁用所有无线连接</string>
+    <string name="airplane_mode_conflict">飞行模式与已启用的WiFi、蓝牙或5G冲突</string>
     <string name="raise_to_wake">抬起亮屏</string>
     <string name="raise_to_wake_desc">抬起手机时亮屏</string>
     <string name="wake_for_notifications">来通知亮屏</string>

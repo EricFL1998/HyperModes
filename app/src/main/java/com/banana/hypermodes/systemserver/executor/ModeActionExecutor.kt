@@ -40,7 +40,10 @@ class ModeActionExecutor(
     fun applyMode(mode: ModeConfig) {
         log("applyMode: ${mode.name} (id=${mode.id})")
 
-        // Apply DND settings
+        // Apply device settings first (includes silent mode, which should be applied before DND)
+        deviceController.apply(mode.device)
+
+        // Apply DND settings (after silent mode)
         dndController.setDndLevel(mode.notification.dndLevel)
 
         // Suspend apps
@@ -52,9 +55,6 @@ class ModeActionExecutor(
 
         // Apply display settings
         displayModeController.apply(mode.display)
-
-        // Apply device settings
-        deviceController.apply(mode.device)
 
         // Update status bar icon
         statusBarIconManager.setIcon(mode.statusIcon, mode.name)
@@ -75,7 +75,10 @@ class ModeActionExecutor(
     fun revertMode(mode: ModeConfig) {
         log("revertMode: ${mode.name} (id=${mode.id})")
 
-        // Restore DND settings
+        // Restore device settings first (before DND, so silent mode is restored first)
+        deviceController.restore()
+
+        // Restore DND settings (after device/silent mode)
         dndController.restore()
 
         // Unsuspend apps
@@ -83,9 +86,6 @@ class ModeActionExecutor(
 
         // Restore display settings
         displayModeController.restore()
-
-        // Restore device settings
-        deviceController.restore()
 
         // Remove status bar icon
         statusBarIconManager.removeIcon()

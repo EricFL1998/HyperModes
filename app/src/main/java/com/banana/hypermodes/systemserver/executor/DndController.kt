@@ -2,6 +2,7 @@ package com.banana.hypermodes.systemserver.executor
 
 import android.app.NotificationManager
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.systemserver.config.DndLevel
 
@@ -15,18 +16,25 @@ import com.banana.hypermodes.systemserver.config.DndLevel
  * - PRIORITY: Only priority notifications (starred contacts, priority apps)
  * - ALARMS: Only alarms can interrupt
  *
+ * Captures the original interruption filter on first apply and restores it on mode exit.
+ *
  * @param context System context from system_server
  */
 class DndController(private val context: Context) {
 
     /**
      * Set the DND level to the specified configuration.
+     * Captures the original interruption filter on first call.
      *
      * @param level The DND level to apply (NONE, PRIORITY, or ALARMS)
      */
     fun setDndLevel(level: DndLevel) {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // Capture original interruption filter on first apply
+            val current = nm.currentInterruptionFilter
+            saveOriginal(KEY_ORIG_INTERRUPTION_FILTER, current)
 
             val filter = when (level) {
                 DndLevel.DISABLED -> NotificationManager.INTERRUPTION_FILTER_ALL
@@ -36,7 +44,7 @@ class DndController(private val context: Context) {
             }
 
             nm.setInterruptionFilter(filter)
-            log("setDndLevel: applied DND level $level (filter=$filter)")
+            log("setDndLevel: applied DND level $level (filter=$filter), original=$current")
 
         } catch (e: Exception) {
             log("setDndLevel: failed to set DND level $level: ${e.message}")
@@ -45,19 +53,35 @@ class DndController(private val context: Context) {
     }
 
     /**
-     * Restore normal notification behavior by disabling DND.
-     * This allows all notifications to come through.
+     * Restore the original interruption filter that was active before the mode was applied.
+     * Falls back to INTERRUPTION_FILTER_ALL if no original was captured.
      */
     fun restore() {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-            log("restore: DND disabled, all notifications allowed")
+            val original = takeOriginal(KEY_ORIG_INTERRUPTION_FILTER)
+                ?: NotificationManager.INTERRUPTION_FILTER_ALL
+
+            nm.setInterruptionFilter(original)
+            log("restore: restored DND to original filter=$original")
 
         } catch (e: Exception) {
             log("restore: failed to restore DND: ${e.message}")
             e.printStackTrace()
         }
+    }
+
+    private fun saveOriginal(key: String, value: Int) {
+        if (Settings.Global.getInt(context.contentResolver, key, -1) == -1) {
+            Settings.Global.putInt(context.contentResolver, key, value)
+        }
+    }
+
+    private fun takeOriginal(key: String): Int? {
+        val v = Settings.Global.getInt(context.contentResolver, key, -1)
+        if (v == -1) return null
+        Settings.Global.putString(context.contentResolver, key, null)
+        return v
     }
 
     private fun log(msg: String) {
@@ -66,5 +90,6 @@ class DndController(private val context: Context) {
 
     companion object {
         private const val TAG = "DndController"
+        private const val KEY_ORIG_INTERRUPTION_FILTER = "hypermodes_orig_interruption_filter"
     }
 }

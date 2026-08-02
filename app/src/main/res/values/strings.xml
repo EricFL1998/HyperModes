@@ -6,6 +6,7 @@
     <string name="back">Back</string>
     <string name="welcome">Welcome</string>
     <string name="modes">Modes</string>
+    <string name="automations">Automations</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_title">Welcome to HyperModes</string>
@@ -108,6 +109,11 @@
     <string name="wifi_control_desc">Enable or disable WiFi</string>
     <string name="bluetooth_control">Bluetooth</string>
     <string name="bluetooth_control_desc">Enable or disable Bluetooth</string>
+    <string name="silent_mode">Silent Mode</string>
+    <string name="silent_mode_desc">Mute all sounds including media</string>
+    <string name="airplane_mode">Airplane Mode</string>
+    <string name="airplane_mode_desc">Disable all wireless connections</string>
+    <string name="airplane_mode_conflict">Airplane mode conflicts with enabled WiFi, Bluetooth, or 5G</string>
     <string name="raise_to_wake">Raise to wake</string>
     <string name="raise_to_wake_desc">Enable or disable raise to wake</string>
     <string name="wake_for_notifications">Wake for notifications</string>

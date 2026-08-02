@@ -51,6 +51,8 @@ data class ModeSettings(
     val enable5g: Boolean? = null,
     val enableWifi: Boolean? = null,
     val enableBluetooth: Boolean? = null,
+    val silentMode: Boolean? = null,
+    val airplaneMode: Boolean? = null,
     val enableRaiseToWake: Boolean? = null,
     val enableWakeForNotifications: Boolean? = null,
 
@@ -273,7 +275,9 @@ fun Mode.toModeConfig(): ModeConfig {
             performanceMode = s.performanceMode,
             enable5g = s.enable5g,
             enableWifi = s.enableWifi,
-            enableBluetooth = s.enableBluetooth
+            enableBluetooth = s.enableBluetooth,
+            silentMode = s.silentMode,
+            airplaneMode = s.airplaneMode
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -388,6 +392,8 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enable5g = device?.enable5g,
             enableWifi = device?.enableWifi,
             enableBluetooth = device?.enableBluetooth,
+            silentMode = device?.silentMode,
+            airplaneMode = device?.airplaneMode,
             enableRaiseToWake = display.enableRaiseToWake,
             enableWakeForNotifications = display.enableWakeForNotifications,
             pausedApps = pausedApps.toSet(),

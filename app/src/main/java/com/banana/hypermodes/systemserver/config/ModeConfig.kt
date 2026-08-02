@@ -130,7 +130,9 @@ data class DeviceConfig(
     val performanceMode: Int? = null,
     val enable5g: Boolean? = null,
     val enableWifi: Boolean? = null,
-    val enableBluetooth: Boolean? = null
+    val enableBluetooth: Boolean? = null,
+    val silentMode: Boolean? = null,
+    val airplaneMode: Boolean? = null
 )
 
 @Serializable
