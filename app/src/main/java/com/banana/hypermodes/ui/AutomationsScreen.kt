@@ -97,7 +97,7 @@ fun AutomationsScreen(
                         ) {
                             ListPopupColumn {
                                 DropdownImpl(
-                                    text = "Import Intent Config",
+                                    text = stringResource(R.string.import_intent_config),
                                     optionSize = 1,
                                     isSelected = false,
                                     index = 0,
@@ -249,17 +249,17 @@ fun AutomationsScreen(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Text(
-                    text = "Import Intent Config",
+                    text = stringResource(R.string.import_intent_config_title),
                     style = MiuixTheme.textStyles.headline2
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Import automation for ${importedConfig?.appName}?",
+                    text = stringResource(R.string.import_intent_config_message, importedConfig?.appName ?: ""),
                     style = MiuixTheme.textStyles.body1
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "This will create a new mode with intent triggers based on the app's broadcast actions.",
+                    text = stringResource(R.string.import_intent_config_desc),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
@@ -269,12 +269,12 @@ fun AutomationsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TextButton(
-                        text = "Cancel",
+                        text = stringResource(R.string.cancel),
                         onClick = { showImportDialog = false },
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(
-                        text = "Import",
+                        text = "导入",
                         onClick = {
                             // Create a new mode with intent triggers
                             importedConfig?.let { config ->
@@ -299,7 +299,7 @@ fun AutomationsScreen(
                                     id = modeId,
                                     name = config.appName,
                                     icon = "music_note",
-                                    description = "Auto-imported from ${config.appName}",
+                                    description = context.getString(R.string.imported_from, config.appName),
                                     enabled = false,
                                     settings = ModeSettings(
                                         triggers = triggers

@@ -265,4 +265,11 @@
     <string name="location_picker_title">Select Location</string>
     <string name="location_unsupported">Location triggers are not supported on this device</string>
     <string name="location_permission_required">Location permission required</string>
+    <string name="import_intent_config">Import Intent Config</string>
+    <string name="import_intent_config_title">Import Intent Config</string>
+    <string name="import_intent_config_message">Import automation for %1$s?</string>
+    <string name="import_intent_config_desc">This will create a new mode with intent triggers based on the app\'s broadcast actions.</string>
+    <string name="import_success">Mode imported successfully</string>
+    <string name="import_error">Failed to import config</string>
+    <string name="imported_from">Auto-imported from %1$s</string>
 </resources>
