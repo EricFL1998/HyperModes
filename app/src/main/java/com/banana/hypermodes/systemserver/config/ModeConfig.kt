@@ -78,6 +78,13 @@ sealed class ComplexTrigger {
     object Music : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Intent")
+    data class Intent(
+        val actions: List<String>,
+        val packageName: String? = null
+    ) : ComplexTrigger()
+
+        @Serializable
     @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Location")
     data class Location(
         val id: String,

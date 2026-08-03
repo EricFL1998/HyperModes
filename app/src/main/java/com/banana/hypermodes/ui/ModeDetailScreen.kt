@@ -886,6 +886,7 @@ fun TriggerCard(
         is ModeTrigger.Bluetooth -> "🎧"
         is ModeTrigger.Music -> "🎵"
         is ModeTrigger.Location -> "📍"
+        is ModeTrigger.Intent -> "📨"
     }
 
     // Resolve display names for App triggers; fall back to the package name
@@ -953,6 +954,14 @@ fun TriggerCard(
             when (trigger.transition) {
                 LocationTransition.ARRIVE -> stringResource(R.string.trigger_on_location_arrive, locationName)
                 LocationTransition.LEAVE -> stringResource(R.string.trigger_on_location_leave, locationName)
+            }
+        }
+        is ModeTrigger.Intent -> {
+            val first = trigger.actions.firstOrNull() ?: ""
+            if (trigger.actions.size <= 1) {
+                "Intent: $first"
+            } else {
+                "Intents: $first + ${trigger.actions.size - 1} more"
             }
         }
     }

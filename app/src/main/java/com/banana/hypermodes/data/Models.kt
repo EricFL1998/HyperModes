@@ -95,6 +95,11 @@ sealed class ModeTrigger {
 
     object Music : ModeTrigger()
 
+    data class Intent(
+        val actions: Set<String>,
+        val packageName: String? = null
+    ) : ModeTrigger()
+
     data class Location(
         val id: String,
         val target: LocationTarget,
@@ -189,6 +194,7 @@ fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
         provinceName = target.provinceName,
         transition = transition.name
     )
+    is ModeTrigger.Intent -> ComplexTrigger.Intent(actions.toList(), packageName)
 }
 
 fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
@@ -222,6 +228,7 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
             LocationTransition.ARRIVE
         }
     )
+    is ComplexTrigger.Intent -> ModeTrigger.Intent(actions.toSet(), packageName)
 }
 
 /**

@@ -24,6 +24,7 @@ class ComplexTriggerManager(
     private val appManager = AppTriggerManager(context, ::onTriggerChanged)
     private val bluetoothManager = BluetoothTriggerManager(context, ::onTriggerChanged)
     private val locationManager = LocationTriggerManager(context, ::onTriggerChanged)
+    private val intentManager = IntentTriggerManager(context, ::onTriggerChanged)
     // ScheduledModeManager still handles the Time triggers for now as it's complex,
     // but we can integrate it here if we want to unify everything.
     // For now, let's keep ScheduledModeManager as is and focus on the new ones.
@@ -58,6 +59,7 @@ class ComplexTriggerManager(
         val appConfigs = mutableMapOf<String, List<String>>()
         val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
         var musicModeIds = mutableSetOf<String>()
+        val intentConfigs = mutableMapOf<String, MutableList<Pair<List<String>, String?>>>()
         val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
 
         allModes.forEach { mode ->
@@ -79,6 +81,10 @@ class ComplexTriggerManager(
                                     ((prev?.second ?: false) || trigger.matchAnyCarAudio)
                     }
                     is ComplexTrigger.Music -> musicModeIds.add(mode.id)
+                    is ComplexTrigger.Intent -> {
+                        val list = intentConfigs.getOrPut(mode.id) { mutableListOf() }
+                        list.add(trigger.actions to trigger.packageName)
+                    }
                     is ComplexTrigger.Location -> {
                         val prev = locationConfigs[mode.id] ?: emptyList()
                         locationConfigs[mode.id] = prev + (trigger.id to trigger)
@@ -95,6 +101,7 @@ class ComplexTriggerManager(
         bluetoothManager.updateConfigs(bluetoothConfigs)
         musicManager.updateConfigs(musicModeIds)
         locationManager.updateConfigs(locationConfigs)
+        intentManager.updateConfigs(intentConfigs)
     }
 
     private fun checkAllConditions() {
@@ -136,7 +143,8 @@ class ComplexTriggerManager(
     fun release() {
         updateModes(emptyList()) // stops callbacks and unregisters receivers
         appManager.release()
-        locationManager.release()
+        intentManager.release()
+                locationManager.release()
     }
 
     private fun log(msg: String) {
