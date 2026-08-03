@@ -884,7 +884,7 @@ fun MainTabsScreen(
                         // Automations tab
                         AutomationsScreen(
                             onBack = onBack,
-                            showBackButton = false,
+                            showBackButton = true,
                             showFab = false, // FAB will be shown as overlay
                             useFloatingLayout = true // Signal to use shared bottom padding
                         )
