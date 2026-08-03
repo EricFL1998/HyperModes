@@ -50,6 +50,12 @@ object Protocol {
      *  non-SecurityCenter callers. Fail-closed gate before location trigger UI. */
     const val ACTION_PROBE_POLARIS = "com.banana.hypermodes.PROBE_POLARIS"
 
+    // System_server -> Engine: Polaris geofence event (internal authenticated broadcast)
+    const val ACTION_POLARIS_GEOFENCE_EVENT =
+        "com.banana.hypermodes.POLARIS_GEOFENCE_EVENT"
+    const val EXTRA_POLARIS_FENCE_ID = "polarisFenceId"
+    const val EXTRA_POLARIS_EVENT = "polarisEvent"
+
     // Engine extras
     const val EXTRA_MODE_ID = "modeId"
     const val EXTRA_TRIGGER = "trigger" // "start" | "end"

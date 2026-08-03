@@ -5,6 +5,8 @@
 !app/
 !app/src/
 !app/src/main/
+!app/src/main/aidl/
+!app/src/main/aidl/**
 !app/src/main/java/
 !app/src/main/java/**
 !app/src/main/res/

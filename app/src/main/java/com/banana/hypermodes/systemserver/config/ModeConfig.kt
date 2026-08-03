@@ -1,6 +1,7 @@
 package com.banana.hypermodes.systemserver.config
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /**
  * Mode configuration parsed from JSON stored in Settings.Global.
@@ -46,6 +47,7 @@ data class ModeConfig(
 @Serializable
 sealed class ComplexTrigger {
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Time")
     data class Time(
         val startTime: String,
         val endTime: String,
@@ -53,25 +55,30 @@ sealed class ComplexTrigger {
     ) : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.App")
     data class App(
         val packageNames: List<String>
     ) : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Wifi")
     data class Wifi(
         val ssids: List<String>
     ) : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Bluetooth")
     data class Bluetooth(
         val deviceAddresses: List<String>,
         val matchAnyCarAudio: Boolean = false
     ) : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Music")
     object Music : ComplexTrigger()
 
     @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Location")
     data class Location(
         val id: String,
         val latitude: Double,

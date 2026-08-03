@@ -3,218 +3,285 @@ package com.banana.hypermodes.systemserver.geofence
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
-import com.banana.hypermodes.systemserver.config.ComplexTrigger
 import com.banana.hypermodes.systemserver.trigger.GeofenceEvent
-import java.security.MessageDigest
-import java.util.UUID
+import com.xiaomi.gnss.polaris.IPolarisService
 
 /**
  * Adapter for Xiaomi Polaris geofencing service.
- * Package-scoped HyperModes IDs, 500m radius, enter+exit transition, confidence 3.
- * Only deletes HyperModes-namespace fences.
+ * Maintains desired and live fence state, performs reconciliation, and verifies callbacks.
  */
 class PolarisGeofenceAdapter(
     private val context: Context,
     private val callback: (String, String, GeofenceEvent) -> Unit
 ) {
-    private val packageManager = context.packageManager
-    private val registeredFences = mutableMapOf<String, FenceInfo>() // hypermodesId -> FenceInfo
+    private var geoService: PolarisGeoService? = null
+    private var desiredById: Map<String, PolarisFenceSpec> = emptyMap()
+    private val liveById = mutableMapOf<String, PolarisFenceSpec>()
+    private var isBound = false
+    private var registeredCallback = false
+    private var pendingTriggers: List<Triple<String, String, com.banana.hypermodes.systemserver.config.ComplexTrigger.Location>>? = null
 
     companion object {
         private const val TAG = "PolarisGeofenceAdapter"
-        private const val POLARIS_PACKAGE = "com.xiaomi.gnss.polaris"
-        private const val POLARIS_SERVICE = "com.xiaomi.gnss.polaris.PolarisService"
-
-        // Polaris action strings (from decompiled SecurityAdd)
-        private const val ACTION_ADD_GEOFENCE = "com.xiaomi.gnss.polaris.action.ADD_GEOFENCE"
-        private const val ACTION_REMOVE_GEOFENCE = "com.xiaomi.gnss.polaris.action.REMOVE_GEOFENCE"
-        private const val ACTION_LIST_GEOFENCES = "com.xiaomi.gnss.polaris.action.LIST_GEOFENCES"
-
-        // Bundle keys (reverse-engineered from SecurityAdd)
-        private const val KEY_FENCE_ID = "fence_id"
-        private const val KEY_LATITUDE = "latitude"
-        private const val KEY_LONGITUDE = "longitude"
-        private const val KEY_RADIUS = "radius"
-        private const val KEY_TRANSITION = "transition"
-        private const val KEY_CONFIDENCE = "confidence"
-        private const val KEY_PACKAGE_NAME = "package_name"
-        private const val KEY_COMPONENT = "component"
-
-        // Transition types
-        private const val TRANSITION_ENTER = 1
-        private const val TRANSITION_EXIT = 2
-        private const val TRANSITION_BOTH = 3
-
-        // Confidence level (1=low, 2=medium, 3=high)
-        private const val CONFIDENCE_HIGH = 3
-
-        // Namespace prefix for HyperModes fences
-        private const val FENCE_PREFIX = "hypermodes_"
     }
 
-    data class FenceInfo(
-        val polarisId: String,
-        val modeId: String,
-        val triggerId: String,
-        val latitude: Double,
-        val longitude: Double,
-        val radius: Int,
-        val transition: String
-    )
+    // Test constructor that injects PolarisGeoService
+    internal constructor(
+        context: Context,
+        callback: (String, String, GeofenceEvent) -> Unit,
+        service: PolarisGeoService
+    ) : this(context, callback) {
+        this.geoService = service
+        this.isBound = true
+    }
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            Log.i(TAG, "Polaris service connected")
+            try {
+                val polarisService = IPolarisService.Stub.asInterface(service)
+                val geoManager = polarisService?.geoManagerService
+
+                if (geoManager != null) {
+                    geoService = AidlPolarisGeoService(geoManager)
+                    isBound = true
+
+                    // Register callback component first
+                    registerCallbackComponent()
+
+                    // Reconcile pending triggers
+                    pendingTriggers?.let { triggers ->
+                        Log.i(TAG, "Reconciling ${triggers.size} pending triggers")
+                        reconcileFences(triggers)
+                    }
+                } else {
+                    Log.e(TAG, "Failed to get GeoManagerService")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in onServiceConnected", e)
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            Log.i(TAG, "Polaris service disconnected")
+            geoService = null
+            isBound = false
+        }
+
+        override fun onBindingDied(name: ComponentName) {
+            Log.e(TAG, "Polaris service binding died")
+            geoService = null
+            isBound = false
+        }
+    }
+
+    init {
+        if (isSupported()) {
+            bindPolarisService()
+        }
+    }
 
     fun isSupported(): Boolean {
         return try {
-            packageManager.getPackageInfo(POLARIS_PACKAGE, 0)
+            context.packageManager.getPackageInfo(
+                PolarisContract.SERVICE_PACKAGE,
+                0
+            )
             true
         } catch (e: PackageManager.NameNotFoundException) {
-            log("Polaris package not found")
             false
         }
     }
 
-    /**
-     * Reconcile HyperModes geofences with Polaris.
-     * Add missing fences, update changed ones, delete obsolete ones.
-     */
-    fun reconcile(triggers: List<Triple<String, String, ComplexTrigger.Location>>) {
-        if (!isSupported()) {
-            log("Polaris not supported, skipping reconcile")
+    private fun bindPolarisService() {
+        try {
+            // Create intent with ComponentName (Polaris requires explicit component)
+            val intent = Intent().apply {
+                component = ComponentName(
+                    PolarisContract.SERVICE_PACKAGE,
+                    PolarisContract.SERVICE_CLASS
+                )
+            }
+
+            // CRITICAL: Must startService first, then bindService (same as SecurityCenter's AutoTask)
+            // Use reflection to call startServiceAsUser
+            val startServiceMethod = Context::class.java.getDeclaredMethod(
+                "startServiceAsUser",
+                Intent::class.java,
+                android.os.UserHandle::class.java
+            )
+
+            val userHandleConstructor = android.os.UserHandle::class.java
+                .getDeclaredConstructor(Int::class.javaPrimitiveType)
+            val user0 = userHandleConstructor.newInstance(0) as android.os.UserHandle
+
+            // Start service first
+            val componentName = startServiceMethod.invoke(context, intent, user0) as? ComponentName
+            Log.i(TAG, "startServiceAsUser result: $componentName")
+
+            // Then bind to it
+            val bindServiceMethod = Context::class.java.getDeclaredMethod(
+                "bindServiceAsUser",
+                Intent::class.java,
+                ServiceConnection::class.java,
+                Int::class.javaPrimitiveType,
+                android.os.UserHandle::class.java
+            )
+
+            val bound = bindServiceMethod.invoke(
+                context,
+                intent,
+                serviceConnection,
+                Context.BIND_AUTO_CREATE,
+                user0
+            ) as Boolean
+
+            Log.i(TAG, "bindServiceAsUser result: $bound (package=${PolarisContract.SERVICE_PACKAGE}, user=0)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception binding service", e)
+        }
+    }
+
+    private fun registerCallbackComponent() {
+        try {
+            val component = ComponentName(
+                PolarisContract.CALLBACK_PACKAGE,
+                PolarisCallbackReceiver::class.java.name
+            )
+            geoService?.registerComponent(component)
+            Log.i(TAG, "Registered callback component")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register callback", e)
+        }
+    }
+
+    fun reconcile(triggers: List<Triple<String, String, com.banana.hypermodes.systemserver.config.ComplexTrigger.Location>>) {
+        if (!isBound || geoService == null) {
+            Log.i(TAG, "Service not ready, deferring reconcile")
+            pendingTriggers = triggers
             return
+        }
+        reconcileFences(triggers)
+    }
+
+    private fun reconcileFences(triggers: List<Triple<String, String, com.banana.hypermodes.systemserver.config.ComplexTrigger.Location>>) {
+        val service = geoService ?: return
+
+        // Register callback component first (once)
+        if (!registeredCallback) {
+            registerCallbackComponent()
+            registeredCallback = true
         }
 
         // Build desired state
-        val desiredFences = mutableMapOf<String, FenceInfo>()
-        triggers.forEach { (modeId, triggerId, location) ->
-            val hypermodesId = "$modeId:$triggerId"
-            val polarisId = generatePolarisId(hypermodesId)
-            desiredFences[hypermodesId] = FenceInfo(
-                polarisId = polarisId,
+        val desired = triggers.map { (modeId, triggerId, location) ->
+            PolarisFenceSpec(
+                fenceId = "${PolarisContract.FENCE_PREFIX}${modeId}_$triggerId",
                 modeId = modeId,
                 triggerId = triggerId,
                 latitude = location.latitude,
                 longitude = location.longitude,
-                radius = location.radius,
-                transition = location.transition
+                radiusMeters = location.radius,
+                transitionType = PolarisContract.TRANSITION_BOTH,
+                confidence = PolarisContract.CONFIDENCE_HIGH
             )
         }
 
-        // Delete obsolete fences
-        val toDelete = registeredFences.keys - desiredFences.keys
-        toDelete.forEach { hypermodesId ->
-            val fence = registeredFences[hypermodesId]
-            if (fence != null) {
-                deleteFence(fence.polarisId)
-                registeredFences.remove(hypermodesId)
-            }
-        }
+        desiredById = desired.associateBy { it.fenceId }
 
-        // Add or update fences
-        desiredFences.forEach { (hypermodesId, fence) ->
-            val existing = registeredFences[hypermodesId]
-            if (existing == null || needsUpdate(existing, fence)) {
-                // Delete old if exists
-                if (existing != null) {
-                    deleteFence(existing.polarisId)
+        // List remote fences
+        val remote = service.list()
+
+        // Compute operations
+        val operations = PolarisFenceReconciler.plan(desired, remote)
+
+        Log.i(TAG, "Reconciliation: ${operations.size} operations")
+
+        // Execute operations
+        operations.forEach { op ->
+            when (op) {
+                is PolarisFenceOperation.Add -> {
+                    val result = service.add(op.fence)
+                    if (result == op.fence.fenceId && result.isNotBlank()) {
+                        liveById[op.fence.fenceId] = op.fence
+                        Log.i(TAG, "Added fence: ${op.fence.fenceId}")
+                    }
                 }
-                // Add new
-                addFence(fence)
-                registeredFences[hypermodesId] = fence
+                is PolarisFenceOperation.Update -> {
+                    service.update(op.fence)
+                    val remote = service.findById(op.fence.fenceId)
+                    if (remote != null && remote.matches(op.fence)) {
+                        liveById[op.fence.fenceId] = op.fence
+                        Log.i(TAG, "Updated fence: ${op.fence.fenceId}")
+                    }
+                }
+                is PolarisFenceOperation.Delete -> {
+                    service.deleteById(op.fenceId)
+                    liveById.remove(op.fenceId)
+                    Log.i(TAG, "Deleted fence: ${op.fenceId}")
+                }
+                is PolarisFenceOperation.Keep -> {
+                    liveById[op.fence.fenceId] = op.fence
+                }
             }
         }
 
-        log("Reconcile complete: ${registeredFences.size} fences registered")
+        // Query status for all live desired fences
+        liveById.values.forEach { fence ->
+            val status = service.status(fence.fenceId)
+            when (status) {
+                PolarisContract.STATUS_IN -> {
+                    callback(fence.modeId, fence.triggerId, GeofenceEvent.ENTER)
+                }
+                PolarisContract.STATUS_OUT -> {
+                    callback(fence.modeId, fence.triggerId, GeofenceEvent.EXIT)
+                }
+                // STATUS_UNKNOWN or error: emit nothing
+            }
+        }
+
+        Log.i(TAG, "Reconcile complete: ${liveById.size} live fences")
     }
 
-    private fun needsUpdate(existing: FenceInfo, desired: FenceInfo): Boolean {
-        return existing.latitude != desired.latitude ||
-                existing.longitude != desired.longitude ||
-                existing.radius != desired.radius ||
-                existing.transition != desired.transition
+    fun handleGeofenceEvent(fenceId: String, event: Int) {
+        val payload = PolarisContract.parseCallback(fenceId, event) ?: return
+        val expected = liveById[payload.fenceId] ?: return
+        val remote = geoService?.findById(payload.fenceId) ?: return
+        if (!remote.matches(expected)) return
+
+        callback(
+            expected.modeId,
+            expected.triggerId,
+            if (event == PolarisContract.EVENT_ENTER) GeofenceEvent.ENTER else GeofenceEvent.EXIT
+        )
     }
 
-    private fun addFence(fence: FenceInfo) {
+    fun release() {
         try {
-            val intent = Intent(ACTION_ADD_GEOFENCE).apply {
-                setPackage(POLARIS_PACKAGE)
-                component = ComponentName(POLARIS_PACKAGE, POLARIS_SERVICE)
-                putExtra(KEY_FENCE_ID, fence.polarisId)
-                putExtra(KEY_LATITUDE, fence.latitude)
-                putExtra(KEY_LONGITUDE, fence.longitude)
-                putExtra(KEY_RADIUS, fence.radius.toFloat())
-                putExtra(KEY_TRANSITION, TRANSITION_BOTH) // Always monitor both enter and exit
-                putExtra(KEY_CONFIDENCE, CONFIDENCE_HIGH)
-                putExtra(KEY_PACKAGE_NAME, context.packageName)
-                putExtra(KEY_COMPONENT, PolarisCallbackReceiver::class.java.name)
+            if (isBound) {
+                geoService?.registerComponent(null)
+                context.unbindService(serviceConnection)
+                isBound = false
+                Log.i(TAG, "Polaris service unbound")
             }
-
-            context.startService(intent)
-            log("Added fence: ${fence.polarisId} at (${fence.latitude}, ${fence.longitude}) r=${fence.radius}m")
         } catch (e: Exception) {
-            log("Failed to add fence: ${e.message}")
+            Log.e(TAG, "Failed to unbind service", e)
         }
+        desiredById = emptyMap()
+        liveById.clear()
     }
 
-    private fun deleteFence(polarisId: String) {
-        try {
-            val intent = Intent(ACTION_REMOVE_GEOFENCE).apply {
-                setPackage(POLARIS_PACKAGE)
-                component = ComponentName(POLARIS_PACKAGE, POLARIS_SERVICE)
-                putExtra(KEY_FENCE_ID, polarisId)
-            }
-
-            context.startService(intent)
-            log("Deleted fence: $polarisId")
-        } catch (e: Exception) {
-            log("Failed to delete fence: ${e.message}")
-        }
-    }
-
-    /**
-     * Generate a stable Polaris fence ID from HyperModes modeId:triggerId.
-     * Uses UUID v5 (namespace-based SHA-1) for consistent regeneration.
-     */
-    private fun generatePolarisId(hypermodesId: String): String {
-        val namespace = "com.banana.hypermodes.geofence"
-        val data = "$namespace:$hypermodesId"
-        val bytes = MessageDigest.getInstance("SHA-1").digest(data.toByteArray())
-        // Use first 16 bytes to create UUID
-        val uuid = UUID.nameUUIDFromBytes(bytes)
-        return "${FENCE_PREFIX}${uuid.toString().replace("-", "")}"
-    }
-
-    /**
-     * Handle geofence event from PolarisCallbackReceiver.
-     * Verifies fence ID belongs to HyperModes namespace before processing.
-     */
-    fun handleGeofenceEvent(fenceId: String, eventType: Int) {
-        if (!fenceId.startsWith(FENCE_PREFIX)) {
-            log("Ignoring non-HyperModes fence: $fenceId")
-            return
-        }
-
-        val fence = registeredFences.values.find { it.polarisId == fenceId }
-        if (fence == null) {
-            log("Unknown fence: $fenceId")
-            return
-        }
-
-        val event = when (eventType) {
-            11 -> GeofenceEvent.ENTER // Polaris enter event
-            12 -> GeofenceEvent.EXIT  // Polaris exit event
-            else -> {
-                log("Unknown event type: $eventType")
-                return
-            }
-        }
-
-        log("Geofence event: ${fence.modeId}:${fence.triggerId} -> $event")
-        callback(fence.modeId, fence.triggerId, event)
-    }
-
-    private fun log(msg: String) {
-        Log.i(TAG, msg)
+    private fun PolarisRemoteFence.matches(spec: PolarisFenceSpec): Boolean {
+        return fenceId == spec.fenceId &&
+            latitude == spec.latitude &&
+            longitude == spec.longitude &&
+            radiusMeters == spec.radiusMeters &&
+            transitionType == spec.transitionType &&
+            confidence == spec.confidence &&
+            packageName == PolarisContract.CLIENT_PACKAGE
     }
 }

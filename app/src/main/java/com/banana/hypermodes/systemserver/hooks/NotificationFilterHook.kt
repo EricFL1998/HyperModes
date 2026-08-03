@@ -77,9 +77,13 @@ class NotificationFilterHook(private val module: XposedModule) {
 
                         val notificationConfig = activeMode.notification
 
-                        // If DND is disabled for this mode, or level is ALARMS, let system handle it
-                        if (notificationConfig.dndLevel == DndLevel.DISABLED || 
-                            notificationConfig.dndLevel == DndLevel.ALARMS) {
+                        // If DND level is ALARMS, let system handle it (standard priority logic)
+                        if (notificationConfig.dndLevel == DndLevel.ALARMS) {
+                            return chain.proceed()
+                        }
+
+                        // If DND is disabled AND no custom whitelist is provided, let system handle it
+                        if (notificationConfig.dndLevel == DndLevel.DISABLED && notificationConfig.allowedApps.isEmpty()) {
                             return chain.proceed()
                         }
 

@@ -81,12 +81,15 @@
         <!-- Polaris geofence callback receiver -->
         <receiver
             android:name=".systemserver.geofence.PolarisCallbackReceiver"
+            android:exported="true" />
+
+        <!-- Polaris proxy ContentProvider - allows system_server to manage Polaris in app process -->
+        <provider
+            android:name=".proxy.PolarisProxyProvider"
+            android:authorities="com.banana.hypermodes.provider.polaris"
             android:exported="true"
-            android:permission="com.banana.hypermodes.permission.CONTROL">
-            <intent-filter>
-                <action android:name="com.xiaomi.gnss.polaris.action.GEOFENCE_EVENT" />
-            </intent-filter>
-        </receiver>
+            android:directBootAware="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS" />
     </application>
 
 </manifest>

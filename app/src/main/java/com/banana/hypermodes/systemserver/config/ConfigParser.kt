@@ -1,5 +1,6 @@
 package com.banana.hypermodes.systemserver.config
 
+import android.util.Log
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -15,10 +16,13 @@ import kotlinx.serialization.encodeToString
  */
 object ConfigParser {
 
+    private const val TAG = "ConfigParser"
+
     private val json = Json {
         prettyPrint = false
         ignoreUnknownKeys = true
         encodeDefaults = true
+        classDiscriminator = "type"
     }
 
     /**
@@ -29,7 +33,21 @@ object ConfigParser {
      */
     fun parseConfig(jsonString: String): FullConfig {
         val tree = json.parseToJsonElement(jsonString)
-        return json.decodeFromJsonElement(FullConfig.serializer(), migrateLegacyDisplayConfigs(tree))
+        val migrated = migrateLegacyDisplayConfigs(tree)
+        
+        val config = json.decodeFromJsonElement(FullConfig.serializer(), migrated)
+        
+        // Log complex triggers for debugging
+        config.modes.forEach { mode ->
+            if (mode.complexTriggers.isNotEmpty()) {
+                Log.e(TAG, "Mode  has  complex triggers:")
+                mode.complexTriggers.forEach { trigger ->
+                    Log.e(TAG, "  - : ")
+                }
+            }
+        }
+        
+        return config
     }
 
     /**

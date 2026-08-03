@@ -31,18 +31,18 @@ class ComplexTriggerManager(
     private val activeModesByTrigger = mutableMapOf<String, MutableSet<String>>() // modeId -> active trigger tags
 
     fun init(modes: List<ModeConfig>) {
-        log("Initializing ComplexTriggerManager with ${modes.size} modes")
+        Log.e(TAG, "============ ComplexTriggerManager.init() called with ${modes.size} modes ============")
         allModes = modes
-        
+
         // Update sub-managers with relevant configs
         updateSubManagers()
-        
+
         // Initial check
         checkAllConditions()
     }
 
     fun updateModes(modes: List<ModeConfig>) {
-        log("Updating ComplexTriggerManager modes")
+        Log.w(TAG, "ComplexTriggerManager.updateModes() called with ${modes.size} modes")
         allModes = modes
         updateSubManagers()
         checkAllConditions()
@@ -53,6 +53,7 @@ class ComplexTriggerManager(
     }
 
     private fun updateSubManagers() {
+        Log.e(TAG, "ComplexTriggerManager.updateSubManagers() called")
         val wifiConfigs = mutableMapOf<String, List<String>>()
         val appConfigs = mutableMapOf<String, List<String>>()
         val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
@@ -81,12 +82,14 @@ class ComplexTriggerManager(
                     is ComplexTrigger.Location -> {
                         val prev = locationConfigs[mode.id] ?: emptyList()
                         locationConfigs[mode.id] = prev + (trigger.id to trigger)
+                        Log.e(TAG, "Found location trigger: modeId=${mode.id}, triggerId=${trigger.id}, lat=${trigger.latitude}, lng=${trigger.longitude}")
                     }
                     is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                 }
             }
         }
 
+        Log.e(TAG, "Total location configs: ${locationConfigs.size} modes")
         wifiManager.updateConfigs(wifiConfigs)
         appManager.updateConfigs(appConfigs)
         bluetoothManager.updateConfigs(bluetoothConfigs)
@@ -133,6 +136,7 @@ class ComplexTriggerManager(
     fun release() {
         updateModes(emptyList()) // stops callbacks and unregisters receivers
         appManager.release()
+        locationManager.release()
     }
 
     private fun log(msg: String) {

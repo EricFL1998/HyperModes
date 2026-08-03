@@ -126,6 +126,13 @@ class SystemModeHook(private val module: XposedModule) {
             override fun onReceive(c: Context, intent: Intent) {
                 // Actions without EXTRA_PACKAGES — handle before the extraction below.
                 when (intent.action) {
+                    Protocol.ACTION_POLARIS_GEOFENCE_EVENT -> {
+                        // Polaris geofence events are now handled by PolarisManagerAdapter
+                        // via the SDK callback mechanism, not through this broadcast path.
+                        // This case is kept for backward compatibility but should not be used.
+                        log("Received legacy Polaris geofence broadcast - ignoring (handled by SDK)")
+                        return
+                    }
                     Protocol.ACTION_GET_CONFIGURED_WIFI -> {
                         sendConfiguredWifi(c, intent)
                         return
@@ -156,6 +163,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
             addAction(Protocol.ACTION_PROBE_POLARIS)
+            addAction(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         }
         context.registerReceiver(
             receiver, filter,

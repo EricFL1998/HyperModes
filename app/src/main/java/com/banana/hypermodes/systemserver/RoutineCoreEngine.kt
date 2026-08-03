@@ -1,4 +1,4 @@
-package com.banana.hypermodes.systemserver
+﻿package com.banana.hypermodes.systemserver
 
 import android.content.Context
 import android.content.Intent
@@ -52,6 +52,26 @@ class RoutineCoreEngine private constructor() {
     private var lifecycleState = LifecycleState.RUNNING
 
     private val lifecycleLock = Any()
+    private val modeLock = Any()  // Protects currentActiveMode and currentModeActivatedAt
+
+    
+    /**
+     * Get current active mode safely.
+     * Must be called with modeLock held, or use this safe accessor.
+     */
+    private fun getCurrentActiveModeSync(): ModeConfig? {
+        return synchronized(modeLock) { currentActiveMode }
+    }
+    
+    /**
+     * Set current active mode safely.
+     */
+    private fun setCurrentActiveModeSync(mode: ModeConfig?, activatedAt: Long = System.currentTimeMillis()) {
+        synchronized(modeLock) {
+            currentActiveMode = mode
+            currentModeActivatedAt = if (mode != null) activatedAt else 0L
+        }
+    }
 
     // Track manually dismissed scheduled modes: modeId -> dismiss timestamp
     // When user manually closes a mode during its scheduled period,
@@ -184,6 +204,7 @@ class RoutineCoreEngine private constructor() {
      * Called on initialization and whenever config changes.
      */
     private fun loadConfigFromSettings() {
+        Log.e("RoutineCoreEngine", "============ loadConfigFromSettings() CALLED ============")
         val context = systemContext ?: return
         if (lifecycleState == LifecycleState.REMOVED) return
 

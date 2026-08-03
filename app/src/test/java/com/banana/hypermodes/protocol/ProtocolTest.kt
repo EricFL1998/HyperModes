@@ -41,4 +41,22 @@ class ProtocolTest {
     fun `bitmask 127 decodes to all seven days`() {
         assertEquals((0..6).toSet(), Protocol.bitmaskToDays(127))
     }
+
+    @Test
+    fun `Polaris geofence event action constant is correctly namespaced`() {
+        assertEquals(
+            "com.banana.hypermodes.POLARIS_GEOFENCE_EVENT",
+            Protocol.ACTION_POLARIS_GEOFENCE_EVENT
+        )
+    }
+
+    @Test
+    fun `Polaris fence ID extra constant uses camelCase`() {
+        assertEquals("polarisFenceId", Protocol.EXTRA_POLARIS_FENCE_ID)
+    }
+
+    @Test
+    fun `Polaris event extra constant uses camelCase`() {
+        assertEquals("polarisEvent", Protocol.EXTRA_POLARIS_EVENT)
+    }
 }

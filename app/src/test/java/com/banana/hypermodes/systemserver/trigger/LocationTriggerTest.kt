@@ -135,4 +135,81 @@ class LocationTriggerTest {
         )
         assertEquals(1000, target.radius)
     }
+
+    // Task 4: PolarisSystemEventHandler routing tests
+    @Test
+    fun testPolarisSystemEventHandler_validPayload_dispatchesFenceIdAndEvent() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle("hypermodes_test_fence", 11)
+
+        assertEquals(1, dispatched.size)
+        assertEquals("hypermodes_test_fence", dispatched[0].first)
+        assertEquals(11, dispatched[0].second)
+    }
+
+    @Test
+    fun testPolarisSystemEventHandler_nullFenceId_doesNotDispatch() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle(null, 11)
+
+        assertEquals(0, dispatched.size)
+    }
+
+    @Test
+    fun testPolarisSystemEventHandler_blankFenceId_doesNotDispatch() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle("", 11)
+
+        assertEquals(0, dispatched.size)
+    }
+
+    @Test
+    fun testPolarisSystemEventHandler_fenceIdWithoutPrefix_doesNotDispatch() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle("invalid_fence_id", 11)
+
+        assertEquals(0, dispatched.size)
+    }
+
+    @Test
+    fun testPolarisSystemEventHandler_invalidEvent_doesNotDispatch() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle("hypermodes_test_fence", -1)
+
+        assertEquals(0, dispatched.size)
+    }
+
+    @Test
+    fun testPolarisSystemEventHandler_exitEvent_dispatches() {
+        val dispatched = mutableListOf<Pair<String, Int>>()
+        val handler = PolarisSystemEventHandler { fenceId, event ->
+            dispatched.add(fenceId to event)
+        }
+
+        handler.handle("hypermodes_test_fence", 12)
+
+        assertEquals(1, dispatched.size)
+        assertEquals("hypermodes_test_fence", dispatched[0].first)
+        assertEquals(12, dispatched[0].second)
+    }
 }

@@ -1,4 +1,4 @@
-package com.banana.hypermodes.systemserver.trigger
+﻿package com.banana.hypermodes.systemserver.trigger
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -33,6 +33,7 @@ class DrivingTriggerManager(
     private var currentDrivingModeId: String? = null
     private var drivingModes: List<ModeConfig> = emptyList()
     private var isReceiverRegistered = false
+    private val lock = Any()
     private var isInitialized = false
 
     /**
@@ -221,12 +222,6 @@ class DrivingTriggerManager(
                         return true
                     }
                 }
-            }
-
-            // If no specific targets and matchAnyCarAudio is false, any connection counts
-            if (targetMacs.isEmpty() && !matchAnyCarAudio && connectedDevices.isNotEmpty()) {
-                log("Any bluetooth device connected")
-                return true
             }
 
         } catch (e: SecurityException) {

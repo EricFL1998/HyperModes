@@ -1,4 +1,4 @@
-package com.banana.hypermodes.systemserver.trigger
+﻿package com.banana.hypermodes.systemserver.trigger
 
 import android.app.ActivityManager
 import android.content.Context
@@ -11,7 +11,8 @@ class AppTriggerManager(
     private val callback: (String, String, Boolean) -> Unit
 ) {
     private val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-    @Volatile private var configs: Map<String, List<String>> = emptyMap()
+    private val lock = Any()
+    private var configs: Map<String, List<String>> = emptyMap()
 
     // Dedicated thread: this runs inside system_server, so polling on the main
     // looper would add a 2-second chore to the thread that serves the framework.
@@ -46,7 +47,7 @@ class AppTriggerManager(
 
     fun check() {
         val foregroundPackage = getForegroundPackage()
-        val snapshot = configs
+        val snapshot = synchronized(lock) { configs }
         mainHandler.post {
             snapshot.forEach { (modeId, packageNames) ->
                 val isActive = packageNames.any { it == foregroundPackage }

@@ -263,7 +263,7 @@ fun Mode.toModeConfig(): ModeConfig {
             bluetooth = BluetoothTrigger(
                 enabled = s.drivingDetectMode == DRIVING_DETECT_BLUETOOTH ||
                          s.drivingDetectMode == DRIVING_DETECT_MOTION_BLUETOOTH,
-                matchAnyCarAudio = true,
+                matchAnyCarAudio = s.drivingTargetDevices.isEmpty(),
                 targetMacs = s.drivingTargetDevices.toList()
             ),
             motion = if (s.drivingDetectMode == DRIVING_DETECT_MOTION_BLUETOOTH) {
@@ -276,7 +276,7 @@ fun Mode.toModeConfig(): ModeConfig {
     } else null
 
     // Map DndLevel
-    val dndLevel = if (!s.enableDnd) {
+    var dndLevel = if (!s.enableDnd) {
         com.banana.hypermodes.systemserver.config.DndLevel.DISABLED
     } else {
         when (s.dndLevel) {
@@ -284,6 +284,13 @@ fun Mode.toModeConfig(): ModeConfig {
             DndLevel.PRIORITY -> com.banana.hypermodes.systemserver.config.DndLevel.PRIORITY
             DndLevel.ALARMS -> com.banana.hypermodes.systemserver.config.DndLevel.ALARMS
         }
+    }
+
+    // Optimization: If user allowed many apps (heuristic for "All Apps"), disable system DND
+    // so the status bar icon doesn't appear and Zen mode doesn't interfere.
+    // HyperModes' NotificationFilterHook will still handle the whitelist filtering.
+    if (dndLevel != com.banana.hypermodes.systemserver.config.DndLevel.DISABLED && s.allowedApps.size > 50) {
+        dndLevel = com.banana.hypermodes.systemserver.config.DndLevel.DISABLED
     }
 
     // Map ContactFilter

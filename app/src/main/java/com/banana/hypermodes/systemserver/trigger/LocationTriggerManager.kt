@@ -1,84 +1,231 @@
 package com.banana.hypermodes.systemserver.trigger
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
+import android.os.UserManager
 import android.util.Log
+import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
-import com.banana.hypermodes.systemserver.geofence.PolarisGeofenceAdapter
-import com.banana.hypermodes.systemserver.geofence.PolarisCallbackBridge
+import com.banana.hypermodes.systemserver.geofence.PolarisProxyClient
+import com.xiaomi.gnss.polaris.geofence.MiGeofence
 
 /**
  * Manages location triggers via Polaris geofencing.
  * Translates Polaris enter/exit events into continuous ARRIVE/LEAVE state.
  * State starts unknown after restart; config load never synthesizes enter/leave.
+ * 
+ * Thread-safe implementation with proper synchronization.
  */
 class LocationTriggerManager(
     private val context: Context,
     private val callback: (String, String, Boolean) -> Unit
 ) {
-    private val polarisAdapter = PolarisGeofenceAdapter(context, ::onGeofenceEvent)
+    private val polarisClient = PolarisProxyClient(context, ::onGeofenceEvent)
+    private val handler = Handler(Looper.getMainLooper())
+    
+    // Synchronized state
+    private val lock = Any()
     private var configs: Map<String, List<Pair<String, ComplexTrigger.Location>>> = emptyMap()
-
-    // Track current state per trigger: modeId:triggerId -> isInside
-    // null = unknown (initial state after restart/config load)
     private val triggerStates = mutableMapOf<String, Boolean?>()
+    private var retryCount = 0
+    private var lastRetryTime = 0L
+    private var isReleased = false
+    
+    private val maxRetries = 20
+    private var isPolarisPackageInstalled = false
 
-    init {
-        // Register adapter to receive callbacks from PolarisCallbackReceiver
-        if (polarisAdapter.isSupported()) {
-            PolarisCallbackBridge.register(polarisAdapter)
+    private val userUnlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_USER_UNLOCKED) {
+                Log.i(TAG, "=== User Unlocked Event Received ===")
+                Log.i(TAG, "Resetting retry mechanism and attempting immediate Polaris init")
+                
+                synchronized(lock) {
+                    if (isReleased) return
+                    retryCount = 0
+                    lastRetryTime = 0L
+                }
+                
+                handler.removeCallbacks(retryRunnable)
+                handler.post(retryRunnable)
+            }
         }
     }
 
+    private val geofenceEventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != Protocol.ACTION_POLARIS_GEOFENCE_EVENT) return
+
+            val fenceId = intent.getStringExtra(Protocol.EXTRA_POLARIS_FENCE_ID) ?: return
+            val eventCode = intent.getIntExtra(Protocol.EXTRA_POLARIS_EVENT, -1)
+
+            Log.i(TAG, "Received geofence event broadcast: fenceId=$fenceId, eventCode=$eventCode")
+
+            // Parse fence ID using the proper parser
+            val parsed = PolarisProxyClient.parseFenceId(fenceId)
+            if (parsed == null) {
+                Log.w(TAG, "Invalid fence ID format: $fenceId")
+                return
+            }
+
+            val (modeId, triggerId) = parsed
+
+            // Convert event code to GeofenceEvent
+            val event = when (eventCode) {
+                MiGeofence.TRANSITION_TYPE_ENTER -> GeofenceEvent.ENTER
+                MiGeofence.TRANSITION_TYPE_EXIT -> GeofenceEvent.EXIT
+                else -> {
+                    Log.w(TAG, "Unknown event code: $eventCode")
+                    return
+                }
+            }
+
+            Log.i(TAG, "Parsed geofence event: mode=$modeId, trigger=$triggerId, event=$event")
+            onGeofenceEvent(modeId, triggerId, event)
+        }
+    }
+
+    init {
+        Log.i(TAG, "LocationTriggerManager initialized in process ${android.os.Process.myPid()}")
+        
+        // Check if Polaris package is installed
+        isPolarisPackageInstalled = try {
+            context.packageManager.getPackageInfo(POLARIS_PACKAGE, 0)
+            Log.i(TAG, "Polaris package detected: $POLARIS_PACKAGE")
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.w(TAG, "Polaris package not found: $POLARIS_PACKAGE")
+            false
+        }
+
+        // Register for user unlock events
+        val unlockFilter = IntentFilter(Intent.ACTION_USER_UNLOCKED)
+        context.registerReceiver(userUnlockReceiver, unlockFilter)
+
+        // Register for geofence events from app process
+        val geofenceFilter = IntentFilter(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
+        context.registerReceiver(geofenceEventReceiver, geofenceFilter)
+        Log.i(TAG, "Registered receiver for ${Protocol.ACTION_POLARIS_GEOFENCE_EVENT}")
+    }
+
     fun updateConfigs(newConfigs: Map<String, List<Pair<String, ComplexTrigger.Location>>>) {
+        Log.i(TAG, "=== updateConfigs called ===")
+        
+        val oldConfigs = synchronized(lock) {
+            if (isReleased) {
+                Log.w(TAG, "Manager is released, ignoring updateConfigs")
+                return
+            }
+            val old = configs
+            configs = newConfigs
+            old
+        }
+        
+        Log.i(TAG, "Previous configs: ${oldConfigs.size} modes, New configs: ${newConfigs.size} modes")
+
         // Report modes that dropped out as inactive
-        val oldKeys = configs.keys
+        val oldKeys = oldConfigs.keys
         val newKeys = newConfigs.keys
         (oldKeys - newKeys).forEach { modeId ->
-            configs[modeId]?.forEach { (triggerId, _) ->
+            oldConfigs[modeId]?.forEach { (triggerId, _) ->
                 val key = "$modeId:$triggerId"
-                triggerStates.remove(key)
+                synchronized(lock) {
+                    triggerStates.remove(key)
+                }
                 callback(modeId, "location:$triggerId", false)
+                Log.i(TAG, "Removed trigger: $key")
             }
         }
 
-        configs = newConfigs
-
-        // Check capability before registering
-        if (!polarisAdapter.isSupported()) {
-            log("Polaris geofencing not supported on this device")
+        if (newConfigs.isEmpty()) {
+            Log.i(TAG, "No location triggers configured, canceling retry mechanism")
+            handler.removeCallbacks(retryRunnable)
             return
         }
 
-        // Reconcile geofences with Polaris
-        val allTriggers = mutableListOf<Triple<String, String, ComplexTrigger.Location>>()
-        configs.forEach { (modeId, triggers) ->
+        Log.i(TAG, "Location triggers configured: ${newConfigs.size} mode(s)")
+        newConfigs.forEach { (modeId, triggers) ->
+            Log.i(TAG, "  Mode $modeId: ${triggers.size} trigger(s)")
             triggers.forEach { (triggerId, location) ->
-                allTriggers.add(Triple(modeId, triggerId, location))
+                Log.d(TAG, "    - $triggerId: lat=${location.latitude}, lng=${location.longitude}, r=${location.radius}m, trans=${location.transition}")
             }
         }
 
-        polarisAdapter.reconcile(allTriggers)
+        // Check prerequisites before attempting to connect
+        if (!isPolarisPackageInstalled) {
+            Log.e(TAG, "Cannot initialize: Polaris package not installed")
+            return
+        }
+
+        val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager
+        if (userManager?.isUserUnlocked != true) {
+            Log.w(TAG, "User is locked. Will wait for ACTION_USER_UNLOCKED broadcast")
+            return
+        }
+
+        // If we have location triggers but Polaris isn't connected, start/continue retry mechanism
+        if (!polarisClient.isConnected()) {
+            Log.i(TAG, "Polaris not connected, initiating retry mechanism")
+            scheduleRetry(immediate = true)
+        } else {
+            Log.i(TAG, "Polaris already connected, updating triggers immediately")
+            updatePolarisGeofences()
+        }
+    }
+
+    private fun updatePolarisGeofences() {
+        // Reconcile geofences with Polaris
+        val allTriggers = mutableListOf<Triple<String, String, ComplexTrigger.Location>>()
+        
+        synchronized(lock) {
+            configs.forEach { (modeId, triggers) ->
+                triggers.forEach { (triggerId, location) ->
+                    allTriggers.add(Triple(modeId, triggerId, location))
+                }
+            }
+        }
+
+        Log.i(TAG, "Pushing ${allTriggers.size} trigger(s) to Polaris")
+        polarisClient.updateTriggers(allTriggers)
 
         // Initialize state for new triggers as unknown
-        allTriggers.forEach { (modeId, triggerId, _) ->
-            val key = "$modeId:$triggerId"
-            if (!triggerStates.containsKey(key)) {
-                triggerStates[key] = null // unknown
+        synchronized(lock) {
+            allTriggers.forEach { (modeId, triggerId, _) ->
+                val key = "$modeId:$triggerId"
+                if (!triggerStates.containsKey(key)) {
+                    triggerStates[key] = null // unknown
+                }
             }
         }
     }
 
     private fun onGeofenceEvent(modeId: String, triggerId: String, event: GeofenceEvent) {
         val key = "$modeId:$triggerId"
-        val trigger = configs[modeId]?.find { it.first == triggerId }?.second ?: return
+        
+        val (trigger, wasInside) = synchronized(lock) {
+            val t = configs[modeId]?.find { it.first == triggerId }?.second
+            val was = triggerStates[key]
+            t to was
+        }
+        
+        if (trigger == null) {
+            Log.w(TAG, "Received event for unknown trigger: $key")
+            return
+        }
 
-        val wasInside = triggerStates[key]
         val isInside = when (event) {
             GeofenceEvent.ENTER -> true
             GeofenceEvent.EXIT -> false
         }
 
-        triggerStates[key] = isInside
+        synchronized(lock) {
+            triggerStates[key] = isInside
+        }
 
         // Determine if trigger should be active based on transition type
         val shouldActivate = when (trigger.transition) {
@@ -87,20 +234,162 @@ class LocationTriggerManager(
             else -> false
         }
 
-        log("Geofence event for $modeId:$triggerId: $event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
+        Log.i(TAG, "Geofence event: mode=$modeId, trigger=$triggerId, event=$event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
 
         // Only fire callback if state actually changed (or was unknown)
         if (wasInside == null || wasInside != isInside) {
+            Log.i(TAG, "  State changed from $wasInside -> $isInside, firing callback")
             callback(modeId, "location:$triggerId", shouldActivate)
+        } else {
+            Log.d(TAG, "  State unchanged ($isInside), skipping callback")
         }
     }
 
-    private fun log(msg: String) {
-        Log.i(TAG, msg)
+    /**
+     * Release resources when shutting down.
+     * Clears all trigger states and releases the Polaris adapter.
+     */
+    fun release() {
+        Log.i(TAG, "Releasing LocationTriggerManager")
+        
+        synchronized(lock) {
+            isReleased = true
+        }
+        
+        // Remove callbacks before unregistering receivers
+        handler.removeCallbacks(retryRunnable)
+        
+        try {
+            context.unregisterReceiver(userUnlockReceiver)
+        } catch (e: Exception) {
+            Log.d(TAG, "userUnlockReceiver already unregistered")
+        }
+        try {
+            context.unregisterReceiver(geofenceEventReceiver)
+        } catch (e: Exception) {
+            Log.d(TAG, "geofenceEventReceiver already unregistered")
+        }
+        
+        updateConfigs(emptyMap())
+        polarisClient.cleanup()
+    }
+
+    private fun scheduleRetry(immediate: Boolean = false) {
+        synchronized(lock) {
+            if (isReleased) return
+        }
+        
+        // Cancel any existing retry
+        handler.removeCallbacks(retryRunnable)
+
+        // Check if user is unlocked
+        val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager
+        if (userManager?.isUserUnlocked != true) {
+            Log.i(TAG, "User is locked. Polaris init will be deferred until unlock broadcast")
+            return
+        }
+
+        val currentRetryCount = synchronized(lock) { retryCount }
+        
+        if (currentRetryCount >= maxRetries) {
+            Log.w(TAG, "Max retry attempts ($maxRetries) reached, giving up on Polaris initialization")
+            return
+        }
+
+        // Exponential backoff: 0s, 2s, 5s, 10s, 20s, 30s, 60s, then 60s intervals
+        val delay = if (immediate) {
+            0L
+        } else {
+            when (currentRetryCount) {
+                0 -> 2000L
+                1 -> 5000L
+                2 -> 10000L
+                3 -> 20000L
+                4 -> 30000L
+                else -> 60000L
+            }
+        }
+
+        Log.i(TAG, "Scheduling Polaris init retry in ${delay/1000}s (attempt ${currentRetryCount + 1}/$maxRetries)")
+        
+        if (delay == 0L) {
+            handler.post(retryRunnable)
+        } else {
+            handler.postDelayed(retryRunnable, delay)
+        }
+    }
+
+    private val retryRunnable = object : Runnable {
+        override fun run() {
+            synchronized(lock) {
+                if (isReleased) {
+                    Log.i(TAG, "Retry triggered but manager is released, aborting")
+                    return
+                }
+            }
+            
+            val now = System.currentTimeMillis()
+            
+            // Only retry if we have location triggers
+            val hasConfigs = synchronized(lock) { configs.isNotEmpty() }
+            if (!hasConfigs) {
+                Log.i(TAG, "Retry triggered but no location triggers configured, aborting")
+                return
+            }
+
+            // If already connected, apply triggers and exit
+            if (polarisClient.isConnected()) {
+                Log.i(TAG, "=== Polaris Connected Successfully! ===")
+                val attempts = synchronized(lock) {
+                    val count = retryCount
+                    retryCount = 0
+                    count
+                }
+                Log.i(TAG, "Connection established after $attempts retry attempt(s)")
+                updatePolarisGeofences()
+                return
+            }
+
+            // Log retry attempt
+            val attemptNumber = synchronized(lock) {
+                retryCount++
+                retryCount
+            }
+            
+            Log.i(TAG, "=== Polaris Init Retry Attempt $attemptNumber/$maxRetries ===")
+            
+            synchronized(lock) {
+                Log.i(TAG, "Time since last retry: ${now - lastRetryTime}ms")
+                lastRetryTime = now
+            }
+
+            // Attempt initialization
+            polarisClient.init()
+
+            // Check if connection succeeded
+            if (polarisClient.isConnected()) {
+                Log.i(TAG, "=== Polaris Connected on Attempt $attemptNumber! ===")
+                synchronized(lock) {
+                    retryCount = 0
+                }
+                updatePolarisGeofences()
+            } else {
+                // Schedule next retry if we haven't exceeded max attempts
+                val shouldRetry = synchronized(lock) { retryCount < maxRetries }
+                if (shouldRetry) {
+                    Log.w(TAG, "Polaris init failed, will retry...")
+                    scheduleRetry(immediate = false)
+                } else {
+                    Log.e(TAG, "=== Polaris Init Failed After $maxRetries Attempts ===")
+                    Log.e(TAG, "Location triggers will not work until Polaris service is available")
+                }
+            }
+        }
     }
 
     companion object {
         private const val TAG = "LocationTriggerManager"
+        private const val POLARIS_PACKAGE = "com.xiaomi.gnss.polaris"
     }
 }
 
