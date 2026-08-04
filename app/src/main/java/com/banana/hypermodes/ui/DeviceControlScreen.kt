@@ -257,6 +257,7 @@ fun DeviceControlScreen(
                         )
                     }
                 }
+            }
 
             // Motion Sickness Relief
             item {
@@ -280,7 +281,6 @@ fun DeviceControlScreen(
                     },
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
-            }
             }
 
             item {
