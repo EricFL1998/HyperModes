@@ -66,6 +66,7 @@ sealed class Screen {
     data class BluetoothTriggerPicker(val mode: Mode) : Screen()
     data class LocationTriggerPicker(val mode: Mode) : Screen()
     data class DrivingBluetoothPicker(val mode: Mode) : Screen()
+    data class AutomationEditor(val automationId: String? = null) : Screen()
 }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -658,6 +659,15 @@ fun HyperModesApp() {
                         }
                     )
                 }
+                is Screen.AutomationEditor -> {
+                    AutomationEditorScreen(
+                        onBack = { currentScreen = Screen.MainTabs },
+                        automationId = screen.automationId,
+                        onActionSelected = { action ->
+                            // TODO: Handle action selection
+                        }
+                    )
+                }
             }
         }
         }
@@ -807,7 +817,7 @@ private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hyper
 private fun Screen.depth(): Int = when (this) {
     is Screen.MainTabs -> 0
     is Screen.ModesList -> 0
-    is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
+    is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail, is Screen.AutomationEditor -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
     is Screen.LocationTriggerPicker,
@@ -928,7 +938,8 @@ fun MainTabsScreen(
                             onCreateCustom()
                         }
                     } else {
-                        // Automations tab - TODO
+                        // Automations tab
+                        currentScreen = Screen.AutomationEditor(null)
                     }
                 },
                 modifier = Modifier
