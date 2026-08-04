@@ -44,6 +44,8 @@ class DeskClockHook(private val module: XposedModule) {
             })
         hookBedtimeStateSignals(classLoader)
         hookWakeAlarmDismissal(classLoader)
+        hookAlarmSkip(classLoader)
+        hookAlarmEnable(classLoader)
     }
 
     /**
@@ -122,6 +124,41 @@ class DeskClockHook(private val module: XposedModule) {
             log("AlarmHelper.dismissAlarm hooked")
         } catch (t: Throwable) {
             log("dismissAlarm not found: ${t.message}")
+        }
+
+        // 3) End bedtime when the wake alarm is disabled.
+        try {
+            val alarm = classLoader.loadClass(CLS_ALARM)
+            val setEnabled = alarm.getDeclaredMethod("setEnabled", Context::class.java, Boolean::class.javaPrimitiveType)
+            module.hook(setEnabled)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val result = chain.proceed()
+                        try {
+                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                            val alarmObj = getThisObjectMethod.invoke(chain)
+                            val id = alarmObj.javaClass.getField("id").getInt(alarmObj)
+                            val enabled = chain.getArg(1) as Boolean
+                            
+                            // When the wake alarm (id = Integer.MIN_VALUE) is disabled, exit bedtime
+                            if (id == Int.MIN_VALUE && !enabled) {
+                                val context = chain.getArg(0) as Context
+                                classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                    .getDeclaredMethod("exitZenMode", Context::class.java)
+                                    .invoke(null, context)
+                                log("wake alarm disabled -> exitZenMode")
+                                sendBedtimeState(context, false, "ALARM_DISABLED")
+                            }
+                        } catch (t: Throwable) {
+                            log("alarm-disabled bedtime exit failed: $t")
+                        }
+                        return result
+                    }
+                })
+            log("Alarm.setEnabled hooked")
+        } catch (t: Throwable) {
+            log("Alarm.setEnabled not found: ${t.message}")
         }
     }
 
