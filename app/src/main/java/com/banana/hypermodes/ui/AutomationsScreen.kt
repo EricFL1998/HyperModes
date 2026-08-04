@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +38,7 @@ fun AutomationsScreen(
     val scrollBehavior = MiuixScrollBehavior()
     var showMenu by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
+    var showImportedIntentsDialog by remember { mutableStateOf(false) }
     var importedConfig by remember { mutableStateOf<IntentConfig?>(null) }
 
     val json = remember {
@@ -98,12 +100,22 @@ fun AutomationsScreen(
                             ListPopupColumn {
                                 DropdownImpl(
                                     text = stringResource(R.string.import_intent_config),
-                                    optionSize = 1,
+                                    optionSize = 2,
                                     isSelected = false,
                                     index = 0,
                                     onSelectedIndexChange = {
                                         showMenu = false
                                         filePickerLauncher.launch(arrayOf("application/json"))
+                                    }
+                                )
+                                DropdownImpl(
+                                    text = stringResource(R.string.view_imported_intents),
+                                    optionSize = 2,
+                                    isSelected = false,
+                                    index = 1,
+                                    onSelectedIndexChange = {
+                                        showMenu = false
+                                        showImportedIntentsDialog = true
                                     }
                                 )
                             }
@@ -155,48 +167,6 @@ fun AutomationsScreen(
                 )
             }
 
-            // Show imported config preview
-            importedConfig?.let { config ->
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 28.dp, vertical = 12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Imported: ${config.appName}",
-                                style = MiuixTheme.textStyles.headline2
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Package: ${config.packageName}",
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            config.intents.forEach { action ->
-                                Text(
-                                    text = "• ${action.name}",
-                                    style = MiuixTheme.textStyles.body1
-                                )
-                                action.intents.forEach { intent ->
-                                    Text(
-                                        text = "  - $intent",
-                                        style = MiuixTheme.textStyles.body2,
-                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             // Placeholder content
             item {
@@ -318,6 +288,88 @@ fun AutomationsScreen(
                         colors = ButtonDefaults.textButtonColorsPrimary()
                     )
                 }
+            }
+        }
+    }
+
+    // Imported intents viewer dialog
+    if (showImportedIntentsDialog) {
+        top.yukonga.miuix.kmp.overlay.OverlayDialog(
+            show = showImportedIntentsDialog,
+            onDismissRequest = { showImportedIntentsDialog = false }
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.view_imported_intents),
+                    style = MiuixTheme.textStyles.headline2
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                importedConfig?.let { config ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = config.appName,
+                                style = MiuixTheme.textStyles.headline2
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = config.packageName,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            config.intents.forEachIndexed { index, action ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = action.name,
+                                        style = MiuixTheme.textStyles.body1,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    val intentSummary = when {
+                                        action.intents.isEmpty() -> ""
+                                        action.intents.size == 1 -> action.intents.first()
+                                        else -> "${action.intents.first()} +${action.intents.size - 1}"
+                                    }
+                                    if (intentSummary.isNotEmpty()) {
+                                        Text(
+                                            text = intentSummary,
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier
+                                                .weight(2f)
+                                                .padding(start = 8.dp)
+                                        )
+                                    }
+                                }
+                                if (index != config.intents.lastIndex) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+                            }
+                        }
+                    }
+                } ?: run {
+                    Text(
+                        text = stringResource(R.string.no_imported_intents),
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                TextButton(
+                    text = stringResource(R.string.done),
+                    onClick = { showImportedIntentsDialog = false },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

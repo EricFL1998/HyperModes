@@ -274,4 +274,7 @@
     <string name="import_success">Mode imported successfully</string>
     <string name="import_error">Failed to import config</string>
     <string name="imported_from">Auto-imported from %1$s</string>
+    <string name="imported_intents_title">Imported Intents</string>
+    <string name="view_imported_intents">View Imported Intents</string>
+    <string name="no_imported_intents">No imported intents yet</string>
 </resources>
