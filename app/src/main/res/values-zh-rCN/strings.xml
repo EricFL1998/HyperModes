@@ -114,6 +114,8 @@
     <string name="airplane_mode">飞行模式</string>
     <string name="airplane_mode_desc">禁用所有无线连接</string>
     <string name="airplane_mode_conflict">飞行模式与已启用的WiFi、蓝牙或5G冲突</string>
+    <string name="motion_sickness_relief">晕车缓解</string>
+    <string name="motion_sickness_relief_desc">启用晕车缓解服务以减少视觉不适</string>
     <string name="raise_to_wake">抬起亮屏</string>
     <string name="raise_to_wake_desc">抬起手机时亮屏</string>
     <string name="wake_for_notifications">来通知亮屏</string>

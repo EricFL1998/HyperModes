@@ -257,6 +257,30 @@ fun DeviceControlScreen(
                         )
                     }
                 }
+
+            // Motion Sickness Relief
+            item {
+                DropdownSettingItem(
+                    title = stringResource(R.string.motion_sickness_relief),
+                    subtitle = stringResource(R.string.motion_sickness_relief_desc),
+                    selected = editedMode.settings.enableMotionSicknessRelief != null,
+                    onToggle = { enabled ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableMotionSicknessRelief = if (enabled) true else null)
+                        )
+                        validateAndSave(newMode)
+                    },
+                    value = editedMode.settings.enableMotionSicknessRelief ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableMotionSicknessRelief = value)
+                        )
+                        validateAndSave(newMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
             }
 
             item {

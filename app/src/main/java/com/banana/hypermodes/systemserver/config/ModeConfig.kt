@@ -158,7 +158,8 @@ data class DeviceConfig(
     val enableWifi: Boolean? = null,
     val enableBluetooth: Boolean? = null,
     val silentMode: Boolean? = null,
-    val airplaneMode: Boolean? = null
+    val airplaneMode: Boolean? = null,
+    val enableMotionSicknessRelief: Boolean? = null
 )
 
 @Serializable

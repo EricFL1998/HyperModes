@@ -55,6 +55,7 @@ data class ModeSettings(
     val airplaneMode: Boolean? = null,
     val enableRaiseToWake: Boolean? = null,
     val enableWakeForNotifications: Boolean? = null,
+    val enableMotionSicknessRelief: Boolean? = null,
 
     // Driving auto-detection (何时自动开启). Only the built-in driving mode
     // enables this; custom modes must opt in explicitly.
@@ -343,7 +344,8 @@ fun Mode.toModeConfig(): ModeConfig {
             enableWifi = s.enableWifi,
             enableBluetooth = s.enableBluetooth,
             silentMode = s.silentMode,
-            airplaneMode = s.airplaneMode
+            airplaneMode = s.airplaneMode,
+            enableMotionSicknessRelief = s.enableMotionSicknessRelief
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -460,6 +462,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enableBluetooth = device?.enableBluetooth,
             silentMode = device?.silentMode,
             airplaneMode = device?.airplaneMode,
+            enableMotionSicknessRelief = device?.enableMotionSicknessRelief,
             enableRaiseToWake = display.enableRaiseToWake,
             enableWakeForNotifications = display.enableWakeForNotifications,
             pausedApps = pausedApps.toSet(),

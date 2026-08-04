@@ -66,6 +66,11 @@ class DeviceController(private val context: Context) {
                 applyAirplaneMode(enabled)
             }
 
+            // Motion Sickness Relief
+            device.enableMotionSicknessRelief?.let { enabled ->
+                applyMotionSicknessRelief(enabled)
+            }
+
         } catch (e: Exception) {
             log("apply: failed: ${e.message}")
         }
@@ -146,6 +151,32 @@ class DeviceController(private val context: Context) {
      * Apply airplane mode with proper guards and fallback strategy.
      * Checks for ECM/SCBM/satellite/user/enterprise restrictions.
      */
+    /**
+     * Control motion sickness relief service from com.miui.securitycenter.
+     * Sends intent to CarSicknessService to enable/disable the feature.
+     */
+    private fun applyMotionSicknessRelief(enabled: Boolean) {
+        try {
+            val intent = android.content.Intent().apply {
+                component = android.content.ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.carsickness.service.CarSicknessService"
+                )
+                if (enabled) {
+                    action = "miui.carsickness.remind_always"
+                } else {
+                    action = "miui.carsickness.close_car_sickness"
+                }
+            }
+            context.startService(intent)
+            log("applyMotionSicknessRelief: set to $enabled")
+        } catch (e: Exception) {
+            log("applyMotionSicknessRelief: failed: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+
     private fun applyAirplaneMode(enabled: Boolean) {
         try {
             val cr = context.contentResolver

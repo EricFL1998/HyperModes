@@ -114,6 +114,8 @@
     <string name="airplane_mode">Airplane Mode</string>
     <string name="airplane_mode_desc">Disable all wireless connections</string>
     <string name="airplane_mode_conflict">Airplane mode conflicts with enabled WiFi, Bluetooth, or 5G</string>
+    <string name="motion_sickness_relief">Motion Sickness Relief</string>
+    <string name="motion_sickness_relief_desc">Enable motion sickness relief service to reduce visual discomfort</string>
     <string name="raise_to_wake">Raise to wake</string>
     <string name="raise_to_wake_desc">Enable or disable raise to wake</string>
     <string name="wake_for_notifications">Wake for notifications</string>
