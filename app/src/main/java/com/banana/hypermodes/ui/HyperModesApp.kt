@@ -297,6 +297,9 @@ fun HyperModesApp() {
                                 editingMode = done
                                 currentScreen = Screen.ModeDetail(done)
                             }
+                        },
+                        onCreateAutomation = {
+                            currentScreen = Screen.AutomationEditor(null)
                         }
                     )
                 }
@@ -351,7 +354,8 @@ fun HyperModesApp() {
                                 editingMode = done
                                 currentScreen = Screen.ModeDetail(done)
                             }
-                        }
+                        },
+                        onCreateAutomation = {\n                            currentScreen = Screen.AutomationEditor(null)\n                        }
                     )
                 }
                 is Screen.BedtimeIntro -> {
@@ -837,7 +841,8 @@ fun MainTabsScreen(
     modeToEdit: Mode?,
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
-    onDoneEdit: (Mode) -> Unit
+    onDoneEdit: (Mode) -> Unit,
+    onCreateAutomation: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -939,7 +944,7 @@ fun MainTabsScreen(
                         }
                     } else {
                         // Automations tab
-                        currentScreen = Screen.AutomationEditor(null)
+                        onCreateAutomation()
                     }
                 },
                 modifier = Modifier
@@ -995,7 +1000,8 @@ fun ModesListScreen(
     modeToEdit: Mode?,
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
-    onDoneEdit: (Mode) -> Unit
+    onDoneEdit: (Mode) -> Unit,
+    onCreateAutomation: () -> Unit
 ) {
     ModesListScreenContent(
         modes = modes,
