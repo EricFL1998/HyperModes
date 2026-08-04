@@ -10,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -316,41 +315,13 @@ fun AutomationsScreen(
                                 text = config.appName,
                                 style = MiuixTheme.textStyles.headline2
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = config.packageName,
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             config.intents.forEachIndexed { index, action ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = action.name,
-                                        style = MiuixTheme.textStyles.body1,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    val intentSummary = when {
-                                        action.intents.isEmpty() -> ""
-                                        action.intents.size == 1 -> action.intents.first()
-                                        else -> "${action.intents.first()} +${action.intents.size - 1}"
-                                    }
-                                    if (intentSummary.isNotEmpty()) {
-                                        Text(
-                                            text = intentSummary,
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                            textAlign = TextAlign.End,
-                                            modifier = Modifier
-                                                .weight(2f)
-                                                .padding(start = 8.dp)
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = action.name,
+                                    style = MiuixTheme.textStyles.body1,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                                 if (index != config.intents.lastIndex) {
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
