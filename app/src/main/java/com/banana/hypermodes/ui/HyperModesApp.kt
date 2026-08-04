@@ -96,7 +96,6 @@ fun HyperModesApp() {
     // Auto-update check on startup
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var showAutomationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         val currentVersion = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
@@ -298,7 +297,6 @@ fun HyperModesApp() {
                                 currentScreen = Screen.ModeDetail(done)
                             }
                         },
-                        onCreateAutomation = { showAutomationDialog = true }
                     )
                 }
                 is Screen.ModesList -> {
@@ -353,7 +351,6 @@ fun HyperModesApp() {
                                 currentScreen = Screen.ModeDetail(done)
                             }
                         },
-                        onCreateAutomation = { showAutomationDialog = true }
                     )
                 }
                 is Screen.BedtimeIntro -> {
@@ -701,17 +698,10 @@ fun HyperModesApp() {
                 onDismiss = { showUpdateDialog = false }
             )
 
-        // AutomationActionDialog
-        AutomationActionDialog(
-            show = showAutomationDialog,
-            onDismiss = { showAutomationDialog = false },
-            onActionSelected = { action ->
-                // TODO: Handle action selection
-            }
-        )
         }
     }
 }
+
 
 /**
  * 创建模式 dialog (图九): always shows 自定义; each deleted built-in mode
@@ -842,13 +832,13 @@ fun MainTabsScreen(
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit,
-    onCreateAutomation: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     // Local state for CreateModeDialog
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showAutomationDialog by remember { mutableStateOf(false) }
 
     // Tab items - using MIUIX icons
     // 模式: Settings (represents switching/toggling modes)
@@ -933,6 +923,7 @@ fun MainTabsScreen(
             // Floating Action Button overlay - positioned absolutely above the capsule
             FloatingActionButton(
                 onClick = {
+                    android.util.Log.d("HyperModes", "FAB clicked, currentPage: ${pagerState.currentPage}")
                     if (pagerState.currentPage == 0) {
                         // Modes tab
                         val deleted = DefaultModes.get()
@@ -944,7 +935,8 @@ fun MainTabsScreen(
                         }
                     } else {
                         // Automations tab
-                        onCreateAutomation()
+                        showAutomationDialog = true
+                        showAutomationDialog = true
                     }
                 },
                 modifier = Modifier
@@ -960,6 +952,15 @@ fun MainTabsScreen(
             }
 
             // CreateModeDialog at the top level - will appear above bottom bar
+            // AutomationActionDialog - will appear above bottom bar
+            AutomationActionDialog(
+                show = showAutomationDialog,
+                onDismiss = { showAutomationDialog = false },
+                onActionSelected = { action ->
+                    // TODO: Handle action selection
+                }
+            )
+
             CreateModeDialog(
                 show = showCreateDialog,
                 deletedBuiltIns = DefaultModes.get()
@@ -1001,7 +1002,6 @@ fun ModesListScreen(
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit,
-    onCreateAutomation: () -> Unit
 ) {
     ModesListScreenContent(
         modes = modes,

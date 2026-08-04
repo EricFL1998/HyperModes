@@ -157,6 +157,7 @@ fun AutomationActionDialog(
     onDismiss: () -> Unit,
     onActionSelected: (AutomationAction) -> Unit = {}
 ) {
+    android.util.Log.d("HyperModes", "AutomationActionDialog called, show=$show")
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<ActionCategory?>(null) }
     
