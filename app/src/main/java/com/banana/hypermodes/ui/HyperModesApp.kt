@@ -66,8 +66,7 @@ sealed class Screen {
     data class BluetoothTriggerPicker(val mode: Mode) : Screen()
     data class LocationTriggerPicker(val mode: Mode) : Screen()
     data class DrivingBluetoothPicker(val mode: Mode) : Screen()
-    data class AutomationEditor(val automationId: String? = null) : Screen()
-}
+    }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
 private fun sortModes(list: List<Mode>): List<Mode> = list.sortedWith(
@@ -97,6 +96,7 @@ fun HyperModesApp() {
     // Auto-update check on startup
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var showAutomationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         val currentVersion = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
@@ -298,9 +298,7 @@ fun HyperModesApp() {
                                 currentScreen = Screen.ModeDetail(done)
                             }
                         },
-                        onCreateAutomation = {
-                            currentScreen = Screen.AutomationEditor(null)
-                        }
+                        onCreateAutomation = { showAutomationDialog = true }
                     )
                 }
                 is Screen.ModesList -> {
@@ -355,7 +353,7 @@ fun HyperModesApp() {
                                 currentScreen = Screen.ModeDetail(done)
                             }
                         },
-                        onCreateAutomation = {\n                            currentScreen = Screen.AutomationEditor(null)\n                        }
+                        onCreateAutomation = { showAutomationDialog = true }
                     )
                 }
                 is Screen.BedtimeIntro -> {
@@ -663,15 +661,7 @@ fun HyperModesApp() {
                         }
                     )
                 }
-                is Screen.AutomationEditor -> {
-                    AutomationEditorScreen(
-                        onBack = { currentScreen = Screen.MainTabs },
-                        automationId = screen.automationId,
-                        onActionSelected = { action ->
-                            // TODO: Handle action selection
-                        }
-                    )
-                }
+                
             }
         }
         }
@@ -710,6 +700,15 @@ fun HyperModesApp() {
                 updateInfo = info,
                 onDismiss = { showUpdateDialog = false }
             )
+
+        // AutomationActionDialog
+        AutomationActionDialog(
+            show = showAutomationDialog,
+            onDismiss = { showAutomationDialog = false },
+            onActionSelected = { action ->
+                // TODO: Handle action selection
+            }
+        )
         }
     }
 }
@@ -727,6 +726,7 @@ fun CreateModeDialog(
     onRestoreBuiltIn: (Mode) -> Unit
 ) {
     top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
+
         show = show,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.create_mode)
@@ -821,7 +821,7 @@ private fun sendScheduleToDeskClock(context: Context, schedule: com.banana.hyper
 private fun Screen.depth(): Int = when (this) {
     is Screen.MainTabs -> 0
     is Screen.ModesList -> 0
-    is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail, is Screen.AutomationEditor -> 1
+    is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
     is Screen.LocationTriggerPicker,
@@ -943,8 +943,7 @@ fun MainTabsScreen(
                             onCreateCustom()
                         }
                     } else {
-                        // Automations tab
-                        onCreateAutomation()
+                        // Automations tab\n                        showAutomationDialog = true
                     }
                 },
                 modifier = Modifier

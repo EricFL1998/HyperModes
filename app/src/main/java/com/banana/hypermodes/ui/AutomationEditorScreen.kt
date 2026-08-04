@@ -1,36 +1,23 @@
 package com.banana.hypermodes.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import top.yukonga.miuix.kmp.basic.*
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import androidx.compose.foundation.background
 
 /**
  * 自动化操作分类
@@ -162,20 +149,16 @@ fun getAutomationActions(): List<AutomationAction> {
 }
 
 /**
- * 自动化编辑界面
+ * 自动化操作选择对话框（底部弹出）
  */
 @Composable
-fun AutomationEditorScreen(
-    onBack: () -> Unit,
-    automationId: String? = null,
+fun AutomationActionDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
     onActionSelected: (AutomationAction) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val scrollBehavior = MiuixScrollBehavior()
-    
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<ActionCategory?>(null) }
-    var showBottomSheet by remember { mutableStateOf(true) }
     
     val allActions = getAutomationActions()
     
@@ -190,210 +173,137 @@ fun AutomationEditorScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MiuixTheme.colorScheme.background)
+    top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
+        show = show,
+        onDismissRequest = onDismiss,
+        title = "添加操作"
     ) {
-        // 主内容区域
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
         ) {
-            // 顶部标题栏
-            TopAppBar(
-                title = if (automationId == null) "新建快捷指令" else "编辑快捷指令",
-                scrollBehavior = scrollBehavior,
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = MiuixIcons.Back,
-                            contentDescription = "返回"
-                        )
-                    }
+            // 搜索框
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 12.dp)
+                    .height(48.dp),
+                label = "搜索操作",
+                leadingIcon = {
+                    Text(text = "🔍", fontSize = 18.sp)
                 }
             )
             
-            // 内容区域
-            Box(
+            // 分类标签
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // 提示文本
-                    Text(
-                        text = "从下方添加操作以创建快捷指令。",
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 200.dp)
-                    )
-                }
-            }
-        }
-        
-        // 底部操作面板
-        AnimatedVisibility(
-            visible = showBottomSheet,
-            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            BottomActionSheet(
-                searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
-                selectedCategory = selectedCategory,
-                onCategorySelected = { selectedCategory = if (selectedCategory == it) null else it },
-                filteredActions = filteredActions,
-                onActionClick = onActionSelected
-            )
-        }
-    }
-}
-
-/**
- * 底部操作面板
- */
-@Composable
-fun BottomActionSheet(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedCategory: ActionCategory?,
-    onCategorySelected: (ActionCategory) -> Unit,
-    filteredActions: List<AutomationAction>,
-    onActionClick: (AutomationAction) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight(0.65f)
-            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(MiuixTheme.colorScheme.surface)
-    ) {
-        // 顶部指示器
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp, bottom = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(48.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.3f))
-            )
-        }
-        
-        // 搜索框
-        SearchField(
-            query = searchQuery,
-            onQueryChange = onSearchQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        
-        // 分类标签
-        CategoryTabs(
-            selectedCategory = selectedCategory,
-            onCategorySelected = onCategorySelected,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        
-        // 操作列表
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .scrollEndHaptic()
-                .overScrollVertical(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            items(filteredActions) { action ->
-                ActionItem(
-                    action = action,
-                    onClick = { onActionClick(action) },
-                    modifier = Modifier.padding(vertical = 4.dp)
+                CategoryChip(
+                    label = "自动化",
+                    icon = "✓",
+                    isSelected = selectedCategory == ActionCategory.AUTOMATION,
+                    onClick = { 
+                        selectedCategory = if (selectedCategory == ActionCategory.AUTOMATION) null 
+                                          else ActionCategory.AUTOMATION 
+                    }
+                )
+                CategoryChip(
+                    label = "脚本",
+                    icon = "⚡",
+                    isSelected = selectedCategory == ActionCategory.SCRIPT,
+                    onClick = { 
+                        selectedCategory = if (selectedCategory == ActionCategory.SCRIPT) null 
+                                          else ActionCategory.SCRIPT 
+                    }
+                )
+                CategoryChip(
+                    label = "控制",
+                    icon = "🎮",
+                    isSelected = selectedCategory == ActionCategory.CONTROL,
+                    onClick = { 
+                        selectedCategory = if (selectedCategory == ActionCategory.CONTROL) null 
+                                          else ActionCategory.CONTROL 
+                    }
+                )
+                CategoryChip(
+                    label = "设备",
+                    icon = "📱",
+                    isSelected = selectedCategory == ActionCategory.DEVICE,
+                    onClick = { 
+                        selectedCategory = if (selectedCategory == ActionCategory.DEVICE) null 
+                                          else ActionCategory.DEVICE 
+                    }
                 )
             }
-        }
-    }
-}
-
-/**
- * 搜索框
- */
-@Composable
-fun SearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier
-            .height(52.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        label = "搜索操作",
-        leadingIcon = {
-            Text(text = "🔍", fontSize = 20.sp)
-        },
-        trailingIcon = if (query.isNotEmpty()) {
-            {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Text(text = "🎤", fontSize = 18.sp)
+            
+            // 操作列表
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                items(filteredActions) { action ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onActionSelected(action)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 28.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 图标
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(action.iconColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = action.icon,
+                                fontSize = 22.sp
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        // 名称
+                        Text(
+                            text = action.name,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                
+                // 如果没有结果
+                if (filteredActions.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "没有找到匹配的操作",
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                        }
+                    }
                 }
             }
-        } else null
-    )
-}
-
-/**
- * 分类标签
- */
-@Composable
-fun CategoryTabs(
-    selectedCategory: ActionCategory?,
-    onCategorySelected: (ActionCategory) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        CategoryChip(
-            label = "自动化",
-            icon = "✓",
-            isSelected = selectedCategory == ActionCategory.AUTOMATION,
-            onClick = { onCategorySelected(ActionCategory.AUTOMATION) }
-        )
-        CategoryChip(
-            label = "脚本",
-            icon = "⚡",
-            isSelected = selectedCategory == ActionCategory.SCRIPT,
-            onClick = { onCategorySelected(ActionCategory.SCRIPT) }
-        )
-        CategoryChip(
-            label = "控制",
-            icon = "🎮",
-            isSelected = selectedCategory == ActionCategory.CONTROL,
-            onClick = { onCategorySelected(ActionCategory.CONTROL) }
-        )
-        CategoryChip(
-            label = "设备",
-            icon = "📱",
-            isSelected = selectedCategory == ActionCategory.DEVICE,
-            onClick = { onCategorySelected(ActionCategory.DEVICE) }
-        )
+        }
     }
 }
 
@@ -409,81 +319,28 @@ fun CategoryChip(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(
                 if (isSelected) MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
                 else MiuixTheme.colorScheme.surfaceVariant
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = icon,
-                fontSize = 16.sp
+                fontSize = 14.sp
             )
             Text(
                 text = label,
                 style = MiuixTheme.textStyles.body2,
+                fontSize = 13.sp,
                 color = if (isSelected) MiuixTheme.colorScheme.primary
                        else MiuixTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-/**
- * 操作项
- */
-@Composable
-fun ActionItem(
-    action: AutomationAction,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 图标
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(action.iconColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = action.icon,
-                    fontSize = 24.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // 名称
-            Text(
-                text = action.name,
-                style = MiuixTheme.textStyles.body1,
-                color = MiuixTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-            
-            // 箭头
-            Text(
-                text = "ⓘ",
-                fontSize = 20.sp,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
     }
