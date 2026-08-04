@@ -943,7 +943,8 @@ fun MainTabsScreen(
                             onCreateCustom()
                         }
                     } else {
-                        // Automations tab\n                        showAutomationDialog = true
+                        // Automations tab
+                        onCreateAutomation()
                     }
                 },
                 modifier = Modifier
