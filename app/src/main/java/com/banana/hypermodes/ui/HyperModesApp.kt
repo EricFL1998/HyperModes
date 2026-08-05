@@ -167,6 +167,8 @@ fun HyperModesApp() {
     var showEditDialog by remember { mutableStateOf(false) }
     var modeToEditInDialog by remember { mutableStateOf<Mode?>(null) }
     var isCreatingNewModeInDialog by remember { mutableStateOf(false) }
+    var isAddingToCompound by remember { mutableStateOf(false) }
+
 
     // The user's mode list (built-ins minus deleted ones + custom modes),
     // persisted via ModeStore. Bedtime always sorts first.
@@ -472,7 +474,9 @@ fun HyperModesApp() {
                             if (editingMode?.id == done.id) {
                                 editingMode = done
                             }
-                        }
+                        },
+                        isAddingToCompound = isAddingToCompound,
+                        onIsAddingToCompoundChange = { isAddingToCompound = it }
                     )
                 }
                 is Screen.DisplayOptions -> {

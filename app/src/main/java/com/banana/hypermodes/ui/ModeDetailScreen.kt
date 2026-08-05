@@ -68,6 +68,9 @@ fun ModeDetailScreen(
     modeToEdit: Mode?,
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
+    isAddingToCompound: Boolean,
+    onIsAddingToCompoundChange: (Boolean) -> Unit,
+
     onDoneEdit: (Mode) -> Unit
 ) {
     BackHandler(onBack = onBack)
@@ -105,7 +108,6 @@ fun ModeDetailScreen(
     var editingCompoundTriggers by remember(mode.id) { mutableStateOf<List<ModeTrigger>>(emptyList()) }
     var editingCompoundName by remember(mode.id) { mutableStateOf<String?>(null) }
     var editingGroupIndex by remember(mode.id) { mutableStateOf<Int?>(null) }
-    var isAddingToCompound by remember { mutableStateOf(false) }
 
     // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
     LaunchedEffect(editedMode.settings.triggers.size) {
@@ -130,7 +132,7 @@ fun ModeDetailScreen(
                         triggers = emptyList()
                     ))
                     // Reset flag and reopen the compound dialog
-                    isAddingToCompound = false
+                    onIsAddingToCompoundChange(false)
                     showCompoundTriggerDialog = true
                 } else {
                     // Convert new triggers to single trigger groups
@@ -825,7 +827,7 @@ TriggerSelectionDialog(
             },
             onAddTrigger = {
                 showCompoundTriggerDialog = false
-                isAddingToCompound = true
+                onIsAddingToCompoundChange(true)
                 showTriggerSelector = true
             }
         )
