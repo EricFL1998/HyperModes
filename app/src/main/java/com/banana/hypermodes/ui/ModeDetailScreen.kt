@@ -105,6 +105,7 @@ fun ModeDetailScreen(
     var editingCompoundTriggers by remember(mode.id) { mutableStateOf<List<ModeTrigger>>(emptyList()) }
     var editingCompoundName by remember(mode.id) { mutableStateOf<String?>(null) }
     var editingGroupIndex by remember(mode.id) { mutableStateOf<Int?>(null) }
+    var isAddingToCompound by remember(mode.id) { mutableStateOf(false) }
 
     // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
     LaunchedEffect(editedMode.settings.triggers.size) {
@@ -119,29 +120,22 @@ fun ModeDetailScreen(
             val newTriggers = editedMode.settings.triggers.filterNot { it in existingTriggers }
             
             if (newTriggers.isNotEmpty()) {
-                if (showCompoundTriggerDialog || editingCompoundTriggers.isNotEmpty()) {
-                    // If we're in compound mode, add to editing list but don't save yet
-                    newTriggers.forEach { trigger ->
+                // Convert new triggers to trigger groups
+                val newGroups = newTriggers.map { trigger ->
+                    if (isAddingToCompound) {
+                        // If we're in compound mode, add to editing list
                         editingCompoundTriggers = editingCompoundTriggers + trigger
+                        null
+                    } else if (editingGroupIndex != null) {
+                        // Editing existing single group
+                        ModeTriggerGroup.Single(trigger)
+                    } else {
+                        // Create new single group
+                        ModeTriggerGroup.Single(trigger)
                     }
-                    // Clear triggers list to avoid re-triggering this effect
-                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
-                        triggers = emptyList()
-                    ))
-                    // Reopen the compound dialog
-                    showCompoundTriggerDialog = true
-                } else {
-                    // Convert new triggers to single trigger groups
-                    val newGroups = newTriggers.map { trigger ->
-                        if (editingGroupIndex != null) {
-                            // Editing existing single group
-                            ModeTriggerGroup.Single(trigger)
-                        } else {
-                            // Create new single group
-                            ModeTriggerGroup.Single(trigger)
-                        }
-                    }
-                    
+                }.filterNotNull()
+                
+                if (newGroups.isNotEmpty()) {
                     editedMode = if (editingGroupIndex != null) {
                         // Replace existing group
                         editedMode.copy(settings = editedMode.settings.copy(
@@ -161,6 +155,11 @@ fun ModeDetailScreen(
                     if (editingGroupIndex != null) {
                         editingGroupIndex = null
                     }
+                }
+                
+                // If adding to compound trigger, reopen the dialog
+                if (editingCompoundTriggers.isNotEmpty() && !showCompoundTriggerDialog) {
+                    showCompoundTriggerDialog = true
                 }
             }
         }
@@ -734,14 +733,39 @@ TriggerSelectionDialog(
                 showTriggerSelector = false
                 when (type) {
                     "time" -> showTimePicker = true
-                    "app" -> onOpenAppTriggerPicker(editedMode)
-                    "wifi" -> onOpenWifiTriggerPicker(editedMode)
-                    "bluetooth" -> onOpenBluetoothTriggerPicker(editedMode)
-                    "location" -> onOpenLocationTriggerPicker(editedMode)
-                    "intent" -> onOpenIntentTriggerPicker(editedMode)
+                    "app" -> {
+                        if (editingCompoundTriggers.isNotEmpty()) {
+                            isAddingToCompound = true
+                        }
+                        onOpenAppTriggerPicker(editedMode)
+                    }
+                    "wifi" -> {
+                        if (editingCompoundTriggers.isNotEmpty()) {
+                            isAddingToCompound = true
+                        }
+                        onOpenWifiTriggerPicker(editedMode)
+                    }
+                    "bluetooth" -> {
+                        if (editingCompoundTriggers.isNotEmpty()) {
+                            isAddingToCompound = true
+                        }
+                        onOpenBluetoothTriggerPicker(editedMode)
+                    }
+                    "location" -> {
+                        if (editingCompoundTriggers.isNotEmpty()) {
+                            isAddingToCompound = true
+                        }
+                        onOpenLocationTriggerPicker(editedMode)
+                    }
+                    "intent" -> {
+                        if (editingCompoundTriggers.isNotEmpty()) {
+                            isAddingToCompound = true
+                        }
+                        onOpenIntentTriggerPicker(editedMode)
+                    }
                     "music" -> {
                         val trigger = ModeTrigger.Music
-                        if (showCompoundTriggerDialog) {
+                        if (editingCompoundTriggers.isNotEmpty()) {
                             // Adding to compound trigger
                             editingCompoundTriggers = editingCompoundTriggers + trigger
                             showCompoundTriggerDialog = true
@@ -829,7 +853,12 @@ TriggerSelectionDialog(
             initialHour = ModeSchedule().startHour,
             initialMinute = ModeSchedule().startMinute,
             show = showTimePicker,
-            onDismissRequest = { showTimePicker = false },
+            onDismissRequest = {
+                showTimePicker = false
+                if (editingCompoundTriggers.isNotEmpty()) {
+                    showCompoundTriggerDialog = true
+                }
+            },
             onConfirm = { h, m ->
                 pendingStartTime = h to m
                 showTimePicker = false
@@ -861,7 +890,7 @@ TriggerSelectionDialog(
                         )
                     )
                     // v2.0: Add to trigger groups or compound trigger
-                    if (showCompoundTriggerDialog) {
+                    if (editingCompoundTriggers.isNotEmpty()) {
                         // Adding to compound trigger
                         editingCompoundTriggers = editingCompoundTriggers + newTrigger
                         showCompoundTriggerDialog = true
