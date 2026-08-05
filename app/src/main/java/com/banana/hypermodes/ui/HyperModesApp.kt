@@ -168,6 +168,9 @@ fun HyperModesApp() {
     var modeToEditInDialog by remember { mutableStateOf<Mode?>(null) }
     var isCreatingNewModeInDialog by remember { mutableStateOf(false) }
     var isAddingToCompound by remember { mutableStateOf(false) }
+    var pendingCompoundTrigger by remember { mutableStateOf<ModeTrigger?>(null) }
+    var showCompoundTriggerDialog by remember { mutableStateOf(false) }
+    var editingCompoundTriggers by remember { mutableStateOf<List<ModeTrigger>>(emptyList()) }
 
 
     // The user's mode list (built-ins minus deleted ones + custom modes),
@@ -476,7 +479,13 @@ fun HyperModesApp() {
                             }
                         },
                         isAddingToCompound = isAddingToCompound,
-                        onIsAddingToCompoundChange = { isAddingToCompound = it }
+                        onIsAddingToCompoundChange = { isAddingToCompound = it },
+                        showCompoundTriggerDialog = showCompoundTriggerDialog,
+                        onShowCompoundTriggerDialogChange = { showCompoundTriggerDialog = it },
+                        pendingCompoundTrigger = pendingCompoundTrigger,
+                        onPendingCompoundTriggerConsumed = { pendingCompoundTrigger = null },
+                        editingCompoundTriggers = editingCompoundTriggers,
+                        onEditingCompoundTriggersChange = { editingCompoundTriggers = it },
                     )
                 }
                 is Screen.DisplayOptions -> {
@@ -570,19 +579,21 @@ fun HyperModesApp() {
                         onSelectionChanged = { selectedApps ->
                             if (selectedApps.isNotEmpty()) {
                                 val trigger = ModeTrigger.App(selectedApps)
-                                // Guard against duplicates of an identical trigger
-                                if (!mode.settings.triggers.contains(trigger)) {
+                                if (isAddingToCompound) {
+                                    pendingCompoundTrigger = trigger
+                                    currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                                } else if (!mode.settings.triggers.contains(trigger)) {
                                     val updated = mode.copy(
                                         settings = mode.settings.copy(
                                             triggers = mode.settings.triggers + trigger
                                         )
                                     )
                                     editingMode = updated
-                                    // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
-                                    // upsertMode(updated)
                                 }
                                 // Navigate back to ModeDetail
+                            if (!isAddingToCompound) {
                                 currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            }
                             }
                         }
                     )
@@ -595,18 +606,21 @@ fun HyperModesApp() {
                         },
                         onSelect = { ssid ->
                             val trigger = ModeTrigger.Wifi(setOf(ssid))
-                            if (!mode.settings.triggers.contains(trigger)) {
+                            if (isAddingToCompound) {
+                                pendingCompoundTrigger = trigger
+                                currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            } else if (!mode.settings.triggers.contains(trigger)) {
                                 val updated = mode.copy(
                                     settings = mode.settings.copy(
                                         triggers = mode.settings.triggers + trigger
                                     )
                                 )
                                 editingMode = updated
-                                // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
-                                // upsertMode(updated)
                             }
                             // Navigate back to ModeDetail
-                            currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            if (!isAddingToCompound) {
+                                currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            }
                         }
                     )
                 }
@@ -618,7 +632,10 @@ fun HyperModesApp() {
                         },
                         onSelect = { device ->
                             val trigger = ModeTrigger.Bluetooth(setOf(device.address))
-                            if (!mode.settings.triggers.contains(trigger)) {
+                            if (isAddingToCompound) {
+                                pendingCompoundTrigger = trigger
+                                currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            } else if (!mode.settings.triggers.contains(trigger)) {
                                 val updated = mode.copy(
                                     settings = mode.settings.copy(
                                         triggers = mode.settings.triggers + trigger
@@ -629,7 +646,9 @@ fun HyperModesApp() {
                                 // upsertMode(updated)
                             }
                             // Navigate back to ModeDetail
-                            currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            if (!isAddingToCompound) {
+                                currentScreen = Screen.ModeDetail(editingMode ?: mode)
+                            }
                         }
                     )
                 }
@@ -960,7 +979,6 @@ fun MainTabsScreen(
             // Floating Action Button overlay - positioned absolutely above the capsule
             FloatingActionButton(
                 onClick = {
-                    android.util.Log.d("HyperModes", "FAB clicked, currentPage: ${pagerState.currentPage}")
                     if (pagerState.currentPage == 0) {
                         // Modes tab
                         val deleted = DefaultModes.get()

@@ -70,6 +70,12 @@ fun ModeDetailScreen(
     onDismissEdit: () -> Unit,
     isAddingToCompound: Boolean,
     onIsAddingToCompoundChange: (Boolean) -> Unit,
+    showCompoundTriggerDialog: Boolean,
+    onShowCompoundTriggerDialogChange: (Boolean) -> Unit,
+    pendingCompoundTrigger: ModeTrigger?,
+    onPendingCompoundTriggerConsumed: () -> Unit,
+    editingCompoundTriggers: List<ModeTrigger>,
+    onEditingCompoundTriggersChange: (List<ModeTrigger>) -> Unit,
 
     onDoneEdit: (Mode) -> Unit
 ) {
@@ -104,23 +110,24 @@ fun ModeDetailScreen(
 
     // v2.0 Complex Trigger State
     var showTriggerTypeDialog by remember(mode.id) { mutableStateOf(false) }
-    var showCompoundTriggerDialog by remember(mode.id) { mutableStateOf(false) }
-    var editingCompoundTriggers by remember(mode.id) { mutableStateOf<List<ModeTrigger>>(emptyList()) }
     var editingCompoundName by remember(mode.id) { mutableStateOf<String?>(null) }
     var editingGroupIndex by remember(mode.id) { mutableStateOf<Int?>(null) }
 
     // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
 
 
-    // Reopen compound trigger dialog when returning from picker without selecting
-    LaunchedEffect(isAddingToCompound, editedMode.settings.triggers.isEmpty()) {
-        if (isAddingToCompound && editedMode.settings.triggers.isEmpty()) {
-            showCompoundTriggerDialog = true
-            onIsAddingToCompoundChange(false)
+    // Handle pending compound trigger from picker
+    LaunchedEffect(pendingCompoundTrigger) {
+        pendingCompoundTrigger?.let { trigger ->
+            onEditingCompoundTriggersChange(editingCompoundTriggers + trigger)
+            onPendingCompoundTriggerConsumed()
+            onShowCompoundTriggerDialogChange(true)
         }
     }
 
-    LaunchedEffect(editedMode.settings.triggers.size) {
+
+
+    LaunchedEffect(editedMode.settings.triggers) {
         if (editedMode.settings.triggers.isNotEmpty()) {
             // Find newly added triggers (not in triggerGroups yet)
             val existingTriggers = editedMode.settings.triggerGroups.flatMap { group ->
@@ -132,19 +139,25 @@ fun ModeDetailScreen(
             val newTriggers = editedMode.settings.triggers.filterNot { it in existingTriggers }
             
             if (newTriggers.isNotEmpty()) {
+                // Skip if adding to compound - handled by pendingCompoundTrigger LaunchedEffect
                 if (isAddingToCompound) {
-                    // If we're in compound mode, add to editing list but don't save yet
-                    newTriggers.forEach { trigger ->
-                        editingCompoundTriggers = editingCompoundTriggers + trigger
-                    }
-                    // Clear triggers list to avoid re-triggering this effect
                     editedMode = editedMode.copy(settings = editedMode.settings.copy(
                         triggers = emptyList()
                     ))
-                    // Reset flag and reopen the compound dialog
-                    onIsAddingToCompoundChange(false)
-                    showCompoundTriggerDialog = true
-                } else {
+                    return@LaunchedEffect
+                }
+
+                    val alreadyInCompound = newTriggers.any { trigger ->
+                        editingCompoundTriggers.contains(trigger)
+                    }
+                    if (alreadyInCompound) {
+                        // Clear triggers without saving
+                        editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                            triggers = emptyList()
+                        ))
+                        return@LaunchedEffect
+                    }
+
                     // Convert new triggers to single trigger groups
                     val newGroups = newTriggers.map { trigger ->
                         if (editingGroupIndex != null) {
@@ -175,7 +188,6 @@ fun ModeDetailScreen(
                     if (editingGroupIndex != null) {
                         editingGroupIndex = null
                     }
-                }
             }
         }
     }
@@ -540,28 +552,12 @@ fun ModeDetailScreen(
                                 {
                                     // Long press on compound trigger opens edit dialog
                                     editingGroupIndex = index
-                                    editingCompoundTriggers = group.triggers
+                                    onEditingCompoundTriggersChange(group.triggers)
                                     editingCompoundName = group.name
-                                    showCompoundTriggerDialog = true
+                                    onShowCompoundTriggerDialogChange(true)
                                 }
                             } else null,
                             modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                }
-
-                // List of existing triggers
-                editedMode.settings.triggers.forEach { trigger ->
-                    item {
-                        TriggerCard(
-                            trigger = trigger,
-                            onDelete = {
-                                val newList = editedMode.settings.triggers.filter { it != trigger }
-                                editedMode = editedMode.copy(
-                                    settings = editedMode.settings.copy(triggers = newList)
-                                )
-                                onSave(editedMode)
-                            }
                         )
                     }
                 }
@@ -736,7 +732,7 @@ TriggerSelectionDialog(
                 showTriggerSelector = false
                 if (showCompoundTriggerDialog) {
                     // If we were adding to compound trigger, go back
-                    showCompoundTriggerDialog = true
+                    onShowCompoundTriggerDialogChange(true)
                 }
             },
             onSelect = { type ->
@@ -762,8 +758,8 @@ TriggerSelectionDialog(
                         val trigger = ModeTrigger.Music
                         if (isAddingToCompound) {
                             // Adding to compound trigger
-                            editingCompoundTriggers = editingCompoundTriggers + trigger
-                            showCompoundTriggerDialog = true
+                            onEditingCompoundTriggersChange(editingCompoundTriggers + trigger)
+                            onShowCompoundTriggerDialogChange(true)
                         } else if (editingGroupIndex != null) {
                             // Editing single trigger group
                             val newGroup = ModeTriggerGroup.Single(trigger)
@@ -799,9 +795,9 @@ TriggerSelectionDialog(
             onSelectCompound = {
                 showTriggerTypeDialog = false
                 editingGroupIndex = null
-                editingCompoundTriggers = emptyList()
+                // editingCompoundTriggers = emptyList() // Keep existing triggers when reopening
                 editingCompoundName = null
-                showCompoundTriggerDialog = true
+                onShowCompoundTriggerDialogChange(true)
             }
         )
 
@@ -811,10 +807,11 @@ TriggerSelectionDialog(
             initialTriggers = editingCompoundTriggers,
             initialName = editingCompoundName,
             onDismissRequest = {
-                showCompoundTriggerDialog = false
+                onShowCompoundTriggerDialogChange(false)
                 editingGroupIndex = null
-                editingCompoundTriggers = emptyList()
+                // Do not clear editingCompoundTriggers here - keep it for adding more triggers
                 editingCompoundName = null
+                onIsAddingToCompoundChange(false)
             },
             onConfirm = { triggers, name ->
                 val newGroup = ModeTriggerGroup.Compound(triggers = triggers, name = name)
@@ -830,16 +827,19 @@ TriggerSelectionDialog(
                     ))
                 }
                 onSave(editedMode)
-                showCompoundTriggerDialog = false
+                onShowCompoundTriggerDialogChange(false)
                 editingGroupIndex = null
-                editingCompoundTriggers = emptyList()
+                onEditingCompoundTriggersChange(emptyList())
                 editingCompoundName = null
+                onIsAddingToCompoundChange(false)
             },
             onAddTrigger = {
-                showCompoundTriggerDialog = false
+                // Keep dialog open - do not close it
+                // onShowCompoundTriggerDialogChange(false)
                 onIsAddingToCompoundChange(true)
                 showTriggerSelector = true
             }
+
         )
 
         // Start-time picker for a new time trigger; confirming chains into
@@ -852,7 +852,7 @@ TriggerSelectionDialog(
             onDismissRequest = {
                 showTimePicker = false
                 if (isAddingToCompound) {
-                    showCompoundTriggerDialog = true
+                    onShowCompoundTriggerDialogChange(true)
                 }
             },
             onConfirm = { h, m ->
@@ -888,8 +888,8 @@ TriggerSelectionDialog(
                     // v2.0: Add to trigger groups or compound trigger
                     if (isAddingToCompound) {
                         // Adding to compound trigger
-                        editingCompoundTriggers = editingCompoundTriggers + newTrigger
-                        showCompoundTriggerDialog = true
+                        onEditingCompoundTriggersChange(editingCompoundTriggers + newTrigger)
+                        onShowCompoundTriggerDialogChange(true)
                     } else if (editingGroupIndex != null) {
                         // Editing single trigger group
                         val newGroup = ModeTriggerGroup.Single(newTrigger)

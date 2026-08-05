@@ -70,15 +70,12 @@ fun TriggerGroupCard(
                     }
                     is ModeTriggerGroup.Compound -> {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "🔗 ${group.name ?: stringResource(R.string.compound_trigger)}",
-                                style = MiuixTheme.textStyles.body1
-                            )
-                            Text(
-                                text = "${group.triggers.size} ${stringResource(R.string.trigger_group_and_logic)}",
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                            )
+                            group.triggers.forEachIndexed { index, trigger ->
+                                Text(
+                                    text = getTriggerTypeIcon(trigger) + " " + getTriggerTitle(trigger) + " · " + getTriggerDescription(trigger),
+                                    style = MiuixTheme.textStyles.body2
+                                )
+                            }
                         }
                     }
                 }
@@ -160,7 +157,7 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
             if (trigger.matchAnyCarAudio) "任意车载蓝牙"
             else "${trigger.deviceAddresses.size} 设备"
         }
-        is ModeTrigger.Music -> "播放音乐时"
+        is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
         is ModeTrigger.Location -> trigger.target.addressName ?: "位置触发"
         is ModeTrigger.Intent -> trigger.activateAction ?: "Intent 触发"
     }
