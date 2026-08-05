@@ -16,7 +16,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.Close
+import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -74,7 +74,7 @@ fun TriggerGroupCard(
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = MiuixIcons.Close,
+                        imageVector = MiuixIcons.Back,
                         contentDescription = "Remove",
                         tint = MiuixTheme.colorScheme.onSurfaceVariantActions
                     )
@@ -113,7 +113,7 @@ fun TriggerGroupCard(
                                 )
                                 Text(
                                     text = getTriggerDescription(trigger),
-                                    style = MiuixTheme.textStyles.caption,
+                                    style = MiuixTheme.textStyles.body2,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                 )
                             }

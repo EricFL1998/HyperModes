@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
  * Mode configuration parsed from JSON stored in Settings.Global.
  * This is a pure data class with no Android dependencies.
  */
+@Serializable
 data class ModeConfig(
     val id: String,
     val name: String,
@@ -46,6 +47,7 @@ data class ModeConfig(
     val contactFilter: ContactFilter = ContactFilter.ALL
 )
 
+@Serializable
 sealed class ComplexTrigger {
     @Serializable
     @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Time")
@@ -127,22 +129,26 @@ enum class ModeType {
     BEDTIME
 }
 
+@Serializable
 data class TriggerConfig(
     val bluetooth: BluetoothTrigger? = null,
     val motion: MotionTrigger? = null
 )
 
+@Serializable
 data class BluetoothTrigger(
     val enabled: Boolean,
     val matchAnyCarAudio: Boolean,
     val targetMacs: List<String>
 )
 
+@Serializable
 data class MotionTrigger(
     val enabled: Boolean,
     val speedThresholdKmH: Float
 )
 
+@Serializable
 data class NotificationConfig(
     val dndLevel: DndLevel,
     val allowedApps: List<String> = emptyList()
@@ -155,6 +161,7 @@ enum class DndLevel {
     ALARMS
 }
 
+@Serializable
 data class DisplayConfig(
     val darkMode: Int? = null, // null: Ignore, 0: Light, 1: Dark
     val grayscale: Boolean? = null,
@@ -167,6 +174,7 @@ data class DisplayConfig(
     val enableWakeForNotifications: Boolean? = null
 )
 
+@Serializable
 data class DeviceConfig(
     val performanceMode: Int? = null,
     val enable5g: Boolean? = null,
@@ -186,6 +194,7 @@ enum class ContactFilter {
 /**
  * Root config object
  */
+@Serializable
 data class FullConfig(
     val activeModeId: String? = null,
     val lastModeId: String? = null,

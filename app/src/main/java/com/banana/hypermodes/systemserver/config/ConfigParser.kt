@@ -40,9 +40,9 @@ object ConfigParser {
         // Log complex triggers for debugging
         config.modes.forEach { mode ->
             if (mode.complexTriggers.isNotEmpty()) {
-                Log.e(TAG, "Mode  has  complex triggers:")
+                Log.e(TAG, "Mode ${mode.id} has ${mode.complexTriggers.size} complex triggers:")
                 mode.complexTriggers.forEach { trigger ->
-                    Log.e(TAG, "  - : ")
+                    Log.e(TAG, "  - $trigger")
                 }
             }
         }

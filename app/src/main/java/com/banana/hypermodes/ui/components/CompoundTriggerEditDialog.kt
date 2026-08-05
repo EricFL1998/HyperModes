@@ -8,10 +8,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
-import com.banana.hypermodes.systemserver.config.ComplexTrigger
+import com.banana.hypermodes.data.ModeTrigger
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.Close
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -21,10 +20,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun CompoundTriggerEditDialog(
     show: Boolean,
-    initialTriggers: List<ComplexTrigger>,
+    initialTriggers: List<ModeTrigger>,
     initialName: String?,
     onDismissRequest: () -> Unit,
-    onConfirm: (triggers: List<ComplexTrigger>, name: String?) -> Unit,
+    onConfirm: (triggers: List<ModeTrigger>, name: String?) -> Unit,
     onAddTrigger: () -> Unit
 ) {
     var triggers by remember(initialTriggers) { mutableStateOf(initialTriggers) }
@@ -57,8 +56,7 @@ fun CompoundTriggerEditDialog(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    color = MiuixTheme.colorScheme.secondaryContainer
+                        .padding(bottom = 12.dp)
                 ) {
                     Text(
                         text = "⚡ ${stringResource(R.string.trigger_group_and_logic)}",
@@ -102,7 +100,7 @@ fun CompoundTriggerEditDialog(
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(
-                        text = stringResource(R.string.confirm),
+                        text = stringResource(R.string.done),
                         onClick = {
                             if (triggers.isNotEmpty()) {
                                 onConfirm(triggers, name.takeIf { it.isNotBlank() })
@@ -120,7 +118,7 @@ fun CompoundTriggerEditDialog(
 
 @Composable
 private fun TriggerItemCard(
-    trigger: ComplexTrigger,
+    trigger: ModeTrigger,
     onRemove: () -> Unit
 ) {
     Card(
@@ -145,45 +143,44 @@ private fun TriggerItemCard(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
             }
-            IconButton(
+            TextButton(
+                text = "×",
                 onClick = onRemove,
                 modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = MiuixIcons.Close,
-                    contentDescription = "Remove",
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions
-                )
-            }
+            )
         }
     }
 }
 
 @Composable
-private fun getTriggerTitle(trigger: ComplexTrigger): String {
+private fun getTriggerTitle(trigger: ModeTrigger): String {
     return when (trigger) {
-        is ComplexTrigger.Time -> stringResource(R.string.trigger_time)
-        is ComplexTrigger.App -> stringResource(R.string.trigger_app)
-        is ComplexTrigger.Wifi -> stringResource(R.string.trigger_wifi)
-        is ComplexTrigger.Bluetooth -> stringResource(R.string.trigger_bluetooth)
-        is ComplexTrigger.Music -> stringResource(R.string.trigger_music)
-        is ComplexTrigger.Location -> stringResource(R.string.trigger_location)
-        is ComplexTrigger.Intent -> stringResource(R.string.trigger_intent)
+        is ModeTrigger.Time -> stringResource(R.string.trigger_time)
+        is ModeTrigger.App -> stringResource(R.string.trigger_app)
+        is ModeTrigger.Wifi -> stringResource(R.string.trigger_wifi)
+        is ModeTrigger.Bluetooth -> stringResource(R.string.trigger_bluetooth)
+        is ModeTrigger.Music -> stringResource(R.string.trigger_music)
+        is ModeTrigger.Location -> stringResource(R.string.trigger_location)
+        is ModeTrigger.Intent -> stringResource(R.string.trigger_intent)
     }
 }
 
 @Composable
-private fun getTriggerDescription(trigger: ComplexTrigger): String {
+private fun getTriggerDescription(trigger: ModeTrigger): String {
     return when (trigger) {
-        is ComplexTrigger.Time -> "${trigger.startTime} - ${trigger.endTime}"
-        is ComplexTrigger.App -> trigger.packageNames.joinToString(", ").take(50)
-        is ComplexTrigger.Wifi -> trigger.ssids.joinToString(", ")
-        is ComplexTrigger.Bluetooth -> {
-            if (trigger.matchAnyCarAudio) "任意车载蓝牙"
+        is ModeTrigger.Time -> {
+            val start = "%02d:%02d".format(trigger.schedule.startHour, trigger.schedule.startMinute)
+            val end = "%02d:%02d".format(trigger.schedule.endHour, trigger.schedule.endMinute)
+            "$start - $end"
+        }
+        is ModeTrigger.App -> trigger.packageNames.joinToString(", ").take(50)
+        is ModeTrigger.Wifi -> trigger.ssids.joinToString(", ")
+        is ModeTrigger.Bluetooth -> {
+            if (trigger.matchAnyCarAudio) "Any car audio"
             else trigger.deviceAddresses.joinToString(", ").take(30)
         }
-        is ComplexTrigger.Music -> "播放音乐时"
-        is ComplexTrigger.Location -> trigger.addressName ?: "${trigger.latitude}, ${trigger.longitude}"
-        is ComplexTrigger.Intent -> trigger.activateAction ?: "Intent trigger"
+        is ModeTrigger.Music -> "Playing music"
+        is ModeTrigger.Location -> trigger.target.addressName ?: "Location"
+        is ModeTrigger.Intent -> trigger.activateAction ?: "Intent"
     }
 }
