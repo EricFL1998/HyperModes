@@ -976,14 +976,14 @@ fun MainTabsScreen(
 
             // CreateModeDialog at the top level - will appear above bottom bar
             // AutomationActionDialog - will appear above bottom bar
-            AutomationActionDialog(
-                show = showAutomationDialog,
-                onDismiss = { showAutomationDialog = false },
-                onActionSelected = { action ->
-                    // TODO: Handle action selection
-                }
-            )
-
+//             AutomationActionDialog(
+//                 show = showAutomationDialog,
+//                 onDismiss = { showAutomationDialog = false },
+//                 onActionSelected = { action ->
+//                     // TODO: Handle action selection
+//                 }
+//             )
+// 
             CreateModeDialog(
                 show = showCreateDialog,
                 deletedBuiltIns = DefaultModes.get()

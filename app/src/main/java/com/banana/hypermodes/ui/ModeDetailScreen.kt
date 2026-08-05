@@ -524,6 +524,15 @@ fun ModeDetailScreen(
                                 )
                                 onSave(editedMode)
                             },
+                            onLongClick = if (group is ModeTriggerGroup.Compound) {
+                                {
+                                    // Long press on compound trigger opens edit dialog
+                                    editingGroupIndex = index
+                                    editingCompoundTriggers = group.triggers
+                                    editingCompoundName = group.name
+                                    showCompoundTriggerDialog = true
+                                }
+                            } else null,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }

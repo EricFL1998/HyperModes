@@ -1,5 +1,7 @@
 package com.banana.hypermodes.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,19 +23,31 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Display a trigger group with visual indication for compound (AND) logic
- * Read-only display - triggers cannot be edited by clicking
+ * Compound triggers can be edited via long press
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TriggerGroupCard(
     group: ModeTriggerGroup,
     groupIndex: Int,
     onRemove: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .then(
+                if (group is ModeTriggerGroup.Compound && onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = onLongClick
+                    )
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Column(
             modifier = Modifier
