@@ -105,7 +105,7 @@ fun ModeDetailScreen(
     var editingCompoundTriggers by remember(mode.id) { mutableStateOf<List<ModeTrigger>>(emptyList()) }
     var editingCompoundName by remember(mode.id) { mutableStateOf<String?>(null) }
     var editingGroupIndex by remember(mode.id) { mutableStateOf<Int?>(null) }
-    var isAddingToCompound by remember(mode.id) { mutableStateOf(false) }
+    var isAddingToCompound by remember { mutableStateOf(false) }
 
     // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
     LaunchedEffect(editedMode.settings.triggers.size) {
