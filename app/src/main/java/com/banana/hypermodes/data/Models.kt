@@ -69,6 +69,9 @@ data class ModeSettings(
     // Triggers (v1.3)
     val triggers: List<ModeTrigger> = emptyList(),
 
+    // Trigger Groups (v2.0)
+    val triggerGroups: List<ModeTriggerGroup> = emptyList(),
+
     // Schedule (Legacy/Bedtime)
     val schedule: ModeSchedule? = null
 )
@@ -97,7 +100,8 @@ sealed class ModeTrigger {
     object Music : ModeTrigger()
 
     data class Intent(
-        val actions: Set<String>,
+        val activateAction: String? = null,
+        val deactivateAction: String? = null,
         val packageName: String? = null
     ) : ModeTrigger()
 
@@ -123,6 +127,20 @@ data class LocationTarget(
 /**
  * Location transition types
  */
+/**
+ * Trigger Group for v2.0
+ */
+sealed class ModeTriggerGroup {
+    data class Single(
+        val trigger: ModeTrigger
+    ) : ModeTriggerGroup()
+
+    data class Compound(
+        val triggers: List<ModeTrigger>,
+        val name: String? = null
+    ) : ModeTriggerGroup()
+}
+
 enum class LocationTransition {
     ARRIVE,  // Enter the geofence
     LEAVE    // Exit the geofence
@@ -195,7 +213,7 @@ fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
         provinceName = target.provinceName,
         transition = transition.name
     )
-    is ModeTrigger.Intent -> ComplexTrigger.Intent(actions.toList(), packageName)
+    is ModeTrigger.Intent -> ComplexTrigger.Intent(activateAction, deactivateAction, packageName)
 }
 
 fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
@@ -229,7 +247,7 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
             LocationTransition.ARRIVE
         }
     )
-    is ComplexTrigger.Intent -> ModeTrigger.Intent(actions.toSet(), packageName)
+    is ComplexTrigger.Intent -> ModeTrigger.Intent(activateAction, deactivateAction, packageName)
 }
 
 /**
@@ -284,7 +302,7 @@ fun Mode.toModeConfig(): ModeConfig {
     } else null
 
     // Map DndLevel
-    var dndLevel = if (!s.enableDnd) {
+    val dndLevel = if (!s.enableDnd) {
         com.banana.hypermodes.systemserver.config.DndLevel.DISABLED
     } else {
         when (s.dndLevel) {
@@ -295,12 +313,6 @@ fun Mode.toModeConfig(): ModeConfig {
     }
 
     // Optimization: If user allowed many apps (heuristic for "All Apps"), disable system DND
-    // so the status bar icon doesn't appear and Zen mode doesn't interfere.
-    // HyperModes' NotificationFilterHook will still handle the whitelist filtering.
-    if (dndLevel != com.banana.hypermodes.systemserver.config.DndLevel.DISABLED && s.allowedApps.size > 50) {
-        dndLevel = com.banana.hypermodes.systemserver.config.DndLevel.DISABLED
-    }
-
     // Map ContactFilter
     val contactFilter = when (s.contactFilter) {
         CONTACT_FILTER_ALL -> ContactFilter.ALL

@@ -7,7 +7,6 @@ import kotlinx.serialization.SerialName
  * Mode configuration parsed from JSON stored in Settings.Global.
  * This is a pure data class with no Android dependencies.
  */
-@Serializable
 data class ModeConfig(
     val id: String,
     val name: String,
@@ -40,11 +39,13 @@ data class ModeConfig(
     // Complex triggers (v1.3)
     val complexTriggers: List<ComplexTrigger> = emptyList(),
 
+    // Trigger Groups (v2.0) - replaces complexTriggers for new modes
+    val triggerGroups: List<TriggerGroup> = emptyList(),
+
     // Contact filter
     val contactFilter: ContactFilter = ContactFilter.ALL
 )
 
-@Serializable
 sealed class ComplexTrigger {
     @Serializable
     @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Time")
@@ -80,7 +81,8 @@ sealed class ComplexTrigger {
     @Serializable
     @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Intent")
     data class Intent(
-        val actions: List<String>,
+        val activateAction: String? = null,
+        val deactivateAction: String? = null,
         val packageName: String? = null
     ) : ComplexTrigger()
 
@@ -98,39 +100,54 @@ sealed class ComplexTrigger {
     ) : ComplexTrigger()
 }
 
+
+/**
+ * Trigger Group for v2.0 - supports both single and compound (AND) triggers
+ * Multiple TriggerGroups are OR'd together
+ */
 @Serializable
+sealed class TriggerGroup {
+    @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.TriggerGroup.Single")
+    data class Single(
+        val trigger: ComplexTrigger
+    ) : TriggerGroup()
+
+    @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.TriggerGroup.Compound")
+    data class Compound(
+        val triggers: List<ComplexTrigger>,
+        val name: String? = null  // Optional user-defined name for this group
+    ) : TriggerGroup()
+}
+
 enum class ModeType {
     SCHEDULED,
     DYNAMIC_TRIGGER,
     BEDTIME
 }
 
-@Serializable
 data class TriggerConfig(
     val bluetooth: BluetoothTrigger? = null,
     val motion: MotionTrigger? = null
 )
 
-@Serializable
 data class BluetoothTrigger(
     val enabled: Boolean,
     val matchAnyCarAudio: Boolean,
     val targetMacs: List<String>
 )
 
-@Serializable
 data class MotionTrigger(
     val enabled: Boolean,
     val speedThresholdKmH: Float
 )
 
-@Serializable
 data class NotificationConfig(
     val dndLevel: DndLevel,
     val allowedApps: List<String> = emptyList()
 )
 
-@Serializable
 enum class DndLevel {
     DISABLED,
     NONE,
@@ -138,7 +155,6 @@ enum class DndLevel {
     ALARMS
 }
 
-@Serializable
 data class DisplayConfig(
     val darkMode: Int? = null, // null: Ignore, 0: Light, 1: Dark
     val grayscale: Boolean? = null,
@@ -151,7 +167,6 @@ data class DisplayConfig(
     val enableWakeForNotifications: Boolean? = null
 )
 
-@Serializable
 data class DeviceConfig(
     val performanceMode: Int? = null,
     val enable5g: Boolean? = null,
@@ -162,7 +177,6 @@ data class DeviceConfig(
     val enableMotionSicknessRelief: Boolean? = null
 )
 
-@Serializable
 enum class ContactFilter {
     ALL,
     STARRED,
@@ -172,7 +186,6 @@ enum class ContactFilter {
 /**
  * Root config object
  */
-@Serializable
 data class FullConfig(
     val activeModeId: String? = null,
     val lastModeId: String? = null,

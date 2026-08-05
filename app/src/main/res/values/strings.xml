@@ -246,6 +246,7 @@
     <string name="trigger_location">Location</string>
     <string name="trigger_location_desc">When arriving or leaving a place</string>
     <string name="add_trigger">Add Schedule</string>
+    <string name="add">Add</string>
     <string name="trigger_at_time">During %1$s - %2$s</string>
     <string name="trigger_on_app">When opening %1$s</string>
     <string name="trigger_on_app_multi">When opening %1$s (+%2$d more)</string>
@@ -277,4 +278,27 @@
     <string name="imported_intents_title">Imported Intents</string>
     <string name="view_imported_intents">View Imported Intents</string>
     <string name="no_imported_intents">No imported intents yet</string>
+    
+    <!-- Intent trigger -->
+    <string name="trigger_intent">Intent Trigger</string>
+    <string name="trigger_intent_desc">Turn this mode on or off when receiving specific broadcast intents</string>
+    <string name="intent_activate">Activate Intent</string>
+    <string name="intent_deactivate">Deactivate Intent</string>
+    <string name="intent_package">Package Name</string>
+    <string name="add_intent_trigger">Add Intent Trigger</string>
+    <string name="intent_activate_desc">Turn mode on when receiving this intent (optional)</string>
+    <string name="intent_deactivate_desc">Turn mode off when receiving this intent (optional)</string>
+    <string name="optional">Optional</string>
+    <!-- Trigger v2.0 Strings -->
+    <string name="triggers_section">触发条件</string>
+
+    <string name="select_trigger_type">选择触发器类型</string>
+    <string name="single_trigger">单个触发器</string>
+    <string name="single_trigger_desc">添加一个触发条件</string>
+    <string name="compound_trigger">组合触发器</string>
+    <string name="compound_trigger_desc">添加多个触发条件，需要同时满足</string>
+    <string name="compound_trigger_name">组合触发器名称</string>
+    <string name="add_trigger_to_group">添加触发条件</string>
+    <string name="trigger_group_and_logic">所有条件必须同时满足</string>
+
 </resources>
