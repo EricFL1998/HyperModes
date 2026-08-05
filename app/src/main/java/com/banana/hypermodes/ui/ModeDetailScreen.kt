@@ -737,38 +737,23 @@ TriggerSelectionDialog(
                 when (type) {
                     "time" -> showTimePicker = true
                     "app" -> {
-                        if (editingCompoundTriggers.isNotEmpty()) {
-                            isAddingToCompound = true
-                        }
                         onOpenAppTriggerPicker(editedMode)
                     }
                     "wifi" -> {
-                        if (editingCompoundTriggers.isNotEmpty()) {
-                            isAddingToCompound = true
-                        }
                         onOpenWifiTriggerPicker(editedMode)
                     }
                     "bluetooth" -> {
-                        if (editingCompoundTriggers.isNotEmpty()) {
-                            isAddingToCompound = true
-                        }
                         onOpenBluetoothTriggerPicker(editedMode)
                     }
                     "location" -> {
-                        if (editingCompoundTriggers.isNotEmpty()) {
-                            isAddingToCompound = true
-                        }
                         onOpenLocationTriggerPicker(editedMode)
                     }
                     "intent" -> {
-                        if (editingCompoundTriggers.isNotEmpty()) {
-                            isAddingToCompound = true
-                        }
                         onOpenIntentTriggerPicker(editedMode)
                     }
                     "music" -> {
                         val trigger = ModeTrigger.Music
-                        if (editingCompoundTriggers.isNotEmpty()) {
+                        if (isAddingToCompound) {
                             // Adding to compound trigger
                             editingCompoundTriggers = editingCompoundTriggers + trigger
                             showCompoundTriggerDialog = true
@@ -845,6 +830,7 @@ TriggerSelectionDialog(
             },
             onAddTrigger = {
                 showCompoundTriggerDialog = false
+                isAddingToCompound = true
                 showTriggerSelector = true
             }
         )
@@ -858,7 +844,7 @@ TriggerSelectionDialog(
             show = showTimePicker,
             onDismissRequest = {
                 showTimePicker = false
-                if (editingCompoundTriggers.isNotEmpty()) {
+                if (isAddingToCompound) {
                     showCompoundTriggerDialog = true
                 }
             },
@@ -893,7 +879,7 @@ TriggerSelectionDialog(
                         )
                     )
                     // v2.0: Add to trigger groups or compound trigger
-                    if (editingCompoundTriggers.isNotEmpty()) {
+                    if (isAddingToCompound) {
                         // Adding to compound trigger
                         editingCompoundTriggers = editingCompoundTriggers + newTrigger
                         showCompoundTriggerDialog = true
