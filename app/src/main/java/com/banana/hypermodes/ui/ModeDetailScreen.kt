@@ -29,6 +29,9 @@ import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.TimePickerDialog
 import com.banana.hypermodes.ui.components.TriggerSelectionDialog
+import com.banana.hypermodes.ui.components.TriggerTypeSelectionDialog
+import com.banana.hypermodes.ui.components.CompoundTriggerEditDialog
+import com.banana.hypermodes.ui.components.TriggerGroupCard
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
@@ -54,6 +57,7 @@ fun ModeDetailScreen(
     onOpenWifiTriggerPicker: (Mode) -> Unit,
     onOpenBluetoothTriggerPicker: (Mode) -> Unit,
     onOpenLocationTriggerPicker: (Mode) -> Unit,
+    onOpenIntentTriggerPicker: (Mode) -> Unit,
     onOpenDrivingBluetoothPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
@@ -94,6 +98,71 @@ fun ModeDetailScreen(
     var showTimePicker by remember(mode.id) { mutableStateOf(false) }
     var showEndTimePicker by remember(mode.id) { mutableStateOf(false) }
     var pendingStartTime by remember(mode.id) { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    // v2.0 Complex Trigger State
+    var showTriggerTypeDialog by remember(mode.id) { mutableStateOf(false) }
+    var showCompoundTriggerDialog by remember(mode.id) { mutableStateOf(false) }
+    var editingCompoundTriggers by remember(mode.id) { mutableStateOf<List<ModeTrigger>>(emptyList()) }
+    var editingCompoundName by remember(mode.id) { mutableStateOf<String?>(null) }
+    var editingGroupIndex by remember(mode.id) { mutableStateOf<Int?>(null) }
+
+    // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
+    LaunchedEffect(editedMode.settings.triggers.size) {
+        if (editedMode.settings.triggers.isNotEmpty()) {
+            // Find newly added triggers (not in triggerGroups yet)
+            val existingTriggers = editedMode.settings.triggerGroups.flatMap { group ->
+                when (group) {
+                    is ModeTriggerGroup.Single -> listOf(group.trigger)
+                    is ModeTriggerGroup.Compound -> group.triggers
+                }
+            }
+            val newTriggers = editedMode.settings.triggers.filterNot { it in existingTriggers }
+            
+            if (newTriggers.isNotEmpty()) {
+                // Convert new triggers to trigger groups
+                val newGroups = newTriggers.map { trigger ->
+                    if (showCompoundTriggerDialog || editingCompoundTriggers.isNotEmpty()) {
+                        // If we're in compound mode, add to editing list
+                        editingCompoundTriggers = editingCompoundTriggers + trigger
+                        null
+                    } else if (editingGroupIndex != null) {
+                        // Editing existing single group
+                        ModeTriggerGroup.Single(trigger)
+                    } else {
+                        // Create new single group
+                        ModeTriggerGroup.Single(trigger)
+                    }
+                }.filterNotNull()
+                
+                if (newGroups.isNotEmpty()) {
+                    editedMode = if (editingGroupIndex != null) {
+                        // Replace existing group
+                        editedMode.copy(settings = editedMode.settings.copy(
+                            triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                                if (i == editingGroupIndex) newGroups.first() else g
+                            },
+                            triggers = emptyList() // Clear old triggers
+                        ))
+                    } else {
+                        // Add new groups
+                        editedMode.copy(settings = editedMode.settings.copy(
+                            triggerGroups = editedMode.settings.triggerGroups + newGroups,
+                            triggers = emptyList() // Clear old triggers
+                        ))
+                    }
+                    onSave(editedMode)
+                    if (editingGroupIndex != null) {
+                        editingGroupIndex = null
+                    }
+                }
+                
+                // If adding to compound trigger, reopen the dialog
+                if (editingCompoundTriggers.isNotEmpty() && !showCompoundTriggerDialog) {
+                    showCompoundTriggerDialog = true
+                }
+            }
+        }
+    }
 
     // For bedtime: refresh the schedule from DeskClock when this screen opens,
     // and keep the UI in sync with whatever the Clock actually stores.
@@ -437,6 +506,39 @@ fun ModeDetailScreen(
                     )
                 }
 
+                // Display existing trigger groups (v2.0)
+                editedMode.settings.triggerGroups.forEachIndexed { index, group ->
+                    item(key = "trigger_group_$index") {
+                        TriggerGroupCard(
+                            group = group,
+                            groupIndex = index,
+                            onRemove = {
+                                editedMode = editedMode.copy(
+                                    settings = editedMode.settings.copy(
+                                        triggerGroups = editedMode.settings.triggerGroups.filterIndexed { i, _ -> i != index }
+                                    )
+                                )
+                                onSave(editedMode)
+                            },
+                            onEdit = {
+                                when (group) {
+                                    is ModeTriggerGroup.Single -> {
+                                        editingGroupIndex = index
+                                        showTriggerSelector = true
+                                    }
+                                    is ModeTriggerGroup.Compound -> {
+                                        editingGroupIndex = index
+                                        editingCompoundTriggers = group.triggers
+                                        editingCompoundName = group.name
+                                        showCompoundTriggerDialog = true
+                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+
                 // List of existing triggers
                 editedMode.settings.triggers.forEach { trigger ->
                     item {
@@ -461,7 +563,7 @@ fun ModeDetailScreen(
                             .padding(horizontal = 12.dp)
                             .padding(bottom = 12.dp),
                         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                        onClick = { showTriggerSelector = true }
+                        onClick = { showTriggerTypeDialog = true }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -617,9 +719,15 @@ fun ModeDetailScreen(
         // Dialogs
 
         // Trigger Selection Dialog
-        TriggerSelectionDialog(
+TriggerSelectionDialog(
             show = showTriggerSelector,
-            onDismissRequest = { showTriggerSelector = false },
+            onDismissRequest = { 
+                showTriggerSelector = false
+                if (showCompoundTriggerDialog) {
+                    // If we were adding to compound trigger, go back
+                    showCompoundTriggerDialog = true
+                }
+            },
             onSelect = { type ->
                 showTriggerSelector = false
                 when (type) {
@@ -628,16 +736,87 @@ fun ModeDetailScreen(
                     "wifi" -> onOpenWifiTriggerPicker(editedMode)
                     "bluetooth" -> onOpenBluetoothTriggerPicker(editedMode)
                     "location" -> onOpenLocationTriggerPicker(editedMode)
+                    "intent" -> onOpenIntentTriggerPicker(editedMode)
                     "music" -> {
-                        if (!editedMode.settings.triggers.contains(ModeTrigger.Music)) {
-                            val newTriggers = editedMode.settings.triggers + ModeTrigger.Music
-                            editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(triggers = newTriggers)
-                            )
+                        val trigger = ModeTrigger.Music
+                        if (showCompoundTriggerDialog) {
+                            // Adding to compound trigger
+                            editingCompoundTriggers = editingCompoundTriggers + trigger
+                            showCompoundTriggerDialog = true
+                        } else if (editingGroupIndex != null) {
+                            // Editing single trigger group
+                            val newGroup = ModeTriggerGroup.Single(trigger)
+                            editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                                triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                                    if (i == editingGroupIndex) newGroup else g
+                                }
+                            ))
+                            onSave(editedMode)
+                            editingGroupIndex = null
+                        } else {
+                            // Adding new single trigger group (v2.0)
+                            val newGroup = ModeTriggerGroup.Single(trigger)
+                            editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                                triggerGroups = editedMode.settings.triggerGroups + newGroup
+                            ))
                             onSave(editedMode)
                         }
                     }
                 }
+            }
+        )
+
+        // v2.0 Trigger Type Selection Dialog
+        TriggerTypeSelectionDialog(
+            show = showTriggerTypeDialog,
+            onDismissRequest = { showTriggerTypeDialog = false },
+            onSelectSingle = {
+                showTriggerTypeDialog = false
+                editingGroupIndex = null
+                showTriggerSelector = true
+            },
+            onSelectCompound = {
+                showTriggerTypeDialog = false
+                editingGroupIndex = null
+                editingCompoundTriggers = emptyList()
+                editingCompoundName = null
+                showCompoundTriggerDialog = true
+            }
+        )
+
+        // v2.0 Compound Trigger Edit Dialog
+        CompoundTriggerEditDialog(
+            show = showCompoundTriggerDialog,
+            initialTriggers = editingCompoundTriggers,
+            initialName = editingCompoundName,
+            onDismissRequest = {
+                showCompoundTriggerDialog = false
+                editingGroupIndex = null
+                editingCompoundTriggers = emptyList()
+                editingCompoundName = null
+            },
+            onConfirm = { triggers, name ->
+                val newGroup = ModeTriggerGroup.Compound(triggers = triggers, name = name)
+                editedMode = if (editingGroupIndex != null) {
+                    editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                            if (i == editingGroupIndex) newGroup else g
+                        }
+                    ))
+                } else {
+                    editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups + newGroup
+                    ))
+                }
+                onSave(editedMode)
+                showCompoundTriggerDialog = false
+                editingGroupIndex = null
+                editingCompoundTriggers = emptyList()
+                editingCompoundName = null
+            },
+            onAddTrigger = {
+                showCompoundTriggerDialog = false
+                showTriggerSelector = true
             }
         )
 
@@ -679,11 +858,27 @@ fun ModeDetailScreen(
                             endMinute = endM
                         )
                     )
-                    if (!editedMode.settings.triggers.contains(newTrigger)) {
-                        val newTriggers = editedMode.settings.triggers + newTrigger
-                        editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(triggers = newTriggers)
-                        )
+                    // v2.0: Add to trigger groups or compound trigger
+                    if (showCompoundTriggerDialog) {
+                        // Adding to compound trigger
+                        editingCompoundTriggers = editingCompoundTriggers + newTrigger
+                        showCompoundTriggerDialog = true
+                    } else if (editingGroupIndex != null) {
+                        // Editing single trigger group
+                        val newGroup = ModeTriggerGroup.Single(newTrigger)
+                        editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                            triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                                if (i == editingGroupIndex) newGroup else g
+                            }
+                        ))
+                        onSave(editedMode)
+                        editingGroupIndex = null
+                    } else {
+                        // Adding new single trigger group (v2.0)
+                        val newGroup = ModeTriggerGroup.Single(newTrigger)
+                        editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                            triggerGroups = editedMode.settings.triggerGroups + newGroup
+                        ))
                         onSave(editedMode)
                     }
                 }
@@ -957,15 +1152,12 @@ fun TriggerCard(
             }
         }
         is ModeTrigger.Intent -> {
-            val first = trigger.actions.firstOrNull() ?: ""
-            if (trigger.actions.size <= 1) {
-                "Intent: $first"
-            } else {
-                "Intents: $first + ${trigger.actions.size - 1} more"
-            }
+            val parts = mutableListOf<String>()
+            trigger.activateAction?.let { parts.add(stringResource(R.string.intent_activate) + ": $it") }
+            trigger.deactivateAction?.let { parts.add(stringResource(R.string.intent_deactivate) + ": $it") }
+            parts.joinToString(" / ")
         }
     }
-
     TriggerRowCard(icon = icon, label = label, onDelete = onDelete)
 }
 

@@ -65,6 +65,7 @@ sealed class Screen {
     data class WifiTriggerPicker(val mode: Mode) : Screen()
     data class BluetoothTriggerPicker(val mode: Mode) : Screen()
     data class LocationTriggerPicker(val mode: Mode) : Screen()
+    data class IntentTriggerPicker(val mode: Mode) : Screen()
     data class DrivingBluetoothPicker(val mode: Mode) : Screen()
     }
 
@@ -415,6 +416,10 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.LocationTriggerPicker(updated)
                         },
+                        onOpenIntentTriggerPicker = { updated ->
+                            editingMode = updated
+                            currentScreen = Screen.IntentTriggerPicker(updated)
+                        },
                         onOpenDrivingBluetoothPicker = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DrivingBluetoothPicker(updated)
@@ -628,6 +633,19 @@ fun HyperModesApp() {
                         }
                     )
                 }
+                is Screen.IntentTriggerPicker -> {
+                    val mode = editingMode ?: screen.mode
+                    IntentTriggerPickerScreen(
+                        mode = mode,
+                        onBack = {
+                            currentScreen = Screen.ModeDetail(editingMode ?: screen.mode)
+                        },
+                        onSave = { updated ->
+                            editingMode = updated
+                            upsertMode(updated)
+                        }
+                    )
+                }
                 is Screen.DrivingBluetoothPicker -> {
                     val mode = editingMode ?: screen.mode
                     BluetoothPickerScreen(
@@ -814,7 +832,7 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.BedtimeIntro, is Screen.DrivingIntro, is Screen.ModeDetail -> 1
     is Screen.DisplayOptions, is Screen.DeviceControl, is Screen.Repeat, is Screen.AppPicker,
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
-    is Screen.LocationTriggerPicker,
+    is Screen.LocationTriggerPicker, is Screen.IntentTriggerPicker,
     is Screen.DrivingBluetoothPicker,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3

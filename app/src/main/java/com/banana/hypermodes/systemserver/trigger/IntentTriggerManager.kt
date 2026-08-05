@@ -10,7 +10,7 @@ import android.util.Log
 
 /**
  * Manages intent/broadcast-based triggers for modes.
- * Listens for specific broadcast intents and activates modes accordingly.
+ * Listens for specific broadcast intents and activates/deactivates modes accordingly.
  */
 class IntentTriggerManager(
     private val context: Context,
@@ -18,9 +18,11 @@ class IntentTriggerManager(
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private val receivers = mutableMapOf<String, BroadcastReceiver>()
-    private var configs: Map<String, List<Pair<List<String>, String?>>> = emptyMap() // modeId -> List<(actions, packageName)>
+    
+    // Config: modeId -> (activateAction, deactivateAction, packageName)
+    private var configs: Map<String, Triple<String?, String?, String?>> = emptyMap()
 
-    fun updateConfigs(newConfigs: Map<String, List<Pair<List<String>, String?>>>) {
+    fun updateConfigs(newConfigs: Map<String, Triple<String?, String?, String?>>) {
         Log.i(TAG, "updateConfigs: ${newConfigs.size} modes with intent triggers")
         
         // Report modes that dropped out of the config as inactive
@@ -35,52 +37,72 @@ class IntentTriggerManager(
         configs = newConfigs
         
         // Register receivers for each mode
-        configs.forEach { (modeId, intentConfigs) ->
-            registerReceiver(modeId, intentConfigs)
+        configs.forEach { (modeId, config) ->
+            registerReceiver(modeId, config)
         }
     }
 
-    private fun registerReceiver(modeId: String, intentConfigs: List<Pair<List<String>, String?>>) {
-        if (intentConfigs.isEmpty()) return
+    private fun registerReceiver(modeId: String, config: Triple<String?, String?, String?>) {
+        val (activateAction, deactivateAction, packageName) = config
+        
+        // At least one action must be defined
+        if (activateAction == null && deactivateAction == null) {
+            Log.w(TAG, "No actions defined for mode: $modeId, skipping")
+            return
+        }
         
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 Log.i(TAG, "Received intent: ${intent.action} for mode: $modeId")
                 
-                // Check if this intent matches any of our configured intents
-                val matches = intentConfigs.any { (actions, packageName) ->
-                    val actionMatches = actions.contains(intent.action)
-                    val packageMatches = packageName == null || 
-                        intent.`package` == packageName ||
-                        intent.component?.packageName == packageName
-                    actionMatches && packageMatches
+                // Check package match if specified
+                val packageMatches = packageName == null || 
+                    intent.`package` == packageName ||
+                    intent.component?.packageName == packageName
+                
+                if (!packageMatches) {
+                    Log.d(TAG, "Package mismatch for mode: $modeId")
+                    return
                 }
                 
-                if (matches) {
-                    Log.i(TAG, "Intent matched for mode: $modeId")
-                    // Activate mode when intent is received
-                    callback(modeId, "intent", true)
-                    
-                    // Deactivate after a short delay (intent triggers are momentary)
-                    handler.postDelayed({
+                // Check if this is an activate or deactivate action
+                when (intent.action) {
+                    activateAction -> {
+                        Log.i(TAG, "Activate intent matched for mode: $modeId")
+                        callback(modeId, "intent", true)
+                    }
+                    deactivateAction -> {
+                        Log.i(TAG, "Deactivate intent matched for mode: $modeId")
                         callback(modeId, "intent", false)
-                    }, TRIGGER_DURATION_MS)
+                    }
+                    else -> {
+                        Log.d(TAG, "Unknown action for mode: $modeId, action: ${intent.action}")
+                    }
                 }
             }
         }
         
         try {
             val filter = IntentFilter()
-            intentConfigs.forEach { (actions, _) ->
-                actions.forEach { action ->
-                    filter.addAction(action)
-                    Log.i(TAG, "Registered action: $action for mode: $modeId")
-                }
+            var actionCount = 0
+            
+            activateAction?.let { 
+                filter.addAction(it)
+                actionCount++
+                Log.i(TAG, "Registered activate action: $it for mode: $modeId")
             }
             
-            context.registerReceiver(receiver, filter, null, handler)
-            receivers[modeId] = receiver
-            Log.i(TAG, "Registered receiver for mode: $modeId with ${intentConfigs.sumOf { it.first.size }} actions")
+            deactivateAction?.let { 
+                filter.addAction(it)
+                actionCount++
+                Log.i(TAG, "Registered deactivate action: $it for mode: $modeId")
+            }
+            
+            if (actionCount > 0) {
+                context.registerReceiver(receiver, filter, null, handler)
+                receivers[modeId] = receiver
+                Log.i(TAG, "Registered receiver for mode: $modeId with $actionCount actions")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to register receiver for mode: $modeId", e)
         }
@@ -105,6 +127,5 @@ class IntentTriggerManager(
 
     companion object {
         private const val TAG = "IntentTriggerManager"
-        private const val TRIGGER_DURATION_MS = 5000L // Keep mode active for 5 seconds after intent
     }
 }

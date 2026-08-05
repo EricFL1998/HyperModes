@@ -251,6 +251,32 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
 }
 
 /**
+ * Convert UI ModeTriggerGroup to system_server TriggerGroup
+ */
+fun ModeTriggerGroup.toTriggerGroup(): TriggerGroup = when (this) {
+    is ModeTriggerGroup.Single -> TriggerGroup.Single(
+        trigger = trigger.toComplexTrigger()
+    )
+    is ModeTriggerGroup.Compound -> TriggerGroup.Compound(
+        triggers = triggers.map { it.toComplexTrigger() },
+        name = name
+    )
+}
+
+/**
+ * Convert system_server TriggerGroup to UI ModeTriggerGroup
+ */
+fun TriggerGroup.toModeTriggerGroup(): ModeTriggerGroup = when (this) {
+    is TriggerGroup.Single -> ModeTriggerGroup.Single(
+        trigger = trigger.toModeTrigger()
+    )
+    is TriggerGroup.Compound -> ModeTriggerGroup.Compound(
+        triggers = triggers.map { it.toModeTrigger() },
+        name = name
+    )
+}
+
+/**
  * Convert UI Mode to system_server ModeConfig
  */
 fun Mode.toModeConfig(): ModeConfig {
@@ -322,6 +348,7 @@ fun Mode.toModeConfig(): ModeConfig {
     }
 
     val complexTriggers = s.triggers.map { it.toComplexTrigger() }
+    val triggerGroups = s.triggerGroups.map { it.toTriggerGroup() }
 
     return ModeConfig(
         id = id,
@@ -335,6 +362,7 @@ fun Mode.toModeConfig(): ModeConfig {
         scheduleEnabled = s.schedule?.enabled ?: false,
         triggers = triggers,
         complexTriggers = complexTriggers,
+        triggerGroups = triggerGroups,
         notification = NotificationConfig(
             dndLevel = dndLevel,
             allowedApps = s.allowedApps.toList()
@@ -486,6 +514,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             drivingDetectMode = drivingDetectMode,
             drivingTargetDevices = triggers?.bluetooth?.targetMacs?.toSet() ?: emptySet(),
             triggers = triggersList,
+            triggerGroups = triggerGroups.map { it.toModeTriggerGroup() },
             schedule = if (migratedLegacySchedule) null else schedule
         )
     )

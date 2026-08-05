@@ -59,7 +59,7 @@ class ComplexTriggerManager(
         val appConfigs = mutableMapOf<String, List<String>>()
         val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
         var musicModeIds = mutableSetOf<String>()
-        val intentConfigs = mutableMapOf<String, MutableList<Pair<List<String>, String?>>>()
+        val intentConfigs = mutableMapOf<String, Triple<String?, String?, String?>>()
         val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
 
         allModes.forEach { mode ->
@@ -82,8 +82,7 @@ class ComplexTriggerManager(
                     }
                     is ComplexTrigger.Music -> musicModeIds.add(mode.id)
                     is ComplexTrigger.Intent -> {
-                        val list = intentConfigs.getOrPut(mode.id) { mutableListOf() }
-                        list.add(trigger.actions to trigger.packageName)
+                        intentConfigs[mode.id] = Triple(trigger.activateAction, trigger.deactivateAction, trigger.packageName)
                     }
                     is ComplexTrigger.Location -> {
                         val prev = locationConfigs[mode.id] ?: emptyList()

@@ -277,4 +277,15 @@
     <string name="imported_intents_title">已导入的意图</string>
     <string name="view_imported_intents">查看已导入的意图</string>
     <string name="no_imported_intents">暂无已导入的意图</string>
+    
+    <!-- Intent trigger -->
+    <string name="trigger_intent">意图触发</string>
+    <string name="trigger_intent_desc">当接收到指定的广播意图时开启或关闭此模式</string>
+    <string name="intent_activate">开启意图</string>
+    <string name="intent_deactivate">关闭意图</string>
+    <string name="intent_package">应用包名</string>
+    <string name="add_intent_trigger">添加意图触发器</string>
+    <string name="intent_activate_desc">接收到此意图时开启模式（可留空）</string>
+    <string name="intent_deactivate_desc">接收到此意图时关闭模式（可留空）</string>
+    <string name="optional">可选</string>
 </resources>

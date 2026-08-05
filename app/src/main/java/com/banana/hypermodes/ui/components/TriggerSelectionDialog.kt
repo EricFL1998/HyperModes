@@ -55,6 +55,11 @@ fun TriggerSelectionDialog(
                 subtitle = stringResource(R.string.trigger_location_desc),
                 onClick = { onSelect("location") }
             )
+            TriggerOptionItem(
+                title = stringResource(R.string.trigger_intent),
+                subtitle = stringResource(R.string.trigger_intent_desc),
+                onClick = { onSelect("intent") }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(

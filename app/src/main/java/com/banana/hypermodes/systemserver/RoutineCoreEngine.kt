@@ -15,6 +15,7 @@ import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
 import com.banana.hypermodes.systemserver.trigger.BedtimeReconciler
 import com.banana.hypermodes.systemserver.trigger.ComplexTriggerManager
+import com.banana.hypermodes.systemserver.trigger.TriggerGroupManager
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
 
@@ -81,6 +82,7 @@ class RoutineCoreEngine private constructor() {
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
     private var complexTriggerManager: ComplexTriggerManager? = null
+    private var triggerGroupManager: TriggerGroupManager? = null
     private var bedtimeListener: BedtimeListener? = null
     private var modeActionExecutor: ModeActionExecutor? = null
 
@@ -121,6 +123,7 @@ class RoutineCoreEngine private constructor() {
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
         complexTriggerManager = ComplexTriggerManager(context, this)
+        triggerGroupManager = TriggerGroupManager(context, this)
         bedtimeListener = BedtimeListener(context, this).also {
             it.registerStateSources()
         }
@@ -222,6 +225,7 @@ class RoutineCoreEngine private constructor() {
                 scheduledModeManager?.updateSchedules(emptyList(), allowActivation = false)
                 drivingTriggerManager?.init(emptyList())
                 complexTriggerManager?.updateModes(emptyList())
+                triggerGroupManager?.updateModes(emptyList())
                 currentActiveMode?.let {
                     log("Reverting active mode due to missing config: ${it.name}")
                     modeActionExecutor?.revertMode(it)
@@ -251,6 +255,7 @@ class RoutineCoreEngine private constructor() {
 
             // Update complex trigger manager
             complexTriggerManager?.init(config.modes)
+            triggerGroupManager?.init(config.modes)
 
             // The manager syncs above may have RE-ENTRANTLY activated a mode:
             // a trigger (or schedule) that is already active fires during
@@ -304,6 +309,14 @@ class RoutineCoreEngine private constructor() {
                     }
                 } else {
                     log("Active mode unchanged: ${currentActiveMode?.name}")
+                    // Even though the mode ID is unchanged, the mode's settings may have
+                    // changed (e.g., user toggled DND in driving mode). Reapply the mode
+                    // with the new configuration to ensure settings take effect immediately.
+                    val updatedMode = allModes.find { it.id == config.activeModeId }
+                    if (updatedMode != null) {
+                        currentActiveMode = updatedMode
+                        modeActionExecutor?.applyMode(updatedMode)
+                    }
                 }
             } else {
                 // activeModeId is null: deactivate current mode if one is active
@@ -617,6 +630,7 @@ class RoutineCoreEngine private constructor() {
 
         // Check Complex triggers
         if (complexTriggerManager?.isModeActiveByTrigger(modeId) == true) return true
+        if (triggerGroupManager?.isModeActiveByTrigger(modeId) == true) return true
 
         // Driving (legacy DYNAMIC_TRIGGER) is currently handled by DrivingTriggerManager.
         // It calls deactivateMode directly, so we don't necessarily need to check it here
@@ -735,6 +749,7 @@ class RoutineCoreEngine private constructor() {
         // 3. Unregister triggers and listeners without normal deactivation side effects
         drivingTriggerManager?.cleanupForPackageRemoval()
         complexTriggerManager?.release() // Stops all sub-managers
+        triggerGroupManager?.release()
         bedtimeListener?.cleanupForPackageRemoval()
 
         // 4. Revert active mode

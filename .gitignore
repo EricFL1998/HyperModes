@@ -52,3 +52,4 @@ build/
 .DS_Store
 local.properties
 .kotlin/
+*.bak*
