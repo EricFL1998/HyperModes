@@ -111,9 +111,10 @@ fun ModeDetailScreen(
 
     // Monitor for new triggers added via picker screens and convert to v2.0 trigger groups
 
+
     // Reopen compound trigger dialog when returning from picker without selecting
-    LaunchedEffect(isAddingToCompound) {
-        if (isAddingToCompound) {
+    LaunchedEffect(isAddingToCompound, editedMode.settings.triggers.isEmpty()) {
+        if (isAddingToCompound && editedMode.settings.triggers.isEmpty()) {
             showCompoundTriggerDialog = true
             onIsAddingToCompoundChange(false)
         }
