@@ -48,8 +48,9 @@ fun TriggerGroupCard(
             ) {
                 when (group) {
                     is ModeTriggerGroup.Single -> {
+                        // Single line display: icon + title + description
                         Text(
-                            text = getTriggerTypeIcon(group.trigger) + " " + getTriggerTitle(group.trigger),
+                            text = getTriggerTypeIcon(group.trigger) + " " + getTriggerTitle(group.trigger) + " · " + getTriggerDescription(group.trigger),
                             style = MiuixTheme.textStyles.body1,
                             modifier = Modifier.weight(1f)
                         )
@@ -81,43 +82,28 @@ fun TriggerGroupCard(
                 }
             }
 
-            // Show trigger details
-            when (group) {
-                is ModeTriggerGroup.Single -> {
-                    Text(
-                        text = getTriggerDescription(group.trigger),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                is ModeTriggerGroup.Compound -> {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    group.triggers.forEachIndexed { index, trigger ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (index == 0) "•" else "∧",
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.primary,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = getTriggerTypeIcon(trigger) + " " + getTriggerTitle(trigger),
-                                    style = MiuixTheme.textStyles.body2
-                                )
-                                Text(
-                                    text = getTriggerDescription(trigger),
-                                    style = MiuixTheme.textStyles.body2,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                )
-                            }
-                        }
+            // Show compound trigger details
+            if (group is ModeTriggerGroup.Compound) {
+                Spacer(modifier = Modifier.height(8.dp))
+                group.triggers.forEachIndexed { index, trigger ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (index == 0) "•" else "∧",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        // Single line display for compound trigger items
+                        Text(
+                            text = getTriggerTypeIcon(trigger) + " " + getTriggerTitle(trigger) + " · " + getTriggerDescription(trigger),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        )
                     }
                 }
             }
