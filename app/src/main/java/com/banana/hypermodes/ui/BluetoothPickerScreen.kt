@@ -151,7 +151,6 @@ fun BluetoothPickerScreen(
                         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         onClick = {
                             onSelect(device)
-                            onBack()
                         }
                     ) {
                         Row(

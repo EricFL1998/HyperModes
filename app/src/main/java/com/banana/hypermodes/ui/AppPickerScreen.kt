@@ -154,7 +154,6 @@ fun AppPickerScreen(
                         onClick = if (singleSelection) {
                             {
                                 onSelectionChanged(setOf(app.packageName))
-                                onBack()
                             }
                         } else null
                     ) {

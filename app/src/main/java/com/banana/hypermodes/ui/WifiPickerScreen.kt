@@ -148,7 +148,6 @@ fun WifiPickerScreen(
                         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                         onClick = {
                             onSelect(ssid)
-                            onBack()
                         }
                     ) {
                         Row(

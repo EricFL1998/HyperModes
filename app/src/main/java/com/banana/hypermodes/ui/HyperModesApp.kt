@@ -577,6 +577,8 @@ fun HyperModesApp() {
                                     // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
                                     // upsertMode(updated)
                                 }
+                                // Navigate back to ModeDetail
+                                currentScreen = Screen.ModeDetail(editingMode ?: mode)
                             }
                         }
                     )
@@ -599,6 +601,8 @@ fun HyperModesApp() {
                                 // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
                                 // upsertMode(updated)
                             }
+                            // Navigate back to ModeDetail
+                            currentScreen = Screen.ModeDetail(editingMode ?: mode)
                         }
                     )
                 }
@@ -620,6 +624,8 @@ fun HyperModesApp() {
                                 // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
                                 // upsertMode(updated)
                             }
+                            // Navigate back to ModeDetail
+                            currentScreen = Screen.ModeDetail(editingMode ?: mode)
                         }
                     )
                 }
@@ -634,6 +640,8 @@ fun HyperModesApp() {
                             editingMode = updated
                             // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
                             // upsertMode(updated)
+                            // Navigate back to ModeDetail
+                            currentScreen = Screen.ModeDetail(updated)
                         }
                     )
                 }
@@ -648,6 +656,8 @@ fun HyperModesApp() {
                             editingMode = updated
                             // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
                             // upsertMode(updated)
+                            // Navigate back to ModeDetail
+                            currentScreen = Screen.ModeDetail(updated)
                         }
                     )
                 }
