@@ -574,7 +574,8 @@ fun HyperModesApp() {
                                         )
                                     )
                                     editingMode = updated
-                                    upsertMode(updated)
+                                    // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
+                                    // upsertMode(updated)
                                 }
                             }
                         }
@@ -595,7 +596,8 @@ fun HyperModesApp() {
                                     )
                                 )
                                 editingMode = updated
-                                upsertMode(updated)
+                                // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
+                                // upsertMode(updated)
                             }
                         }
                     )
@@ -615,7 +617,8 @@ fun HyperModesApp() {
                                     )
                                 )
                                 editingMode = updated
-                                upsertMode(updated)
+                                // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
+                                // upsertMode(updated)
                             }
                         }
                     )
@@ -629,7 +632,8 @@ fun HyperModesApp() {
                         },
                         onSave = { updated ->
                             editingMode = updated
-                            upsertMode(updated)
+                            // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
+                            // upsertMode(updated)
                         }
                     )
                 }
@@ -642,7 +646,8 @@ fun HyperModesApp() {
                         },
                         onSave = { updated ->
                             editingMode = updated
-                            upsertMode(updated)
+                            // Let ModeDetailScreen's LaunchedEffect handle saving for compound triggers
+                            // upsertMode(updated)
                         }
                     )
                 }
