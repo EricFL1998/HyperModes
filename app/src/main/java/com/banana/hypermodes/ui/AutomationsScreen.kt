@@ -245,43 +245,7 @@ fun AutomationsScreen(
                     TextButton(
                         text = "导入",
                         onClick = {
-                            // Create a new mode with intent triggers
-                            importedConfig?.let { config ->
-                                val modeStore = ModeStore
-                                val currentModes = modeStore.load(context) { emptyList() }
-                                
-                                // Generate unique mode ID
-                                val modeId = "intent_${config.packageName}_${System.currentTimeMillis()}"
-                                
-                                // Create intent triggers from the config
-                                val triggers = config.intents.flatMap { intentAction ->
-                                    intentAction.intents.map { action ->
-                                        ModeTrigger.Intent(
-                                            actions = setOf(action),
-                                            packageName = config.packageName
-                                        )
-                                    }
-                                }
-                                
-                                // Create new mode
-                                val newMode = Mode(
-                                    id = modeId,
-                                    name = config.appName,
-                                    icon = "music_note",
-                                    description = context.getString(R.string.imported_from, config.appName),
-                                    enabled = false,
-                                    settings = ModeSettings(
-                                        triggers = triggers
-                                    )
-                                )
-                                
-                                // Add to mode list and save
-                                val updatedModes = currentModes + newMode
-                                modeStore.save(context, updatedModes)
-                                
-                                showImportDialog = false
-                                // TODO: Show success toast
-                            }
+                            showImportDialog = false
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.textButtonColorsPrimary()
