@@ -120,22 +120,30 @@ fun ModeDetailScreen(
             val newTriggers = editedMode.settings.triggers.filterNot { it in existingTriggers }
             
             if (newTriggers.isNotEmpty()) {
-                // Convert new triggers to trigger groups
-                val newGroups = newTriggers.map { trigger ->
-                    if (isAddingToCompound) {
-                        // If we're in compound mode, add to editing list
+                if (isAddingToCompound) {
+                    // If we're in compound mode, add to editing list but don't save yet
+                    newTriggers.forEach { trigger ->
                         editingCompoundTriggers = editingCompoundTriggers + trigger
-                        null
-                    } else if (editingGroupIndex != null) {
-                        // Editing existing single group
-                        ModeTriggerGroup.Single(trigger)
-                    } else {
-                        // Create new single group
-                        ModeTriggerGroup.Single(trigger)
                     }
-                }.filterNotNull()
-                
-                if (newGroups.isNotEmpty()) {
+                    // Clear triggers list to avoid re-triggering this effect
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggers = emptyList()
+                    ))
+                    // Reset flag and reopen the compound dialog
+                    isAddingToCompound = false
+                    showCompoundTriggerDialog = true
+                } else {
+                    // Convert new triggers to single trigger groups
+                    val newGroups = newTriggers.map { trigger ->
+                        if (editingGroupIndex != null) {
+                            // Editing existing single group
+                            ModeTriggerGroup.Single(trigger)
+                        } else {
+                            // Create new single group
+                            ModeTriggerGroup.Single(trigger)
+                        }
+                    }
+                    
                     editedMode = if (editingGroupIndex != null) {
                         // Replace existing group
                         editedMode.copy(settings = editedMode.settings.copy(
@@ -155,11 +163,6 @@ fun ModeDetailScreen(
                     if (editingGroupIndex != null) {
                         editingGroupIndex = null
                     }
-                }
-                
-                // If adding to compound trigger, reopen the dialog
-                if (editingCompoundTriggers.isNotEmpty() && !showCompoundTriggerDialog) {
-                    showCompoundTriggerDialog = true
                 }
             }
         }
