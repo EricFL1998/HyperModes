@@ -21,20 +21,19 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Display a trigger group with visual indication for compound (AND) logic
+ * Read-only display - triggers cannot be edited by clicking
  */
 @Composable
 fun TriggerGroupCard(
     group: ModeTriggerGroup,
     groupIndex: Int,
     onRemove: () -> Unit,
-    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        onClick = onEdit
+            .padding(vertical = 4.dp)
     ) {
         Column(
             modifier = Modifier

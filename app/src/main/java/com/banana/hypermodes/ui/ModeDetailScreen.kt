@@ -524,20 +524,6 @@ fun ModeDetailScreen(
                                 )
                                 onSave(editedMode)
                             },
-                            onEdit = {
-                                when (group) {
-                                    is ModeTriggerGroup.Single -> {
-                                        editingGroupIndex = index
-                                        showTriggerSelector = true
-                                    }
-                                    is ModeTriggerGroup.Compound -> {
-                                        editingGroupIndex = index
-                                        editingCompoundTriggers = group.triggers
-                                        editingCompoundName = group.name
-                                        showCompoundTriggerDialog = true
-                                    }
-                                }
-                            },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
