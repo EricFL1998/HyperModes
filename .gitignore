@@ -27,6 +27,11 @@
 !docs/
 !docs/**
 !README.md
+!COMPLEX_TRIGGER_2.0_COMPLETED.md
+!UI_FLOW.md
+!INTEGRATION_EXAMPLE.kt
+!QUICKSTART_V2.md
+!README_TRIGGER_V2.md
 !LICENSE
 
 # Allow GitHub Actions
