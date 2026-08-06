@@ -264,11 +264,6 @@ fun AutomationsScreen(
             Column(
                 modifier = Modifier.padding(24.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.view_imported_intents),
-                    style = MiuixTheme.textStyles.headline2
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 importedConfig?.let { config ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
