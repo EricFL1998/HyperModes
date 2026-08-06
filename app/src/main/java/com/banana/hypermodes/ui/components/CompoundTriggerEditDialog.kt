@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.banana.hypermodes.R
+import com.banana.hypermodes.data.ImportedIntentStore
 import com.banana.hypermodes.data.ModeTrigger
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -138,6 +139,7 @@ private fun TriggerItemCard(
 @Composable
 private fun getTriggerDescription(trigger: ModeTrigger): String {
     val context = LocalContext.current
+    val importedConfigs = remember { ImportedIntentStore.loadAll(context) }
     
     return when (trigger) {
         is ModeTrigger.Time -> {
@@ -172,7 +174,15 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         }
         is ModeTrigger.Music -> "Playing music"
         is ModeTrigger.Location -> trigger.target.addressName ?: "Location"
-        is ModeTrigger.Intent -> trigger.activateAction ?: "Intent"
+        is ModeTrigger.Intent -> {
+            importedConfigs.firstNotNullOfOrNull { config ->
+                if (config.packageName == trigger.packageName) {
+                    config.intents.firstOrNull { action ->
+                        action.intents.any { it == trigger.activateAction || it == trigger.deactivateAction }
+                    }?.name
+                } else null
+            } ?: (trigger.activateAction ?: "Intent")
+        }
     }
 }
 

@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
+import com.banana.hypermodes.data.ImportedIntentStore
 import com.banana.hypermodes.data.ModeTrigger
 import com.banana.hypermodes.data.ModeTriggerGroup
 import top.yukonga.miuix.kmp.basic.Card
@@ -125,6 +127,7 @@ private fun getTriggerTitle(trigger: ModeTrigger): String {
 @Composable
 private fun getTriggerDescription(trigger: ModeTrigger): String {
     val context = LocalContext.current
+    val importedConfigs = remember { ImportedIntentStore.loadAll(context) }
     return when (trigger) {
         is ModeTrigger.Time -> "${trigger.schedule.startHour}:${String.format("%02d", trigger.schedule.startMinute)} - ${trigger.schedule.endHour}:${String.format("%02d", trigger.schedule.endMinute)}"
         is ModeTrigger.App -> {
@@ -154,7 +157,15 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         }
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
         is ModeTrigger.Location -> trigger.target.addressName ?: "位置触发"
-        is ModeTrigger.Intent -> trigger.activateAction ?: "Intent 触发"
+        is ModeTrigger.Intent -> {
+            importedConfigs.firstNotNullOfOrNull { config ->
+                if (config.packageName == trigger.packageName) {
+                    config.intents.firstOrNull { action ->
+                        action.intents.any { it == trigger.activateAction || it == trigger.deactivateAction }
+                    }?.name
+                } else null
+            } ?: (trigger.activateAction ?: "Intent 触发")
+        }
     }
 }
 
