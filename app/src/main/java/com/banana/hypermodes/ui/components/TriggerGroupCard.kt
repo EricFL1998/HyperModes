@@ -123,7 +123,6 @@ private fun getTriggerTitle(trigger: ModeTrigger): String {
 }
 
 @Composable
-@Composable
 private fun getTriggerDescription(trigger: ModeTrigger): String {
     val context = LocalContext.current
     return when (trigger) {
@@ -148,6 +147,5 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         is ModeTrigger.Location -> trigger.target.addressName ?: "位置触发"
         is ModeTrigger.Intent -> trigger.activateAction ?: "Intent 触发"
     }
-}
 }
 
