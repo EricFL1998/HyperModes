@@ -809,7 +809,7 @@ TriggerSelectionDialog(
             onDismissRequest = {
                 onShowCompoundTriggerDialogChange(false)
                 editingGroupIndex = null
-                // Do not clear editingCompoundTriggers here - keep it for adding more triggers
+                onEditingCompoundTriggersChange(emptyList())
                 editingCompoundName = null
                 onIsAddingToCompoundChange(false)
             },
