@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -122,10 +123,22 @@ private fun getTriggerTitle(trigger: ModeTrigger): String {
 }
 
 @Composable
+@Composable
 private fun getTriggerDescription(trigger: ModeTrigger): String {
+    val context = LocalContext.current
     return when (trigger) {
         is ModeTrigger.Time -> "${trigger.schedule.startHour}:${String.format("%02d", trigger.schedule.startMinute)} - ${trigger.schedule.endHour}:${String.format("%02d", trigger.schedule.endMinute)}"
-        is ModeTrigger.App -> trigger.packageNames.joinToString(", ").take(50)
+        is ModeTrigger.App -> {
+            val pm = context.packageManager
+            trigger.packageNames.joinToString(", ") { packageName ->
+                try {
+                    val appInfo = pm.getApplicationInfo(packageName, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    packageName
+                }
+            }.take(50)
+        }
         is ModeTrigger.Wifi -> trigger.ssids.joinToString(", ")
         is ModeTrigger.Bluetooth -> {
             if (trigger.matchAnyCarAudio) "任意车载蓝牙"
@@ -136,3 +149,5 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         is ModeTrigger.Intent -> trigger.activateAction ?: "Intent 触发"
     }
 }
+}
+
