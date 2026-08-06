@@ -147,10 +147,6 @@ fun ModeDetailScreen(
                     return@LaunchedEffect
                 }
 
-                    val alreadyInCompound = newTriggers.any { trigger ->
-                        editingCompoundTriggers.contains(trigger)
-                    }
-                    if (alreadyInCompound) {
                     val newGroups = newTriggers.map { trigger ->
                         if (editingGroupIndex != null) {
                             // Editing existing single group
