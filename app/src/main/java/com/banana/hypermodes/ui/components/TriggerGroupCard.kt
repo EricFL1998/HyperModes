@@ -91,32 +91,6 @@ fun TriggerGroupCard(
                     )
                 }
             }
-
-            // Show compound trigger details
-            if (group is ModeTriggerGroup.Compound) {
-                Spacer(modifier = Modifier.height(8.dp))
-                group.triggers.forEachIndexed { index, trigger ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (index == 0) "•" else "∧",
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        // Single line display for compound trigger items
-                        Text(
-                            text = getTriggerTypeIcon(trigger) + " " + getTriggerTitle(trigger) + " · " + getTriggerDescription(trigger),
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
-                }
-            }
         }
     }
 }
