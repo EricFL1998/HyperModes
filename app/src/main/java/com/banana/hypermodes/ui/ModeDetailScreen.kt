@@ -1088,6 +1088,7 @@ fun TriggerCard(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
+    val importedConfigs = remember { ImportedIntentStore.loadAll(context) }
 
     val icon = when (trigger) {
         is ModeTrigger.Time -> "🕐"
@@ -1167,10 +1168,15 @@ fun TriggerCard(
             }
         }
         is ModeTrigger.Intent -> {
-            val parts = mutableListOf<String>()
-            trigger.activateAction?.let { parts.add(stringResource(R.string.intent_activate) + ": $it") }
-            trigger.deactivateAction?.let { parts.add(stringResource(R.string.intent_deactivate) + ": $it") }
-            parts.joinToString(" / ")
+            // Prefer the friendly imported intent name; fall back to the raw action.
+            val friendly = importedConfigs.firstNotNullOfOrNull { config ->
+                if (config.packageName == trigger.packageName) {
+                    config.intents.firstOrNull { action ->
+                        action.intents.any { it == trigger.activateAction || it == trigger.deactivateAction }
+                    }?.name
+                } else null
+            }
+            friendly ?: (trigger.activateAction ?: stringResource(R.string.trigger_intent))
         }
     }
     TriggerRowCard(icon = icon, label = label, onDelete = onDelete)

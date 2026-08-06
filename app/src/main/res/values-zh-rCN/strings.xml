@@ -268,6 +268,7 @@
     <string name="location_unsupported">此设备不支持位置触发</string>
     <string name="location_permission_required">需要位置权限</string>
     <string name="import_intent_config">导入意图配置</string>
+    <string name="import_confirmed">导入</string>
     <string name="import_intent_config_title">导入意图配置</string>
     <string name="import_intent_config_message">为 %1$s 导入自动化？</string>
     <string name="import_intent_config_desc">这将根据应用的广播操作创建一个带有意图触发器的新模式。</string>

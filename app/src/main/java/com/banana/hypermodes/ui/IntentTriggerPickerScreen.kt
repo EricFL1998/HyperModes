@@ -13,7 +13,12 @@ import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeTrigger
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.banana.hypermodes.data.ImportedIntentStore
+import com.banana.hypermodes.data.IntentConfig
+import kotlinx.serialization.json.Json
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
@@ -34,7 +39,33 @@ fun IntentTriggerPickerScreen(
     var activateActionInput by remember { mutableStateOf("") }
     var deactivateActionInput by remember { mutableStateOf("") }
     var packageInput by remember { mutableStateOf("") }
-    val importedConfigs = remember { ImportedIntentStore.loadAll(context) }
+    var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
+    var showAddOptions by remember { mutableStateOf(false) }
+    var importedConfig by remember { mutableStateOf<IntentConfig?>(null) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    val json = remember {
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+    }
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val fileContent = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
+                if (fileContent != null) {
+                    val config = json.decodeFromString<IntentConfig>(fileContent)
+                    importedConfig = config
+                    showImportDialog = true
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     val scrollBehavior = MiuixScrollBehavior(top.yukonga.miuix.kmp.basic.rememberTopAppBarState())
 
@@ -55,7 +86,7 @@ fun IntentTriggerPickerScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { showAddDialog = true }
+                        onClick = { showAddOptions = true }
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Add,
@@ -76,6 +107,20 @@ fun IntentTriggerPickerScreen(
         ) {
             // Show existing intent triggers
             val intentTriggers = editedMode.settings.triggers.filterIsInstance<ModeTrigger.Intent>()
+
+            @Composable
+            fun resolveIntentName(trigger: ModeTrigger.Intent): String {
+                importedConfigs.forEach { config ->
+                    if (config.packageName == trigger.packageName) {
+                        config.intents.forEach { action ->
+                            if (action.intents.any { it == trigger.activateAction || it == trigger.deactivateAction }) {
+                                return action.name
+                            }
+                        }
+                    }
+                }
+                return trigger.activateAction ?: stringResource(R.string.trigger_intent)
+            }
             
             if (intentTriggers.isEmpty()) {
                 item {
@@ -106,25 +151,14 @@ fun IntentTriggerPickerScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            if (trigger.activateAction != null) {
-                                Text(
-                                    text = stringResource(R.string.intent_activate) + ": ${trigger.activateAction}",
-                                    style = MiuixTheme.textStyles.body1
-                                )
-                            }
-                            if (trigger.deactivateAction != null) {
-                                if (trigger.activateAction != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                }
-                                Text(
-                                    text = stringResource(R.string.intent_deactivate) + ": ${trigger.deactivateAction}",
-                                    style = MiuixTheme.textStyles.body1
-                                )
-                            }
+                            Text(
+                                text = resolveIntentName(trigger),
+                                style = MiuixTheme.textStyles.body1
+                            )
                             if (trigger.packageName != null) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = stringResource(R.string.intent_package) + ": ${trigger.packageName}",
+                                    text = stringResource(R.string.intent_package) + ": " + trigger.packageName,
                                     style = MiuixTheme.textStyles.body2,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                 )
@@ -156,11 +190,33 @@ fun IntentTriggerPickerScreen(
                     )
                 }
                 importedConfigs.forEach { config ->
+                    val missingIntents = config.intents.filter { action ->
+                        editedMode.settings.triggers.none { t ->
+                            t is ModeTrigger.Intent &&
+                                t.packageName == config.packageName &&
+                                action.intents.any { it == t.activateAction || it == t.deactivateAction }
+                        }
+                    }
                     item {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
+                                .clickable(enabled = missingIntents.isNotEmpty()) {
+                                    // Add all not-yet-added intents from this config at once
+                                    val newTriggers = missingIntents.map { action ->
+                                        ModeTrigger.Intent(
+                                            activateAction = action.intents.firstOrNull()?.takeIf { it.isNotBlank() },
+                                            deactivateAction = action.intents.getOrNull(1)?.takeIf { it.isNotBlank() },
+                                            packageName = config.packageName
+                                        )
+                                    }
+                                    val combined = editedMode.settings.triggers + newTriggers
+                                    editedMode = editedMode.copy(
+                                        settings = editedMode.settings.copy(triggers = combined)
+                                    )
+                                    onSave(editedMode)
+                                }
                         ) {
                             Column(
                                 modifier = Modifier
@@ -181,18 +237,6 @@ fun IntentTriggerPickerScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable(enabled = !alreadyAdded) {
-                                                val newTrigger = ModeTrigger.Intent(
-                                                    activateAction = action.intents.firstOrNull()?.takeIf { it.isNotBlank() },
-                                                    deactivateAction = action.intents.getOrNull(1)?.takeIf { it.isNotBlank() },
-                                                    packageName = config.packageName
-                                                )
-                                                val newTriggers = editedMode.settings.triggers + newTrigger
-                                                editedMode = editedMode.copy(
-                                                    settings = editedMode.settings.copy(triggers = newTriggers)
-                                                )
-                                                onSave(editedMode)
-                                            }
                                             .padding(vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -219,6 +263,119 @@ fun IntentTriggerPickerScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Add options: manual entry or import from file
+    if (showAddOptions) {
+        top.yukonga.miuix.kmp.overlay.OverlayDialog(
+            show = showAddOptions,
+            onDismissRequest = { showAddOptions = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showAddOptions = false
+                            showAddDialog = true
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.add_intent_trigger),
+                            style = MiuixTheme.textStyles.body1
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showAddOptions = false
+                            filePickerLauncher.launch(arrayOf("application/json"))
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.import_intent_config),
+                            style = MiuixTheme.textStyles.body1
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { showAddOptions = false },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+
+    // Import confirmation dialog
+    if (showImportDialog && importedConfig != null) {
+        top.yukonga.miuix.kmp.overlay.OverlayDialog(
+            show = showImportDialog,
+            onDismissRequest = { showImportDialog = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.import_intent_config_title),
+                    style = MiuixTheme.textStyles.headline2
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.import_intent_config_message, importedConfig?.appName ?: ""),
+                    style = MiuixTheme.textStyles.body1
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.import_intent_config_desc),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showImportDialog = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        text = stringResource(R.string.import_confirmed),
+                        onClick = {
+                            importedConfig?.let { config ->
+                                ImportedIntentStore.save(context, config)
+                                importedConfigs = ImportedIntentStore.loadAll(context)
+                            }
+                            showImportDialog = false
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.textButtonColorsPrimary()
+                    )
                 }
             }
         }
