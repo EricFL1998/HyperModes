@@ -151,14 +151,6 @@ fun ModeDetailScreen(
                         editingCompoundTriggers.contains(trigger)
                     }
                     if (alreadyInCompound) {
-                        // Clear triggers without saving
-                        editedMode = editedMode.copy(settings = editedMode.settings.copy(
-                            triggers = emptyList()
-                        ))
-                        return@LaunchedEffect
-                    }
-
-                    // Convert new triggers to single trigger groups
                     val newGroups = newTriggers.map { trigger ->
                         if (editingGroupIndex != null) {
                             // Editing existing single group
