@@ -38,15 +38,13 @@ class TriggerGroupManager(
     private val groupStates = mutableMapOf<String, MutableMap<Int, Boolean>>()
 
     fun init(modes: List<ModeConfig>) {
-        Log.e(TAG, "TriggerGroupManager.init() called with ${modes.size} modes")
-        allModes = modes
+                allModes = modes
         updateSubManagers()
         checkAllConditions()
     }
 
     fun updateModes(modes: List<ModeConfig>) {
-        Log.w(TAG, "TriggerGroupManager.updateModes() called with ${modes.size} modes")
-        allModes = modes
+                allModes = modes
         updateSubManagers()
         checkAllConditions()
     }
@@ -57,8 +55,7 @@ class TriggerGroupManager(
     }
 
     private fun updateSubManagers() {
-        Log.e(TAG, "TriggerGroupManager.updateSubManagers() called")
-        val wifiConfigs = mutableMapOf<String, List<String>>()
+                val wifiConfigs = mutableMapOf<String, List<String>>()
         val appConfigs = mutableMapOf<String, List<String>>()
         val bluetoothConfigs = mutableMapOf<String, Pair<List<String>, Boolean>>()
         val musicModeIds = mutableSetOf<String>()
