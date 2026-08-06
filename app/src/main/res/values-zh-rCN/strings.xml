@@ -277,6 +277,7 @@
     <string name="imported_intents_title">已导入的意图</string>
     <string name="view_imported_intents">查看已导入的意图</string>
     <string name="no_imported_intents">暂无已导入的意图</string>
+    <string name="already_added">已添加</string>
     
     <!-- Intent trigger -->
     <string name="trigger_intent">意图触发</string>

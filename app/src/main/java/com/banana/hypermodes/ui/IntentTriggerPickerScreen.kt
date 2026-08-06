@@ -1,8 +1,10 @@
 package com.banana.hypermodes.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -11,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeTrigger
+import com.banana.hypermodes.data.ImportedIntentStore
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
@@ -31,6 +34,7 @@ fun IntentTriggerPickerScreen(
     var activateActionInput by remember { mutableStateOf("") }
     var deactivateActionInput by remember { mutableStateOf("") }
     var packageInput by remember { mutableStateOf("") }
+    val importedConfigs = remember { ImportedIntentStore.loadAll(context) }
 
     val scrollBehavior = MiuixScrollBehavior(top.yukonga.miuix.kmp.basic.rememberTopAppBarState())
 
@@ -137,6 +141,82 @@ fun IntentTriggerPickerScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+                }
+            }
+
+            // Imported intent configs from the automations screen
+            if (importedConfigs.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.imported_intents_title),
+                        style = MiuixTheme.textStyles.title2,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
+                }
+                importedConfigs.forEach { config ->
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = config.appName,
+                                    style = MiuixTheme.textStyles.headline2
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                config.intents.forEach { action ->
+                                    val alreadyAdded = editedMode.settings.triggers.any { t ->
+                                        t is ModeTrigger.Intent &&
+                                            t.packageName == config.packageName &&
+                                            action.intents.any { it == t.activateAction || it == t.deactivateAction }
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable(enabled = !alreadyAdded) {
+                                                val newTrigger = ModeTrigger.Intent(
+                                                    activateAction = action.intents.firstOrNull()?.takeIf { it.isNotBlank() },
+                                                    deactivateAction = action.intents.getOrNull(1)?.takeIf { it.isNotBlank() },
+                                                    packageName = config.packageName
+                                                )
+                                                val newTriggers = editedMode.settings.triggers + newTrigger
+                                                editedMode = editedMode.copy(
+                                                    settings = editedMode.settings.copy(triggers = newTriggers)
+                                                )
+                                                onSave(editedMode)
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = action.name,
+                                            style = MiuixTheme.textStyles.body1,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = if (alreadyAdded) {
+                                                stringResource(R.string.already_added)
+                                            } else {
+                                                "+"
+                                            },
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = if (alreadyAdded) {
+                                                MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                            } else {
+                                                MiuixTheme.colorScheme.primary
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

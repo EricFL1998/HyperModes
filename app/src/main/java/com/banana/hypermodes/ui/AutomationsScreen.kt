@@ -39,6 +39,7 @@ fun AutomationsScreen(
     var showImportDialog by remember { mutableStateOf(false) }
     var showImportedIntentsDialog by remember { mutableStateOf(false) }
     var importedConfig by remember { mutableStateOf<IntentConfig?>(null) }
+    var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
 
     val json = remember {
         Json {
@@ -245,6 +246,10 @@ fun AutomationsScreen(
                     TextButton(
                         text = "导入",
                         onClick = {
+                            importedConfig?.let { config ->
+                                ImportedIntentStore.save(context, config)
+                                importedConfigs = ImportedIntentStore.loadAll(context)
+                            }
                             showImportDialog = false
                         },
                         modifier = Modifier.weight(1f),
@@ -264,35 +269,38 @@ fun AutomationsScreen(
             Column(
                 modifier = Modifier.padding(24.dp)
             ) {
-                importedConfig?.let { config ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = config.appName,
-                                style = MiuixTheme.textStyles.headline2
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            config.intents.forEachIndexed { index, action ->
-                                Text(
-                                    text = action.name,
-                                    style = MiuixTheme.textStyles.body1,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                if (index != config.intents.lastIndex) {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                }
-                            }
-                        }
-                    }
-                } ?: run {
+                if (importedConfigs.isEmpty()) {
                     Text(
                         text = stringResource(R.string.no_imported_intents),
                         style = MiuixTheme.textStyles.body1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
+                } else {
+                    importedConfigs.forEach { config ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = config.appName,
+                                    style = MiuixTheme.textStyles.headline2
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                config.intents.forEachIndexed { index, action ->
+                                    Text(
+                                        text = action.name,
+                                        style = MiuixTheme.textStyles.body1,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    if (index != config.intents.lastIndex) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 TextButton(

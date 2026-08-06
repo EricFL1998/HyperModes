@@ -278,6 +278,7 @@
     <string name="imported_intents_title">Imported Intents</string>
     <string name="view_imported_intents">View Imported Intents</string>
     <string name="no_imported_intents">No imported intents yet</string>
+    <string name="already_added">Added</string>
     
     <!-- Intent trigger -->
     <string name="trigger_intent">Intent Trigger</string>
