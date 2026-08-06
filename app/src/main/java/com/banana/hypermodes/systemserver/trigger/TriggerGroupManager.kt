@@ -161,6 +161,7 @@ class TriggerGroupManager(
     }
 
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
+        Log.d(TAG, "onTriggerChanged: key=$triggerKey, type=$triggerType, active=$isActive")
         // Parse triggerKey to get modeId and groupIndex
         // Format: "modeId_groupN_type" or "modeId_legacy_type"
         val parts = triggerKey.split("_")
@@ -190,9 +191,12 @@ class TriggerGroupManager(
                     is TriggerGroup.Compound -> group.triggers
                 }
                 
+                Log.d(TAG, "Checking group $idx for mode $modeId, triggers count=${triggers.size}")
                 // Check if ALL triggers in this group are active (AND logic)
                 val allActive = triggers.all { trigger ->
                     val key = "${modeId}_group${idx}_${getTriggerKey(trigger)}"
+                    val state = modeStates[key]
+                    Log.d(TAG, "  Trigger key=$key, state=$state")
                     modeStates[key] == true
                 }
                 
@@ -240,3 +244,4 @@ class TriggerGroupManager(
         private const val TAG = "TriggerGroupManager"
     }
 }
+
