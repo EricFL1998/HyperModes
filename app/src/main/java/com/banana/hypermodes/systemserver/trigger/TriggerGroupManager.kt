@@ -80,6 +80,7 @@ class TriggerGroupManager(
                     
                     when (trigger) {
                         is ComplexTrigger.Wifi -> {
+                            Log.d(TAG, "Registering WiFi trigger: key=$triggerKey, ssids=${trigger.ssids}")
                             wifiConfigs[triggerKey] = trigger.ssids
                         }
                         is ComplexTrigger.App -> {
@@ -245,5 +246,6 @@ class TriggerGroupManager(
         private const val TAG = "TriggerGroupManager"
     }
 }
+
 
 
