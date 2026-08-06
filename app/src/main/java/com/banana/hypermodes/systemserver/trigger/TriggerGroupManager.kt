@@ -181,6 +181,7 @@ class TriggerGroupManager(
         val mode = allModes.find { it.id == modeId } ?: return
         
         if (mode.triggerGroups.isNotEmpty()) {
+            Log.d(TAG, "Mode $modeId has ${mode.triggerGroups.size} trigger groups")
             // v2.0 logic: check group satisfaction
             val groups = groupStates.getOrPut(modeId) { mutableMapOf() }
             val wasAnyGroupActive = groups.values.any { it }
@@ -244,4 +245,5 @@ class TriggerGroupManager(
         private const val TAG = "TriggerGroupManager"
     }
 }
+
 
