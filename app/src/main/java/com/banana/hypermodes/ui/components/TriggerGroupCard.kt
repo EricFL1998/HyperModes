@@ -141,11 +141,21 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         is ModeTrigger.Wifi -> trigger.ssids.joinToString(", ")
         is ModeTrigger.Bluetooth -> {
             if (trigger.matchAnyCarAudio) "任意车载蓝牙"
-            else "${trigger.deviceAddresses.size} 设备"
+            else {
+                val bluetoothAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                trigger.deviceAddresses.joinToString(", ") { address ->
+                    try {
+                        bluetoothAdapter?.getRemoteDevice(address)?.name ?: address
+                    } catch (e: Exception) {
+                        address
+                    }
+                }
+            }
         }
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
         is ModeTrigger.Location -> trigger.target.addressName ?: "位置触发"
         is ModeTrigger.Intent -> trigger.activateAction ?: "Intent 触发"
     }
 }
+
 
