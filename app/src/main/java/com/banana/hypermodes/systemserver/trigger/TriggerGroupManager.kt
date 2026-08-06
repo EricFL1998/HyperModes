@@ -144,12 +144,12 @@ class TriggerGroupManager(
 
     private fun getTriggerKey(trigger: ComplexTrigger): String {
         return when (trigger) {
-            is ComplexTrigger.Time -> "time_${trigger.startTime}"
-            is ComplexTrigger.App -> "app"
-            is ComplexTrigger.Wifi -> "wifi"
-            is ComplexTrigger.Bluetooth -> "bluetooth"
+            is ComplexTrigger.Time -> "time_${trigger.startTime}_${trigger.endTime}"
+            is ComplexTrigger.App -> "app_" + trigger.packageNames.sorted().joinToString("_")
+            is ComplexTrigger.Wifi -> "wifi_" + trigger.ssids.sorted().joinToString("_")
+            is ComplexTrigger.Bluetooth -> "bt_" + trigger.deviceAddresses.sorted().joinToString("_")
             is ComplexTrigger.Music -> "music"
-            is ComplexTrigger.Intent -> "intent"
+            is ComplexTrigger.Intent -> "intent_" + (trigger.activateAction ?: "")
             is ComplexTrigger.Location -> "location_${trigger.id}"
         }
     }
@@ -164,15 +164,26 @@ class TriggerGroupManager(
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
         Log.d(TAG, "onTriggerChanged: key=$triggerKey, type=$triggerType, active=$isActive")
         // Parse triggerKey to get modeId and groupIndex
-        // Format: "modeId_groupN_type" or "modeId_legacy_type"
-        val parts = triggerKey.split("_")
-        if (parts.size < 2) return
-        
-        val modeId = parts[0]
-        val isLegacy = parts.getOrNull(1) == "legacy"
-        val groupIndex = if (!isLegacy && parts[1].startsWith("group")) {
-            parts[1].removePrefix("group").toIntOrNull()
-        } else null
+        // Format: "modeId_groupN_triggerKey" or "modeId_legacy_triggerKey"
+        // modeId itself may contain underscores, so anchor on "_group" / "_legacy_"
+        val groupMarker = "_group"
+        val legacyMarker = "_legacy_"
+        val groupIdx = triggerKey.indexOf(groupMarker)
+        val legacyIdx = triggerKey.indexOf(legacyMarker)
+        if (groupIdx < 0 && legacyIdx < 0) return
+        val modeId: String
+        val isLegacy: Boolean
+        val groupIndex: Int?
+        if (legacyIdx >= 0 && (groupIdx < 0 || legacyIdx < groupIdx)) {
+            modeId = triggerKey.substring(0, legacyIdx)
+            isLegacy = true
+            groupIndex = null
+        } else {
+            modeId = triggerKey.substring(0, groupIdx)
+            isLegacy = false
+            val afterGroup = triggerKey.substring(groupIdx + groupMarker.length)
+            groupIndex = afterGroup.substringBefore("_").toIntOrNull()
+        }
 
         // Update trigger state
         val modeStates = triggerStates.getOrPut(modeId) { mutableMapOf() }
