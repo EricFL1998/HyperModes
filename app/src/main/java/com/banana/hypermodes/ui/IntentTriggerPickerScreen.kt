@@ -27,6 +27,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.window.WindowListPopup
 
 @Composable
 fun IntentTriggerPickerScreen(
@@ -86,13 +87,40 @@ fun IntentTriggerPickerScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { showAddOptions = true }
-                    ) {
+                    IconButton(onClick = { showAddOptions = true }) {
                         Icon(
                             imageVector = MiuixIcons.Add,
                             contentDescription = "Add"
                         )
+                    }
+                    WindowListPopup(
+                        show = showAddOptions,
+                        popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
+                        alignment = PopupPositionProvider.Align.TopEnd,
+                        onDismissRequest = { showAddOptions = false }
+                    ) {
+                        ListPopupColumn {
+                            DropdownImpl(
+                                text = stringResource(R.string.add_intent_trigger),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 0,
+                                onSelectedIndexChange = {
+                                    showAddOptions = false
+                                    showAddDialog = true
+                                }
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.import_intent_config),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 1,
+                                onSelectedIndexChange = {
+                                    showAddOptions = false
+                                    filePickerLauncher.launch(arrayOf("application/json"))
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -273,66 +301,6 @@ fun IntentTriggerPickerScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-
-    // Add options: manual entry or import from file
-    if (showAddOptions) {
-        top.yukonga.miuix.kmp.overlay.OverlayDialog(
-            show = showAddOptions,
-            onDismissRequest = { showAddOptions = false }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showAddOptions = false
-                            showAddDialog = true
-                        }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.add_intent_trigger),
-                            style = MiuixTheme.textStyles.body1
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showAddOptions = false
-                            filePickerLauncher.launch(arrayOf("application/json"))
-                        }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.import_intent_config),
-                            style = MiuixTheme.textStyles.body1
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showAddOptions = false },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
