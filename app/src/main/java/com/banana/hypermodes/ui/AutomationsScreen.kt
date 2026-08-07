@@ -1,5 +1,9 @@
 package com.banana.hypermodes.ui
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,15 +24,21 @@ import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
+import com.banana.hypermodes.data.ImportedIntentStore
+import com.banana.hypermodes.data.IntentConfig
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Switch
+import kotlinx.serialization.json.Json
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.window.WindowListPopup
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.foundation.background
@@ -56,6 +66,37 @@ fun AutomationsScreen(
     // Long press delete state
     var menuAutomation by remember { mutableStateOf<SavedAutomation?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // Overflow menu (⋮): import intent configs / view imported intents
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
+    var showImportedIntentsDialog by remember { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<IntentConfig?>(null) }
+    var showImportConfirm by remember { mutableStateOf(false) }
+
+    val json = remember {
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+    }
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val fileContent = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
+                if (fileContent != null) {
+                    val config = json.decodeFromString<IntentConfig>(fileContent)
+                    pendingImport = config
+                    showImportConfirm = true
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.import_error, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     
     // 从存储加载自动化列表
     var automations by remember {
@@ -83,6 +124,44 @@ fun AutomationsScreen(
                     }
                 } else {
                     { }
+                },
+                actions = {
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(
+                            imageVector = MiuixIcons.More,
+                            contentDescription = null
+                        )
+                    }
+                    WindowListPopup(
+                        show = showOverflowMenu,
+                        popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
+                        alignment = PopupPositionProvider.Align.TopEnd,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        ListPopupColumn {
+                            DropdownImpl(
+                                text = stringResource(R.string.import_intent_config),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 0,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    filePickerLauncher.launch(arrayOf("application/json"))
+                                }
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.view_imported_intents),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 1,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    importedConfigs = ImportedIntentStore.loadAll(context)
+                                    showImportedIntentsDialog = true
+                                }
+                            )
+                        }
+                    }
                 }
             )
         },
@@ -234,6 +313,124 @@ fun AutomationsScreen(
                             colors = ButtonDefaults.textButtonColorsPrimary()
                         )
                     }
+                }
+            }
+        }
+
+        // Import intent config confirmation dialog
+        if (showImportConfirm && pendingImport != null) {
+            OverlayDialog(
+                show = showImportConfirm,
+                onDismissRequest = { showImportConfirm = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.import_intent_config_title),
+                        style = MiuixTheme.textStyles.headline2
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.import_intent_config_message,
+                            pendingImport?.appName ?: ""
+                        ),
+                        style = MiuixTheme.textStyles.body1
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.import_intent_config_desc),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = {
+                                showImportConfirm = false
+                                pendingImport = null
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            text = stringResource(R.string.import_confirmed),
+                            onClick = {
+                                pendingImport?.let { config ->
+                                    ImportedIntentStore.save(context, config)
+                                    importedConfigs = ImportedIntentStore.loadAll(context)
+                                }
+                                showImportConfirm = false
+                                pendingImport = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.textButtonColorsPrimary()
+                        )
+                    }
+                }
+            }
+        }
+
+        // View imported intents dialog (app name + intent names only)
+        if (showImportedIntentsDialog) {
+            OverlayDialog(
+                show = showImportedIntentsDialog,
+                onDismissRequest = { showImportedIntentsDialog = false },
+                title = stringResource(R.string.imported_intents_title)
+            ) {
+                Column {
+                    if (importedConfigs.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.no_imported_intents),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp)
+                        ) {
+                            items(importedConfigs.size) { configIndex ->
+                                val config = importedConfigs[configIndex]
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                                ) {
+                                    Text(
+                                        text = config.appName,
+                                        style = MiuixTheme.textStyles.body1,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                    )
+                                    config.intents.forEach { action ->
+                                        Text(
+                                            text = action.name,
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                            modifier = Modifier.padding(start = 12.dp, top = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showImportedIntentsDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
