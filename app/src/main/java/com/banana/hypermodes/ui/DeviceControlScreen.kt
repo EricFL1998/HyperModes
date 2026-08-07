@@ -1,11 +1,6 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
-import android.content.Intent
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.ResultReceiver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
@@ -16,8 +11,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
-import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.DropdownSettingItem
+import android.telephony.SubscriptionManager
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -33,43 +28,23 @@ fun DeviceControlScreen(
     val context = LocalContext.current
     var editedMode by remember { mutableStateOf(mode) }
     var validationError by remember { mutableStateOf<String?>(null) }
-    // Active SIM slots queried from system_server, e.g. [0] or [0,1]. Null = query pending.
+    // Active SIM slots, e.g. [0] or [0,1]. Null = query pending.
     var simSlots by remember { mutableStateOf<List<Int>?>(null) }
     BackHandler(onBack = onBack)
 
-    // Ask system_server for the inserted SIM layout (apps can't reliably
-    // enumerate SIMs on recent Android).
+    // Enumerate inserted SIMs like the Settings app does:
+    // SubscriptionManager.getActiveSubscriptionInfoList() -> simSlotIndex.
+    // READ_PHONE_STATE / READ_PRECISE_PHONE_STATE are auto-granted via
+    // UniversalPermissionHook so this works without a runtime prompt.
     LaunchedEffect(Unit) {
-        val handler = Handler(Looper.getMainLooper())
-        var delivered = false
-        val receiver = object : ResultReceiver(handler) {
-            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
-                if (delivered) return
-                delivered = true
-                simSlots = resultData?.getIntArray(Protocol.EXTRA_SIM_SLOTS)?.toList() ?: emptyList()
-            }
-        }
-        val timeout = Runnable {
-            if (!delivered) {
-                delivered = true
-                simSlots = emptyList()
-            }
-        }
-        handler.postDelayed(timeout, 1500)
-        try {
-            context.sendBroadcast(
-                Intent(Protocol.ACTION_GET_SIM_INFO).apply {
-                    setPackage(Protocol.FRAMEWORK_PACKAGE)
-                    putExtra(Protocol.EXTRA_RESULT_RECEIVER, receiver)
-                }
-            )
-        } catch (t: Throwable) {
-            handler.removeCallbacks(timeout)
-            if (!delivered) {
-                delivered = true
-                simSlots = emptyList()
-            }
-        }
+        simSlots = runCatching {
+            val sm = context.getSystemService(SubscriptionManager::class.java)
+            sm?.activeSubscriptionInfoList
+                ?.mapNotNull { it.simSlotIndex.takeIf { index -> index >= 0 } }
+                ?.distinct()
+                ?.sorted()
+                ?: emptyList()
+        }.getOrDefault(emptyList())
     }
 
     val scrollBehavior = MiuixScrollBehavior()

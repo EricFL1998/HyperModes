@@ -8,7 +8,6 @@ import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.ResultReceiver
-import android.telephony.SubscriptionManager
 import android.util.Log
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
@@ -138,10 +137,6 @@ class SystemModeHook(private val module: XposedModule) {
                         sendConfiguredWifi(c, intent)
                         return
                     }
-                    Protocol.ACTION_GET_SIM_INFO -> {
-                        sendSimInfo(c, intent)
-                        return
-                    }
                     Protocol.ACTION_PROBE_POLARIS -> {
                         probePolaris(c, intent)
                         return
@@ -167,7 +162,6 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_PACKAGES_SUSPENDED)
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
-            addAction(Protocol.ACTION_GET_SIM_INFO)
             addAction(Protocol.ACTION_PROBE_POLARIS)
             addAction(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         }
@@ -208,36 +202,6 @@ class SystemModeHook(private val module: XposedModule) {
         log("GET_CONFIGURED_WIFI: returning ${ssids.size} saved networks")
         resultReceiver.send(0, android.os.Bundle().apply {
             putStringArray(Protocol.EXTRA_SSIDS, ssids.toTypedArray())
-        })
-    }
-
-    /**
-     * Return the active SIM slot indices to the device-control UI via
-     * ResultReceiver. Regular apps can't reliably enumerate inserted SIMs on
-     * recent Android; system_server can.
-     */
-    private fun sendSimInfo(context: Context, intent: Intent) {
-        @Suppress("DEPRECATION")
-        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
-        if (resultReceiver == null) {
-            log("GET_SIM_INFO without ResultReceiver")
-            return
-        }
-        val slots = try {
-            val sm = context.applicationContext
-                .getSystemService(SubscriptionManager::class.java)
-            sm?.activeSubscriptionInfoList
-                ?.mapNotNull { it.simSlotIndex.takeIf { index -> index >= 0 } }
-                ?.distinct()
-                ?.sorted()
-                ?: emptyList()
-        } catch (t: Throwable) {
-            log("getActiveSubscriptionInfoList failed: ${t.message}")
-            emptyList()
-        }
-        log("GET_SIM_INFO: returning ${slots.size} active SIM slots")
-        resultReceiver.send(0, android.os.Bundle().apply {
-            putIntArray(Protocol.EXTRA_SIM_SLOTS, slots.toIntArray())
         })
     }
 

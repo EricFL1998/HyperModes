@@ -39,7 +39,10 @@ class UniversalPermissionHook(private val module: XposedModule) {
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.READ_LOGS"
+        "android.permission.READ_LOGS",
+        // SIM card detection (enumerate active subscriptions)
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRECISE_PHONE_STATE"
     )
 
     private var systemContext: Context? = null
