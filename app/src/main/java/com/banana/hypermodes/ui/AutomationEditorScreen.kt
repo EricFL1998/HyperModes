@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import com.banana.hypermodes.R
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -32,6 +34,10 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import android.widget.Toast
+import com.banana.hypermodes.automation.SavedAutomation
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.window.WindowListPopup
 
 /**
  * 自动化操作项数据类
@@ -306,12 +312,16 @@ fun AutomationActionDialog(
  */
 @Composable
 fun AutomationEditorScreen(
-    initialBlocks: List<AutomationBlock>,
+    automation: SavedAutomation,
     onBack: () -> Unit,
-    onSave: (List<AutomationBlock>) -> Unit = {}
+    onSave: (List<AutomationBlock>) -> Unit = {},
+    onRename: (SavedAutomation) -> Unit = {},
+    onDelete: (SavedAutomation) -> Unit = {}
 ) {
-    var blocks by remember { mutableStateOf(initialBlocks) }
+    var blocks by remember { mutableStateOf(automation.blocks) }
     var showAddActionDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior()
     val context = LocalContext.current
     val executor = remember { AutomationExecutor(context) }
@@ -324,7 +334,10 @@ fun AutomationEditorScreen(
                 title = "自动化",
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        onSave(blocks)
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
                             contentDescription = stringResource(R.string.back)
@@ -332,8 +345,7 @@ fun AutomationEditorScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        text = "测试",
+                    IconButton(
                         onClick = {
                             if (!isExecuting && blocks.isNotEmpty()) {
                                 isExecuting = true
@@ -358,14 +370,49 @@ fun AutomationEditorScreen(
                                 }
                             }
                         },
-                        enabled = !isExecuting && blocks.isNotEmpty(),
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    TextButton(
-                        text = "保存",
-                        onClick = { onSave(blocks) },
-                        colors = ButtonDefaults.textButtonColorsPrimary()
-                    )
+                        enabled = !isExecuting && blocks.isNotEmpty()
+                    ) {
+                        Icon(
+                            imageVector = MiuixIcons.Basic.ArrowRight,
+                            contentDescription = "测试"
+                        )
+                    }
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(
+                            imageVector = MiuixIcons.More,
+                            contentDescription = null
+                        )
+                    }
+                    // miuix dropdown anchored to the ⋮ button
+                    WindowListPopup(
+                        show = showOverflowMenu,
+                        popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
+                        alignment = PopupPositionProvider.Align.TopEnd,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        ListPopupColumn {
+                            DropdownImpl(
+                                text = stringResource(R.string.rename),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 0,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    onRename(automation)
+                                }
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.delete),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 1,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    showDeleteConfirm = true
+                                }
+                            )
+                        }
+                    }
                 }
             )
         },
@@ -381,6 +428,53 @@ fun AutomationEditorScreen(
             }
         }
     ) { padding ->
+        
+        // 删除确认对话框
+        OverlayDialog(
+            show = showDeleteConfirm,
+            onDismissRequest = { showDeleteConfirm = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 5.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.delete_automation),
+                    style = MiuixTheme.textStyles.title3,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text(
+                    text = "确定要删除「${automation.name}」吗？",
+                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 20.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showDeleteConfirm = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            showDeleteConfirm = false
+                            onDelete(automation)
+                            onBack()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.textButtonColorsPrimary()
+                    )
+                }
+            }
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

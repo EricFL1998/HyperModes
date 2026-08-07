@@ -290,4 +290,10 @@
     <string name="intent_activate_desc">接收到此意图时开启模式（可留空）</string>
     <string name="intent_deactivate_desc">接收到此意图时关闭模式（可留空）</string>
     <string name="optional">可选</string>
+    
+    <!-- Automation -->
+    <string name="create_automation">创建自动化</string>
+    <string name="automation_name">自动化名称</string>
+    <string name="automation_name_hint">我的自动化</string>
+    <string name="icon">图标</string>
 </resources>

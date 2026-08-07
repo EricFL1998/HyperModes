@@ -8,6 +8,7 @@ import java.util.UUID
 data class SavedAutomation(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
+    val icon: String = "🤖",
     val description: String = "",
     val blocks: List<AutomationBlock>,
     val enabled: Boolean = true,

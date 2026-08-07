@@ -302,5 +302,12 @@
     <string name="compound_trigger_name">组合触发器名称</string>
     <string name="add_trigger_to_group">添加触发条件</string>
     <string name="trigger_group_and_logic">所有条件必须同时满足</string>
+    
+    <!-- Automation -->
+    <string name="create_automation">Create automation</string>
+    <string name="automation_name">Automation name</string>
+    <string name="automation_name_hint">My automation</string>
+    <string name="icon">Icon</string>
 
+    <string name="delete_automation">删除自动化</string>
 </resources>

@@ -32,6 +32,8 @@ import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.data.ModeTrigger
 import com.banana.hypermodes.automation.AutomationBlock
 import com.banana.hypermodes.automation.toAutomationBlock
+import com.banana.hypermodes.automation.SavedAutomation
+import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.utils.UpdateManager
@@ -176,6 +178,8 @@ fun HyperModesApp() {
     var pendingCompoundTrigger by remember { mutableStateOf<ModeTrigger?>(null) }
     var showCompoundTriggerDialog by remember { mutableStateOf(false) }
     var editingCompoundTriggers by remember { mutableStateOf<List<ModeTrigger>>(emptyList()) }
+    var automationToRename by remember { mutableStateOf<SavedAutomation?>(null) }
+    var automationRefreshTrigger by remember { mutableStateOf(0) }
 
 
     // The user's mode list (built-ins minus deleted ones + custom modes),
@@ -729,34 +733,75 @@ fun HyperModesApp() {
                     )
                 }
                 is Screen.CreateAutomation -> {
-                    // 显示空白编辑器，用户从头创建
+                    // 新建自动化：点击 + 进入全屏编辑器，返回时自动保存
+                    val newAutomation = remember(screen) {
+                        SavedAutomation(name = "新建自动化", blocks = emptyList())
+                    }
                     AutomationEditorScreen(
-                        initialBlocks = emptyList(),
+                        automation = newAutomation,
                         onBack = { currentScreen = Screen.MainTabs },
                         onSave = { blocks ->
-                            // TODO: persist automation with name
+                            val updated = newAutomation.copy(blocks = blocks)
+                            AutomationStore.add(context, updated)
+                            automationRefreshTrigger++
                             currentScreen = Screen.MainTabs
+                        },
+                        onRename = { auto ->
+                            automationToRename = auto
+                        },
+                        onDelete = { auto ->
+                            AutomationStore.delete(context, auto.id)
+                            automationRefreshTrigger++
                         }
                     )
                 }
                 is Screen.EditAutomation -> {
-                    // TODO: 从数据库加载自动化
-                    AutomationEditorScreen(
-                        initialBlocks = emptyList(),
-                        onBack = { currentScreen = Screen.MainTabs },
-                        onSave = { blocks ->
-                            // TODO: update automation
-                            currentScreen = Screen.MainTabs
-                        }
-                    )
+                    // 从存储加载自动化进行编辑
+                    val loaded = remember(screen) {
+                        AutomationStore.load(context).find { it.id == screen.automationId }
+                    }
+                    if (loaded != null) {
+                        AutomationEditorScreen(
+                            automation = loaded,
+                            onBack = { currentScreen = Screen.MainTabs },
+                            onSave = { blocks ->
+                                AutomationStore.update(context, loaded.copy(blocks = blocks))
+                                automationRefreshTrigger++
+                                currentScreen = Screen.MainTabs
+                            },
+                            onRename = { auto ->
+                                automationToRename = auto
+                            },
+                            onDelete = { auto ->
+                                AutomationStore.delete(context, auto.id)
+                                automationRefreshTrigger++
+                                currentScreen = Screen.MainTabs
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { currentScreen = Screen.MainTabs }
+                    }
                 }
                 is Screen.AutomationEditor -> {
+                    // 从操作面板选择第一个操作后进入
+                    val newAutomation = remember(screen) {
+                        SavedAutomation(name = "新建自动化", blocks = screen.initialBlocks)
+                    }
                     AutomationEditorScreen(
-                        initialBlocks = screen.initialBlocks,
+                        automation = newAutomation,
                         onBack = { currentScreen = Screen.MainTabs },
                         onSave = { blocks ->
-                            // TODO: persist automation
+                            val updated = newAutomation.copy(blocks = blocks)
+                            AutomationStore.add(context, updated)
+                            automationRefreshTrigger++
                             currentScreen = Screen.MainTabs
+                        },
+                        onRename = { auto ->
+                            automationToRename = auto
+                        },
+                        onDelete = { auto ->
+                            AutomationStore.delete(context, auto.id)
+                            automationRefreshTrigger++
                         }
                     )
                 }
@@ -786,6 +831,21 @@ fun HyperModesApp() {
             )
         }
 
+
+        // Automation rename dialog
+        automationToRename?.let { automation ->
+            CreateAutomationDialog(
+                show = true,
+                initialName = automation.name,
+                initialIcon = automation.icon,
+                onDismissRequest = { automationToRename = null },
+                onDone = { name, icon ->
+                    AutomationStore.update(context, automation.copy(name = name, icon = icon))
+                    automationToRename = null
+                    automationRefreshTrigger++
+                }
+            )
+        }
         // Auto-update dialog
         updateInfo?.let { info ->
             val currentVersion = try {
