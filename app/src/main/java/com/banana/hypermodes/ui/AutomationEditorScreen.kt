@@ -1,5 +1,6 @@
 package com.banana.hypermodes.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -327,6 +328,13 @@ fun AutomationEditorScreen(
     val executor = remember { AutomationExecutor(context) }
     val coroutineScope = rememberCoroutineScope()
     var isExecuting by remember { mutableStateOf(false) }
+
+    // System back button must return to the automation list the same way the
+    // top-bar back arrow does (auto-save + navigate back).
+    BackHandler {
+        onSave(blocks)
+        onBack()
+    }
 
     Scaffold(
         topBar = {

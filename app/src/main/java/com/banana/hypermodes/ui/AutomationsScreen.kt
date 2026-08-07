@@ -28,7 +28,7 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.foundation.background
@@ -298,7 +298,7 @@ fun CreateAutomationDialog(
     var name by remember(show) { mutableStateOf(initialName) }
     var icon by remember(show) { mutableStateOf(initialIcon) }
 
-    top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
+    WindowBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.create_automation)

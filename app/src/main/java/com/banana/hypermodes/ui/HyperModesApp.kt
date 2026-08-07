@@ -179,6 +179,7 @@ fun HyperModesApp() {
     var showCompoundTriggerDialog by remember { mutableStateOf(false) }
     var editingCompoundTriggers by remember { mutableStateOf<List<ModeTrigger>>(emptyList()) }
     var automationToRename by remember { mutableStateOf<SavedAutomation?>(null) }
+    var showRenameAutomationDialog by remember { mutableStateOf(false) }
     var automationRefreshTrigger by remember { mutableStateOf(0) }
 
 
@@ -758,6 +759,7 @@ fun HyperModesApp() {
                             },
                             onRename = { auto ->
                                 automationToRename = auto
+                                showRenameAutomationDialog = true
                             },
                             onDelete = { auto ->
                                 AutomationStore.delete(context, auto.id)
@@ -803,12 +805,16 @@ fun HyperModesApp() {
         // Automation rename dialog
         automationToRename?.let { automation ->
             CreateAutomationDialog(
-                show = true,
+                show = showRenameAutomationDialog,
                 initialName = automation.name,
                 initialIcon = automation.icon,
-                onDismissRequest = { automationToRename = null },
+                onDismissRequest = {
+                    showRenameAutomationDialog = false
+                    automationToRename = null
+                },
                 onDone = { name, icon ->
                     AutomationStore.update(context, automation.copy(name = name, icon = icon))
+                    showRenameAutomationDialog = false
                     automationToRename = null
                     automationRefreshTrigger++
                 }
@@ -987,6 +993,15 @@ fun MainTabsScreen(
 
     // Pager state for horizontal swiping
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { tabs.size })
+
+    // When returning from a detail screen (e.g. automation editor), rememberPagerState
+    // restores the saved page instead of honoring the new initialPage. Force the pager
+    // to the requested tab so back navigation lands on the correct tab.
+    LaunchedEffect(initialPage) {
+        if (pagerState.currentPage != initialPage) {
+            pagerState.scrollToPage(initialPage)
+        }
+    }
 
     // Full-screen root Box: pager/content layer, floating capsule overlay, FAB overlay
     // Wrap in Scaffold only for dialog support (no topBar/bottomBar)
@@ -1456,7 +1471,15 @@ fun ModesListScreenContent(
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                     )
                     Text(
-                        text = stringResource(R.string.delete_mode_confirm, mode.name),
+                        text = stringResource(
+                            R.string.delete_mode_confirm,
+                            when (mode.id) {
+                                "dnd" -> stringResource(R.string.mode_dnd)
+                                "bedtime" -> stringResource(R.string.mode_bedtime)
+                                "driving" -> stringResource(R.string.mode_driving)
+                                else -> mode.name
+                            }
+                        ),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         modifier = Modifier.padding(bottom = 16.dp)

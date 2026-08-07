@@ -28,6 +28,7 @@ class TriggerGroupManager(
     private val bluetoothManager = BluetoothTriggerManager(context, ::onTriggerChanged)
     private val locationManager = LocationTriggerManager(context, ::onTriggerChanged)
     private val intentManager = IntentTriggerManager(context, ::onTriggerChanged)
+    private val batteryManager = BatteryTriggerManager(context, ::onTriggerChanged)
 
     // Track individual trigger states per mode
     // modeId -> triggerKey -> isActive
@@ -61,6 +62,7 @@ class TriggerGroupManager(
         val musicModeIds = mutableSetOf<String>()
         val intentConfigs = mutableMapOf<String, Triple<String?, String?, String?>>()
         val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
+        val batteryConfigs = mutableMapOf<String, Pair<Int, String>>()
 
         allModes.forEach { mode ->
             if (mode.type == ModeType.DYNAMIC_TRIGGER) return@forEach
@@ -95,6 +97,9 @@ class TriggerGroupManager(
                             val prev = locationConfigs[triggerKey] ?: emptyList()
                             locationConfigs[triggerKey] = prev + (trigger.id to trigger)
                         }
+                        is ComplexTrigger.Battery -> {
+                            batteryConfigs[triggerKey] = trigger.threshold to trigger.operator
+                        }
                         is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                     }
                 }
@@ -125,6 +130,9 @@ class TriggerGroupManager(
                         val prev = locationConfigs[triggerKey] ?: emptyList()
                         locationConfigs[triggerKey] = prev + (trigger.id to trigger)
                     }
+                    is ComplexTrigger.Battery -> {
+                        batteryConfigs[triggerKey] = trigger.threshold to trigger.operator
+                    }
                     is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                 }
             }
@@ -136,6 +144,7 @@ class TriggerGroupManager(
         musicManager.updateConfigs(musicModeIds)
         locationManager.updateConfigs(locationConfigs)
         intentManager.updateConfigs(intentConfigs)
+        batteryManager.updateConfigs(batteryConfigs)
     }
 
     private fun getTriggerKey(trigger: ComplexTrigger): String {
@@ -147,6 +156,7 @@ class TriggerGroupManager(
             is ComplexTrigger.Music -> "music"
             is ComplexTrigger.Intent -> "intent_" + (trigger.activateAction ?: "")
             is ComplexTrigger.Location -> "location_${trigger.id}"
+            is ComplexTrigger.Battery -> "battery_${trigger.threshold}_${trigger.operator}"
         }
     }
 
@@ -155,6 +165,7 @@ class TriggerGroupManager(
         appManager.check()
         bluetoothManager.check()
         musicManager.check()
+        batteryManager.check()
     }
 
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
@@ -239,6 +250,7 @@ class TriggerGroupManager(
         appManager.release()
         intentManager.release()
         locationManager.release()
+        batteryManager.release()
     }
 
     private fun log(msg: String) {

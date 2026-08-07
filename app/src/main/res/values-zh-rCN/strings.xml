@@ -245,6 +245,8 @@
     <string name="trigger_music_desc">正在播放音乐时</string>
     <string name="trigger_location">位置</string>
     <string name="trigger_location_desc">到达或离开某地时</string>
+    <string name="trigger_battery">电量</string>
+    <string name="trigger_battery_desc">电量低于或高于某个百分比时</string>
     <string name="add_trigger">添加触发方式</string>
     <string name="trigger_at_time">在 %1$s - %2$s 期间</string>
     <string name="trigger_on_app">打开 %1$s 时</string>
@@ -254,6 +256,13 @@
     <string name="trigger_on_music">正在播放音乐时</string>
     <string name="trigger_on_location_arrive">到达 %1$s 时</string>
     <string name="trigger_on_location_leave">离开 %1$s 时</string>
+    <string name="trigger_on_battery_above">电量高于 %1$d%% 时</string>
+    <string name="trigger_on_battery_below">电量低于 %1$d%% 时</string>
+    <string name="trigger_on_battery_equal">电量等于 %1$d%% 时</string>
+    <string name="battery_threshold">电量阈值</string>
+    <string name="battery_above">高于</string>
+    <string name="battery_below">低于</string>
+    <string name="battery_equal">等于</string>
     <string name="search_wifi">搜索 WLAN</string>
     <string name="search_bluetooth">搜索蓝牙</string>
     <string name="no_wifi_networks">未找到 WLAN 网络。请连接到网络并授予定位权限后再选择。</string>

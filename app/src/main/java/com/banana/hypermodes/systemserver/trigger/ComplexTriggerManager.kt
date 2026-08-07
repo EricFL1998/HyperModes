@@ -25,6 +25,7 @@ class ComplexTriggerManager(
     private val bluetoothManager = BluetoothTriggerManager(context, ::onTriggerChanged)
     private val locationManager = LocationTriggerManager(context, ::onTriggerChanged)
     private val intentManager = IntentTriggerManager(context, ::onTriggerChanged)
+    private val batteryManager = BatteryTriggerManager(context, ::onTriggerChanged)
     // ScheduledModeManager still handles the Time triggers for now as it's complex,
     // but we can integrate it here if we want to unify everything.
     // For now, let's keep ScheduledModeManager as is and focus on the new ones.
@@ -61,6 +62,7 @@ class ComplexTriggerManager(
         var musicModeIds = mutableSetOf<String>()
         val intentConfigs = mutableMapOf<String, Triple<String?, String?, String?>>()
         val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
+        val batteryConfigs = mutableMapOf<String, Pair<Int, String>>()
 
         allModes.forEach { mode ->
             // DYNAMIC_TRIGGER modes (built-in driving) are owned by the legacy
@@ -89,6 +91,9 @@ class ComplexTriggerManager(
                         locationConfigs[mode.id] = prev + (trigger.id to trigger)
                         Log.e(TAG, "Found location trigger: modeId=${mode.id}, triggerId=${trigger.id}, lat=${trigger.latitude}, lng=${trigger.longitude}")
                     }
+                    is ComplexTrigger.Battery -> {
+                        batteryConfigs[mode.id] = trigger.threshold to trigger.operator
+                    }
                     is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                 }
             }
@@ -101,6 +106,7 @@ class ComplexTriggerManager(
         musicManager.updateConfigs(musicModeIds)
         locationManager.updateConfigs(locationConfigs)
         intentManager.updateConfigs(intentConfigs)
+        batteryManager.updateConfigs(batteryConfigs)
     }
 
     private fun checkAllConditions() {
@@ -108,6 +114,7 @@ class ComplexTriggerManager(
         appManager.check()
         bluetoothManager.check()
         musicManager.check()
+        batteryManager.check()
     }
 
     private fun onTriggerChanged(modeId: String, triggerType: String, isActive: Boolean) {
@@ -143,7 +150,8 @@ class ComplexTriggerManager(
         updateModes(emptyList()) // stops callbacks and unregisters receivers
         appManager.release()
         intentManager.release()
-                locationManager.release()
+        locationManager.release()
+        batteryManager.release()
     }
 
     private fun log(msg: String) {

@@ -183,6 +183,10 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
                 } else null
             } ?: (trigger.activateAction ?: "Intent")
         }
+        is ModeTrigger.Battery -> when (trigger.operator) {
+            "above" -> stringResource(R.string.trigger_on_battery_above, trigger.threshold)
+            "below" -> stringResource(R.string.trigger_on_battery_below, trigger.threshold)
+            else -> stringResource(R.string.trigger_on_battery_equal, trigger.threshold)
+        }
     }
 }
-

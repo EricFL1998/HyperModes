@@ -44,6 +44,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -97,7 +98,7 @@ fun EditModeDialog(
     }
     var icon by remember(show, mode) { mutableStateOf(mode.icon.ifEmpty { "⭐" }) }
 
-    top.yukonga.miuix.kmp.overlay.OverlayBottomSheet(
+    WindowBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         title = if (isNew) stringResource(R.string.create_mode) else stringResource(R.string.edit_mode)

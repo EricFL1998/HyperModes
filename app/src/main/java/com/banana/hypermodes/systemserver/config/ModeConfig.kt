@@ -88,7 +88,7 @@ sealed class ComplexTrigger {
         val packageName: String? = null
     ) : ComplexTrigger()
 
-        @Serializable
+    @Serializable
     @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Location")
     data class Location(
         val id: String,
@@ -99,6 +99,13 @@ sealed class ComplexTrigger {
         val cityName: String? = null,
         val provinceName: String? = null,
         val transition: String // "ARRIVE" or "LEAVE"
+    ) : ComplexTrigger()
+
+    @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Battery")
+    data class Battery(
+        val threshold: Int = 20,
+        val operator: String = "below"
     ) : ComplexTrigger()
 }
 

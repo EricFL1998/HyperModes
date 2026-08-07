@@ -18,7 +18,7 @@ import com.banana.hypermodes.utils.UpdateInfo
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
@@ -32,7 +32,7 @@ fun UpdateDialog(
 ) {
     val context = LocalContext.current
 
-    OverlayBottomSheet(
+    WindowBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.new_version_found)

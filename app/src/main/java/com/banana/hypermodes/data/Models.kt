@@ -110,6 +110,16 @@ sealed class ModeTrigger {
         val target: LocationTarget,
         val transition: LocationTransition
     ) : ModeTrigger()
+
+    /**
+     * Battery level trigger: activates when the battery level crosses a threshold.
+     * @param threshold The battery percentage threshold (0-100).
+     * @param operator "above" (>= threshold), "below" (<= threshold) or "equal" (== threshold).
+     */
+    data class Battery(
+        val threshold: Int = 20,
+        val operator: String = "below"
+    ) : ModeTrigger()
 }
 
 /**
@@ -214,6 +224,7 @@ fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
         transition = transition.name
     )
     is ModeTrigger.Intent -> ComplexTrigger.Intent(activateAction, deactivateAction, packageName)
+    is ModeTrigger.Battery -> ComplexTrigger.Battery(threshold, operator)
 }
 
 fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
@@ -248,6 +259,7 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
         }
     )
     is ComplexTrigger.Intent -> ModeTrigger.Intent(activateAction, deactivateAction, packageName)
+    is ComplexTrigger.Battery -> ModeTrigger.Battery(threshold, operator)
 }
 
 /**

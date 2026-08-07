@@ -32,6 +32,7 @@ import com.banana.hypermodes.ui.components.TriggerSelectionDialog
 import com.banana.hypermodes.ui.components.TriggerTypeSelectionDialog
 import com.banana.hypermodes.ui.components.CompoundTriggerEditDialog
 import com.banana.hypermodes.ui.components.TriggerGroupCard
+import com.banana.hypermodes.ui.components.BatteryTriggerPickerDialog
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
@@ -106,6 +107,7 @@ fun ModeDetailScreen(
     var showTriggerSelector by remember(mode.id) { mutableStateOf(false) }
     var showTimePicker by remember(mode.id) { mutableStateOf(false) }
     var showEndTimePicker by remember(mode.id) { mutableStateOf(false) }
+    var showBatteryPicker by remember(mode.id) { mutableStateOf(false) }
     var pendingStartTime by remember(mode.id) { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // v2.0 Complex Trigger State
@@ -742,6 +744,7 @@ TriggerSelectionDialog(
                     "intent" -> {
                         onOpenIntentTriggerPicker(editedMode)
                     }
+                    "battery" -> showBatteryPicker = true
                     "music" -> {
                         val trigger = ModeTrigger.Music
                         if (isAddingToCompound) {
@@ -899,6 +902,49 @@ TriggerSelectionDialog(
                 }
                 pendingStartTime = null
                 showEndTimePicker = false
+            }
+        )
+
+        // Battery-level trigger picker
+        BatteryTriggerPickerDialog(
+            initialThreshold = 20,
+            initialOperator = "below",
+            show = showBatteryPicker,
+            onDismissRequest = {
+                showBatteryPicker = false
+                if (isAddingToCompound) {
+                    onShowCompoundTriggerDialogChange(true)
+                }
+            },
+            onConfirm = { threshold, operator ->
+                val newTrigger = ModeTrigger.Battery(
+                    threshold = threshold,
+                    operator = operator
+                )
+                // v2.0: Add to trigger groups or compound trigger
+                if (isAddingToCompound) {
+                    // Adding to compound trigger
+                    onEditingCompoundTriggersChange(editingCompoundTriggers + newTrigger)
+                    onShowCompoundTriggerDialogChange(true)
+                } else if (editingGroupIndex != null) {
+                    // Editing single trigger group
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                            if (i == editingGroupIndex) newGroup else g
+                        }
+                    ))
+                    onSave(editedMode)
+                    editingGroupIndex = null
+                } else {
+                    // Adding new single trigger group (v2.0)
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups + newGroup
+                    ))
+                    onSave(editedMode)
+                }
+                showBatteryPicker = false
             }
         )
 
@@ -1098,6 +1144,7 @@ fun TriggerCard(
         is ModeTrigger.Music -> "🎵"
         is ModeTrigger.Location -> "📍"
         is ModeTrigger.Intent -> "📨"
+        is ModeTrigger.Battery -> "🔋"
     }
 
     // Resolve display names for App triggers; fall back to the package name
@@ -1177,6 +1224,11 @@ fun TriggerCard(
                 } else null
             }
             friendly ?: (trigger.activateAction ?: stringResource(R.string.trigger_intent))
+        }
+        is ModeTrigger.Battery -> when (trigger.operator) {
+            "above" -> stringResource(R.string.trigger_on_battery_above, trigger.threshold)
+            "below" -> stringResource(R.string.trigger_on_battery_below, trigger.threshold)
+            else -> stringResource(R.string.trigger_on_battery_equal, trigger.threshold)
         }
     }
     TriggerRowCard(icon = icon, label = label, onDelete = onDelete)

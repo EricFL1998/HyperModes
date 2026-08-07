@@ -245,6 +245,8 @@
     <string name="trigger_music_desc">When music is playing</string>
     <string name="trigger_location">Location</string>
     <string name="trigger_location_desc">When arriving or leaving a place</string>
+    <string name="trigger_battery">Battery level</string>
+    <string name="trigger_battery_desc">When battery drops below or rises above a level</string>
     <string name="add_trigger">Add Schedule</string>
     <string name="add">Add</string>
     <string name="trigger_at_time">During %1$s - %2$s</string>
@@ -255,6 +257,13 @@
     <string name="trigger_on_music">When music is playing</string>
     <string name="trigger_on_location_arrive">When arriving at %1$s</string>
     <string name="trigger_on_location_leave">When leaving %1$s</string>
+    <string name="trigger_on_battery_above">When battery rises above %1$d%%</string>
+    <string name="trigger_on_battery_below">When battery drops below %1$d%%</string>
+    <string name="trigger_on_battery_equal">When battery is at %1$d%%</string>
+    <string name="battery_threshold">Battery threshold</string>
+    <string name="battery_above">Above</string>
+    <string name="battery_below">Below</string>
+    <string name="battery_equal">Equal to</string>
     <string name="search_wifi">Search WiFi</string>
     <string name="search_bluetooth">Search Bluetooth</string>
     <string name="no_wifi_networks">No WiFi networks found. Connect to a network and grant location permission to pick it here.</string>

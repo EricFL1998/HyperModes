@@ -108,6 +108,7 @@ private fun getTriggerTypeIcon(trigger: ModeTrigger): String {
         is ModeTrigger.Music -> "🎵"
         is ModeTrigger.Location -> "📍"
         is ModeTrigger.Intent -> "⚡"
+        is ModeTrigger.Battery -> "🔋"
     }
 }
 
@@ -121,6 +122,7 @@ private fun getTriggerTitle(trigger: ModeTrigger): String {
         is ModeTrigger.Music -> stringResource(R.string.trigger_music)
         is ModeTrigger.Location -> stringResource(R.string.trigger_location)
         is ModeTrigger.Intent -> stringResource(R.string.trigger_intent)
+        is ModeTrigger.Battery -> stringResource(R.string.trigger_battery)
     }
 }
 
@@ -166,7 +168,11 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
                 } else null
             } ?: (trigger.activateAction ?: "Intent 触发")
         }
+        is ModeTrigger.Battery -> when (trigger.operator) {
+            "above" -> stringResource(R.string.trigger_on_battery_above, trigger.threshold)
+            "below" -> stringResource(R.string.trigger_on_battery_below, trigger.threshold)
+            else -> stringResource(R.string.trigger_on_battery_equal, trigger.threshold)
+        }
     }
 }
-
 
