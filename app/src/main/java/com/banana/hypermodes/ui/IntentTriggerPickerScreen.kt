@@ -265,37 +265,13 @@ fun IntentTriggerPickerScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 config.intents.forEach { action ->
-                                    val alreadyAdded = editedMode.settings.triggerGroups.any { group ->
-                                        group is ModeTriggerGroup.Single &&
-                                            group.trigger is ModeTrigger.Intent &&
-                                            group.trigger.packageName == config.packageName &&
-                                            action.intents.any { it == group.trigger.activateAction || it == group.trigger.deactivateAction }
-                                    }
-                                    Row(
+                                    Text(
+                                        text = action.name,
+                                        style = MiuixTheme.textStyles.body1,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = action.name,
-                                            style = MiuixTheme.textStyles.body1,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Text(
-                                            text = if (alreadyAdded) {
-                                                stringResource(R.string.already_added)
-                                            } else {
-                                                "+"
-                                            },
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = if (alreadyAdded) {
-                                                MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                            } else {
-                                                MiuixTheme.colorScheme.primary
-                                            }
-                                        )
-                                    }
+                                            .padding(vertical = 8.dp)
+                                    )
                                 }
                             }
                         }
