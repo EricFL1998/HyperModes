@@ -105,37 +105,6 @@ class TriggerGroupManager(
                 }
             }
 
-            // Also support legacy complexTriggers for backward compatibility
-            mode.complexTriggers.forEach { trigger ->
-                val triggerKey = "${mode.id}_legacy_${getTriggerKey(trigger)}"
-                
-                when (trigger) {
-                    is ComplexTrigger.Wifi -> {
-                        wifiConfigs[triggerKey] = ((wifiConfigs[triggerKey] ?: emptyList()) + trigger.ssids).distinct()
-                    }
-                    is ComplexTrigger.App -> {
-                        appConfigs[triggerKey] = ((appConfigs[triggerKey] ?: emptyList()) + trigger.packageNames).distinct()
-                    }
-                    is ComplexTrigger.Bluetooth -> {
-                        val prev = bluetoothConfigs[triggerKey]
-                        bluetoothConfigs[triggerKey] =
-                            (((prev?.first ?: emptyList()) + trigger.deviceAddresses).distinct()) to
-                                    ((prev?.second ?: false) || trigger.matchAnyCarAudio)
-                    }
-                    is ComplexTrigger.Music -> musicModeIds.add(triggerKey)
-                    is ComplexTrigger.Intent -> {
-                        intentConfigs[triggerKey] = Triple(trigger.activateAction, trigger.deactivateAction, trigger.packageName)
-                    }
-                    is ComplexTrigger.Location -> {
-                        val prev = locationConfigs[triggerKey] ?: emptyList()
-                        locationConfigs[triggerKey] = prev + (trigger.id to trigger)
-                    }
-                    is ComplexTrigger.Battery -> {
-                        batteryConfigs[triggerKey] = trigger.threshold to trigger.operator
-                    }
-                    is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
-                }
-            }
         }
 
         wifiManager.updateConfigs(wifiConfigs)
@@ -170,26 +139,16 @@ class TriggerGroupManager(
 
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
                 // Parse triggerKey to get modeId and groupIndex
-        // Format: "modeId_groupN_triggerKey" or "modeId_legacy_triggerKey"
-        // modeId itself may contain underscores, so anchor on "_group" / "_legacy_"
+        // Format: "modeId_groupN_triggerKey"
+        // modeId itself may contain underscores, so anchor on "_group"
         val groupMarker = "_group"
-        val legacyMarker = "_legacy_"
         val groupIdx = triggerKey.indexOf(groupMarker)
-        val legacyIdx = triggerKey.indexOf(legacyMarker)
-        if (groupIdx < 0 && legacyIdx < 0) return
+        if (groupIdx < 0) return
         val modeId: String
-        val isLegacy: Boolean
         val groupIndex: Int?
-        if (legacyIdx >= 0 && (groupIdx < 0 || legacyIdx < groupIdx)) {
-            modeId = triggerKey.substring(0, legacyIdx)
-            isLegacy = true
-            groupIndex = null
-        } else {
-            modeId = triggerKey.substring(0, groupIdx)
-            isLegacy = false
-            val afterGroup = triggerKey.substring(groupIdx + groupMarker.length)
-            groupIndex = afterGroup.substringBefore("_").toIntOrNull()
-        }
+        modeId = triggerKey.substring(0, groupIdx)
+        val afterGroup = triggerKey.substring(groupIdx + groupMarker.length)
+        groupIndex = afterGroup.substringBefore("_").toIntOrNull()
 
         // Update trigger state
         val modeStates = triggerStates.getOrPut(modeId) { mutableMapOf() }
@@ -227,19 +186,6 @@ class TriggerGroupManager(
                 engine.activateMode(modeId)
             } else if (!isAnyGroupActive && wasAnyGroupActive) {
                 log("Mode $modeId deactivated (no trigger groups satisfied)")
-                engine.deactivateMode(modeId, isManualDismiss = false)
-            }
-        } else if (mode.complexTriggers.isNotEmpty()) {
-            // v1.3 legacy logic: OR relationship
-            val anyActive = modeStates.values.any { it }
-            val wasActive = groupStates[modeId]?.get(0) == true
-            groupStates.getOrPut(modeId) { mutableMapOf() }[0] = anyActive
-
-            if (anyActive && !wasActive) {
-                log("Mode $modeId activated by $triggerType (legacy)")
-                engine.activateMode(modeId)
-            } else if (!anyActive && wasActive) {
-                log("Mode $modeId deactivated (legacy, no active triggers)")
                 engine.deactivateMode(modeId, isManualDismiss = false)
             }
         }

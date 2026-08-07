@@ -37,16 +37,6 @@ object ConfigParser {
         
         val config = json.decodeFromJsonElement(FullConfig.serializer(), migrated)
         
-        // Log complex triggers for debugging
-        config.modes.forEach { mode ->
-            if (mode.complexTriggers.isNotEmpty()) {
-                Log.e(TAG, "Mode ${mode.id} has ${mode.complexTriggers.size} complex triggers:")
-                mode.complexTriggers.forEach { trigger ->
-                    Log.e(TAG, "  - $trigger")
-                }
-            }
-        }
-        
         return config
     }
 
@@ -77,7 +67,42 @@ object ConfigParser {
         (fields["display"] as? JsonObject)?.let { fields["display"] = migrateLegacyDisplay(it) }
         hoistV12DeviceWakeKeys(fields)
         normalizeBuiltInModeNames(fields)
+        migrateLegacyTriggers(fields)
         return JsonObject(fields)
+    }
+
+    /**
+     * Migrate v1.3 `complexTriggers` into the v2.0 `triggerGroups` schema.
+     * Each legacy trigger becomes its own Single group (v1.3 semantics are OR,
+     * and multiple Single groups are also OR'd together), so old configs keep
+     * working without the engine retaining the legacy complexTriggers path.
+     */
+    private fun migrateLegacyTriggers(fields: MutableMap<String, JsonElement>) {
+        val complexTriggers = fields["complexTriggers"] as? JsonArray ?: return
+        val existingGroups = fields["triggerGroups"] as? JsonArray
+        if (complexTriggers.isEmpty()) {
+            fields.remove("complexTriggers")
+            return
+        }
+        // Only migrate when the mode has no trigger groups yet; otherwise the
+        // newer schema wins and the legacy list is simply dropped.
+        if (existingGroups != null && existingGroups.isNotEmpty()) {
+            fields.remove("complexTriggers")
+            return
+        }
+        val groups = complexTriggers.map { trigger ->
+            JsonObject(
+                mapOf(
+                    "type" to JsonPrimitive(
+                        "com.banana.hypermodes.systemserver.config.TriggerGroup.Single"
+                    ),
+                    "trigger" to trigger
+                )
+            )
+        }
+        fields["triggerGroups"] = JsonArray(groups)
+        fields.remove("complexTriggers")
+        Log.i(TAG, "Migrated ${groups.size} legacy complexTriggers to triggerGroups")
     }
 
     /**

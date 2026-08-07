@@ -607,10 +607,14 @@ fun HyperModesApp() {
                                 if (isAddingToCompound) {
                                     pendingCompoundTrigger = trigger
                                     currentScreen = Screen.ModeDetail(editingMode ?: mode)
-                                } else if (!mode.settings.triggers.contains(trigger)) {
+                                } else if (mode.settings.triggerGroups.none {
+                                        it is com.banana.hypermodes.data.ModeTriggerGroup.Single &&
+                                            it.trigger == trigger
+                                    }) {
                                     val updated = mode.copy(
                                         settings = mode.settings.copy(
-                                            triggers = mode.settings.triggers + trigger
+                                            triggerGroups = mode.settings.triggerGroups +
+                                                com.banana.hypermodes.data.ModeTriggerGroup.Single(trigger)
                                         )
                                     )
                                     editingMode = updated
@@ -634,10 +638,14 @@ fun HyperModesApp() {
                             if (isAddingToCompound) {
                                 pendingCompoundTrigger = trigger
                                 currentScreen = Screen.ModeDetail(editingMode ?: mode)
-                            } else if (!mode.settings.triggers.contains(trigger)) {
+                            } else if (mode.settings.triggerGroups.none {
+                                    it is com.banana.hypermodes.data.ModeTriggerGroup.Single &&
+                                        it.trigger == trigger
+                                }) {
                                 val updated = mode.copy(
                                     settings = mode.settings.copy(
-                                        triggers = mode.settings.triggers + trigger
+                                        triggerGroups = mode.settings.triggerGroups +
+                                            com.banana.hypermodes.data.ModeTriggerGroup.Single(trigger)
                                     )
                                 )
                                 editingMode = updated
@@ -660,10 +668,14 @@ fun HyperModesApp() {
                             if (isAddingToCompound) {
                                 pendingCompoundTrigger = trigger
                                 currentScreen = Screen.ModeDetail(editingMode ?: mode)
-                            } else if (!mode.settings.triggers.contains(trigger)) {
+                            } else if (mode.settings.triggerGroups.none {
+                                    it is com.banana.hypermodes.data.ModeTriggerGroup.Single &&
+                                        it.trigger == trigger
+                                }) {
                                 val updated = mode.copy(
                                     settings = mode.settings.copy(
-                                        triggers = mode.settings.triggers + trigger
+                                        triggerGroups = mode.settings.triggerGroups +
+                                            com.banana.hypermodes.data.ModeTriggerGroup.Single(trigger)
                                     )
                                 )
                                 editingMode = updated
@@ -1213,7 +1225,14 @@ fun ModesListScreenContent(
             !alarmManager.canScheduleExactAlarms() &&
             modes.any {
                 (it.settings.schedule?.enabled == true && it.id != "bedtime") ||
-                        it.settings.triggers.any { trigger -> trigger is ModeTrigger.Time }
+                        it.settings.triggerGroups.any { group ->
+                            when (group) {
+                                is com.banana.hypermodes.data.ModeTriggerGroup.Single ->
+                                    group.trigger is ModeTrigger.Time
+                                is com.banana.hypermodes.data.ModeTriggerGroup.Compound ->
+                                    group.triggers.any { trigger -> trigger is ModeTrigger.Time }
+                            }
+                        }
             }
 
     // Format like "23:00" (24-hour)

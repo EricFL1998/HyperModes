@@ -14,7 +14,6 @@ import com.banana.hypermodes.systemserver.config.ConfigParser
 import com.banana.hypermodes.systemserver.executor.ModeActionExecutor
 import com.banana.hypermodes.systemserver.trigger.BedtimeListener
 import com.banana.hypermodes.systemserver.trigger.BedtimeReconciler
-import com.banana.hypermodes.systemserver.trigger.ComplexTriggerManager
 import com.banana.hypermodes.systemserver.trigger.TriggerGroupManager
 import com.banana.hypermodes.systemserver.trigger.DrivingTriggerManager
 import com.banana.hypermodes.systemserver.trigger.ScheduledModeManager
@@ -81,7 +80,6 @@ class RoutineCoreEngine private constructor() {
 
     private var drivingTriggerManager: DrivingTriggerManager? = null
     private var scheduledModeManager: ScheduledModeManager? = null
-    private var complexTriggerManager: ComplexTriggerManager? = null
     private var triggerGroupManager: TriggerGroupManager? = null
     private var bedtimeListener: BedtimeListener? = null
     private var modeActionExecutor: ModeActionExecutor? = null
@@ -122,7 +120,6 @@ class RoutineCoreEngine private constructor() {
         modeActionExecutor = ModeActionExecutor(context, loader)
         drivingTriggerManager = DrivingTriggerManager(context, this)
         scheduledModeManager = ScheduledModeManager(context, this)
-        complexTriggerManager = ComplexTriggerManager(context, this)
         triggerGroupManager = TriggerGroupManager(context, this)
         bedtimeListener = BedtimeListener(context, this).also {
             it.registerStateSources()
@@ -224,7 +221,6 @@ class RoutineCoreEngine private constructor() {
                 // treat as empty config: cancel schedules and revert current mode
                 scheduledModeManager?.updateSchedules(emptyList(), allowActivation = false)
                 drivingTriggerManager?.init(emptyList())
-                complexTriggerManager?.updateModes(emptyList())
                 triggerGroupManager?.updateModes(emptyList())
                 currentActiveMode?.let {
                     log("Reverting active mode due to missing config: ${it.name}")
@@ -254,7 +250,6 @@ class RoutineCoreEngine private constructor() {
             drivingTriggerManager?.init(config.modes)
 
             // Update complex trigger manager
-            complexTriggerManager?.init(config.modes)
             triggerGroupManager?.init(config.modes)
 
             // The manager syncs above may have RE-ENTRANTLY activated a mode:
@@ -629,7 +624,6 @@ class RoutineCoreEngine private constructor() {
         if (scheduledModeManager?.isModeActive(mode) == true) return true
 
         // Check Complex triggers
-        if (complexTriggerManager?.isModeActiveByTrigger(modeId) == true) return true
         if (triggerGroupManager?.isModeActiveByTrigger(modeId) == true) return true
 
         // Driving (legacy DYNAMIC_TRIGGER) is currently handled by DrivingTriggerManager.
@@ -748,7 +742,6 @@ class RoutineCoreEngine private constructor() {
 
         // 3. Unregister triggers and listeners without normal deactivation side effects
         drivingTriggerManager?.cleanupForPackageRemoval()
-        complexTriggerManager?.release() // Stops all sub-managers
         triggerGroupManager?.release()
         bedtimeListener?.cleanupForPackageRemoval()
 

@@ -66,9 +66,6 @@ data class ModeSettings(
     // to any car-audio device (MAC addresses).
     val drivingTargetDevices: Set<String> = emptySet(),
 
-    // Triggers (v1.3)
-    val triggers: List<ModeTrigger> = emptyList(),
-
     // Trigger Groups (v2.0)
     val triggerGroups: List<ModeTriggerGroup> = emptyList(),
 
@@ -359,7 +356,6 @@ fun Mode.toModeConfig(): ModeConfig {
         else -> ContactFilter.NONE
     }
 
-    val complexTriggers = s.triggers.map { it.toComplexTrigger() }
     val triggerGroups = s.triggerGroups.map { it.toTriggerGroup() }
 
     return ModeConfig(
@@ -373,7 +369,6 @@ fun Mode.toModeConfig(): ModeConfig {
         repeatDays = repeatDays,
         scheduleEnabled = s.schedule?.enabled ?: false,
         triggers = triggers,
-        complexTriggers = complexTriggers,
         triggerGroups = triggerGroups,
         notification = NotificationConfig(
             dndLevel = dndLevel,
@@ -469,26 +464,24 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
         )
     } else null
 
-    // A custom mode whose legacy schedule is migrated into complex triggers
-    // must NOT keep the legacy schedule in the UI model — otherwise the next
-    // save writes both representations (double-scheduling) and a deleted
-    // trigger card resurrects on the next load. Dropping it here makes the
-    // first post-migration save write complexTriggers only.
-    val migratedLegacySchedule = complexTriggers.isEmpty() && hasStoredSchedule && id != "bedtime"
+    // A custom mode whose legacy schedule has no trigger groups is migrated
+    // into a Time trigger group — the new schema's single representation for
+    // schedules. The legacy schedule must NOT be kept in the UI model,
+    // otherwise the next save writes both representations (double-scheduling)
+    // and a deleted trigger card resurrects on the next load.
+    val migratedLegacySchedule = triggerGroups.isEmpty() && hasStoredSchedule && id != "bedtime"
 
-    val triggersList = if (id == "driving") {
-        // Driving auto-detect stays on the legacy DrivingTriggerManager path
-        // (TriggerConfig + DYNAMIC_TRIGGER type). Surfacing complex triggers
-        // here would make ComplexTriggerManager double-manage the mode, and
-        // dropping them self-heals configs written by early v1.3 builds.
+    val migratedTriggerGroups = if (id == "driving") {
+        // Driving auto-detect stays on the DrivingTriggerManager path
+        // (TriggerConfig + DYNAMIC_TRIGGER type). Surfacing trigger groups here
+        // would double-manage the mode, so drop them — the mode has no
+        // user-configured groups by design.
         emptyList()
-    } else if (complexTriggers.isNotEmpty()) {
-        complexTriggers.map { it.toModeTrigger() }
-    } else if (hasStoredSchedule && id != "bedtime") {
-        // Migrate legacy schedule to complex triggers for custom modes
-        listOf(ModeTrigger.Time(schedule!!))
+    } else if (migratedLegacySchedule) {
+        // Migrate legacy schedule to a Time trigger group for custom modes
+        listOf(ModeTriggerGroup.Single(ModeTrigger.Time(schedule!!)))
     } else {
-        emptyList()
+        triggerGroups.map { it.toModeTriggerGroup() }
     }
 
     return Mode(
@@ -525,8 +518,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             drivingAutoDetect = drivingAutoDetect,
             drivingDetectMode = drivingDetectMode,
             drivingTargetDevices = triggers?.bluetooth?.targetMacs?.toSet() ?: emptySet(),
-            triggers = triggersList,
-            triggerGroups = triggerGroups.map { it.toModeTriggerGroup() },
+            triggerGroups = migratedTriggerGroups,
             schedule = if (migratedLegacySchedule) null else schedule
         )
     )

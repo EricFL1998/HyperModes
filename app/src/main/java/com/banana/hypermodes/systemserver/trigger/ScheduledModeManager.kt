@@ -10,6 +10,7 @@ import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ModeType
+import com.banana.hypermodes.systemserver.config.TriggerGroup
 import java.util.Calendar
 
 /**
@@ -47,12 +48,19 @@ class ScheduledModeManager(
             scheduleMode(mode, allowActivation)
         }
 
-        // v1.3 complex time triggers: each mode may carry several Time triggers,
-        // independent of the legacy single-schedule fields above.
+        // Time triggers inside trigger groups: each mode may carry several
+        // Time triggers (Single or inside a Compound group), independent of
+        // the legacy single-schedule fields above.
         modes.forEach { mode ->
-            mode.complexTriggers.forEachIndexed { index, trigger ->
-                if (trigger is ComplexTrigger.Time) {
-                    scheduleTimeTrigger(mode, index, trigger, allowActivation)
+            mode.triggerGroups.forEachIndexed { groupIndex, group ->
+                val triggers = when (group) {
+                    is TriggerGroup.Single -> listOf(group.trigger)
+                    is TriggerGroup.Compound -> group.triggers
+                }
+                triggers.forEachIndexed { triggerIndex, trigger ->
+                    if (trigger is ComplexTrigger.Time) {
+                        scheduleTimeTrigger(mode, groupIndex, triggerIndex, trigger, allowActivation)
+                    }
                 }
             }
         }
@@ -62,7 +70,7 @@ class ScheduledModeManager(
 
     /**
      * Check if the given mode should be active according to its schedule.
-     * Covers both the legacy schedule fields and v1.3 complex Time triggers.
+     * Covers both the schedule fields and Time triggers inside trigger groups.
      */
     fun isModeActive(mode: ModeConfig): Boolean {
         if (mode.type == ModeType.SCHEDULED && mode.scheduleEnabled != false) {
@@ -82,13 +90,19 @@ class ScheduledModeManager(
         // Bedtime's window is owned by the bedtime listener/reconciler.
         if (mode.type == ModeType.BEDTIME) return false
 
-        for (trigger in mode.complexTriggers) {
-            if (trigger !is ComplexTrigger.Time) continue
-            val repeatDays = normalizedDays(trigger.repeatDays)
-            if (isCurrentlyInSchedule(trigger.startTime, trigger.endTime, repeatDays)) {
-                val periodStart = getCurrentPeriodStart(trigger.startTime, repeatDays)
-                if (!engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
-                    return true
+        for (group in mode.triggerGroups) {
+            val triggers = when (group) {
+                is TriggerGroup.Single -> listOf(group.trigger)
+                is TriggerGroup.Compound -> group.triggers
+            }
+            for (trigger in triggers) {
+                if (trigger !is ComplexTrigger.Time) continue
+                val repeatDays = normalizedDays(trigger.repeatDays)
+                if (isCurrentlyInSchedule(trigger.startTime, trigger.endTime, repeatDays)) {
+                    val periodStart = getCurrentPeriodStart(trigger.startTime, repeatDays)
+                    if (!engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
+                        return true
+                    }
                 }
             }
         }
@@ -150,7 +164,13 @@ class ScheduledModeManager(
      * Activation/deactivation still goes through the mode ID, and the engine's
      * isAnyTriggerActive check keeps the mode on while another trigger holds it.
      */
-    private fun scheduleTimeTrigger(mode: ModeConfig, index: Int, trigger: ComplexTrigger.Time, allowActivation: Boolean) {
+    private fun scheduleTimeTrigger(
+        mode: ModeConfig,
+        groupIndex: Int,
+        triggerIndex: Int,
+        trigger: ComplexTrigger.Time,
+        allowActivation: Boolean
+    ) {
         if (mode.type == ModeType.BEDTIME) {
             // The bedtime window is owned by the bedtime listener/reconciler.
             log("Skipping time trigger on bedtime mode: ${mode.name}")
@@ -158,7 +178,7 @@ class ScheduledModeManager(
         }
 
         val repeatDays = normalizedDays(trigger.repeatDays)
-        val alarmKey = "${mode.id}_ct$index"
+        val alarmKey = "${mode.id}_g${groupIndex}_t${triggerIndex}"
 
         log("Scheduling time trigger for mode: ${mode.name}, " +
                 "start=${trigger.startTime}, end=${trigger.endTime}, days=$repeatDays")
@@ -185,8 +205,9 @@ class ScheduledModeManager(
      * Runs directly in system_server without requiring app process.
      *
      * @param alarmKey Key used for the alarm tag/cancellation; defaults to the
-     * mode ID but complex time triggers pass "${modeId}_ct<index>" so several
-     * triggers of one mode can coexist.
+     * mode ID but trigger group time triggers pass
+     * "${modeId}_g<groupIndex>_t<index>" so several triggers of one mode can
+     * coexist.
      */
     private fun scheduleAlarm(
         modeId: String,
@@ -285,14 +306,14 @@ class ScheduledModeManager(
     }
 
     /**
-     * Cancel a specific mode's alarms — the legacy start/end pair plus any
-     * complex time trigger alarms ("${modeId}_ct<index>_start/end").
+     * Cancel a specific mode's alarms — the start/end pair plus any trigger
+     * group time trigger alarms ("${modeId}_g<groupIndex>_t<index>_start/end").
      */
     fun cancelMode(modeId: String) {
         log("Canceling mode: $modeId")
 
         val tags = scheduledAlarms.keys.filter {
-            it == "${modeId}_start" || it == "${modeId}_end" || it.startsWith("${modeId}_ct")
+            it == "${modeId}_start" || it == "${modeId}_end" || it.startsWith("${modeId}_g")
         }
         tags.forEach { tag ->
             scheduledAlarms.remove(tag)?.let { listener ->

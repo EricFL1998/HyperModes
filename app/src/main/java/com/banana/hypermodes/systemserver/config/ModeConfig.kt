@@ -37,9 +37,6 @@ data class ModeConfig(
     // Paused apps
     val pausedApps: List<String>,
 
-    // Complex triggers (v1.3)
-    val complexTriggers: List<ComplexTrigger> = emptyList(),
-
     // Trigger Groups (v2.0) - replaces complexTriggers for new modes
     val triggerGroups: List<TriggerGroup> = emptyList(),
 

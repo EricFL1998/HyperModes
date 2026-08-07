@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeTrigger
+import com.banana.hypermodes.data.ModeTriggerGroup
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -106,7 +107,10 @@ fun IntentTriggerPickerScreen(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
         ) {
             // Show existing intent triggers
-            val intentTriggers = editedMode.settings.triggers.filterIsInstance<ModeTrigger.Intent>()
+            val intentTriggers = editedMode.settings.triggerGroups
+                .filterIsInstance<ModeTriggerGroup.Single>()
+                .map { it.trigger }
+                .filterIsInstance<ModeTrigger.Intent>()
 
             @Composable
             fun resolveIntentName(trigger: ModeTrigger.Intent): String {
@@ -167,9 +171,11 @@ fun IntentTriggerPickerScreen(
                             TextButton(
                                 text = stringResource(R.string.delete),
                                 onClick = {
-                                    val newTriggers = editedMode.settings.triggers - trigger
+                                    val newGroups = editedMode.settings.triggerGroups.filterNot {
+                                        it is ModeTriggerGroup.Single && it.trigger == trigger
+                                    }
                                     editedMode = editedMode.copy(
-                                        settings = editedMode.settings.copy(triggers = newTriggers)
+                                        settings = editedMode.settings.copy(triggerGroups = newGroups)
                                     )
                                     onSave(editedMode)
                                 },
@@ -191,10 +197,11 @@ fun IntentTriggerPickerScreen(
                 }
                 importedConfigs.forEach { config ->
                     val missingIntents = config.intents.filter { action ->
-                        editedMode.settings.triggers.none { t ->
-                            t is ModeTrigger.Intent &&
-                                t.packageName == config.packageName &&
-                                action.intents.any { it == t.activateAction || it == t.deactivateAction }
+                        editedMode.settings.triggerGroups.none { group ->
+                            group is ModeTriggerGroup.Single &&
+                                group.trigger is ModeTrigger.Intent &&
+                                group.trigger.packageName == config.packageName &&
+                                action.intents.any { it == group.trigger.activateAction || it == group.trigger.deactivateAction }
                         }
                     }
                     item {
@@ -211,9 +218,10 @@ fun IntentTriggerPickerScreen(
                                             packageName = config.packageName
                                         )
                                     }
-                                    val combined = editedMode.settings.triggers + newTriggers
+                                    val newGroups = newTriggers.map { ModeTriggerGroup.Single(it) }
+                                    val combined = editedMode.settings.triggerGroups + newGroups
                                     editedMode = editedMode.copy(
-                                        settings = editedMode.settings.copy(triggers = combined)
+                                        settings = editedMode.settings.copy(triggerGroups = combined)
                                     )
                                     onSave(editedMode)
                                 }
@@ -229,10 +237,11 @@ fun IntentTriggerPickerScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 config.intents.forEach { action ->
-                                    val alreadyAdded = editedMode.settings.triggers.any { t ->
-                                        t is ModeTrigger.Intent &&
-                                            t.packageName == config.packageName &&
-                                            action.intents.any { it == t.activateAction || it == t.deactivateAction }
+                                    val alreadyAdded = editedMode.settings.triggerGroups.any { group ->
+                                        group is ModeTriggerGroup.Single &&
+                                            group.trigger is ModeTrigger.Intent &&
+                                            group.trigger.packageName == config.packageName &&
+                                            action.intents.any { it == group.trigger.activateAction || it == group.trigger.deactivateAction }
                                     }
                                     Row(
                                         modifier = Modifier
@@ -460,9 +469,9 @@ fun IntentTriggerPickerScreen(
                                 deactivateAction = deactivateActionInput.takeIf { it.isNotBlank() }?.trim(),
                                 packageName = packageInput.takeIf { it.isNotBlank() }?.trim()
                             )
-                            val newTriggers = editedMode.settings.triggers + newTrigger
+                            val newGroups = editedMode.settings.triggerGroups + ModeTriggerGroup.Single(newTrigger)
                             editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(triggers = newTriggers)
+                                settings = editedMode.settings.copy(triggerGroups = newGroups)
                             )
                             onSave(editedMode)
                             showAddDialog = false

@@ -21,6 +21,7 @@ import com.banana.hypermodes.data.LocationTarget
 import com.banana.hypermodes.data.LocationTransition
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeTrigger
+import com.banana.hypermodes.data.ModeTriggerGroup
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -83,9 +84,9 @@ fun LocationTriggerPickerScreen(
                     transition = selectedTransition
                 )
 
-                val newTriggers = mode.settings.triggers + trigger
+                val newGroups = mode.settings.triggerGroups + ModeTriggerGroup.Single(trigger)
                 val updatedMode = mode.copy(
-                    settings = mode.settings.copy(triggers = newTriggers)
+                    settings = mode.settings.copy(triggerGroups = newGroups)
                 )
                 onSave(updatedMode)
                 onBack()
