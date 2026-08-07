@@ -315,8 +315,15 @@ fun HyperModesApp() {
                         onAutomationActionSelected = { action ->
                             currentScreen = Screen.AutomationEditor(listOf(action.toAutomationBlock()))
                         },
-                        onCreateAutomation = {
-                            currentScreen = Screen.CreateAutomation
+                        onCreateAutomation = { name, icon ->
+                            val newAutomation = SavedAutomation(
+                                name = name,
+                                icon = icon,
+                                blocks = emptyList()
+                            )
+                            AutomationStore.add(context, newAutomation)
+                            automationRefreshTrigger++
+                            currentScreen = Screen.EditAutomation(newAutomation.id)
                         },
                         onEditAutomation = { automation ->
                             currentScreen = Screen.EditAutomation(automation.id)
@@ -996,7 +1003,7 @@ fun MainTabsScreen(
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit,
     onAutomationActionSelected: (com.banana.hypermodes.ui.AutomationAction) -> Unit = {},
-    onCreateAutomation: () -> Unit = {},
+    onCreateAutomation: (name: String, icon: String) -> Unit = { _, _ -> },
     onEditAutomation: (com.banana.hypermodes.automation.SavedAutomation) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -1005,6 +1012,7 @@ fun MainTabsScreen(
     // Local state for CreateModeDialog
     var showCreateDialog by remember { mutableStateOf(false) }
     var showAutomationDialog by remember { mutableStateOf(false) }
+    var showCreateAutomationDialog by remember { mutableStateOf(false) }
 
     // Tab items - using MIUIX icons
     // 模式: Settings (represents switching/toggling modes)
@@ -1058,7 +1066,6 @@ fun MainTabsScreen(
                               showBackButton = true,
                               showFab = false, // FAB will be shown as overlay
                               useFloatingLayout = true, // Signal to use shared bottom padding
-                              onCreateAutomation = onCreateAutomation,
                               onEditAutomation = onEditAutomation
                           )
                     }
@@ -1101,8 +1108,8 @@ fun MainTabsScreen(
                             onCreateCustom()
                         }
                     } else {
-                        // Automations tab
-                        showAutomationDialog = true
+                        // Automations tab: 和模式一样，先选名字和图标
+                        showCreateAutomationDialog = true
                     }
                 },
                 modifier = Modifier
@@ -1118,13 +1125,13 @@ fun MainTabsScreen(
             }
 
             // CreateModeDialog at the top level - will appear above bottom bar
-            // AutomationActionDialog - will appear above bottom bar
-            AutomationActionDialog(
-                show = showAutomationDialog,
-                onDismiss = { showAutomationDialog = false },
-                onActionSelected = { action ->
-                    showAutomationDialog = false
-                    onAutomationActionSelected(action)
+            // CreateAutomationDialog - 与模式创建一致：选择名字和图标
+            CreateAutomationDialog(
+                show = showCreateAutomationDialog,
+                onDismissRequest = { showCreateAutomationDialog = false },
+                onDone = { name, icon ->
+                    showCreateAutomationDialog = false
+                    onCreateAutomation(name, icon)
                 }
             )
             CreateModeDialog(
