@@ -10,7 +10,7 @@
 
     <!-- Welcome Screen -->
     <string name="welcome_title">Welcome to HyperModes</string>
-    <string name="welcome_desc">Minimize distractions and take control of your attention with modes for sleep, work, driving, and everything in between</string>
+    <string name="welcome_desc">为睡眠、工作、驾驶等场景自动调整设备设置</string>
     <string name="setup_required">Setup Required</string>
     <string name="setup_desc">To activate the module, please force-stop DeskClock and reopen it.</string>
     <string name="reload_deskclock">Reload DeskClock</string>

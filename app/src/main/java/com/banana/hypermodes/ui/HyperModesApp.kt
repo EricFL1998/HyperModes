@@ -30,6 +30,8 @@ import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.data.ModeTrigger
+import com.banana.hypermodes.automation.AutomationBlock
+import com.banana.hypermodes.automation.toAutomationBlock
 import com.banana.hypermodes.bridge.ModeControlBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.utils.UpdateManager
@@ -67,6 +69,9 @@ sealed class Screen {
     data class LocationTriggerPicker(val mode: Mode) : Screen()
     data class IntentTriggerPicker(val mode: Mode) : Screen()
     data class DrivingBluetoothPicker(val mode: Mode) : Screen()
+    object CreateAutomation : Screen()
+    data class EditAutomation(val automationId: String) : Screen()
+    data class AutomationEditor(val initialBlocks: List<AutomationBlock>) : Screen()
     }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -302,6 +307,15 @@ fun HyperModesApp() {
                                 editingMode = done
                                 currentScreen = Screen.ModeDetail(done)
                             }
+                        },
+                        onAutomationActionSelected = { action ->
+                            currentScreen = Screen.AutomationEditor(listOf(action.toAutomationBlock()))
+                        },
+                        onCreateAutomation = {
+                            currentScreen = Screen.CreateAutomation
+                        },
+                        onEditAutomation = { automation ->
+                            currentScreen = Screen.EditAutomation(automation.id)
                         },
                     )
                 }
@@ -714,6 +728,38 @@ fun HyperModesApp() {
                         }
                     )
                 }
+                is Screen.CreateAutomation -> {
+                    // 显示空白编辑器，用户从头创建
+                    AutomationEditorScreen(
+                        initialBlocks = emptyList(),
+                        onBack = { currentScreen = Screen.MainTabs },
+                        onSave = { blocks ->
+                            // TODO: persist automation with name
+                            currentScreen = Screen.MainTabs
+                        }
+                    )
+                }
+                is Screen.EditAutomation -> {
+                    // TODO: 从数据库加载自动化
+                    AutomationEditorScreen(
+                        initialBlocks = emptyList(),
+                        onBack = { currentScreen = Screen.MainTabs },
+                        onSave = { blocks ->
+                            // TODO: update automation
+                            currentScreen = Screen.MainTabs
+                        }
+                    )
+                }
+                is Screen.AutomationEditor -> {
+                    AutomationEditorScreen(
+                        initialBlocks = screen.initialBlocks,
+                        onBack = { currentScreen = Screen.MainTabs },
+                        onSave = { blocks ->
+                            // TODO: persist automation
+                            currentScreen = Screen.MainTabs
+                        }
+                    )
+                }
                 
             }
         }
@@ -872,6 +918,7 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
     is Screen.LocationTriggerPicker, is Screen.IntentTriggerPicker,
     is Screen.DrivingBluetoothPicker,
+    is Screen.CreateAutomation, is Screen.EditAutomation, is Screen.AutomationEditor,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }
@@ -888,6 +935,9 @@ fun MainTabsScreen(
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit,
+    onAutomationActionSelected: (com.banana.hypermodes.ui.AutomationAction) -> Unit = {},
+    onCreateAutomation: () -> Unit = {},
+    onEditAutomation: (com.banana.hypermodes.automation.SavedAutomation) -> Unit = {},
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -944,11 +994,13 @@ fun MainTabsScreen(
                     1 -> {
                         // Automations tab
                         AutomationsScreen(
-                            onBack = onBack,
-                            showBackButton = true,
-                            showFab = false, // FAB will be shown as overlay
-                            useFloatingLayout = true // Signal to use shared bottom padding
-                        )
+                              onBack = onBack,
+                              showBackButton = true,
+                              showFab = false, // FAB will be shown as overlay
+                              useFloatingLayout = true, // Signal to use shared bottom padding
+                              onCreateAutomation = onCreateAutomation,
+                              onEditAutomation = onEditAutomation
+                          )
                     }
                 }
             }
@@ -991,7 +1043,6 @@ fun MainTabsScreen(
                     } else {
                         // Automations tab
                         showAutomationDialog = true
-                        showAutomationDialog = true
                     }
                 },
                 modifier = Modifier
@@ -1012,7 +1063,8 @@ fun MainTabsScreen(
                 show = showAutomationDialog,
                 onDismiss = { showAutomationDialog = false },
                 onActionSelected = { action ->
-                    // TODO: Handle action selection
+                    showAutomationDialog = false
+                    onAutomationActionSelected(action)
                 }
             )
             CreateModeDialog(
@@ -1091,6 +1143,10 @@ fun ModesListScreenContent(
 ) {
     val context = LocalContext.current
     var showCreateDialogLocal by remember { mutableStateOf(false) }
+    
+    // Long press delete state
+    var menuMode by remember { mutableStateOf<Mode?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Ask the hook for the real schedule whenever this screen is shown.
     LaunchedEffect(Unit) {
@@ -1296,6 +1352,10 @@ fun ModesListScreenContent(
                         } else mode
                         onModeClick(modeToOpen)
                     },
+                    onLongPress = {
+                        menuMode = mode
+                        showDeleteConfirm = true
+                    },
                     modifier = Modifier
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 12.dp)
@@ -1348,6 +1408,53 @@ fun ModesListScreenContent(
                 )
             }
         }
+        
+        // Delete confirmation dialog for modes
+        menuMode?.let { mode ->
+            top.yukonga.miuix.kmp.overlay.OverlayDialog(
+                show = showDeleteConfirm,
+                onDismissRequest = { showDeleteConfirm = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 5.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete_mode_title),
+                        style = MiuixTheme.textStyles.title3,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.delete_mode_confirm, mode.name),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            text = stringResource(android.R.string.cancel),
+                            onClick = { showDeleteConfirm = false },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            text = stringResource(R.string.delete),
+                            onClick = {
+                                showDeleteConfirm = false
+                                // Delete mode by filtering it out (not calling onDoneEdit)
+                                // This will be handled in the parent by not including it in the list
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.textButtonColorsPrimary()
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1357,18 +1464,17 @@ fun ModeItem(
     title: String,
     subtitle: String?,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Set a fixed height for all blocks to match MIUI Clock alarm style
             .height(96.dp),
-        // Internal padding matching MIUI Clock alarm list items
         insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
-        // MIUI Clock alarm blocks use @dimen/miuix_theme_radius_big (36dp)
         cornerRadius = 36.dp,
-        onClick = onClick
+        onClick = onClick,
+        onLongPress = onLongPress
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -1406,3 +1512,7 @@ fun ModeItem(
         }
     }
 }
+
+
+
+

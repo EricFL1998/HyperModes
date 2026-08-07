@@ -1,71 +1,80 @@
 package com.banana.hypermodes.ui
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
-import com.banana.hypermodes.data.*
-import kotlinx.serialization.json.Json
+import com.banana.hypermodes.automation.SavedAutomation
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Switch
 import top.yukonga.miuix.kmp.basic.*
-
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import top.yukonga.miuix.kmp.window.WindowListPopup
+import androidx.compose.foundation.background
 
 @Composable
 fun AutomationsScreen(
     onBack: () -> Unit,
     showBackButton: Boolean = false,
     showFab: Boolean = true,
-    useFloatingLayout: Boolean = false
+    useFloatingLayout: Boolean = false,
+    onCreateAutomation: () -> Unit = {},
+    onEditAutomation: (SavedAutomation) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollBehavior = MiuixScrollBehavior()
-    var showMenu by remember { mutableStateOf(false) }
-    var showImportDialog by remember { mutableStateOf(false) }
-    var showImportedIntentsDialog by remember { mutableStateOf(false) }
-    var importedConfig by remember { mutableStateOf<IntentConfig?>(null) }
-    var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
-
-    val json = remember {
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
-    }
-
-    // Use the new file picker (ActivityResultContracts.OpenDocument)
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            try {
-                val inputStream = context.contentResolver.openInputStream(it)
-                val content = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
-                if (content != null) {
-                    val config = json.decodeFromString<IntentConfig>(content)
-                    importedConfig = config
-                    showImportDialog = true
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // TODO: Show error toast
-            }
-        }
+    
+    // Long press delete state
+    var menuAutomation by remember { mutableStateOf<SavedAutomation?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    
+    // TODO: 后续从数据库加载
+    var automations by remember {
+        mutableStateOf(
+            listOf(
+                SavedAutomation(
+                    name = "智能夜间模式",
+                    description = "22:00-07:00 自动调节",
+                    blocks = emptyList(),
+                    enabled = true
+                ),
+                SavedAutomation(
+                    name = "省电模式",
+                    description = "电量低于 20%",
+                    blocks = emptyList(),
+                    enabled = false
+                ),
+                SavedAutomation(
+                    name = "工作模式",
+                    description = "工作日 09:00-18:00",
+                    blocks = emptyList(),
+                    enabled = true
+                ),
+                SavedAutomation(
+                    name = "驾驶模式",
+                    description = "连接车载蓝牙时",
+                    blocks = emptyList(),
+                    enabled = false
+                )
+            )
+        )
     }
 
     Scaffold(
@@ -84,52 +93,13 @@ fun AutomationsScreen(
                     }
                 } else {
                     { }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = MiuixIcons.More,
-                                contentDescription = "More options"
-                            )
-                        }
-                        WindowListPopup(
-                            show = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            ListPopupColumn {
-                                DropdownImpl(
-                                    text = stringResource(R.string.import_intent_config),
-                                    optionSize = 2,
-                                    isSelected = false,
-                                    index = 0,
-                                    onSelectedIndexChange = {
-                                        showMenu = false
-                                        filePickerLauncher.launch(arrayOf("application/json"))
-                                    }
-                                )
-                                DropdownImpl(
-                                    text = stringResource(R.string.view_imported_intents),
-                                    optionSize = 2,
-                                    isSelected = false,
-                                    index = 1,
-                                    onSelectedIndexChange = {
-                                        showMenu = false
-                                        showImportedIntentsDialog = true
-                                    }
-                                )
-                            }
-                        }
-                    }
                 }
             )
         },
         floatingActionButton = if (showFab) {
             {
                 FloatingActionButton(
-                    onClick = {
-                        // TODO: Add automation creation logic
-                    }
+                    onClick = onCreateAutomation
                 ) {
                     Text(
                         text = "+",
@@ -142,173 +112,194 @@ fun AutomationsScreen(
             { }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .scrollEndHaptic()
-                .overScrollVertical()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = if (useFloatingLayout) {
-                PaddingValues(
-                    top = padding.calculateTopPadding(),
-                    bottom = BottomLayoutGeometry.contentBottomPadding().calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(top = padding.calculateTopPadding())
+        if (automations.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "🤖",
+                        fontSize = 64.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "还没有自动化任务",
+                        style = MiuixTheme.textStyles.headline1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "点击右下角 + 创建第一个自动化",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
             }
-        ) {
-            // Description text
-            item {
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding())
+            ) {
+                // Description text - 和模式列表一样
                 Text(
-                    text = "自动化功能即将推出...",
+                    text = "根据时间、地点或条件自动执行操作",
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp)
                 )
-            }
-
-
-            // Placeholder content
-            item {
-                Box(
+                
+                // Top spacer - 和模式列表一样
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Grid layout - 2 columns like modes list
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 28.dp, vertical = 100.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .scrollEndHaptic()
+                        .overScrollVertical()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        bottom = if (useFloatingLayout) {
+                            88.dp
+                        } else {
+                            88.dp
+                        }
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "🤖",
-                            fontSize = 64.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "自动化",
-                            style = MiuixTheme.textStyles.headline1,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "根据时间、地点或活动自动触发模式",
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
-                }
-            }
-
-            // Bottom spacer
-            item {
-                if (!useFloatingLayout) {
-                    Spacer(modifier = Modifier.height(80.dp))
-                }
-            }
-        }
-    }
-
-    // Import confirmation dialog
-    if (showImportDialog && importedConfig != null) {
-        top.yukonga.miuix.kmp.overlay.OverlayDialog(
-            show = showImportDialog,
-            onDismissRequest = { showImportDialog = false }
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.import_intent_config_title),
-                    style = MiuixTheme.textStyles.headline2
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.import_intent_config_message, importedConfig?.appName ?: ""),
-                    style = MiuixTheme.textStyles.body1
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.import_intent_config_desc),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TextButton(
-                        text = stringResource(R.string.cancel),
-                        onClick = { showImportDialog = false },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(
-                        text = "导入",
-                        onClick = {
-                            importedConfig?.let { config ->
-                                ImportedIntentStore.save(context, config)
-                                importedConfigs = ImportedIntentStore.loadAll(context)
-                            }
-                            showImportDialog = false
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.textButtonColorsPrimary()
-                    )
-                }
-            }
-        }
-    }
-
-    // Imported intents viewer dialog
-    if (showImportedIntentsDialog) {
-        top.yukonga.miuix.kmp.overlay.OverlayDialog(
-            show = showImportedIntentsDialog,
-            onDismissRequest = { showImportedIntentsDialog = false }
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                if (importedConfigs.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_imported_intents),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    )
-                } else {
-                    importedConfigs.forEach { config ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = config.appName,
-                                    style = MiuixTheme.textStyles.headline2
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                config.intents.forEachIndexed { index, action ->
-                                    Text(
-                                        text = action.name,
-                                        style = MiuixTheme.textStyles.body1,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    if (index != config.intents.lastIndex) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                    }
+                    items(automations) { automation ->
+                        AutomationCard(
+                            automation = automation,
+                            onClick = { onEditAutomation(automation) },
+                            onLongPress = {
+                                menuAutomation = automation
+                                showDeleteConfirm = true
+                            },
+                            onToggle = { enabled ->
+                                automations = automations.map {
+                                    if (it.id == automation.id) it.copy(enabled = enabled) else it
                                 }
                             }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-                TextButton(
-                    text = stringResource(R.string.done),
-                    onClick = { showImportedIntentsDialog = false },
-                    modifier = Modifier.fillMaxWidth()
+            }
+        }
+        
+        // Delete confirmation dialog for automations
+        menuAutomation?.let { automation ->
+            top.yukonga.miuix.kmp.overlay.OverlayDialog(
+                show = showDeleteConfirm,
+                onDismissRequest = { showDeleteConfirm = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 5.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete),
+                        style = MiuixTheme.textStyles.title3,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                    )
+                    Text(
+                        text = "确定要删除「${automation.name}」吗?",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            text = stringResource(android.R.string.cancel),
+                            onClick = { showDeleteConfirm = false },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            text = stringResource(R.string.delete),
+                            onClick = {
+                                showDeleteConfirm = false
+                                // Delete automation
+                                automations = automations.filter { it.id != automation.id }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.textButtonColorsPrimary()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutomationCard(
+    automation: SavedAutomation,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit = {},
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp),
+        insideMargin = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+        cornerRadius = 36.dp,
+        onClick = onClick,
+        onLongPress = onLongPress
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = automation.name,
+                    style = MiuixTheme.textStyles.headline1,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    color = if (automation.enabled) {
+                        MiuixTheme.colorScheme.onSurface
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    }
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (automation.enabled) {
+                        "已启用 · ${automation.description}"
+                    } else {
+                        automation.description
+                    },
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
+            Text(
+                text = "🤖",
+                style = MiuixTheme.textStyles.headline2,
+                modifier = Modifier.padding(start = 16.dp)
+            )
         }
     }
 }
