@@ -31,7 +31,6 @@ import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.data.ModeTrigger
 import com.banana.hypermodes.automation.AutomationBlock
-import com.banana.hypermodes.automation.toAutomationBlock
 import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.bridge.ModeControlBridge
@@ -71,9 +70,7 @@ sealed class Screen {
     data class LocationTriggerPicker(val mode: Mode) : Screen()
     data class IntentTriggerPicker(val mode: Mode) : Screen()
     data class DrivingBluetoothPicker(val mode: Mode) : Screen()
-    object CreateAutomation : Screen()
     data class EditAutomation(val automationId: String) : Screen()
-    data class AutomationEditor(val initialBlocks: List<AutomationBlock>) : Screen()
     }
 
 /** Official ordering: DND, Bedtime, Driving, then custom modes by name. */
@@ -93,6 +90,9 @@ fun HyperModesApp() {
         // required anyway — go straight to the main tabs (modes/automations).
         mutableStateOf<Screen>(Screen.MainTabs)
     }
+    // Remember which main tab the user is on so returning from a detail
+    // screen (e.g. automation editor) lands back on the same tab.
+    var mainTabPage by remember { mutableStateOf(0) }
 
     // Restore the last known schedule immediately so the UI never flashes
     // placeholder times while waiting for the hook's first reply.
@@ -264,6 +264,8 @@ fun HyperModesApp() {
                 is Screen.MainTabs -> {
                     MainTabsScreen(
                         modes = modes,
+                        initialPage = mainTabPage,
+                        onPageChange = { page -> mainTabPage = page },
                         onBack = { (context as? android.app.Activity)?.finish() },
                         onModeClick = { mode ->
                             when {
@@ -311,9 +313,6 @@ fun HyperModesApp() {
                                 editingMode = done
                                 currentScreen = Screen.ModeDetail(done)
                             }
-                        },
-                        onAutomationActionSelected = { action ->
-                            currentScreen = Screen.AutomationEditor(listOf(action.toAutomationBlock()))
                         },
                         onCreateAutomation = { name, icon ->
                             val newAutomation = SavedAutomation(
@@ -739,29 +738,6 @@ fun HyperModesApp() {
                         }
                     )
                 }
-                is Screen.CreateAutomation -> {
-                    // 新建自动化：点击 + 进入全屏编辑器，返回时自动保存
-                    val newAutomation = remember(screen) {
-                        SavedAutomation(name = "新建自动化", blocks = emptyList())
-                    }
-                    AutomationEditorScreen(
-                        automation = newAutomation,
-                        onBack = { currentScreen = Screen.MainTabs },
-                        onSave = { blocks ->
-                            val updated = newAutomation.copy(blocks = blocks)
-                            AutomationStore.add(context, updated)
-                            automationRefreshTrigger++
-                            currentScreen = Screen.MainTabs
-                        },
-                        onRename = { auto ->
-                            automationToRename = auto
-                        },
-                        onDelete = { auto ->
-                            AutomationStore.delete(context, auto.id)
-                            automationRefreshTrigger++
-                        }
-                    )
-                }
                 is Screen.EditAutomation -> {
                     // 从存储加载自动化进行编辑
                     val loaded = remember(screen) {
@@ -770,10 +746,14 @@ fun HyperModesApp() {
                     if (loaded != null) {
                         AutomationEditorScreen(
                             automation = loaded,
-                            onBack = { currentScreen = Screen.MainTabs },
+                            onBack = {
+                                mainTabPage = 1 // 返回时回到自动化 tab
+                                currentScreen = Screen.MainTabs
+                            },
                             onSave = { blocks ->
                                 AutomationStore.update(context, loaded.copy(blocks = blocks))
                                 automationRefreshTrigger++
+                                mainTabPage = 1
                                 currentScreen = Screen.MainTabs
                             },
                             onRename = { auto ->
@@ -782,35 +762,16 @@ fun HyperModesApp() {
                             onDelete = { auto ->
                                 AutomationStore.delete(context, auto.id)
                                 automationRefreshTrigger++
+                                mainTabPage = 1
                                 currentScreen = Screen.MainTabs
                             }
                         )
                     } else {
-                        LaunchedEffect(Unit) { currentScreen = Screen.MainTabs }
-                    }
-                }
-                is Screen.AutomationEditor -> {
-                    // 从操作面板选择第一个操作后进入
-                    val newAutomation = remember(screen) {
-                        SavedAutomation(name = "新建自动化", blocks = screen.initialBlocks)
-                    }
-                    AutomationEditorScreen(
-                        automation = newAutomation,
-                        onBack = { currentScreen = Screen.MainTabs },
-                        onSave = { blocks ->
-                            val updated = newAutomation.copy(blocks = blocks)
-                            AutomationStore.add(context, updated)
-                            automationRefreshTrigger++
+                        LaunchedEffect(Unit) {
+                            mainTabPage = 1
                             currentScreen = Screen.MainTabs
-                        },
-                        onRename = { auto ->
-                            automationToRename = auto
-                        },
-                        onDelete = { auto ->
-                            AutomationStore.delete(context, auto.id)
-                            automationRefreshTrigger++
                         }
-                    )
+                    }
                 }
                 
             }
@@ -985,7 +946,7 @@ private fun Screen.depth(): Int = when (this) {
     is Screen.AppTriggerPicker, is Screen.WifiTriggerPicker, is Screen.BluetoothTriggerPicker,
     is Screen.LocationTriggerPicker, is Screen.IntentTriggerPicker,
     is Screen.DrivingBluetoothPicker,
-    is Screen.CreateAutomation, is Screen.EditAutomation, is Screen.AutomationEditor,
+    is Screen.EditAutomation,
     is Screen.DrivingDetect -> 2
     is Screen.CustomRepeat -> 3
 }
@@ -993,6 +954,8 @@ private fun Screen.depth(): Int = when (this) {
 @Composable
 fun MainTabsScreen(
     modes: List<Mode>,
+    initialPage: Int = 0,
+    onPageChange: (Int) -> Unit = {},
     onBack: () -> Unit,
     onModeClick: (Mode) -> Unit,
     onCreateCustom: () -> Unit,
@@ -1002,7 +965,6 @@ fun MainTabsScreen(
     isCreatingNewMode: Boolean,
     onDismissEdit: () -> Unit,
     onDoneEdit: (Mode) -> Unit,
-    onAutomationActionSelected: (com.banana.hypermodes.ui.AutomationAction) -> Unit = {},
     onCreateAutomation: (name: String, icon: String) -> Unit = { _, _ -> },
     onEditAutomation: (com.banana.hypermodes.automation.SavedAutomation) -> Unit = {},
 ) {
@@ -1011,7 +973,6 @@ fun MainTabsScreen(
 
     // Local state for CreateModeDialog
     var showCreateDialog by remember { mutableStateOf(false) }
-    var showAutomationDialog by remember { mutableStateOf(false) }
     var showCreateAutomationDialog by remember { mutableStateOf(false) }
 
     // Tab items - using MIUIX icons
@@ -1025,7 +986,7 @@ fun MainTabsScreen(
     }
 
     // Pager state for horizontal swiping
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { tabs.size })
 
     // Full-screen root Box: pager/content layer, floating capsule overlay, FAB overlay
     // Wrap in Scaffold only for dialog support (no topBar/bottomBar)
@@ -1087,6 +1048,7 @@ fun MainTabsScreen(
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(index)
                                 }
+                                onPageChange(index)
                             },
                             icon = tab.icon,
                             label = tab.label
