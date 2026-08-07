@@ -114,6 +114,13 @@
     <string name="airplane_mode">飞行模式</string>
     <string name="airplane_mode_desc">禁用所有无线连接</string>
     <string name="airplane_mode_conflict">飞行模式与已启用的WiFi、蓝牙或5G冲突</string>
+    <string name="preferred_sim">默认数据卡</string>
+    <string name="preferred_sim_desc">切换使用哪张卡的移动数据</string>
+    <string name="sim_detecting">正在检测 SIM 卡…</string>
+    <string name="sim_none_detected">未检测到 SIM 卡</string>
+    <string name="sim_slot_1">卡 1</string>
+    <string name="sim_slot_2">卡 2</string>
+    <string name="sim_slot_n">卡 %1$d</string>
     <string name="motion_sickness_relief">晕车缓解</string>
     <string name="motion_sickness_relief_desc">启用晕车缓解服务以减少视觉不适</string>
     <string name="raise_to_wake">抬起亮屏</string>

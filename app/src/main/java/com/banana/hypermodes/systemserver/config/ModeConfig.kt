@@ -186,7 +186,9 @@ data class DeviceConfig(
     val enableBluetooth: Boolean? = null,
     val silentMode: Boolean? = null,
     val airplaneMode: Boolean? = null,
-    val enableMotionSicknessRelief: Boolean? = null
+    val enableMotionSicknessRelief: Boolean? = null,
+    /** Preferred data SIM slot (0 = SIM 1, 1 = SIM 2); null = don't switch. */
+    val preferredSimSlot: Int? = null
 )
 
 enum class ContactFilter {

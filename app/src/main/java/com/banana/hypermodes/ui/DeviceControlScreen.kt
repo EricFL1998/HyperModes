@@ -1,6 +1,11 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
+import android.content.Intent
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
@@ -11,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.Mode
+import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.DropdownSettingItem
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -27,7 +33,44 @@ fun DeviceControlScreen(
     val context = LocalContext.current
     var editedMode by remember { mutableStateOf(mode) }
     var validationError by remember { mutableStateOf<String?>(null) }
+    // Active SIM slots queried from system_server, e.g. [0] or [0,1]. Null = query pending.
+    var simSlots by remember { mutableStateOf<List<Int>?>(null) }
     BackHandler(onBack = onBack)
+
+    // Ask system_server for the inserted SIM layout (apps can't reliably
+    // enumerate SIMs on recent Android).
+    LaunchedEffect(Unit) {
+        val handler = Handler(Looper.getMainLooper())
+        var delivered = false
+        val receiver = object : ResultReceiver(handler) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                if (delivered) return
+                delivered = true
+                simSlots = resultData?.getIntArray(Protocol.EXTRA_SIM_SLOTS)?.toList() ?: emptyList()
+            }
+        }
+        val timeout = Runnable {
+            if (!delivered) {
+                delivered = true
+                simSlots = emptyList()
+            }
+        }
+        handler.postDelayed(timeout, 1500)
+        try {
+            context.sendBroadcast(
+                Intent(Protocol.ACTION_GET_SIM_INFO).apply {
+                    setPackage(Protocol.FRAMEWORK_PACKAGE)
+                    putExtra(Protocol.EXTRA_RESULT_RECEIVER, receiver)
+                }
+            )
+        } catch (t: Throwable) {
+            handler.removeCallbacks(timeout)
+            if (!delivered) {
+                delivered = true
+                simSlots = emptyList()
+            }
+        }
+    }
 
     val scrollBehavior = MiuixScrollBehavior()
 
@@ -50,6 +93,18 @@ fun DeviceControlScreen(
         1 to stringResource(R.string.performance_high),
         2 to stringResource(R.string.performance_power_save)
     )
+
+    // Data SIM options: only offer slots that actually have a SIM inserted.
+    val simOptions = buildList {
+        simSlots?.forEachIndexed { index, slot ->
+            val label = when (slot) {
+                0 -> stringResource(R.string.sim_slot_1)
+                1 -> stringResource(R.string.sim_slot_2)
+                else -> stringResource(R.string.sim_slot_n, slot + 1)
+            }
+            add(slot to label)
+        }
+    }
 
     // Validation function
     fun validateAndSave(newMode: Mode) {
@@ -235,6 +290,36 @@ fun DeviceControlScreen(
                     onValueChange = { value ->
                         val newMode = editedMode.copy(
                             settings = editedMode.settings.copy(airplaneMode = value)
+                        )
+                        validateAndSave(newMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+
+            // Preferred Data SIM (switch SIM 1 / SIM 2)
+            item {
+                DropdownSettingItem(
+                    title = stringResource(R.string.preferred_sim),
+                    subtitle = when {
+                        simSlots == null -> stringResource(R.string.sim_detecting)
+                        simSlots.isNullOrEmpty() -> stringResource(R.string.sim_none_detected)
+                        else -> stringResource(R.string.preferred_sim_desc)
+                    },
+                    selected = editedMode.settings.preferredSimSlot != null,
+                    onToggle = { enabled ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(
+                                preferredSimSlot = if (enabled) simOptions.firstOrNull()?.first ?: 0 else null
+                            )
+                        )
+                        validateAndSave(newMode)
+                    },
+                    value = editedMode.settings.preferredSimSlot ?: (simOptions.firstOrNull()?.first ?: 0),
+                    options = simOptions,
+                    onValueChange = { value ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(preferredSimSlot = value)
                         )
                         validateAndSave(newMode)
                     },

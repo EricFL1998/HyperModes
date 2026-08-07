@@ -53,6 +53,8 @@ data class ModeSettings(
     val enableBluetooth: Boolean? = null,
     val silentMode: Boolean? = null,
     val airplaneMode: Boolean? = null,
+    /** Preferred data SIM slot (0 = SIM 1, 1 = SIM 2); null = don't switch. */
+    val preferredSimSlot: Int? = null,
     val enableRaiseToWake: Boolean? = null,
     val enableWakeForNotifications: Boolean? = null,
     val enableMotionSicknessRelief: Boolean? = null,
@@ -392,7 +394,8 @@ fun Mode.toModeConfig(): ModeConfig {
             enableBluetooth = s.enableBluetooth,
             silentMode = s.silentMode,
             airplaneMode = s.airplaneMode,
-            enableMotionSicknessRelief = s.enableMotionSicknessRelief
+            enableMotionSicknessRelief = s.enableMotionSicknessRelief,
+            preferredSimSlot = s.preferredSimSlot
         ),
         pausedApps = s.pausedApps.toList(),
         contactFilter = contactFilter
@@ -508,6 +511,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             silentMode = device?.silentMode,
             airplaneMode = device?.airplaneMode,
             enableMotionSicknessRelief = device?.enableMotionSicknessRelief,
+            preferredSimSlot = device?.preferredSimSlot,
             enableRaiseToWake = display.enableRaiseToWake,
             enableWakeForNotifications = display.enableWakeForNotifications,
             pausedApps = pausedApps.toSet(),

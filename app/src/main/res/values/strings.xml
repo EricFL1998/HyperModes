@@ -114,6 +114,13 @@
     <string name="airplane_mode">Airplane Mode</string>
     <string name="airplane_mode_desc">Disable all wireless connections</string>
     <string name="airplane_mode_conflict">Airplane mode conflicts with enabled WiFi, Bluetooth, or 5G</string>
+    <string name="preferred_sim">Default Data SIM</string>
+    <string name="preferred_sim_desc">Switch which SIM provides mobile data</string>
+    <string name="sim_detecting">Detecting SIM cards…</string>
+    <string name="sim_none_detected">No SIM card detected</string>
+    <string name="sim_slot_1">SIM 1</string>
+    <string name="sim_slot_2">SIM 2</string>
+    <string name="sim_slot_n">SIM %1$d</string>
     <string name="motion_sickness_relief">Motion Sickness Relief</string>
     <string name="motion_sickness_relief_desc">Enable motion sickness relief service to reduce visual discomfort</string>
     <string name="raise_to_wake">Raise to wake</string>

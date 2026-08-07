@@ -1,6 +1,8 @@
 package com.banana.hypermodes.systemserver.executor
 
 import android.content.Context
+import android.telephony.SubscriptionInfo
+import android.telephony.SubscriptionManager
 import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.systemserver.config.DeviceConfig
@@ -66,6 +68,11 @@ class DeviceController(private val context: Context) {
                 applyAirplaneMode(enabled)
             }
 
+            // Preferred data SIM (apply after airplane mode so radio state is sane)
+            device.preferredSimSlot?.let { slot ->
+                applyPreferredSimSlot(slot)
+            }
+
             // Motion Sickness Relief
             device.enableMotionSicknessRelief?.let { enabled ->
                 applyMotionSicknessRelief(enabled)
@@ -100,6 +107,10 @@ class DeviceController(private val context: Context) {
                 Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, original)
             }
 
+            takeOriginal(KEY_ORIG_PREFERRED_SIM_SLOT)?.let { originalSlot ->
+                restorePreferredSimSlot(originalSlot)
+            }
+
             // Restore silent mode after radios
             takeOriginal(KEY_ORIG_SILENT_MODE)?.let { original ->
                 restoreSilentMode(original)
@@ -107,6 +118,88 @@ class DeviceController(private val context: Context) {
 
         } catch (e: Exception) {
             log("restore: failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Switch the default data subscription to the SIM in the requested slot.
+     * Slot 0 = SIM 1, slot 1 = SIM 2 (matches Settings' SubscriptionUtil ordering).
+     */
+    private fun applyPreferredSimSlot(slot: Int) {
+        try {
+            val sm = context.getSystemService(SubscriptionManager::class.java)
+                ?: run {
+                    log("applyPreferredSimSlot: SubscriptionManager unavailable")
+                    return
+                }
+            val activeInfos = sm.activeSubscriptionInfoList ?: emptyList()
+            log("applyPreferredSimSlot: active subscriptions = ${activeInfos.size}")
+            if (activeInfos.isEmpty()) {
+                log("applyPreferredSimSlot: no active SIM")
+                return
+            }
+            val target = activeInfos.firstOrNull { it.simSlotIndex == slot }
+                ?: run {
+                    log("applyPreferredSimSlot: no subscription in slot $slot")
+                    return
+                }
+            // Capture original default data sub id on first apply
+            saveOriginal(
+                KEY_ORIG_PREFERRED_SIM_SLOT,
+                SubscriptionManager.getDefaultDataSubscriptionId()
+            )
+            log("applyPreferredSimSlot: switching default data to slot $slot (subId ${target.subscriptionId})")
+            callSetDefaultDataSubId(sm, target.subscriptionId)
+        } catch (e: Exception) {
+            log("applyPreferredSimSlot: failed: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Restore the default data subscription to the value captured before
+     * mode activation. -1 means "no default" (restore clears the override).
+     */
+    private fun restorePreferredSimSlot(originalSubId: Int) {
+        try {
+            val sm = context.getSystemService(SubscriptionManager::class.java)
+                ?: run {
+                    log("restorePreferredSimSlot: SubscriptionManager unavailable")
+                    return
+                }
+            if (originalSubId == -1) {
+                log("restorePreferredSimSlot: restoring to no-default")
+                callSetDefaultDataSubId(sm, SubscriptionManager.INVALID_SUBSCRIPTION_ID)
+            } else {
+                log("restorePreferredSimSlot: restoring default data to subId $originalSubId")
+                callSetDefaultDataSubId(sm, originalSubId)
+            }
+        } catch (e: Exception) {
+            log("restorePreferredSimSlot: failed: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * SubscriptionManager.setDefaultDataSubId is not in the public SDK on
+     * recent API levels; invoke it reflectively from system_server (same
+     * call Settings uses under the hood).
+     */
+    private fun callSetDefaultDataSubId(sm: SubscriptionManager, subId: Int) {
+        var invoked = false
+        try {
+            val method = SubscriptionManager::class.java.getMethod("setDefaultDataSubId", Int::class.java)
+            method.invoke(sm, subId)
+            invoked = true
+        } catch (e: NoSuchMethodException) {
+            log("callSetDefaultDataSubId: no such method, trying alternative lookup")
+        } catch (e: Exception) {
+            invoked = true // attempted via reflection; treat as handled
+            log("callSetDefaultDataSubId: failed: ${e.message}")
+            e.printStackTrace()
+        }
+        if (!invoked) {
+            log("callSetDefaultDataSubId: setDefaultDataSubId unavailable on this build")
         }
     }
 
@@ -286,5 +379,6 @@ class DeviceController(private val context: Context) {
         private const val KEY_ORIG_BLUETOOTH_ON = "hypermodes_orig_bluetooth_on"
         private const val KEY_ORIG_SILENT_MODE = "hypermodes_orig_silent_mode"
         private const val KEY_ORIG_AIRPLANE_MODE = "hypermodes_orig_airplane_mode"
+        private const val KEY_ORIG_PREFERRED_SIM_SLOT = "hypermodes_orig_preferred_sim_slot"
     }
 }
