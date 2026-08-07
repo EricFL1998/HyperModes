@@ -27,7 +27,6 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.window.WindowListPopup
 
 @Composable
 fun IntentTriggerPickerScreen(
@@ -37,12 +36,7 @@ fun IntentTriggerPickerScreen(
 ) {
     val context = LocalContext.current
     var editedMode by remember { mutableStateOf(mode) }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var activateActionInput by remember { mutableStateOf("") }
-    var deactivateActionInput by remember { mutableStateOf("") }
-    var packageInput by remember { mutableStateOf("") }
     var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
-    var showAddOptions by remember { mutableStateOf(false) }
     var importedConfig by remember { mutableStateOf<IntentConfig?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
     val json = remember {
@@ -87,40 +81,13 @@ fun IntentTriggerPickerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddOptions = true }) {
+                    IconButton(onClick = {
+                        filePickerLauncher.launch(arrayOf("application/json"))
+                    }) {
                         Icon(
                             imageVector = MiuixIcons.Add,
                             contentDescription = "Add"
                         )
-                    }
-                    WindowListPopup(
-                        show = showAddOptions,
-                        popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
-                        alignment = PopupPositionProvider.Align.TopEnd,
-                        onDismissRequest = { showAddOptions = false }
-                    ) {
-                        ListPopupColumn {
-                            DropdownImpl(
-                                text = stringResource(R.string.add_intent_trigger),
-                                optionSize = 2,
-                                isSelected = false,
-                                index = 0,
-                                onSelectedIndexChange = {
-                                    showAddOptions = false
-                                    showAddDialog = true
-                                }
-                            )
-                            DropdownImpl(
-                                text = stringResource(R.string.import_intent_config),
-                                optionSize = 2,
-                                isSelected = false,
-                                index = 1,
-                                onSelectedIndexChange = {
-                                    showAddOptions = false
-                                    filePickerLauncher.launch(arrayOf("application/json"))
-                                }
-                            )
-                        }
                     }
                 }
             )
@@ -334,100 +301,4 @@ fun IntentTriggerPickerScreen(
         }
     }
 
-    // Add intent dialog
-    OverlayDialog(
-        show = showAddDialog,
-        onDismissRequest = {
-            showAddDialog = false
-            activateActionInput = ""
-            deactivateActionInput = ""
-            packageInput = ""
-        },
-        title = stringResource(R.string.add_intent_trigger)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(R.string.intent_activate_desc),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            top.yukonga.miuix.kmp.basic.TextField(
-                value = activateActionInput,
-                onValueChange = { activateActionInput = it },
-                label = stringResource(R.string.intent_activate),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.intent_deactivate_desc),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            top.yukonga.miuix.kmp.basic.TextField(
-                value = deactivateActionInput,
-                onValueChange = { deactivateActionInput = it },
-                label = stringResource(R.string.intent_deactivate),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            top.yukonga.miuix.kmp.basic.TextField(
-                value = packageInput,
-                onValueChange = { packageInput = it },
-                label = stringResource(R.string.intent_package) + " (" + stringResource(R.string.optional) + ")",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = {
-                        showAddDialog = false
-                        activateActionInput = ""
-                        deactivateActionInput = ""
-                        packageInput = ""
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(
-                    text = stringResource(R.string.add),
-                    onClick = {
-                        // At least one action must be defined
-                        if (activateActionInput.isNotBlank() || deactivateActionInput.isNotBlank()) {
-                            val newTrigger = ModeTrigger.Intent(
-                                activateAction = activateActionInput.takeIf { it.isNotBlank() }?.trim(),
-                                deactivateAction = deactivateActionInput.takeIf { it.isNotBlank() }?.trim(),
-                                packageName = packageInput.takeIf { it.isNotBlank() }?.trim()
-                            )
-                            val newGroups = editedMode.settings.triggerGroups + ModeTriggerGroup.Single(newTrigger)
-                            editedMode = editedMode.copy(
-                                settings = editedMode.settings.copy(triggerGroups = newGroups)
-                            )
-                            onSave(editedMode)
-                            showAddDialog = false
-                            activateActionInput = ""
-                            deactivateActionInput = ""
-                            packageInput = ""
-                        }
-                    },
-                    enabled = activateActionInput.isNotBlank() || deactivateActionInput.isNotBlank(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
 }
