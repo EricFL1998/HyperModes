@@ -3,13 +3,20 @@ package com.banana.hypermodes.ui
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -578,12 +585,22 @@ fun ModeDetailScreen(
                                 subtitle = if (editedMode.settings.allowedApps.isEmpty()) {
                                     stringResource(R.string.no_apps_except)
                                 } else {
-                                    stringResource(R.string.apps_except, editedMode.settings.allowedApps.size)
+                                    ""
                                 },
                                 checked = false,
                                 onCheckedChange = {},
                                 onClick = { onOpenApps(editedMode) },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                subtitleContent = if (editedMode.settings.allowedApps.isEmpty()) {
+                                    null
+                                } else {
+                                    {
+                                        AppIconStack(
+                                            packageNames = editedMode.settings.allowedApps,
+                                            modifier = Modifier.padding(end = 12.dp)
+                                        )
+                                    }
+                                }
                             )
                         }
                     }
@@ -604,12 +621,22 @@ fun ModeDetailScreen(
                         subtitle = if (editedMode.settings.pausedApps.isEmpty()) {
                             stringResource(R.string.no_apps_paused)
                         } else {
-                            stringResource(R.string.apps_paused, editedMode.settings.pausedApps.size)
+                            ""
                         },
                         checked = false,
                         onCheckedChange = {},
                         onClick = { onOpenPausedApps(editedMode) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        subtitleContent = if (editedMode.settings.pausedApps.isEmpty()) {
+                            null
+                        } else {
+                            {
+                                AppIconStack(
+                                    packageNames = editedMode.settings.pausedApps,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                            }
+                        }
                     )
                 }
             }
@@ -1272,7 +1299,8 @@ fun SettingItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    subtitleContent: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -1289,7 +1317,10 @@ fun SettingItem(
                     text = title,
                     style = MiuixTheme.textStyles.body1
                 )
-                if (subtitle.isNotEmpty()) {
+                if (subtitleContent != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    subtitleContent()
+                } else if (subtitle.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
@@ -1314,6 +1345,60 @@ fun SettingItem(
         }
     }
 }
+
+/**
+ * Stacked app icons for the Apps / Paused apps rows: overlapping circular
+ * icons with a small trailing gap instead of a "N apps" text summary.
+ */
+@Composable
+fun AppIconStack(
+    packageNames: Set<String>,
+    modifier: Modifier = Modifier,
+    maxIcons: Int = 5
+) {
+    val context = LocalContext.current
+    val icons = remember(packageNames) {
+        packageNames.take(maxIcons).mapNotNull { pkg ->
+            runCatching {
+                val pm = context.packageManager
+                pm.getApplicationIcon(pkg)
+                    .toStackIconBitmap()
+            }.getOrNull()
+        }
+    }
+    if (icons.isEmpty()) return
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        icons.forEachIndexed { index, bitmap ->
+            val overlap = 12.dp
+            Image(
+                bitmap = bitmap,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(30.dp)
+                    .offset(x = if (index == 0) 0.dp else -overlap * index)
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = MiuixTheme.colorScheme.surface,
+                        shape = CircleShape
+                    )
+            )
+        }
+        // Trailing whitespace after the stack
+        Spacer(modifier = Modifier.width(8.dp))
+    }
+}
+
+private fun android.graphics.drawable.Drawable.toStackIconBitmap(size: Int = 96): androidx.compose.ui.graphics.ImageBitmap =
+    Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bmp ->
+        val canvas = Canvas(bmp)
+        setBounds(0, 0, size, size)
+        draw(canvas)
+    }.asImageBitmap()
 
 @Composable
 fun ScheduleCard(
