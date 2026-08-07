@@ -294,11 +294,19 @@ class DeskClockHook(private val module: XposedModule) {
                         val alarmId = chain.getArg(1) as? Int ?: 0
                         val enabled = chain.getArg(2) as? Boolean ?: false
                         if (alarmId == Int.MIN_VALUE && !enabled) {
-                            log("Bedtime wake alarm disabled permanently in DeskClock")
+                            log("Bedtime wake alarm disabled permanently via AlarmHelper.enableAlarm")
+                            
+                            // Exit zen mode first (same as Alarm.setEnabled hook)
+                            classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                .getDeclaredMethod("exitZenMode", Context::class.java)
+                                .invoke(null, context)
+                            log("wake alarm disabled -> exitZenMode")
+                            
+                            // Then send the bedtime state signal
                             sendBedtimeState(context, false, "ALARM_DISABLED")
                         }
                     } catch (t: Throwable) {
-                        log("enable hook broadcast failed: $t")
+                        log("enableAlarm hook failed: $t")
                     }
                     return result
                 }

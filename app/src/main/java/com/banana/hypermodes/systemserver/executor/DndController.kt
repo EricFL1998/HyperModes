@@ -32,6 +32,13 @@ class DndController(private val context: Context) {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+            // If DND is disabled, just set to ALL and don't save/restore anything
+            if (level == DndLevel.DISABLED) {
+                nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                log("setDndLevel: DND disabled, set to INTERRUPTION_FILTER_ALL (no save/restore)")
+                return
+            }
+
             // Capture original interruption filter on first apply
             val current = nm.currentInterruptionFilter
             saveOriginal(KEY_ORIG_INTERRUPTION_FILTER, current)
