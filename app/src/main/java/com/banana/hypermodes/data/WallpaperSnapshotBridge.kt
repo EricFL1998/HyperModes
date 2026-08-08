@@ -8,6 +8,7 @@ import android.os.Looper
 import android.os.ResultReceiver
 import com.banana.hypermodes.protocol.Protocol
 import java.io.File
+import android.util.Log
 
 /**
  * Ask the system_server bridge to capture the current lock-screen style JSON +
@@ -107,19 +108,28 @@ object WallpaperSnapshotBridge {
         if (previewOnly) {
             cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
         }
+        val lockBytes = data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES)
+        val desktopBytes = data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES)
+        Log.i(
+            "WallpaperSnapshotBridge",
+            "parse: previewOnly=$previewOnly lockBytes=${lockBytes?.size} desktopBytes=${desktopBytes?.size} " +
+                "lockPath=${data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH)} " +
+                "desktopPath=${data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH)} " +
+                "lockJson=${data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)?.length}"
+        )
         val lockImage = persistWallpaper(
             context,
-            data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES),
+            lockBytes,
             data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH),
             "lock_wallpaper.jpg",
-            data.getBoolean(Protocol.EXTRA_PREVIEW_ONLY, false)
+            previewOnly
         )
         val desktopImage = persistWallpaper(
             context,
-            data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES),
+            desktopBytes,
             data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH),
             "desktop_wallpaper.jpg",
-            data.getBoolean(Protocol.EXTRA_PREVIEW_ONLY, false)
+            previewOnly
         )
         val lockJson = data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)
         if (lockImage == null && desktopImage == null && lockJson == null) return null

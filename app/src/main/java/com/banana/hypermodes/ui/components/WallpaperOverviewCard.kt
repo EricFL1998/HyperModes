@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
@@ -38,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.WallpaperSet
 import top.yukonga.miuix.kmp.basic.Card
@@ -119,6 +121,8 @@ fun WallpaperOverviewCard(
                             ?: systemWallpaper?.desktop?.imagePath,
                         which = WallpaperManager.FLAG_SYSTEM
                     ),
+                    templateEditorJson = wallpaper?.lock?.templateEditorJson
+                        ?: systemWallpaper?.lock?.templateEditorJson,
                     onClick = onClick,
                     modifier = Modifier.weight(1f)
                 )
@@ -149,6 +153,70 @@ private fun LockScreenMockup(
     lockscreenJson: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    // 卡片实际像素尺寸（官方预览按真实屏幕尺寸渲染后缩放到这里）
+    var cardSize by remember { mutableStateOf(0 to 0) }
+    // 优先用官方组件渲染（真实壁纸 + 官方时钟样式）；失败回退 Compose 复刻。
+    // 同步创建在 UI 线程，首次几十 ms 可接受；反射全部 try/catch，绝不影响其它功能。
+    val officialView = remember(lockscreenJson, image, cardSize.first, cardSize.second) {
+        if (!lockscreenJson.isNullOrEmpty() && cardSize.first > 0 && cardSize.second > 0) {
+            runCatching {
+                OfficialTemplatePreview.createClockContainer(
+                    context, lockscreenJson, image, cardSize.first, cardSize.second
+                )
+            }.getOrNull()
+        } else {
+            null
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(9f / 19.5f)
+            .onSizeChanged { size -> cardSize = size.width to size.height }
+            .clip(RoundedCornerShape(20.dp))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(onClick = onClick)
+    ) {
+        if (officialView != null) {
+            // 官方组件渲染：真实壁纸 + 官方时钟模板
+            AndroidView(
+                factory = { officialView },
+                modifier = Modifier.fillMaxSize()
+            )
+            // 底部"自定义"胶囊按钮叠加在官方时钟上
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                CustomizePill(onClick = onClick)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        } else {
+            ComposeLockScreenMockup(
+                image = image,
+                lockscreenJson = lockscreenJson,
+                onClick = onClick
+            )
+        }
+    }
+}
+
+/** Compose 复刻版锁屏 mockup（官方组件加载失败时的回退）。 */
+@Composable
+private fun ComposeLockScreenMockup(
+    image: Bitmap?,
+    lockscreenJson: String?,
+    onClick: () -> Unit
 ) {
     // 时钟每分钟刷新，与官方预览一致实时走动
     var now by remember { mutableStateOf(Calendar.getInstance()) }
@@ -203,18 +271,7 @@ private fun LockScreenMockup(
         else -> 26.sp
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(9f / 19.5f)
-            .clip(RoundedCornerShape(20.dp))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .clickable(onClick = onClick)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 壁纸背景（或深色渐变占位）
         MockupBackground(image)
 
@@ -359,13 +416,31 @@ private fun parseColor(clock: JSONObject, key: String): Color? {
 @Composable
 private fun HomeScreenMockup(
     image: Bitmap?,
+    templateEditorJson: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var cardSize by remember { mutableStateOf(0 to 0) }
+    // 优先用官方 HomeTemplateView 渲染桌面（真实壁纸 + 官方图标网格）；
+    // 失败回退 Compose 复刻。
+    val officialView = remember(image, templateEditorJson, cardSize.first, cardSize.second) {
+        if (cardSize.first > 0 && cardSize.second > 0) {
+            runCatching {
+                OfficialTemplatePreview.createHomeContainer(
+                    context, image, cardSize.first, cardSize.second, templateEditorJson
+                )
+            }.getOrNull()
+        } else {
+            null
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(9f / 19.5f)
+            .onSizeChanged { size -> cardSize = size.width to size.height }
             .clip(RoundedCornerShape(20.dp))
             .border(
                 width = 1.dp,
@@ -374,8 +449,35 @@ private fun HomeScreenMockup(
             )
             .clickable(onClick = onClick)
     ) {
-        MockupBackground(image)
+        if (officialView != null) {
+            AndroidView(
+                factory = { officialView },
+                modifier = Modifier.fillMaxSize()
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                CustomizePill(onClick = onClick)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        } else {
+            ComposeHomeScreenMockup(image = image, onClick = onClick)
+        }
+    }
+}
 
+/** Compose 复刻版桌面 mockup（官方组件加载失败时的回退）。 */
+@Composable
+private fun ComposeHomeScreenMockup(
+    image: Bitmap?,
+    onClick: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        MockupBackground(image)
         Column(
             modifier = Modifier
                 .fillMaxSize()
