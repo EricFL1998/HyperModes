@@ -45,6 +45,7 @@ import com.banana.hypermodes.ui.components.CompoundTriggerEditDialog
 import com.banana.hypermodes.ui.components.TriggerGroupCard
 import com.banana.hypermodes.ui.components.BatteryTriggerPickerDialog
 import com.banana.hypermodes.ui.components.WallpaperOverviewCard
+import java.io.File
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
@@ -57,6 +58,27 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowListPopup
+
+/**
+ * 比较两次壁纸快照是否一致（用于判断用户是否真的修改过壁纸）。
+ * 锁屏 JSON、锁屏图、桌面图都相同才算未修改。
+ */
+private fun sameWallpaper(a: WallpaperSet, b: WallpaperSet): Boolean {
+    if (a.lock?.lockscreenJson != b.lock?.lockscreenJson) return false
+    if (!sameImageFile(a.lock?.imagePath, b.lock?.imagePath)) return false
+    if (!sameImageFile(a.desktop?.imagePath, b.desktop?.imagePath)) return false
+    return true
+}
+
+private fun sameImageFile(p1: String?, p2: String?): Boolean {
+    if (p1 == null || p2 == null) return p1 == p2
+    return runCatching {
+        val f1 = File(p1)
+        val f2 = File(p2)
+        if (!f1.exists() || !f2.exists()) return@runCatching false
+        f1.readBytes().contentEquals(f2.readBytes())
+    }.getOrDefault(false)
+}
 
 @Composable
 fun ModeDetailScreen(
@@ -119,6 +141,8 @@ fun ModeDetailScreen(
     var pendingWallpaperCapture by remember(mode.id) { mutableStateOf(false) }
     // 系统当前壁纸快照（详情页进入时拉取一次，未配置时作为预览底图/锁屏样式）
     var systemWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
+    // 打开编辑器前的系统快照基线，用于返回后判断用户是否真的改过
+    var beforeWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
     LaunchedEffect(mode.id) {
         WallpaperSnapshotBridge.captureCurrent(context) { snapshot ->
             systemWallpaper = snapshot
@@ -131,7 +155,12 @@ fun ModeDetailScreen(
             if (event == Lifecycle.Event.ON_RESUME && pendingWallpaperCapture) {
                 pendingWallpaperCapture = false
                 WallpaperSnapshotBridge.capture(context, editedMode.id) { snapshot ->
-                    if (snapshot != null) {
+                    // 与打开前的系统快照对比：没改过就不保存，
+                    // 避免"只是打开编辑器看一眼"就出现"恢复默认"按钮
+                    val before = beforeWallpaper
+                    val unchanged = before != null && snapshot != null &&
+                        sameWallpaper(before, snapshot)
+                    if (snapshot != null && !unchanged) {
                         editedMode = editedMode.copy(
                             settings = editedMode.settings.copy(wallpaper = snapshot)
                         )
@@ -572,6 +601,7 @@ fun ModeDetailScreen(
                     wallpaper = editedMode.settings.wallpaper,
                     systemWallpaper = systemWallpaper,
                     onClick = {
+                        beforeWallpaper = systemWallpaper
                         pendingWallpaperCapture = true
                         onOpenWallpaper(editedMode)
                     },

@@ -51,7 +51,8 @@ object WallpaperSnapshotBridge {
             onResult(result)
         }
         val timeout = Runnable { deliver(null) }
-        handler.postDelayed(timeout, 2000)
+        // 解码压缩壁纸 + 跨进程回传需要时间，放宽到 5s
+        handler.postDelayed(timeout, 5000)
 
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
@@ -80,13 +81,15 @@ object WallpaperSnapshotBridge {
             context,
             data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES),
             data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH),
-            "lock_wallpaper.jpg"
+            "lock_wallpaper.jpg",
+            data.getBoolean(Protocol.EXTRA_PREVIEW_ONLY, false)
         )
         val desktopImage = persistWallpaper(
             context,
             data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES),
             data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH),
-            "desktop_wallpaper.jpg"
+            "desktop_wallpaper.jpg",
+            data.getBoolean(Protocol.EXTRA_PREVIEW_ONLY, false)
         )
         val lockJson = data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)
         if (lockImage == null && desktopImage == null && lockJson == null) return null
@@ -124,11 +127,16 @@ object WallpaperSnapshotBridge {
         context: Context,
         bytes: ByteArray?,
         fallbackPath: String?,
-        fileName: String
+        fileName: String,
+        previewOnly: Boolean
     ): String? {
         if (bytes != null && bytes.isNotEmpty()) {
             return runCatching {
-                val dir = File(context.filesDir, "wallpapers")
+                // 预览快照与模式保存分目录，避免互相覆盖
+                val dir = File(
+                    File(context.filesDir, "wallpapers"),
+                    if (previewOnly) "preview" else "mode"
+                )
                 dir.mkdirs()
                 val file = File(dir, fileName)
                 file.writeBytes(bytes)

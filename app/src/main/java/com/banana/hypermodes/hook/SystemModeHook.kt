@@ -353,12 +353,14 @@ class SystemModeHook(private val module: XposedModule) {
         }
     }
 
-    /** 解码壁纸源图，等比缩放到预览尺寸，JPEG 压缩成字节（Binder 传大图会超限）。 */
+    /** 解码壁纸源图，等比缩放到预览尺寸，JPEG 压缩成字节。
+     *  两张图 + JSON 一起走 ResultReceiver，Binder 单次事务约 1MB，
+     *  所以尺寸/质量都要保守，避免 TransactionTooLargeException。 */
     private fun encodePreview(file: File): ByteArray? {
         return runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(file.absolutePath, bounds)
-            val maxSide = 1080
+            val maxSide = 640
             var sample = 1
             while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) {
                 sample *= 2
@@ -366,7 +368,7 @@ class SystemModeHook(private val module: XposedModule) {
             val opts = BitmapFactory.Options().apply { inSampleSize = sample }
             val bmp = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@runCatching null
             val out = ByteArrayOutputStream()
-            bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            bmp.compress(Bitmap.CompressFormat.JPEG, 75, out)
             bmp.recycle()
             out.toByteArray()
         }.getOrNull()

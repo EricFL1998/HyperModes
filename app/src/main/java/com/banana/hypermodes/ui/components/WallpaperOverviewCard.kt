@@ -483,13 +483,18 @@ private fun MockupBackground(image: Bitmap?) {
     }
 }
 
-/** 桌面 mockup 里的半透明白色占位块（图标/组件）。 */
+/** 桌面 mockup 里的半透明浅蓝占位块（图标/组件，仿官方桌面预览）。 */
 @Composable
 private fun PlaceholderBlock(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.White.copy(alpha = 0.28f))
+            .background(Color(0xFF7EC8FF).copy(alpha = 0.35f))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(6.dp)
+            )
     )
 }
 
