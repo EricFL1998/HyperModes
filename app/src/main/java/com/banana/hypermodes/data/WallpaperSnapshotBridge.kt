@@ -21,6 +21,33 @@ import java.io.File
  */
 object WallpaperSnapshotBridge {
 
+    private fun previewDir(context: Context): File =
+        File(File(context.filesDir, "wallpapers"), "preview")
+
+    /**
+     * 同步读取上次缓存的系统壁纸预览（无跨进程等待），
+     * 用于详情页进入时立即显示，随后再后台刷新。
+     */
+    fun readCachedCurrent(context: Context): WallpaperSet? {
+        val dir = previewDir(context)
+        val lockFile = File(dir, "lock_wallpaper.jpg")
+        val desktopFile = File(dir, "desktop_wallpaper.jpg")
+        val lockJsonFile = File(dir, "lockscreen.json")
+        if (!lockFile.exists() && !desktopFile.exists()) return null
+        return WallpaperSet(
+            lock = if (lockFile.exists()) {
+                WallpaperItem(
+                    imagePath = lockFile.absolutePath,
+                    lockscreenJson = runCatching { lockJsonFile.takeIf { it.exists() }?.readText() }.getOrNull(),
+                    which = 2
+                )
+            } else null,
+            desktop = if (desktopFile.exists()) {
+                WallpaperItem(imagePath = desktopFile.absolutePath, which = 1)
+            } else null
+        )
+    }
+
     /**
      * Capture the current lock-screen style JSON + wallpaper files into a shared
      * preview dir (never overwrites a mode's saved wallpaper). Used when entering
@@ -57,7 +84,7 @@ object WallpaperSnapshotBridge {
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 handler.removeCallbacks(timeout)
-                deliver(parse(context, resultData))
+                deliver(parse(context, resultData, previewOnly))
             }
         }
         try {
@@ -75,8 +102,11 @@ object WallpaperSnapshotBridge {
         }
     }
 
-    private fun parse(context: Context, data: Bundle?): WallpaperSet? {
+    private fun parse(context: Context, data: Bundle?, previewOnly: Boolean): WallpaperSet? {
         if (data == null) return null
+        if (previewOnly) {
+            cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
+        }
         val lockImage = persistWallpaper(
             context,
             data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES),
@@ -144,5 +174,15 @@ object WallpaperSnapshotBridge {
             }.getOrNull()
         }
         return fallbackPath
+    }
+
+    /** preview 模式额外缓存锁屏 JSON，供 readCachedCurrent 立即恢复样式。 */
+    private fun cacheLockscreenJson(context: Context, json: String?) {
+        if (json.isNullOrEmpty()) return
+        runCatching {
+            val dir = previewDir(context)
+            dir.mkdirs()
+            File(dir, "lockscreen.json").writeText(json)
+        }
     }
 }

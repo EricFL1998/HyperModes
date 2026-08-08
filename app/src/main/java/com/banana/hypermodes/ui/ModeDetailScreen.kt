@@ -144,8 +144,11 @@ fun ModeDetailScreen(
     // 打开编辑器前的系统快照基线，用于返回后判断用户是否真的改过
     var beforeWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
     LaunchedEffect(mode.id) {
+        // 先用上次缓存的预览立即显示，避免每次进详情页都等 1-2s 跨进程拉取
+        systemWallpaper = WallpaperSnapshotBridge.readCachedCurrent(context)
+        // 后台刷新最新快照
         WallpaperSnapshotBridge.captureCurrent(context) { snapshot ->
-            systemWallpaper = snapshot
+            if (snapshot != null) systemWallpaper = snapshot
         }
     }
 

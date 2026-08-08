@@ -30,6 +30,7 @@ import com.banana.hypermodes.data.DefaultModes
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.data.ModeTrigger
+import com.banana.hypermodes.data.WallpaperSnapshotBridge
 import com.banana.hypermodes.automation.AutomationBlock
 import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
@@ -156,6 +157,8 @@ fun HyperModesApp() {
     LaunchedEffect(Unit) {
         DeskClockState.restore(context)
         RefreshRateManager.initialize(context)
+        // 预热系统壁纸快照缓存：详情页进入时直接读缓存，零等待显示真实壁纸
+        WallpaperSnapshotBridge.captureCurrent(context) { /* 缓存已落盘 */ }
     }
 
     // Auto-update check on startup
