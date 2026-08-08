@@ -96,15 +96,14 @@ object OfficialTemplatePreview {
         context: Context,
         wallpaper: Bitmap?,
         targetWidthPx: Int,
-        targetHeightPx: Int,
-        templateEditorJson: String?
+        targetHeightPx: Int
     ): FrameLayout? {
         var lastError: Throwable? = null
         for (pkg in SOURCE_PACKAGES) {
             try {
                 val host = createHost(context, pkg) ?: continue
                 val container = buildHomeContainer(
-                    host, wallpaper, targetWidthPx, targetHeightPx, templateEditorJson
+                    host, wallpaper, targetWidthPx, targetHeightPx
                 )
                 if (container != null) {
                     Log.i(TAG, "official home created from $pkg")
@@ -149,21 +148,7 @@ object OfficialTemplatePreview {
         // 2. 反射构造 ClockBean 并填充字段
         val beanCls = host.classLoader.loadClass(CLOCK_BEAN_CLS)
         val bean = beanCls.getConstructor(String::class.java).newInstance(fields.templateId ?: "classic")
-        fun setInt(name: String, value: Int) {
-            runCatching { beanCls.getMethod(name, Int::class.javaPrimitiveType).invoke(bean, value) }
-        }
-        fun setBool(name: String, value: Boolean) {
-            runCatching { beanCls.getMethod(name, Boolean::class.javaPrimitiveType).invoke(bean, value) }
-        }
-        setInt("setPrimaryColor", fields.primaryColor)
-        setInt("setSecondaryColor", fields.secondaryColor)
-        setInt("setStyle", fields.style)
-        setInt("setClockWeight", fields.clockWeight)
-        setInt("setClockEffect", fields.clockEffect)
-        setBool("setAutoPrimaryColor", fields.isAutoPrimaryColor)
-        setBool("setAutoSecondaryColor", fields.isAutoSecondaryColor)
-        setBool("setDiffHourMinuteColor", fields.isDiffHourMinuteColor)
-        setBool("setEnableDiffusion", fields.enableDiffusion)
+        fillClockBean(beanCls, bean, fields)
 
         // 3. 反射创建官方 MiuiClockView。官方设置（SettingsMyTemplateViewHolder）
         //    是"按真实屏幕尺寸创建模板视图 + scaleX/scaleY 整体缩放到卡片"：
@@ -179,13 +164,7 @@ object OfficialTemplatePreview {
         val targetScaleY = if (screenH > 0) targetHeightPx.toFloat() / screenH.toFloat() else 1f
 
         // 4. init(clockBean, false) -> build() -> 渲染官方时钟布局
-        val initMethod = clockViewCls.getMethod(
-            "init",
-            beanCls,
-            Int::class.javaPrimitiveType,
-            Boolean::class.javaPrimitiveType
-        )
-        initMethod.invoke(clockView, bean, 0, false)
+        initClockView(clockViewCls, clockView, bean, beanCls)
 
         // 5. 组装：壁纸背景 + 官方时钟，套一个圆角裁切容器
         val root = FrameLayout(host.context)
@@ -222,43 +201,101 @@ object OfficialTemplatePreview {
             root.addView(bg)
         }
         // 官方时钟：全屏尺寸 + 左上角缩放，和 createScaledPreviewTemplateView 一致
+        addScaledClockView(root, clockView, screenW, screenH, targetScaleX, targetScaleY)
+
+        // 6. oversize_* 是双层时钟（官方 OversizeBTemplateView）：
+        //    背景层 = templateId（如 oversize_b，分钟层），
+        //    前景层 = templateId + "_hour"（如 oversize_b_hour，小时层），
+        //    前景覆盖在背景之上。缺失小时层会导致只显示分钟。
+        val templateId = fields.templateId
+        if (templateId != null && templateId.startsWith("oversize")) {
+            runCatching {
+                val foreTemplate = templateId + "_hour"
+                val foreBean = beanCls.getConstructor(String::class.java).newInstance(foreTemplate)
+                // 前景小时层复用主 bean 的颜色/字重字段（官方 initTemplateBean 同样复制）
+                fillClockBean(beanCls, foreBean, fields)
+                val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
+                initClockView(clockViewCls, foreView, foreBean, beanCls)
+                addScaledClockView(root, foreView, screenW, screenH, targetScaleX, targetScaleY)
+                Log.i(TAG, "oversize fore clock layer added: $foreTemplate")
+            }.onFailure { t ->
+                Log.w(TAG, "oversize fore clock layer failed", t)
+            }
+        }
+        return root
+    }
+
+    /** 填充 ClockBean 字段（颜色/字重/特效），主层与前景层共用。 */
+    private fun fillClockBean(
+        beanCls: Class<*>,
+        bean: Any,
+        fields: ClockBeanFields
+    ) {
+        fun setInt(name: String, value: Int) {
+            runCatching { beanCls.getMethod(name, Int::class.javaPrimitiveType).invoke(bean, value) }
+        }
+        fun setBool(name: String, value: Boolean) {
+            runCatching { beanCls.getMethod(name, Boolean::class.javaPrimitiveType).invoke(bean, value) }
+        }
+        setInt("setPrimaryColor", fields.primaryColor)
+        setInt("setSecondaryColor", fields.secondaryColor)
+        setInt("setStyle", fields.style)
+        setInt("setClockWeight", fields.clockWeight)
+        setInt("setClockEffect", fields.clockEffect)
+        setBool("setAutoPrimaryColor", fields.isAutoPrimaryColor)
+        setBool("setAutoSecondaryColor", fields.isAutoSecondaryColor)
+        setBool("setDiffHourMinuteColor", fields.isDiffHourMinuteColor)
+        setBool("setEnableDiffusion", fields.enableDiffusion)
+    }
+
+    /** 反射调用 MiuiClockView.init(clockBean, displayType, async)。 */
+    private fun initClockView(
+        clockViewCls: Class<*>,
+        clockView: View,
+        bean: Any,
+        beanCls: Class<*>
+    ) {
+        val initMethod = clockViewCls.getMethod(
+            "init",
+            beanCls,
+            Int::class.javaPrimitiveType,
+            Boolean::class.javaPrimitiveType
+        )
+        initMethod.invoke(clockView, bean, 0, false)
+    }
+
+    /** 以全屏尺寸 + 左上角缩放挂到 root（与 createScaledPreviewTemplateView 一致）。 */
+    private fun addScaledClockView(
+        root: FrameLayout,
+        clockView: View,
+        screenW: Int,
+        screenH: Int,
+        scaleX: Float,
+        scaleY: Float
+    ) {
         clockView.layoutParams = FrameLayout.LayoutParams(screenW, screenH)
-        clockView.scaleX = targetScaleX
-        clockView.scaleY = targetScaleY
+        clockView.scaleX = scaleX
+        clockView.scaleY = scaleY
         clockView.pivotX = 0f
         clockView.pivotY = 0f
         root.addView(clockView)
-        return root
     }
 
     private fun buildHomeContainer(
         host: Host,
         wallpaper: Bitmap?,
         targetWidthPx: Int,
-        targetHeightPx: Int,
-        templateEditorJson: String?
+        targetHeightPx: Int
     ): FrameLayout? {
         val screenW = host.context.resources.displayMetrics.widthPixels
         val screenH = host.context.resources.displayMetrics.heightPixels
         val targetScaleX = if (screenW > 0) targetWidthPx.toFloat() / screenW.toFloat() else 1f
         val targetScaleY = if (screenH > 0) targetHeightPx.toFloat() / screenH.toFloat() else 1f
 
-        // 1. 构造官方 CommonConfig（优先从真实 JSON 反序列化，失败用空配置）
-        val commonConfig = buildCommonConfig(host, templateEditorJson) ?: return null
-
-        // 2. 反射创建官方 HomeTemplateView，按官方设置预览方式缩放
-        val homeView = createScaledHomeTemplateView(host, screenW, screenH, targetScaleX, targetScaleY)
-            ?: return null
-
-        // 3. loadTemplate(CommonConfig) 渲染真实壁纸层 + 图标网格层
-        val loadMethod = runCatching {
-            homeView.javaClass.getMethod("loadTemplate", commonConfig.javaClass)
-        }.getOrNull()
-        if (loadMethod != null) {
-            loadMethod.invoke(homeView, commonConfig)
-        }
-
-        // 4. 组装：真实壁纸（兜底）+ 官方桌面模板
+        // 1. 组装：真实壁纸 + 官方桌面图标网格层（kg_miui_home_desktop_*）。
+        //    官方 HomeTemplateView 的父类静态初始化依赖 AOD 进程单例
+        //    （EditorApplicationProxy.getApplication），第三方进程加载会崩，
+        //    所以直接用官方图标网格资源叠加在真实壁纸上，效果等价且零单例依赖。
         val root = FrameLayout(host.context)
         root.layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -289,75 +326,71 @@ object OfficialTemplatePreview {
             }
             root.addView(bg)
         }
-        homeView.layoutParams = FrameLayout.LayoutParams(screenW, screenH)
-        root.addView(homeView)
+        // 官方桌面图标网格：深色壁纸用白色图标，浅色壁纸用黑色图标
+        val iconRes = resolveHomeDesktopDrawable(host, wallpaper)
+        if (iconRes != 0) {
+            val iconLayer = ImageView(host.context).apply {
+                setImageResource(iconRes)
+                scaleType = ImageView.ScaleType.FIT_XY
+                layoutParams = FrameLayout.LayoutParams(screenW, screenH)
+                scaleX = targetScaleX
+                scaleY = targetScaleY
+                pivotX = 0f
+                pivotY = 0f
+            }
+            root.addView(iconLayer)
+        }
         return root
     }
 
-    /** 反射调用官方 TemplateViewFactory.createScaledPreviewHomeTemplateView。 */
-    private fun createScaledHomeTemplateView(
+    /** 解析官方桌面图标网格 drawable 资源 id（白色=深色壁纸，黑色=浅色壁纸）。 */
+    private fun resolveHomeDesktopDrawable(
         host: Host,
-        screenW: Int,
-        screenH: Int,
-        scaleX: Float,
-        scaleY: Float
-    ): View? {
-        val factoryCls = host.classLoader.loadClass(TEMPLATE_FACTORY_CLS)
-        val factory = factoryCls.getField("INSTANCE").get(null)
-        val lp = android.widget.FrameLayout.LayoutParams(screenW, screenH)
-        val method = factoryCls.getMethod(
-            "createScaledPreviewHomeTemplateView",
-            Context::class.java,
-            android.widget.FrameLayout.LayoutParams::class.java,
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-            Boolean::class.javaPrimitiveType
+        wallpaper: Bitmap?
+    ): Int {
+        // 深色壁纸用白色图标（kg_miui_home_desktop_white），浅色壁纸用黑色图标。
+        // 官方判断：CommonUtils.isDarkWallpaper = MiuiWallpaperColors
+        //   .generateWallpaperColors(bitmap).getColorHints() & 1 == 0
+        val dark = wallpaper == null || isDarkByOfficialHints(host, wallpaper)
+        val name = if (dark) "kg_miui_home_desktop_white" else "kg_miui_home_desktop_black"
+        return host.context.resources.getIdentifier(
+            name,
+            "drawable",
+            host.context.packageName
         )
-        return method.invoke(factory, host.context, lp, scaleX, scaleY, false) as? View
     }
 
     /**
-     * 构造官方 CommonConfig。优先用官方 Gson 从 constant_template_editor_info
-     * 反序列化（含 lockscreenInfo + homeInfo）；失败时构造最小空配置。
+     * 用官方 MiuiWallpaperColors 判断深色壁纸（与 CommonUtils.isDarkWallpaper
+     * 完全一致）：generateWallpaperColors(bitmap).getColorHints() & 1 == 0。
+     * 反射调用，失败回退平均亮度判断。
      */
-    private fun buildCommonConfig(host: Host, templateEditorJson: String?): Any? {
-        // 方式一：官方 CommonConfig.Companion.fromJson(json, fallback)
-        if (!templateEditorJson.isNullOrEmpty()) {
-            val fromJson = runCatching {
-                val configCls = host.classLoader.loadClass(COMMON_CONFIG_CLS)
-                val companion = configCls.getField("Companion").get(null)
-                val method = companion.javaClass.getMethod(
-                    "fromJson",
-                    String::class.java,
-                    String::class.java
-                )
-                method.invoke(companion, templateEditorJson, null)
-            }.getOrNull()
-            if (fromJson != null) return fromJson
-        }
-        // 方式二：最小空配置 new CommonConfig(null, 0, 3, new TemplateConfig(), new HomeConfig(...))
+    private fun isDarkByOfficialHints(host: Host, bmp: Bitmap): Boolean {
         return runCatching {
-            val configCls = host.classLoader.loadClass(COMMON_CONFIG_CLS)
-            val templateConfigCls = host.classLoader.loadClass(TEMPLATE_CONFIG_CLS)
-            val homeConfigCls = host.classLoader.loadClass(HOME_CONFIG_CLS)
-            val wallpaperInfoCls = host.classLoader.loadClass(WALLPAPER_INFO_CLS)
-
-            val wallpaperInfo = wallpaperInfoCls.getConstructor().newInstance()
-            val homeConfig = homeConfigCls.getConstructor(
-                Int::class.javaPrimitiveType,
-                wallpaperInfoCls,
-                wallpaperInfoCls,
-                Int::class.javaPrimitiveType
-            ).newInstance(0, wallpaperInfo, null, 0)
-            val lockscreenInfo = templateConfigCls.getConstructor().newInstance()
-            configCls.getConstructor(
-                String::class.java,
-                Long::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                templateConfigCls,
-                homeConfigCls
-            ).newInstance(null, 0L, 3, lockscreenInfo, homeConfig)
-        }.getOrNull()
+            val colorsCls = host.classLoader.loadClass(
+                "com.miui.miwallpaper.material.utils.MiuiWallpaperColors"
+            )
+            val method = colorsCls.getMethod("generateWallpaperColors", Bitmap::class.java)
+            val colors = method.invoke(null, bmp)
+            val hints = colors.javaClass.getMethod("getColorHints").invoke(colors) as Int
+            (hints and 1) == 0
+        }.getOrElse {
+            // 回退：平均亮度低视为深色
+            var sum = 0L
+            var count = 0
+            val step = 8
+            for (y in 0 until bmp.height step step) {
+                for (x in 0 until bmp.width step step) {
+                    val c = bmp.getPixel(x, y)
+                    val r = (c shr 16) and 0xFF
+                    val g = (c shr 8) and 0xFF
+                    val b = c and 0xFF
+                    sum += (r + g + b) / 3
+                    count++
+                }
+            }
+            count == 0 || sum / count < 128
+        }
     }
 
     /** 从真实锁屏 JSON 提取 ClockBean 需要的字段（字段名与官方 ClockBean 一致）。 */

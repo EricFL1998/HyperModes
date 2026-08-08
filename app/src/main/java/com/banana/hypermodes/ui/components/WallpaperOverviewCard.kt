@@ -4,7 +4,6 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,10 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,11 +41,6 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import kotlinx.coroutines.delay
-import org.json.JSONObject
 
 /**
  * 壁纸概览大卡片：复刻官方个性化界面顶部的预览样式
@@ -121,8 +111,6 @@ fun WallpaperOverviewCard(
                             ?: systemWallpaper?.desktop?.imagePath,
                         which = WallpaperManager.FLAG_SYSTEM
                     ),
-                    templateEditorJson = wallpaper?.lock?.templateEditorJson
-                        ?: systemWallpaper?.lock?.templateEditorJson,
                     onClick = onClick,
                     modifier = Modifier.weight(1f)
                 )
@@ -201,211 +189,7 @@ private fun LockScreenMockup(
                 CustomizePill(onClick = onClick)
                 Spacer(modifier = Modifier.height(4.dp))
             }
-        } else {
-            ComposeLockScreenMockup(
-                image = image,
-                lockscreenJson = lockscreenJson,
-                onClick = onClick
-            )
         }
-    }
-}
-
-/** Compose 复刻版锁屏 mockup（官方组件加载失败时的回退）。 */
-@Composable
-private fun ComposeLockScreenMockup(
-    image: Bitmap?,
-    lockscreenJson: String?,
-    onClick: () -> Unit
-) {
-    // 时钟每分钟刷新，与官方预览一致实时走动
-    var now by remember { mutableStateOf(Calendar.getInstance()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(30_000)
-            now = Calendar.getInstance()
-        }
-    }
-    val hour = String.format("%02d", now.get(Calendar.HOUR_OF_DAY))
-    val minute = String.format("%02d", now.get(Calendar.MINUTE))
-    val date = SimpleDateFormat("M/d EEE", Locale.CHINA).format(now.time)
-    // 解析官方锁屏 JSON 的时钟样式
-    val clockStyle = remember(lockscreenJson) { parseClockStyle(lockscreenJson) }
-    // isAutoPrimaryColor=true 或颜色无效时官方会从壁纸自动取色，
-    // 这里回退白色（壁纸通常是深色，白色对比度最好）
-    val primaryColor = if (clockStyle.isAutoPrimaryColor) {
-        Color.White
-    } else {
-        clockStyle.primaryColor ?: Color.White
-    }
-    val secondaryColor = if (clockStyle.isAutoSecondaryColor) {
-        primaryColor.copy(alpha = 0.75f)
-    } else {
-        clockStyle.secondaryColor ?: primaryColor.copy(alpha = 0.75f)
-    }
-    val template = clockStyle.templateId ?: "classic"
-    // oversize_*：超大时钟（前景小时 + 背景分钟重叠），日期左下角
-    val oversize = template.startsWith("oversize")
-    // magazine_*：杂志风（日期大、时间小）
-    val magazine = template.startsWith("magazine")
-    // classic_*：经典大字时钟
-    val classic = template.startsWith("classic") || template == "rhombus"
-    // clockWeight：官方字重（clockInfo.clockWeight，如 420），映射到 Compose 字重
-    val fontWeight = when {
-        clockStyle.clockWeight >= 600 -> FontWeight.SemiBold
-        clockStyle.clockWeight >= 500 -> FontWeight.Medium
-        clockStyle.clockWeight >= 400 -> FontWeight.Normal
-        clockStyle.clockWeight > 0 -> FontWeight.Light
-        else -> FontWeight.Light
-    }
-    val hourSize = when {
-        oversize -> 60.sp
-        magazine -> 30.sp
-        classic -> 44.sp
-        else -> 44.sp
-    }
-    val minuteSize = when {
-        oversize -> 26.sp
-        magazine -> 30.sp
-        classic -> 26.sp
-        else -> 26.sp
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 壁纸背景（或深色渐变占位）
-        MockupBackground(image)
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-            // 时钟：oversize 模板为前后双层时钟，小时为前景（前景小时 + 背景分钟重叠），
-            // 分钟在底层、右对齐偏右半透明；小时覆盖其上。参考官方
-            // OversizeBHourClock/OversizeBMinuteClock 布局。
-            if (oversize) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = minute,
-                        fontSize = hourSize * 1.5f,
-                        fontWeight = fontWeight,
-                        color = secondaryColor.copy(alpha = 0.55f),
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 2.dp)
-                    )
-                    Text(
-                        text = hour,
-                        fontSize = hourSize,
-                        fontWeight = fontWeight,
-                        color = primaryColor,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            } else {
-                Row(
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Text(
-                        text = hour,
-                        fontSize = hourSize,
-                        fontWeight = fontWeight,
-                        color = primaryColor
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = minute,
-                        fontSize = minuteSize,
-                        fontWeight = fontWeight,
-                        color = secondaryColor
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            // 日期：oversize 模板官方在左下方，其它模板居中
-            if (oversize) {
-                Text(
-                    text = date,
-                    fontSize = 11.sp,
-                    color = secondaryColor.copy(alpha = 0.95f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, top = 2.dp)
-                )
-            } else {
-                Text(
-                    text = date,
-                    fontSize = 11.sp,
-                    color = secondaryColor.copy(alpha = 0.95f)
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            CustomizePill(onClick = onClick)
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-    }
-}
-
-/** 从官方锁屏 JSON 解析出的时钟样式（颜色按 ARGB int，可能为 null=用默认白）。 */
-private data class ClockStyle(
-    val templateId: String?,
-    val primaryColor: Color?,
-    val secondaryColor: Color?,
-    val isAutoPrimaryColor: Boolean = true,
-    val isAutoSecondaryColor: Boolean = true,
-    val style: Int = 0,
-    val clockWeight: Int = 0,
-    val clockEffect: Int = 0
-)
-
-/**
- * 解析 Settings.Secure constant_lockscreen_info 的 JSON。
- * 结构：{"clockInfo":{"templateId":"classic","primaryColor":...,
- * "secondaryColor":...,"isAutoPrimaryColor":true,...}}
- * 颜色字段可能是 int(ARGB) 或 "#RRGGBB" 字符串，解析失败回退 null（白色）。
- */
-private fun parseClockStyle(json: String?): ClockStyle {
-    if (json.isNullOrEmpty()) return ClockStyle(null, null, null)
-    return runCatching {
-        val root = JSONObject(json)
-        val clock = root.optJSONObject("clockInfo")
-            ?: root.optJSONObject("lockscreenInfo")?.optJSONObject("clockInfo")
-            ?: return@runCatching ClockStyle(null, null, null)
-        ClockStyle(
-            templateId = clock.optString("templateId").takeIf { it.isNotEmpty() },
-            primaryColor = parseColor(clock, "primaryColor"),
-            secondaryColor = parseColor(clock, "secondaryColor"),
-            isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true),
-            isAutoSecondaryColor = clock.optBoolean("isAutoSecondaryColor", true),
-            style = clock.optInt("style", 0),
-            clockWeight = clock.optInt("clockWeight", 0),
-            clockEffect = clock.optInt("clockEffect", 0)
-        )
-    }.getOrDefault(ClockStyle(null, null, null))
-}
-
-private fun parseColor(clock: JSONObject, key: String): Color? {
-    if (!clock.has(key)) return null
-    val v = clock.opt(key)
-    // 0 表示未设置/无效颜色，回退 null（由调用方用白色）
-    if (v is Int && v == 0) return null
-    return when (v) {
-        null -> null
-        is Int -> runCatching { Color(v) }.getOrNull()
-        is String -> runCatching {
-            val s = v.removePrefix("#")
-            when (s.length) {
-                6 -> Color(0xFF000000.toInt() or s.toLong(16).toInt())
-                8 -> Color(s.toLong(16).toInt())
-                else -> null
-            }
-        }.getOrNull()
-        else -> null
     }
 }
 
@@ -416,7 +200,6 @@ private fun parseColor(clock: JSONObject, key: String): Color? {
 @Composable
 private fun HomeScreenMockup(
     image: Bitmap?,
-    templateEditorJson: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -424,11 +207,11 @@ private fun HomeScreenMockup(
     var cardSize by remember { mutableStateOf(0 to 0) }
     // 优先用官方 HomeTemplateView 渲染桌面（真实壁纸 + 官方图标网格）；
     // 失败回退 Compose 复刻。
-    val officialView = remember(image, templateEditorJson, cardSize.first, cardSize.second) {
+    val officialView = remember(image, cardSize.first, cardSize.second) {
         if (cardSize.first > 0 && cardSize.second > 0) {
             runCatching {
                 OfficialTemplatePreview.createHomeContainer(
-                    context, image, cardSize.first, cardSize.second, templateEditorJson
+                    context, image, cardSize.first, cardSize.second
                 )
             }.getOrNull()
         } else {
@@ -464,140 +247,8 @@ private fun HomeScreenMockup(
                 CustomizePill(onClick = onClick)
                 Spacer(modifier = Modifier.height(4.dp))
             }
-        } else {
-            ComposeHomeScreenMockup(image = image, onClick = onClick)
         }
     }
-}
-
-/** Compose 复刻版桌面 mockup（官方组件加载失败时的回退）。 */
-@Composable
-private fun ComposeHomeScreenMockup(
-    image: Bitmap?,
-    onClick: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        MockupBackground(image)
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 第一行：左侧大组件 + 右侧 2x2 小图标
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                PlaceholderBlock(
-                    modifier = Modifier
-                        .weight(1.25f)
-                        .aspectRatio(1.1f)
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                    }
-                }
-            }
-            // 第二行：左侧 2 个小图标 + 右侧大组件
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                        PlaceholderBlock(modifier = Modifier.weight(1f).aspectRatio(1f))
-                    }
-                }
-                PlaceholderBlock(
-                    modifier = Modifier
-                        .weight(1.25f)
-                        .aspectRatio(1.1f)
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            // 底部 Dock：4 个图标
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                repeat(4) {
-                    PlaceholderBlock(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .padding(horizontal = 3.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            CustomizePill(onClick = onClick)
-            Spacer(modifier = Modifier.height(2.dp))
-        }
-    }
-}
-
-/** 壁纸背景：有图铺满裁剪，无图用深色渐变占位。 */
-@Composable
-private fun MockupBackground(image: Bitmap?) {
-    if (image != null) {
-        Image(
-            bitmap = image.asImageBitmap(),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFF2B3A52),
-                            Color(0xFF1B2436)
-                        )
-                    )
-                )
-        )
-    }
-}
-
-/** 桌面 mockup 里的半透明浅蓝占位块（图标/组件，仿官方桌面预览）。 */
-@Composable
-private fun PlaceholderBlock(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF7EC8FF).copy(alpha = 0.35f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(6.dp)
-            )
-    )
 }
 
 /** 底部中央"自定义"胶囊按钮（与官方 kg_settings_background_template_apply_button 风格一致）。 */
@@ -637,11 +288,11 @@ private fun rememberWallpaperBitmap(
     configuredPath: String?,
     which: Int
 ): Bitmap? {
-    var bitmap by remember(configuredPath) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(configuredPath, which) {
-        bitmap = loadWallpaperBitmap(context, configuredPath, which)
+    // 同步解码（小图 20KB 级别，UI 线程几十 ms 可接受），
+    // 确保官方时钟/桌面容器创建时壁纸一定有值，不再异步导致首次为 null。
+    return remember(configuredPath, which) {
+        loadWallpaperBitmap(context, configuredPath, which)
     }
-    return bitmap
 }
 
 private fun loadWallpaperBitmap(
