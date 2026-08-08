@@ -40,8 +40,27 @@ data class ModeConfig(
     // Trigger Groups (v2.0) - replaces complexTriggers for new modes
     val triggerGroups: List<TriggerGroup> = emptyList(),
 
+    // 壁纸 set：锁屏 + 桌面可单独配置；null 子项 = 未编辑（不进入备份/回滚）
+    val wallpaper: WallpaperConfig? = null,
+
     // Contact filter
     val contactFilter: ContactFilter = ContactFilter.ALL
+)
+
+@Serializable
+data class WallpaperConfig(
+    val lock: WallpaperItemConfig? = null,
+    val desktop: WallpaperItemConfig? = null
+)
+
+@Serializable
+data class WallpaperItemConfig(
+    val imagePath: String? = null,
+    val lockscreenJson: String? = null,
+    val templateEditorJson: String? = null,
+    val scrollEnabled: Boolean? = null,
+    val effectType: Int? = null,
+    val which: Int = 3
 )
 
 @Serializable

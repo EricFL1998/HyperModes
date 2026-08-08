@@ -81,6 +81,63 @@ private fun sortModes(list: List<Mode>): List<Mode> = list.sortedWith(
     )
 )
 
+/**
+ * 打开锁屏/桌面编辑器（com.miui.aod CommonEditorActivity）。
+ * 与个性化顶部 SettingsTemplateView 的"自定义"按钮行为一致
+ * （ContextUtilKt.toq -> CommonEditorActivity，action miui.keyguard.editor.common）：
+ * caller=lock/desktop、argConfigPath=@MINE、whereFrom=homepage。
+ * CommonEditorActivity 的 saveCallingSource 会用 isMiuiCall() 校验真实启动方是否在
+ * CALL_PACKAGE_ALLOW 白名单（com.android.thememanager / com.miui.aod 等），非白名单
+ * 调用会被立即 finish()。AodEditorHook 已 hook isMiuiCall()：系统记录的启动方为
+ * com.banana.hypermodes 时放行，因此编辑器能正常停留（launched_from_package extra
+ * 仅作为 saveCallingSource 里 launchFromPackage 的参考值，不影响白名单校验）。
+ * 失败回退壁纸选择器 / WallpaperSettingsActivity / ThemeTabActivity。
+ */
+private fun openOfficialWallpaperUi(context: Context) {
+    val themePackage = "com.android.thememanager"
+
+    // 1) 锁屏/桌面编辑器（与个性化顶部"自定义"按钮一致）。
+    //    显式组件启动不依赖 resolveActivity，直接 try 顺序尝试。
+    val attempts = listOf(
+        Intent().apply {
+            action = "miui.keyguard.editor.common"
+            setClassName("com.miui.aod", "com.miui.keyguard.editor.CommonEditorActivity")
+            putExtra("caller", "lock")
+            putExtra("argConfigPath", "@MINE")
+            putExtra("argTemplateSource", -1L)
+            putExtra("whereFrom", "homepage")
+            // saveCallingSource 里 callingFromTheme() 用 launchFromPackage 判断，
+            // 保持主题管家语义（仅影响追踪，白名单由 AodEditorHook 放行）
+            putExtra("launched_from_package", "com.android.thememanager")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        },
+        Intent().apply {
+            action = "miui.intent.action.THEME_WALLPAPER_PICKER_PAGE_AOD"
+            setClassName(themePackage, "com.android.thememanager.settings.ThemeAndWallpaperPickerSettingActivity")
+            putExtra("openSource", 2)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        },
+        Intent().apply {
+            setClassName(themePackage, "com.android.thememanager.settings.WallpaperSettingsActivity")
+            putExtra("entrance", "homeEdit")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        },
+        Intent(Intent.ACTION_VIEW).apply {
+            setClassName(themePackage, "com.android.thememanager.activity.ThemeTabActivity")
+            putExtra("REQUEST_RESOURCE_CODE", "wallpaper")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    )
+    for (intent in attempts) {
+        try {
+            context.startActivity(intent)
+            return
+        } catch (_: Exception) {
+            // 继续尝试下一个兜底
+        }
+    }
+}
+
 @Composable
 fun HyperModesApp() {
     val context = LocalContext.current
@@ -461,6 +518,10 @@ fun HyperModesApp() {
                         onOpenDrivingDetect = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DrivingDetect(updated)
+                        },
+                        onOpenWallpaper = { updated ->
+                            editingMode = updated
+                            openOfficialWallpaperUi(context)
                         },
                         onRename = { updated ->
                             modeToEditInDialog = updated

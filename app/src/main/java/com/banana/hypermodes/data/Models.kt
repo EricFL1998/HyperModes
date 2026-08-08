@@ -71,8 +71,40 @@ data class ModeSettings(
     // Trigger Groups (v2.0)
     val triggerGroups: List<ModeTriggerGroup> = emptyList(),
 
+    // 壁纸 set：锁屏 + 桌面可单独配置；null 子项 = 未编辑（不进入备份/回滚）
+    val wallpaper: WallpaperSet? = null,
+
     // Schedule (Legacy/Bedtime)
     val schedule: ModeSchedule? = null
+)
+
+/**
+ * 锁屏 + 桌面壁纸概览（一个 set，两个子项可独立编辑）。
+ * 任一子项为 null 表示该侧未配置（保持系统当前值，不进入备份/回滚）。
+ */
+data class WallpaperSet(
+    val lock: WallpaperItem? = null,
+    val desktop: WallpaperItem? = null
+) {
+    val hasAny: Boolean get() = lock != null || desktop != null
+}
+
+/**
+ * 单侧壁纸配置。
+ * @param imagePath 壁纸图片路径（App 外部存储 / 系统可读路径），null = 未配置
+ * @param lockscreenJson 锁屏样式 JSON（constant_lockscreen_info 整段，仅锁屏子项使用）
+ * @param templateEditorJson constant_template_editor_info 的 lockscreenInfo 包装（仅锁屏）
+ * @param scrollEnabled 桌面滚动壁纸开关（仅桌面子项）
+ * @param effectType 壁纸特效类型（wallpaper_effect_type_1/2）
+ * @param which 应用范围：1 桌面 / 2 锁屏 / 3 两者
+ */
+data class WallpaperItem(
+    val imagePath: String? = null,
+    val lockscreenJson: String? = null,
+    val templateEditorJson: String? = null,
+    val scrollEnabled: Boolean? = null,
+    val effectType: Int? = null,
+    val which: Int = 3
 )
 
 /**
@@ -360,6 +392,31 @@ fun Mode.toModeConfig(): ModeConfig {
 
     val triggerGroups = s.triggerGroups.map { it.toTriggerGroup() }
 
+    val wallpaper = s.wallpaper?.let { wp ->
+        com.banana.hypermodes.systemserver.config.WallpaperConfig(
+            lock = wp.lock?.let {
+                com.banana.hypermodes.systemserver.config.WallpaperItemConfig(
+                    imagePath = it.imagePath,
+                    lockscreenJson = it.lockscreenJson,
+                    templateEditorJson = it.templateEditorJson,
+                    scrollEnabled = it.scrollEnabled,
+                    effectType = it.effectType,
+                    which = it.which
+                )
+            },
+            desktop = wp.desktop?.let {
+                com.banana.hypermodes.systemserver.config.WallpaperItemConfig(
+                    imagePath = it.imagePath,
+                    lockscreenJson = it.lockscreenJson,
+                    templateEditorJson = it.templateEditorJson,
+                    scrollEnabled = it.scrollEnabled,
+                    effectType = it.effectType,
+                    which = it.which
+                )
+            }
+        )
+    }
+
     return ModeConfig(
         id = id,
         name = name,
@@ -398,7 +455,8 @@ fun Mode.toModeConfig(): ModeConfig {
             preferredSimSlot = s.preferredSimSlot
         ),
         pausedApps = s.pausedApps.toList(),
-        contactFilter = contactFilter
+        contactFilter = contactFilter,
+        wallpaper = wallpaper
     )
 }
 
@@ -523,6 +581,30 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             drivingDetectMode = drivingDetectMode,
             drivingTargetDevices = triggers?.bluetooth?.targetMacs?.toSet() ?: emptySet(),
             triggerGroups = migratedTriggerGroups,
+            wallpaper = wallpaper?.let { wp ->
+                WallpaperSet(
+                    lock = wp.lock?.let {
+                        WallpaperItem(
+                            imagePath = it.imagePath,
+                            lockscreenJson = it.lockscreenJson,
+                            templateEditorJson = it.templateEditorJson,
+                            scrollEnabled = it.scrollEnabled,
+                            effectType = it.effectType,
+                            which = it.which
+                        )
+                    },
+                    desktop = wp.desktop?.let {
+                        WallpaperItem(
+                            imagePath = it.imagePath,
+                            lockscreenJson = it.lockscreenJson,
+                            templateEditorJson = it.templateEditorJson,
+                            scrollEnabled = it.scrollEnabled,
+                            effectType = it.effectType,
+                            which = it.which
+                        )
+                    }
+                )
+            },
             schedule = if (migratedLegacySchedule) null else schedule
         )
     )

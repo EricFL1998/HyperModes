@@ -3,6 +3,7 @@ package com.banana.hypermodes
 import android.content.Context
 import android.util.Log
 import com.banana.hypermodes.hook.ControlCenterCardHook
+import com.banana.hypermodes.hook.AodEditorHook
 import com.banana.hypermodes.hook.DeskClockHook
 import com.banana.hypermodes.hook.FullAodHook
 import com.banana.hypermodes.hook.LockscreenHook
@@ -63,6 +64,10 @@ class XposedInit : XposedModule() {
                     SystemUIHook(this).install(param.classLoader)
                     lockscreenHook.install(param.classLoader)
                     fullAodHook.install(param.classLoader)
+                }
+                "com.miui.aod" -> {
+                    Log.e(TAG, "!!! com.miui.aod ready - hooking keyguard editor")
+                    AodEditorHook(this).install(param.classLoader)
                 }
             }
         } catch (t: Throwable) {

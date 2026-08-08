@@ -44,7 +44,13 @@ class ModeConversionTest {
         assertEquals(listOf(1, 2, 3, 4, 5), config.repeatDays)
         assertEquals(true, config.scheduleEnabled)
         assertEquals(true, config.display.adaptiveRefreshRatePro)
-        assertEquals(mode.settings.schedule, restored.settings.schedule)
+        // v2.0: legacy schedule is migrated into a Time trigger group and the
+        // legacy settings.schedule field is cleared to avoid double-scheduling.
+        assertNull(restored.settings.schedule)
+        val time = restored.settings.triggerGroups.single().let { group ->
+            (group as ModeTriggerGroup.Single).trigger as ModeTrigger.Time
+        }
+        assertEquals(mode.settings.schedule, time.schedule)
         assertEquals(true, restored.settings.enableAdaptiveRefreshRatePro)
         assertFalse(restored.settings.drivingAutoDetect)
     }
@@ -69,10 +75,12 @@ class ModeConversionTest {
         )
 
         val restored = mode.toModeConfig().toMode()
-        val schedule = restored.settings.schedule
-
-        assertNotNull(schedule)
-        assertFalse(schedule!!.enabled)
+        // v2.0: the schedule migrates into a Time trigger group.
+        assertNull(restored.settings.schedule)
+        val schedule = (restored.settings.triggerGroups.single()
+            .let { group -> (group as ModeTriggerGroup.Single).trigger as ModeTrigger.Time }
+            .schedule)
+        assertFalse(schedule.enabled)
         assertEquals(8, schedule.startHour)
         assertEquals(15, schedule.startMinute)
         assertEquals(11, schedule.endHour)
@@ -92,10 +100,13 @@ class ModeConversionTest {
         )
 
         val restored = legacy.toMode()
-        val schedule = restored.settings.schedule
-
-        assertNotNull(schedule)
-        assertTrue(schedule!!.enabled)
+        // v2.0: a legacy DYNAMIC_TRIGGER custom mode with times migrates into a
+        // Time trigger group; the legacy settings.schedule field is cleared.
+        assertNull(restored.settings.schedule)
+        val schedule = (restored.settings.triggerGroups.single()
+            .let { group -> (group as ModeTriggerGroup.Single).trigger as ModeTrigger.Time }
+            .schedule)
+        assertTrue(schedule.enabled)
         assertEquals(10, schedule.startHour)
         assertEquals(20, schedule.startMinute)
         assertEquals(18, schedule.endHour)

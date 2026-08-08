@@ -49,6 +49,12 @@ object Protocol {
      *  ResultReceiver indicating whether Polaris service is available and allows
      *  non-SecurityCenter callers. Fail-closed gate before location trigger UI. */
     const val ACTION_PROBE_POLARIS = "com.banana.hypermodes.PROBE_POLARIS"
+    /** App -> system_server: capture the current lock-screen style JSON + wallpaper
+     *  files into a snapshot dir readable by the App, and return paths/values via
+     *  the ResultReceiver in EXTRA_RESULT_RECEIVER. Used after the user edits
+     *  wallpaper in the official ThemeManager UI so HyperModes can store the set. */
+    const val ACTION_CAPTURE_WALLPAPER_SNAPSHOT =
+        "com.banana.hypermodes.CAPTURE_WALLPAPER_SNAPSHOT"
 
     // System_server -> Engine: Polaris geofence event (internal authenticated broadcast)
     const val ACTION_POLARIS_GEOFENCE_EVENT =
@@ -64,6 +70,16 @@ object Protocol {
     const val EXTRA_BYPASS = "bypass"
     const val EXTRA_RESULT_RECEIVER = "resultReceiver"
     const val EXTRA_SSIDS = "ssids"
+    /** Wallpaper snapshot result extras (ACTION_CAPTURE_WALLPAPER_SNAPSHOT). */
+    const val EXTRA_LOCKSCREEN_JSON = "lockscreenJson"
+    const val EXTRA_TEMPLATE_EDITOR_JSON = "templateEditorJson"
+    const val EXTRA_DEFAULT_LOCKSCREEN_JSON = "defaultLockscreenJson"
+    const val EXTRA_LOCKSCREEN_VERSION = "lockscreenVersion"
+    const val EXTRA_LOCK_IMAGE_PATH = "lockImagePath"
+    const val EXTRA_DESKTOP_IMAGE_PATH = "desktopImagePath"
+    const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"
+    const val EXTRA_WALLPAPER_EFFECT_TYPE = "wallpaperEffectType"
+    const val EXTRA_WALLPAPER_CHANGED = "wallpaperChanged"
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"
     /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
      * (scheduled sleep/wake alarms or the Clock app's own toggle). */

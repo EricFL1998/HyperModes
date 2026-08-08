@@ -14,6 +14,7 @@ import com.banana.hypermodes.systemserver.config.ModeConfig
  * - DisplayModeController: Applies dark mode and grayscale
  * - DeviceController: Manages device settings (silent mode, etc.)
  * - StatusBarIconManager: Shows/hides status bar icon
+ * - WallpaperController: Applies/reverts lock-screen style + wallpaper set
  *
  * Features rollback on failure to ensure atomic mode application.
  *
@@ -29,6 +30,7 @@ class ModeActionExecutor(
     private val displayModeController = DisplayModeController(context)
     private val deviceController = DeviceController(context)
     private val statusBarIconManager = StatusBarIconManager(context, classLoader)
+    private val wallpaperController = WallpaperController(context)
 
     // Track what was applied for rollback
     private data class AppliedState(
@@ -36,7 +38,8 @@ class ModeActionExecutor(
         var dndApplied: Boolean = false,
         var appsApplied: Boolean = false,
         var displayApplied: Boolean = false,
-        var iconApplied: Boolean = false
+        var iconApplied: Boolean = false,
+        var wallpaperApplied: Boolean = false
     )
 
     /**
@@ -83,6 +86,15 @@ class ModeActionExecutor(
             applied.iconApplied = true
             log("✓ Status bar icon set")
 
+            // Step 6: Apply wallpaper set (lock screen style + wallpaper)
+            if (mode.wallpaper != null) {
+                wallpaperController.apply(mode.wallpaper)
+                applied.wallpaperApplied = true
+                log("✓ Wallpaper set applied")
+            } else {
+                log("No wallpaper set to apply")
+            }
+
             log("applyMode: completed successfully for ${mode.name}")
 
         } catch (e: Exception) {
@@ -94,6 +106,10 @@ class ModeActionExecutor(
                 if (applied.iconApplied) {
                     statusBarIconManager.removeIcon()
                     log("↩ Icon removed")
+                }
+                if (applied.wallpaperApplied) {
+                    wallpaperController.restore()
+                    log("↩ Wallpaper restored")
                 }
                 if (applied.displayApplied) {
                     displayModeController.restore()
@@ -137,6 +153,15 @@ class ModeActionExecutor(
 
         // Revert in reverse order of application
         // Continue even if steps fail to clean up as much as possible
+
+        try {
+            wallpaperController.restore()
+            log("✓ Wallpaper restored")
+        } catch (e: Exception) {
+            val msg = "Failed to restore wallpaper: ${e.message}"
+            log("✗ $msg")
+            errors.add(msg)
+        }
 
         try {
             statusBarIconManager.removeIcon()

@@ -6,9 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
+import android.os.Bundle
 import android.os.IBinder
+import android.os.Process
 import android.os.ResultReceiver
+import android.os.Environment
+import android.provider.Settings
 import android.util.Log
+import java.io.File
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
@@ -141,6 +146,10 @@ class SystemModeHook(private val module: XposedModule) {
                         probePolaris(c, intent)
                         return
                     }
+                    Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT -> {
+                        captureWallpaperSnapshot(c, intent)
+                        return
+                    }
                 }
                 val packages = intent.getStringArrayExtra(Protocol.EXTRA_PACKAGES)
                     ?.toList() ?: return
@@ -163,6 +172,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
             addAction(Protocol.ACTION_PROBE_POLARIS)
+            addAction(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT)
             addAction(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         }
         context.registerReceiver(
@@ -227,6 +237,91 @@ class SystemModeHook(private val module: XposedModule) {
 
         log("PROBE_POLARIS result: supported=$supported, message=$message")
         resultReceiver.send(0, report)
+    }
+
+    /**
+     * Capture the current lock-screen style JSON + wallpaper files so the App can
+     * store them as a mode's wallpaper set (used after the user edits wallpaper in
+     * the official ThemeManager UI).
+     *
+     * Wallpaper files are copied into the App's external files dir (system_server
+     * holds MANAGE_EXTERNAL_STORAGE), so the App can preview them and system_server
+     * can re-apply them later via WallpaperController.
+     */
+    private fun captureWallpaperSnapshot(context: Context, intent: Intent) {
+        @Suppress("DEPRECATION")
+        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        if (resultReceiver == null) {
+            log("CAPTURE_WALLPAPER_SNAPSHOT without ResultReceiver")
+            return
+        }
+        val modeId = intent.getStringExtra(Protocol.EXTRA_MODE_ID) ?: "mode"
+        val userId = Process.myUid() / 100000
+        val systemDir = File(Environment.getDataDirectory(), "system/users/$userId")
+
+        // App external files dir: /sdcard/Android/data/com.banana.hypermodes/files/wallpapers/{modeId}/
+        val appWallpaperRoot = File(
+            File(Environment.getExternalStorageDirectory(), "Android/data"),
+            Protocol.MODULE_PACKAGE + "/files/wallpapers"
+        )
+        val targetDir = File(appWallpaperRoot, modeId)
+        targetDir.mkdirs()
+
+        val bundle = Bundle()
+        try {
+            // 1. 锁屏样式 JSON（Settings.Secure）
+            val resolver = context.contentResolver
+            bundle.putString(
+                Protocol.EXTRA_LOCKSCREEN_JSON,
+                Settings.Secure.getString(resolver, "constant_lockscreen_info")
+            )
+            bundle.putString(
+                Protocol.EXTRA_TEMPLATE_EDITOR_JSON,
+                Settings.Secure.getString(resolver, "constant_template_editor_info")
+            )
+            bundle.putString(
+                Protocol.EXTRA_DEFAULT_LOCKSCREEN_JSON,
+                Settings.Secure.getString(resolver, "miui_15_default_lockscreen_info")
+            )
+            bundle.putInt(
+                Protocol.EXTRA_LOCKSCREEN_VERSION,
+                Settings.Secure.getInt(resolver, "lockscreen_info_version", 3)
+            )
+
+            // 2. 锁屏壁纸源图
+            val lockOrig = File(systemDir, "wallpaper_lock_orig")
+            if (lockOrig.exists()) {
+                val dest = File(targetDir, "lock_wallpaper")
+                lockOrig.copyTo(dest, overwrite = true)
+                bundle.putString(Protocol.EXTRA_LOCK_IMAGE_PATH, dest.absolutePath)
+            }
+
+            // 3. 桌面壁纸源图
+            val desktopOrig = File(systemDir, "wallpaper_orig")
+            if (desktopOrig.exists()) {
+                val dest = File(targetDir, "desktop_wallpaper")
+                desktopOrig.copyTo(dest, overwrite = true)
+                bundle.putString(Protocol.EXTRA_DESKTOP_IMAGE_PATH, dest.absolutePath)
+            }
+
+            // 4. 桌面滚动/特效键
+            bundle.putBoolean(
+                Protocol.EXTRA_DESKTOP_SCROLL_ENABLED,
+                Settings.Secure.getInt(resolver, "pref_key_wallpaper_screen_scrolled_span", -1) == 1
+            )
+            bundle.putInt(
+                Protocol.EXTRA_WALLPAPER_EFFECT_TYPE,
+                Settings.Secure.getInt(resolver, "wallpaper_effect_type_1", 0)
+            )
+            bundle.putString(
+                Protocol.EXTRA_WALLPAPER_CHANGED,
+                Settings.Secure.getString(resolver, "wallpaper_changed_2")
+            )
+            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId dir=${targetDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
+        } catch (t: Throwable) {
+            log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
+        }
+        resultReceiver.send(0, bundle)
     }
 
     /** Original bypass flag per "pkg/channelId", captured before our first

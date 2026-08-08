@@ -85,6 +85,12 @@
 
     <!-- Notification filters -->
     <string name="notif_filter">Notification filters</string>
+    <string name="wallpaper">Wallpaper</string>
+    <string name="lock_screen">Lock screen</string>
+    <string name="home_screen">Home screen</string>
+    <string name="wallpaper_tap_hint">Set lock screen and home screen wallpaper</string>
+    <string name="wallpaper_customize">Customize</string>
+    <string name="wallpaper_clear">Restore default</string>
     <string name="allow_all_notifications">Allow all notifications</string>
     <string name="contacts">Contacts</string>
     <string name="some_contacts_except">Some contacts can interrupt</string>

@@ -44,6 +44,9 @@
              on-device spike confirms non-SecurityCenter callers are allowed) -->
         <package android:name="com.xiaomi.gnss.polaris" />
         <package android:name="com.miui.securityadd" />
+        <!-- 锁屏/桌面编辑器与壁纸设置页（包可见性：显式组件启动需要可见） -->
+        <package android:name="com.miui.aod" />
+        <package android:name="com.android.thememanager" />
         <!-- Lets the app-exceptions picker list launchable apps. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />

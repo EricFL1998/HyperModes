@@ -85,6 +85,12 @@
 
     <!-- Notification filters -->
     <string name="notif_filter">通知过滤条件</string>
+    <string name="wallpaper">壁纸</string>
+    <string name="lock_screen">锁屏</string>
+    <string name="home_screen">桌面</string>
+    <string name="wallpaper_tap_hint">设置锁屏和桌面壁纸</string>
+    <string name="wallpaper_customize">自定义</string>
+    <string name="wallpaper_clear">恢复默认</string>
     <string name="allow_all_notifications">允许所有通知</string>
     <string name="contacts">联系人</string>
     <string name="some_contacts_except">部分联系人例外</string>

@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.*
 import com.banana.hypermodes.bridge.ModeControlBridge
+import com.banana.hypermodes.data.WallpaperSnapshotBridge
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.ui.components.TimePickerDialog
 import com.banana.hypermodes.ui.components.TriggerSelectionDialog
@@ -40,6 +44,7 @@ import com.banana.hypermodes.ui.components.TriggerTypeSelectionDialog
 import com.banana.hypermodes.ui.components.CompoundTriggerEditDialog
 import com.banana.hypermodes.ui.components.TriggerGroupCard
 import com.banana.hypermodes.ui.components.BatteryTriggerPickerDialog
+import com.banana.hypermodes.ui.components.WallpaperOverviewCard
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
@@ -69,6 +74,7 @@ fun ModeDetailScreen(
     onOpenDrivingBluetoothPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
+    onOpenWallpaper: (Mode) -> Unit,
     onRename: (Mode) -> Unit,
     onDelete: (Mode) -> Unit,
     onSave: (Mode) -> Unit,
@@ -109,6 +115,27 @@ fun ModeDetailScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // 点击壁纸卡片打开官方 UI 后，等待用户返回时捕获当前壁纸快照并保存
+    var pendingWallpaperCapture by remember(mode.id) { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, mode.id) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && pendingWallpaperCapture) {
+                pendingWallpaperCapture = false
+                WallpaperSnapshotBridge.capture(context, editedMode.id) { snapshot ->
+                    if (snapshot != null) {
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(wallpaper = snapshot)
+                        )
+                        onSave(editedMode)
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // v1.3 Trigger UI State - keyed by mode.id to reset when mode changes
     var showTriggerSelector by remember(mode.id) { mutableStateOf(false) }
@@ -530,6 +557,24 @@ fun ModeDetailScreen(
                         }
                     }
                 }
+            }
+
+            // 壁纸 section: 锁屏 + 桌面概览大卡片（在触发条件下面、通知过滤上面）
+            item {
+                WallpaperOverviewCard(
+                    wallpaper = editedMode.settings.wallpaper,
+                    onClick = {
+                        pendingWallpaperCapture = true
+                        onOpenWallpaper(editedMode)
+                    },
+                    onClear = {
+                        editedMode = editedMode.copy(
+                            settings = editedMode.settings.copy(wallpaper = null)
+                        )
+                        onSave(editedMode)
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
 
             // 通知过滤条件 section
