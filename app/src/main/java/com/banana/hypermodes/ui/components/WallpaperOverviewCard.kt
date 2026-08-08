@@ -163,9 +163,22 @@ private fun LockScreenMockup(
     val date = SimpleDateFormat("M/d EEE", Locale.CHINA).format(now.time)
     // 解析官方锁屏 JSON 的时钟样式
     val clockStyle = remember(lockscreenJson) { parseClockStyle(lockscreenJson) }
-    val primaryColor = clockStyle.primaryColor
-        ?: if (clockStyle.isAutoPrimaryColor) Color.White else Color.White
-    val secondaryColor = clockStyle.secondaryColor ?: primaryColor.copy(alpha = 0.75f)
+    // isAutoPrimaryColor=true 或颜色无效时官方会从壁纸自动取色，
+    // 这里回退白色（壁纸通常是深色，白色对比度最好）
+    val primaryColor = if (clockStyle.isAutoPrimaryColor) {
+        Color.White
+    } else {
+        clockStyle.primaryColor ?: Color.White
+    }
+    val secondaryColor = if (clockStyle.isAutoSecondaryColor) {
+        primaryColor.copy(alpha = 0.75f)
+    } else {
+        clockStyle.secondaryColor ?: primaryColor.copy(alpha = 0.75f)
+    }
+    // oversize_* 是超大时钟模板，字号更大更接近官方预览
+    val oversize = clockStyle.templateId?.startsWith("oversize") == true
+    val hourSize = if (oversize) 52.sp else 40.sp
+    val minuteSize = if (oversize) 30.sp else 24.sp
 
     Box(
         modifier = modifier
@@ -195,14 +208,14 @@ private fun LockScreenMockup(
             ) {
                 Text(
                     text = hour,
-                    fontSize = 40.sp,
+                    fontSize = hourSize,
                     fontWeight = FontWeight.Light,
                     color = primaryColor
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = minute,
-                    fontSize = 24.sp,
+                    fontSize = minuteSize,
                     fontWeight = FontWeight.Light,
                     color = secondaryColor
                 )
@@ -225,7 +238,8 @@ private data class ClockStyle(
     val templateId: String?,
     val primaryColor: Color?,
     val secondaryColor: Color?,
-    val isAutoPrimaryColor: Boolean = true
+    val isAutoPrimaryColor: Boolean = true,
+    val isAutoSecondaryColor: Boolean = true
 )
 
 /**
@@ -238,12 +252,15 @@ private fun parseClockStyle(json: String?): ClockStyle {
     if (json.isNullOrEmpty()) return ClockStyle(null, null, null)
     return runCatching {
         val root = JSONObject(json)
-        val clock = root.optJSONObject("clockInfo") ?: return@runCatching ClockStyle(null, null, null)
+        val clock = root.optJSONObject("clockInfo")
+            ?: root.optJSONObject("lockscreenInfo")?.optJSONObject("clockInfo")
+            ?: return@runCatching ClockStyle(null, null, null)
         ClockStyle(
             templateId = clock.optString("templateId").takeIf { it.isNotEmpty() },
             primaryColor = parseColor(clock, "primaryColor"),
             secondaryColor = parseColor(clock, "secondaryColor"),
-            isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true)
+            isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true),
+            isAutoSecondaryColor = clock.optBoolean("isAutoSecondaryColor", true)
         )
     }.getOrDefault(ClockStyle(null, null, null))
 }
@@ -251,6 +268,8 @@ private fun parseClockStyle(json: String?): ClockStyle {
 private fun parseColor(clock: JSONObject, key: String): Color? {
     if (!clock.has(key)) return null
     val v = clock.opt(key)
+    // 0 表示未设置/无效颜色，回退 null（由调用方用白色）
+    if (v is Int && v == 0) return null
     return when (v) {
         null -> null
         is Int -> runCatching { Color(v) }.getOrNull()

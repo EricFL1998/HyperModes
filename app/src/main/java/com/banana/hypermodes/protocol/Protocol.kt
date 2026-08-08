@@ -77,6 +77,11 @@ object Protocol {
     const val EXTRA_LOCKSCREEN_VERSION = "lockscreenVersion"
     const val EXTRA_LOCK_IMAGE_PATH = "lockImagePath"
     const val EXTRA_DESKTOP_IMAGE_PATH = "desktopImagePath"
+    /** JPEG-compressed wallpaper bytes returned by system_server (scoped storage
+     *  blocks writing into the app's external dir from another process, so the
+     *  app writes these bytes to its own files dir instead). */
+    const val EXTRA_LOCK_IMAGE_BYTES = "lockImageBytes"
+    const val EXTRA_DESKTOP_IMAGE_BYTES = "desktopImageBytes"
     const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"
     const val EXTRA_WALLPAPER_EFFECT_TYPE = "wallpaperEffectType"
     const val EXTRA_WALLPAPER_CHANGED = "wallpaperChanged"

@@ -13,6 +13,9 @@ import android.os.ResultReceiver
 import android.os.Environment
 import android.provider.Settings
 import android.util.Log
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
 import java.io.File
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
@@ -275,15 +278,24 @@ class SystemModeHook(private val module: XposedModule) {
 
         val bundle = Bundle()
         try {
-            // 1. 锁屏样式 JSON（Settings.Secure）
+            // 1. 锁屏样式 JSON（Settings.Secure）。
+            //    设备实测 constant_lockscreen_info 为 null，真实数据在
+            //    constant_template_editor_info（{"homeInfo":...,"lockscreenInfo":{...}}），
+            //    提取 lockscreenInfo 子对象作为锁屏样式返回。
             val resolver = context.contentResolver
-            bundle.putString(
-                Protocol.EXTRA_LOCKSCREEN_JSON,
-                Settings.Secure.getString(resolver, "constant_lockscreen_info")
-            )
+            val editorInfo = Settings.Secure.getString(resolver, "constant_template_editor_info")
+            val lockscreenInfo = editorInfo?.let { extractLockscreenInfo(it) }
+            if (lockscreenInfo != null) {
+                bundle.putString(Protocol.EXTRA_LOCKSCREEN_JSON, lockscreenInfo)
+            } else {
+                bundle.putString(
+                    Protocol.EXTRA_LOCKSCREEN_JSON,
+                    Settings.Secure.getString(resolver, "constant_lockscreen_info")
+                )
+            }
             bundle.putString(
                 Protocol.EXTRA_TEMPLATE_EDITOR_JSON,
-                Settings.Secure.getString(resolver, "constant_template_editor_info")
+                editorInfo
             )
             bundle.putString(
                 Protocol.EXTRA_DEFAULT_LOCKSCREEN_JSON,
@@ -294,20 +306,21 @@ class SystemModeHook(private val module: XposedModule) {
                 Settings.Secure.getInt(resolver, "lockscreen_info_version", 3)
             )
 
-            // 2. 锁屏壁纸源图
+            // 2/3. 壁纸：scoped storage 会拦截 system_server 写 App 外部目录，
+            //      所以把源图解码后压缩成 JPEG 字节返回，App 端自己落盘。
             val lockOrig = File(systemDir, "wallpaper_lock_orig")
             if (lockOrig.exists()) {
-                val dest = File(targetDir, "lock_wallpaper")
-                lockOrig.copyTo(dest, overwrite = true)
-                bundle.putString(Protocol.EXTRA_LOCK_IMAGE_PATH, dest.absolutePath)
+                bundle.putByteArray(
+                    Protocol.EXTRA_LOCK_IMAGE_BYTES,
+                    encodePreview(lockOrig)
+                )
             }
-
-            // 3. 桌面壁纸源图
             val desktopOrig = File(systemDir, "wallpaper_orig")
             if (desktopOrig.exists()) {
-                val dest = File(targetDir, "desktop_wallpaper")
-                desktopOrig.copyTo(dest, overwrite = true)
-                bundle.putString(Protocol.EXTRA_DESKTOP_IMAGE_PATH, dest.absolutePath)
+                bundle.putByteArray(
+                    Protocol.EXTRA_DESKTOP_IMAGE_BYTES,
+                    encodePreview(desktopOrig)
+                )
             }
 
             // 4. 桌面滚动/特效键
@@ -328,6 +341,35 @@ class SystemModeHook(private val module: XposedModule) {
             log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
         }
         resultReceiver.send(0, bundle)
+    }
+
+    /** 从 constant_template_editor_info 提取 lockscreenInfo 子对象 JSON。 */
+    private fun extractLockscreenInfo(editorInfo: String): String? {
+        return try {
+            val root = org.json.JSONObject(editorInfo)
+            root.optJSONObject("lockscreenInfo")?.toString()
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
+    /** 解码壁纸源图，等比缩放到预览尺寸，JPEG 压缩成字节（Binder 传大图会超限）。 */
+    private fun encodePreview(file: File): ByteArray? {
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            val maxSide = 1080
+            var sample = 1
+            while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) {
+                sample *= 2
+            }
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bmp = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@runCatching null
+            val out = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            bmp.recycle()
+            out.toByteArray()
+        }.getOrNull()
     }
 
     /** Original bypass flag per "pkg/channelId", captured before our first

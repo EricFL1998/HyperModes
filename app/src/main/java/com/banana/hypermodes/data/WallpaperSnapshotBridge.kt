@@ -7,12 +7,14 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
 import com.banana.hypermodes.protocol.Protocol
+import java.io.File
 
 /**
  * Ask the system_server bridge to capture the current lock-screen style JSON +
- * wallpaper files into a snapshot dir readable by the App. Used after the user
- * edits wallpaper in the official ThemeManager UI, so HyperModes can store the
- * resulting set in a mode.
+ * wallpaper bytes. system_server returns JPEG-compressed wallpaper bytes (writing
+ * into the app's external dir from another process is blocked by scoped storage),
+ * and the App persists them into its own files dir. Used after the user edits
+ * wallpaper in the official ThemeManager UI, so HyperModes can store the set.
  *
  * onResult runs on the main thread exactly once; null means the bridge is
  * unavailable (module disabled or an older build).
@@ -54,7 +56,7 @@ object WallpaperSnapshotBridge {
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 handler.removeCallbacks(timeout)
-                deliver(parse(resultData))
+                deliver(parse(context, resultData))
             }
         }
         try {
@@ -72,10 +74,20 @@ object WallpaperSnapshotBridge {
         }
     }
 
-    private fun parse(data: Bundle?): WallpaperSet? {
+    private fun parse(context: Context, data: Bundle?): WallpaperSet? {
         if (data == null) return null
-        val lockImage = data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH)
-        val desktopImage = data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH)
+        val lockImage = persistWallpaper(
+            context,
+            data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES),
+            data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH),
+            "lock_wallpaper.jpg"
+        )
+        val desktopImage = persistWallpaper(
+            context,
+            data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES),
+            data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH),
+            "desktop_wallpaper.jpg"
+        )
         val lockJson = data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)
         if (lockImage == null && desktopImage == null && lockJson == null) return null
 
@@ -104,5 +116,25 @@ object WallpaperSnapshotBridge {
                 )
             } else null
         )
+    }
+
+    /** 优先用 system_server 返回的 JPEG 字节写入 App 自己的 files 目录；
+     *  无字节时回退使用快照路径（旧版/兼容）。 */
+    private fun persistWallpaper(
+        context: Context,
+        bytes: ByteArray?,
+        fallbackPath: String?,
+        fileName: String
+    ): String? {
+        if (bytes != null && bytes.isNotEmpty()) {
+            return runCatching {
+                val dir = File(context.filesDir, "wallpapers")
+                dir.mkdirs()
+                val file = File(dir, fileName)
+                file.writeBytes(bytes)
+                file.absolutePath
+            }.getOrNull()
+        }
+        return fallbackPath
     }
 }
