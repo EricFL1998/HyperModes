@@ -82,6 +82,11 @@ object Protocol {
      *  app writes these bytes to its own files dir instead). */
     const val EXTRA_LOCK_IMAGE_BYTES = "lockImageBytes"
     const val EXTRA_DESKTOP_IMAGE_BYTES = "desktopImageBytes"
+    /** system_server 落盘的壁纸路径（system 可读，模式应用时从此复制）。 */
+    const val EXTRA_LOCK_SYS_IMAGE_PATH = "lockSysImagePath"
+    const val EXTRA_DESKTOP_SYS_IMAGE_PATH = "desktopSysImagePath"
+    /** system_server 落盘的锁屏主体蒙版路径（system 可读）。 */
+    const val EXTRA_SUBJECT_MASK_SYS_PATH = "subjectMaskSysPath"
     /** 锁屏壁纸主体蒙版（subject_mask）JPEG 字节，用于预览景深效果。 */
     const val EXTRA_SUBJECT_MASK_BYTES = "subjectMaskBytes"
     const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"

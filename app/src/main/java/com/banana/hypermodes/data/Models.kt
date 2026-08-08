@@ -101,6 +101,9 @@ data class WallpaperSet(
  */
 data class WallpaperItem(
     val imagePath: String? = null,
+    /** system_server 落盘的可读路径（模式应用/复原时从此复制；App 预览不用）。 */
+    val sysImagePath: String? = null,
+    val sysSubjectMaskPath: String? = null,
     val lockscreenJson: String? = null,
     val templateEditorJson: String? = null,
     val subjectMaskPath: String? = null,
@@ -399,8 +402,11 @@ fun Mode.toModeConfig(): ModeConfig {
             lock = wp.lock?.let {
                 com.banana.hypermodes.systemserver.config.WallpaperItemConfig(
                     imagePath = it.imagePath,
+                    sysImagePath = it.sysImagePath,
+                    sysSubjectMaskPath = it.sysSubjectMaskPath,
                     lockscreenJson = it.lockscreenJson,
                     templateEditorJson = it.templateEditorJson,
+                    subjectMaskPath = it.subjectMaskPath,
                     scrollEnabled = it.scrollEnabled,
                     effectType = it.effectType,
                     which = it.which
@@ -409,8 +415,11 @@ fun Mode.toModeConfig(): ModeConfig {
             desktop = wp.desktop?.let {
                 com.banana.hypermodes.systemserver.config.WallpaperItemConfig(
                     imagePath = it.imagePath,
+                    sysImagePath = it.sysImagePath,
+                    sysSubjectMaskPath = it.sysSubjectMaskPath,
                     lockscreenJson = it.lockscreenJson,
                     templateEditorJson = it.templateEditorJson,
+                    subjectMaskPath = it.subjectMaskPath,
                     scrollEnabled = it.scrollEnabled,
                     effectType = it.effectType,
                     which = it.which
@@ -588,8 +597,11 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
                     lock = wp.lock?.let {
                         WallpaperItem(
                             imagePath = it.imagePath,
+                            sysImagePath = it.sysImagePath,
+                            sysSubjectMaskPath = it.sysSubjectMaskPath,
                             lockscreenJson = it.lockscreenJson,
                             templateEditorJson = it.templateEditorJson,
+                            subjectMaskPath = it.subjectMaskPath,
                             scrollEnabled = it.scrollEnabled,
                             effectType = it.effectType,
                             which = it.which
@@ -598,8 +610,11 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
                     desktop = wp.desktop?.let {
                         WallpaperItem(
                             imagePath = it.imagePath,
+                            sysImagePath = it.sysImagePath,
+                            sysSubjectMaskPath = it.sysSubjectMaskPath,
                             lockscreenJson = it.lockscreenJson,
                             templateEditorJson = it.templateEditorJson,
+                            subjectMaskPath = it.subjectMaskPath,
                             scrollEnabled = it.scrollEnabled,
                             effectType = it.effectType,
                             which = it.which

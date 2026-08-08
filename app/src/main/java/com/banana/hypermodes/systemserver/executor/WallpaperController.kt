@@ -39,6 +39,10 @@ class WallpaperController(private val context: Context) {
     // 壁纸源图路径（WallpaperManagerService 实际监听的文件）
     private val lockOrigFile: File get() = File(systemDir, "wallpaper_lock_orig")
     private val desktopOrigFile: File get() = File(systemDir, "wallpaper_orig")
+    /** AOD 锁屏模板目录（subject mask 实际读取位置）。 */
+    private val aodTemplateDir: File =
+        File("/data/user_de/0/com.miui.aod/files/templates/current")
+    private val subjectMaskFile: File get() = File(aodTemplateDir, "subject_mask")
 
     /** 锁屏样式 JSON 键（SystemUI 观察者监听 constant_template_editor_info）。 */
     private val KEY_LOCKSCREEN_INFO = "constant_lockscreen_info"
@@ -98,12 +102,27 @@ class WallpaperController(private val context: Context) {
         }
 
         // 3. 复制锁屏壁纸源图（触发 FileObserver 重绑组件）
+        //    优先用 system_server 落盘的 sys 路径（App 私有目录 uid 1000 读不了）。
         if (!item.imagePath.isNullOrEmpty()) {
             backupFileOnce(lockOrigFile, lockBackupDir)
-            copyFile(File(item.imagePath), lockOrigFile)
-            log("apply lock: wrote wallpaper to $lockOrigFile")
+            val src = resolveReadableSource(item.sysImagePath, item.imagePath)
+            if (src != null) {
+                copyFile(src, lockOrigFile)
+                log("apply lock: wrote wallpaper to $lockOrigFile (src=$src)")
+            } else {
+                log("apply lock: no readable wallpaper source")
+            }
         }
-        log("apply lock: done (json=${!item.lockscreenJson.isNullOrEmpty()}, image=${!item.imagePath.isNullOrEmpty()})")
+        // 4. 复制锁屏主体蒙版（景深），若有且 source 可读
+        if (!item.sysSubjectMaskPath.isNullOrEmpty()) {
+            backupFileOnce(subjectMaskFile, lockBackupDir)
+            val src = File(item.sysSubjectMaskPath)
+            if (src.exists()) {
+                copyFile(src, subjectMaskFile)
+                log("apply lock: wrote subject mask to $subjectMaskFile")
+            }
+        }
+        log("apply lock: done (json=${!item.lockscreenJson.isNullOrEmpty()}, image=${!item.imagePath.isNullOrEmpty()}, mask=${!item.sysSubjectMaskPath.isNullOrEmpty()})")
     }
 
     private fun restoreLock() {
@@ -125,6 +144,10 @@ class WallpaperController(private val context: Context) {
         File(lockBackupDir, lockOrigFile.name).takeIf { it.exists() }?.let { backup ->
             copyFile(backup, lockOrigFile)
             log("restore lock: restored wallpaper from backup")
+        }
+        File(lockBackupDir, subjectMaskFile.name).takeIf { it.exists() }?.let { backup ->
+            copyFile(backup, subjectMaskFile)
+            log("restore lock: restored subject mask from backup")
         }
         log("restore lock: done")
     }
@@ -157,10 +180,15 @@ class WallpaperController(private val context: Context) {
             getSecure(KEY_WALLPAPER_CHANGED)?.let { File(desktopBackupDir, KEY_WALLPAPER_CHANGED).writeText(it) }
         }
 
-        // 2. 复制桌面壁纸源图
+        // 2. 复制桌面壁纸源图（优先 system_server 落盘的 sys 路径）
         if (!item.imagePath.isNullOrEmpty()) {
-            copyFile(File(item.imagePath), desktopOrigFile)
-            log("apply desktop: wrote wallpaper to $desktopOrigFile")
+            val src = resolveReadableSource(item.sysImagePath, item.imagePath)
+            if (src != null) {
+                copyFile(src, desktopOrigFile)
+                log("apply desktop: wrote wallpaper to $desktopOrigFile (src=$src)")
+            } else {
+                log("apply desktop: no readable wallpaper source")
+            }
         }
 
         // 3. 写回滚动/特效键
@@ -202,6 +230,19 @@ class WallpaperController(private val context: Context) {
         src.inputStream().use { input ->
             dst.outputStream().use { output -> input.copyTo(output) }
         }
+    }
+
+    /** 优先 system_server 可读的 sys 路径，回退 App 路径（仅当确实可读）。 */
+    private fun resolveReadableSource(sysPath: String?, appPath: String?): File? {
+        if (!sysPath.isNullOrEmpty()) {
+            val f = File(sysPath)
+            if (f.exists()) return f
+        }
+        if (!appPath.isNullOrEmpty()) {
+            val f = File(appPath)
+            if (f.exists() && f.canRead()) return f
+        }
+        return null
     }
 
     private fun getSecure(key: String): String? =

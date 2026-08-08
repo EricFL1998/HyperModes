@@ -91,7 +91,7 @@ object WallpaperSnapshotBridge {
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 handler.removeCallbacks(timeout)
-                deliver(parse(context, resultData, previewOnly))
+                deliver(parse(context, resultData, modeId, previewOnly))
             }
         }
         try {
@@ -109,7 +109,12 @@ object WallpaperSnapshotBridge {
         }
     }
 
-    private fun parse(context: Context, data: Bundle?, previewOnly: Boolean): WallpaperSet? {
+    private fun parse(
+        context: Context,
+        data: Bundle?,
+        modeId: String,
+        previewOnly: Boolean
+    ): WallpaperSet? {
         if (data == null) return null
         if (previewOnly) {
             cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
@@ -126,11 +131,12 @@ object WallpaperSnapshotBridge {
                 "desktopPath=${data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH)} " +
                 "lockJson=${data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)?.length}"
         )
-        persistWallpaper(
+        val subjectMaskPath = persistWallpaper(
             context,
             subjectMaskBytes,
             null,
             "subject_mask.jpg",
+            modeId,
             previewOnly
         )
         val lockImage = persistWallpaper(
@@ -138,6 +144,7 @@ object WallpaperSnapshotBridge {
             lockBytes,
             data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH),
             "lock_wallpaper.jpg",
+            modeId,
             previewOnly
         )
         val desktopImage = persistWallpaper(
@@ -145,6 +152,7 @@ object WallpaperSnapshotBridge {
             desktopBytes,
             data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH),
             "desktop_wallpaper.jpg",
+            modeId,
             previewOnly
         )
         val lockJson = data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)
@@ -154,8 +162,11 @@ object WallpaperSnapshotBridge {
             lock = if (lockImage != null || lockJson != null) {
                 WallpaperItem(
                     imagePath = lockImage,
+                    sysImagePath = data.getString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH),
+                    sysSubjectMaskPath = data.getString(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH),
                     lockscreenJson = lockJson,
                     templateEditorJson = data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON),
+                    subjectMaskPath = subjectMaskPath,
                     effectType = if (data.containsKey(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)) {
                         data.getInt(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)
                     } else null,
@@ -165,6 +176,7 @@ object WallpaperSnapshotBridge {
             desktop = if (desktopImage != null) {
                 WallpaperItem(
                     imagePath = desktopImage,
+                    sysImagePath = data.getString(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH),
                     scrollEnabled = if (data.containsKey(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED)) {
                         data.getBoolean(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED)
                     } else null,
@@ -184,14 +196,16 @@ object WallpaperSnapshotBridge {
         bytes: ByteArray?,
         fallbackPath: String?,
         fileName: String,
+        modeId: String,
         previewOnly: Boolean
     ): String? {
         if (bytes != null && bytes.isNotEmpty()) {
             return runCatching {
-                // 预览快照与模式保存分目录，避免互相覆盖
+                // 按 modeId 分目录：preview 走共享预览目录，模式保存走各自目录，
+                // 避免不同模式的壁纸文件互相覆盖（加载时 imagePath 指向各自文件）。
                 val dir = File(
                     File(context.filesDir, "wallpapers"),
-                    if (previewOnly) "preview" else "mode"
+                    if (previewOnly) "preview" else modeId
                 )
                 dir.mkdirs()
                 val file = File(dir, fileName)

@@ -56,8 +56,12 @@ data class WallpaperConfig(
 @Serializable
 data class WallpaperItemConfig(
     val imagePath: String? = null,
+    /** system_server 落盘的可读路径（应用/复原时从此复制）。 */
+    val sysImagePath: String? = null,
+    val sysSubjectMaskPath: String? = null,
     val lockscreenJson: String? = null,
     val templateEditorJson: String? = null,
+    val subjectMaskPath: String? = null,
     val scrollEnabled: Boolean? = null,
     val effectType: Int? = null,
     val which: Int = 3

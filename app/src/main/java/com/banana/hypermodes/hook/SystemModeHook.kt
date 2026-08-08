@@ -308,29 +308,42 @@ class SystemModeHook(private val module: XposedModule) {
 
             // 2/3. 壁纸：scoped storage 会拦截 system_server 写 App 外部目录，
             //      所以把源图解码后压缩成 JPEG 字节返回，App 端自己落盘。
+            //      同时落盘一份到 system 可读目录（/data/system/hypermodes_backup/modes/），
+            //      模式应用/复原时 WallpaperController 从该路径复制，避免读 App 私有目录失败。
+            val sysModeDir = File("/data/system/hypermodes_backup/modes", modeId)
+            sysModeDir.mkdirs()
             val lockOrig = File(systemDir, "wallpaper_lock_orig")
             if (lockOrig.exists()) {
-                bundle.putByteArray(
-                    Protocol.EXTRA_LOCK_IMAGE_BYTES,
-                    encodePreview(lockOrig)
-                )
+                val bytes = encodePreview(lockOrig)
+                bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, bytes)
+                if (bytes != null) {
+                    val sysFile = File(sysModeDir, "lock_wallpaper.jpg")
+                    sysFile.writeBytes(bytes)
+                    bundle.putString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH, sysFile.absolutePath)
+                }
             }
             val desktopOrig = File(systemDir, "wallpaper_orig")
             if (desktopOrig.exists()) {
-                bundle.putByteArray(
-                    Protocol.EXTRA_DESKTOP_IMAGE_BYTES,
-                    encodePreview(desktopOrig)
-                )
+                val bytes = encodePreview(desktopOrig)
+                bundle.putByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES, bytes)
+                if (bytes != null) {
+                    val sysFile = File(sysModeDir, "desktop_wallpaper.jpg")
+                    sysFile.writeBytes(bytes)
+                    bundle.putString(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH, sysFile.absolutePath)
+                }
             }
 
             // 2b. 锁屏壁纸主体蒙版（景深效果）。路径在 lockscreenInfo.wallpaperInfo.subject，
             //     从模板目录读取并压缩传回；不存在则跳过（预览无景深层）。
             val subjectMask = resolveSubjectMask(lockscreenInfo)
             if (subjectMask != null) {
-                bundle.putByteArray(
-                    Protocol.EXTRA_SUBJECT_MASK_BYTES,
-                    encodePreview(subjectMask)
-                )
+                val bytes = encodePreview(subjectMask)
+                bundle.putByteArray(Protocol.EXTRA_SUBJECT_MASK_BYTES, bytes)
+                if (bytes != null) {
+                    val sysFile = File(sysModeDir, "subject_mask.jpg")
+                    sysFile.writeBytes(bytes)
+                    bundle.putString(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH, sysFile.absolutePath)
+                }
             }
 
             // 4. 桌面滚动/特效键
