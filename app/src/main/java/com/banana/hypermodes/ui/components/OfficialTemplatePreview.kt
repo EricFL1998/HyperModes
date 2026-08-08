@@ -1,15 +1,9 @@
 package com.banana.hypermodes.ui.components
 
 import android.content.Context
-import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.util.Log
 import android.view.View
@@ -47,12 +41,6 @@ object OfficialTemplatePreview {
 
     private const val CLOCK_VIEW_CLS = "com.miui.clock.MiuiClockView"
     private const val CLOCK_BEAN_CLS = "com.miui.clock.module.ClockBean"
-    private const val TEMPLATE_FACTORY_CLS = "com.miui.keyguard.editor.base.TemplateViewFactory"
-    private const val HOME_TEMPLATE_VIEW_CLS = "com.miui.keyguard.editor.edit.base.HomeTemplateView"
-    private const val COMMON_CONFIG_CLS = "com.miui.keyguard.editor.data.bean.CommonConfig"
-    private const val TEMPLATE_CONFIG_CLS = "com.miui.keyguard.editor.data.bean.TemplateConfig"
-    private const val HOME_CONFIG_CLS = "com.miui.keyguard.editor.data.bean.HomeConfig"
-    private const val WALLPAPER_INFO_CLS = "com.miui.keyguard.editor.data.bean.WallpaperInfo"
 
     /**
      * 反射创建官方时钟视图并挂到 container 上。
@@ -65,7 +53,6 @@ object OfficialTemplatePreview {
     fun createClockContainer(
         context: Context,
         lockscreenJson: String?,
-        templateEditorJson: String?,
         wallpaper: Bitmap?,
         subjectMaskPath: String?,
         targetWidthPx: Int,
@@ -75,23 +62,14 @@ object OfficialTemplatePreview {
         for (pkg in SOURCE_PACKAGES) {
             try {
                 val host = createHost(context, pkg) ?: continue
-                // 优先官方完整模板视图（BaseTemplateView：景深壁纸层 + 官方时钟层），
-                // 与设置个性化页同一个组件；失败回退手拼 MiuiClockView。
-                val official = buildOfficialLockContainer(
-                    host, context, templateEditorJson, targetWidthPx, targetHeightPx
-                )
-                if (official != null) {
-                    Log.i(TAG, "official full lock template created from $pkg")
-                    return official
-                }
                 val container = buildClockContainer(
                     host, lockscreenJson, wallpaper, subjectMaskPath, targetWidthPx, targetHeightPx
                 )
                 if (container != null) {
-                    Log.i(TAG, "official clock (fallback) created from $pkg")
+                    Log.i(TAG, "official clock created from $pkg")
                     return container
                 }
-                lastError = IllegalStateException("both lock builders returned null from $pkg")
+                lastError = IllegalStateException("buildClockContainer returned null from $pkg")
             } catch (t: Throwable) {
                 lastError = t
                 Log.w(TAG, "official clock failed from $pkg", t)
@@ -104,112 +82,8 @@ object OfficialTemplatePreview {
     }
 
     /**
-     * 官方完整锁屏模板视图：反射 TemplateViewFactory.createScaledPreviewTemplateView
-     * 创建 BaseTemplateView（EffectsTemplateView），内部 addLayers 会创建
-     * CombinedWallpaperView（真实景深壁纸层）+ MiuiClockView（时钟层），
-     * 再 loadTemplate(CommonConfig) 渲染——和设置个性化页完全同一个组件。
-     *
-     * @param templateEditorJson constant_template_editor_info 完整 JSON
-     *  （含 lockscreenInfo + homeInfo），用于官方 Gson 反序列化 CommonConfig。
-     */
-    private fun buildOfficialLockContainer(
-        host: Host,
-        appContext: Context,
-        templateEditorJson: String?,
-        targetWidthPx: Int,
-        targetHeightPx: Int
-    ): FrameLayout? {
-        if (templateEditorJson.isNullOrEmpty()) return null
-        // 内部 try/catch：任何一步失败都返回 null（调用方回退手拼方案），
-        // 绝不把异常抛到外层导致锁屏空白。
-        return runCatching {
-            val commonConfig = buildCommonConfig(host, templateEditorJson) ?: return null
-            val screenW = host.context.resources.displayMetrics.widthPixels
-            val screenH = host.context.resources.displayMetrics.heightPixels
-            val scaleX = if (screenW > 0) targetWidthPx.toFloat() / screenW.toFloat() else 1f
-            val scaleY = if (screenH > 0) targetHeightPx.toFloat() / screenH.toFloat() else 1f
-
-            val factoryCls = host.classLoader.loadClass(TEMPLATE_FACTORY_CLS)
-            val factory = factoryCls.getField("INSTANCE").get(null)
-            val lp = FrameLayout.LayoutParams(screenW, screenH)
-            val method = factoryCls.getMethod(
-                "createScaledPreviewTemplateView",
-                Context::class.java,
-                String::class.java,
-                FrameLayout.LayoutParams::class.java,
-                Float::class.javaPrimitiveType,
-                Float::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType
-            )
-            // templateId 从 CommonConfig 读取（真实锁屏时钟模板）
-            val templateId = runCatching {
-                val lockscreenInfo = commonConfig.javaClass.getMethod("getLockscreenInfo").invoke(commonConfig)
-                val clockInfo = lockscreenInfo.javaClass.getMethod("getClockInfo").invoke(lockscreenInfo)
-                clockInfo.javaClass.getMethod("getTemplateId").invoke(clockInfo) as String
-            }.getOrNull() ?: "classic"
-            // 官方组件内部会调 context.getApplicationContext()（如 TemplateApi.getInstance），
-            // createPackageContext 的 context 该调用返回 null 会 NPE；
-            // 用包装 context 让 getApplicationContext() 返回我们的 App。
-            val officialContext = OfficialHostContext(
-                host.context,
-                appContext.applicationContext ?: appContext
-            )
-            val view = method.invoke(factory, officialContext, templateId, lp, scaleX, scaleY, false) as? View
-                ?: return null
-            // loadTemplate 渲染真实壁纸层（景深）+ 时钟层
-            val load = view.javaClass.getMethod("loadTemplate", commonConfig.javaClass)
-            load.invoke(view, commonConfig)
-
-            val root = FrameLayout(host.context)
-            root.layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            view.layoutParams = FrameLayout.LayoutParams(screenW, screenH)
-            root.addView(view)
-            root
-        }.getOrElse { t ->
-            Log.w(TAG, "official full lock template failed, fallback to hand-built clock", t)
-            null
-        }
-    }
-
-    /**
-     * 包装 createPackageContext 的 context：底层资源/ClassLoader 走官方包，
-     * 但 getApplicationContext() 返回我们的 App（官方 TemplateApi 等依赖它）。
-     */
-    private class OfficialHostContext(
-        base: Context,
-        app: Context
-    ) : ContextWrapper(base) {
-        private val appContext: Context = app
-        override fun getApplicationContext(): Context = appContext
-    }
-
-    /**
-     * 构造官方 CommonConfig：官方 Gson 从 constant_template_editor_info 反序列化。
-     * 失败返回 null（调用方回退手拼方案）。
-     */
-    private fun buildCommonConfig(host: Host, templateEditorJson: String?): Any? {
-        if (templateEditorJson.isNullOrEmpty()) return null
-        return runCatching {
-            val configCls = host.classLoader.loadClass(COMMON_CONFIG_CLS)
-            val companion = configCls.getField("Companion").get(null)
-            val method = companion.javaClass.getMethod(
-                "fromJson",
-                String::class.java,
-                String::class.java
-            )
-            method.invoke(companion, templateEditorJson, null)
-        }.getOrNull()
-    }
-
-    /**
      * 用官方组件渲染桌面 mockup（HomeTemplateView）：真实壁纸 + 官方图标网格层，
      * 和锁屏的 MiuiClockView 一样，按真实屏幕尺寸创建 + scale 缩放到卡片。
-     *
-     * @param templateEditorJson constant_template_editor_info 完整 JSON
-     *  （含 homeInfo），用于构造官方 CommonConfig；为 null 时用最小空配置
      */
     fun createHomeContainer(
         context: Context,
@@ -348,29 +222,10 @@ object OfficialTemplatePreview {
         // 官方时钟：全屏尺寸 + 左上角缩放，和 createScaledPreviewTemplateView 一致
         addScaledClockView(root, clockView, screenW, screenH, targetScaleX, targetScaleY)
 
-        // 6. oversize_* 是双层时钟（官方 OversizeBTemplateView）：
-        //    背景层 = templateId（如 oversize_b，分钟层），
-        //    前景层 = templateId + "_hour"（如 oversize_b_hour，小时层），
-        //    前景覆盖在背景之上。缺失小时层会导致只显示分钟。
-        val templateId = fields.templateId
-        if (templateId != null && templateId.startsWith("oversize")) {
-            runCatching {
-                val foreTemplate = templateId + "_hour"
-                val foreBean = beanCls.getConstructor(String::class.java).newInstance(foreTemplate)
-                // 前景小时层复用主 bean 的颜色/字重字段（官方 initTemplateBean 同样复制）
-                fillClockBean(beanCls, foreBean, fields)
-                val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
-                initClockView(clockViewCls, foreView, foreBean, beanCls)
-                addScaledClockView(root, foreView, screenW, screenH, targetScaleX, targetScaleY)
-                Log.i(TAG, "oversize fore clock layer added: $foreTemplate")
-            }.onFailure { t ->
-                Log.w(TAG, "oversize fore clock layer failed", t)
-            }
-        }
-
-        // 7. 景深效果：壁纸主体前景层。官方预览渲染顺序为
-        //    "背景壁纸 → 时钟 → 前景主体（subject_mask 白色区域）"，
-        //    前景主体叠加在时钟上层，遮挡时钟一部分，形成前后层次。
+        // 6. 景深效果：壁纸主体前景层。官方渲染层级为
+        //    "背景壁纸 → 分钟层（oversize_b，被主体遮挡）→ 景深主体 → 小时层
+        //    （oversize_b_hour，在主体之上、不被遮挡）"。
+        //    所以主体层必须插在分钟层和小时层之间。
         if (wallpaper != null && !subjectMaskPath.isNullOrEmpty()) {
             runCatching {
                 val mask = BitmapFactory.decodeFile(subjectMaskPath) ?: return@runCatching
@@ -387,10 +242,30 @@ object OfficialTemplatePreview {
                         pivotY = 0f
                     }
                     root.addView(fg)
-                    Log.i(TAG, "depth foreground layer added")
+                    Log.i(TAG, "depth foreground layer added (below hour layer)")
                 }
             }.onFailure { t ->
                 Log.w(TAG, "depth foreground layer failed", t)
+            }
+        }
+
+        // 7. oversize_* 是双层时钟（官方 OversizeBTemplateView）：
+        //    背景层 = templateId（如 oversize_b，分钟层），
+        //    前景层 = templateId + "_hour"（如 oversize_b_hour，小时层），
+        //    前景覆盖在背景+景深主体之上（小时不被主体遮挡）。缺失小时层会导致只显示分钟。
+        val templateId = fields.templateId
+        if (templateId != null && templateId.startsWith("oversize")) {
+            runCatching {
+                val foreTemplate = templateId + "_hour"
+                val foreBean = beanCls.getConstructor(String::class.java).newInstance(foreTemplate)
+                // 前景小时层复用主 bean 的颜色/字重字段（官方 initTemplateBean 同样复制）
+                fillClockBean(beanCls, foreBean, fields)
+                val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
+                initClockView(clockViewCls, foreView, foreBean, beanCls)
+                addScaledClockView(root, foreView, screenW, screenH, targetScaleX, targetScaleY)
+                Log.i(TAG, "oversize fore clock layer added: $foreTemplate")
+            }.onFailure { t ->
+                Log.w(TAG, "oversize fore clock layer failed", t)
             }
         }
         return root
@@ -406,24 +281,31 @@ object OfficialTemplatePreview {
     ): Bitmap? {
         val w = wallpaper.width
         val h = wallpaper.height
+        // 先解码蒙版为灰度像素
+        val grayMask = if (mask.width == w && mask.height == h) {
+            mask
+        } else {
+            Bitmap.createScaledBitmap(mask, w, h, true)
+        }
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(out)
-        // 1) 铺壁纸
-        canvas.drawBitmap(wallpaper, 0f, 0f, null)
-        // 2) 把 mask 亮度作为 alpha（DST_IN：目标 alpha *= 源 alpha）
-        val maskAlpha = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8)
-        val rect = Rect(0, 0, w, h)
-        val alphaCanvas = Canvas(maskAlpha)
-        val gray = Paint().apply {
-            // mask 是灰度 JPEG（RGB 同值），直接画到 ALPHA_8
-            isAntiAlias = false
+        // 手动合成：前景 = 壁纸像素，alpha = 蒙版亮度（白色主体不透明、黑色背景透明）
+        val wallpaperPixels = IntArray(w)
+        val maskPixels = IntArray(w)
+        val outPixels = IntArray(w)
+        for (y in 0 until h) {
+            wallpaper.getPixels(wallpaperPixels, 0, w, 0, y, w, 1)
+            grayMask.getPixels(maskPixels, 0, w, 0, y, w, 1)
+            for (x in 0 until w) {
+                val m = maskPixels[x]
+                val lum = ((m shr 16 and 0xFF) + (m shr 8 and 0xFF) + (m and 0xFF)) / 3
+                // 轻微软化边缘：蒙版亮度直接作为 alpha
+                val alpha = lum
+                val wp = wallpaperPixels[x]
+                outPixels[x] = (alpha shl 24) or (wp and 0x00FFFFFF)
+            }
+            out.setPixels(outPixels, 0, w, 0, y, w, 1)
         }
-        alphaCanvas.drawBitmap(mask, rect, rect, gray)
-        val paint = Paint().apply {
-            xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-        }
-        canvas.drawBitmap(maskAlpha, 0f, 0f, paint)
-        maskAlpha.recycle()
+        if (grayMask !== mask) grayMask.recycle()
         return out
     }
 
@@ -642,7 +524,6 @@ object OfficialTemplatePreview {
 @Composable
 fun OfficialLockPreview(
     lockscreenJson: String?,
-    templateEditorJson: String?,
     wallpaper: Bitmap?,
     subjectMaskPath: String?,
     targetWidthPx: Int,
@@ -656,7 +537,6 @@ fun OfficialLockPreview(
             val view = OfficialTemplatePreview.createClockContainer(
                 ctx,
                 lockscreenJson,
-                templateEditorJson,
                 wallpaper,
                 subjectMaskPath,
                 targetWidthPx,

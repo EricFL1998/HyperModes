@@ -103,8 +103,6 @@ fun WallpaperOverviewCard(
                     ),
                     lockscreenJson = wallpaper?.lock?.lockscreenJson
                         ?: systemWallpaper?.lock?.lockscreenJson,
-                    templateEditorJson = wallpaper?.lock?.templateEditorJson
-                        ?: systemWallpaper?.lock?.templateEditorJson,
                     subjectMaskPath = wallpaper?.lock?.subjectMaskPath
                         ?: systemWallpaper?.lock?.subjectMaskPath,
                     onClick = onLockClick,
@@ -145,7 +143,6 @@ fun WallpaperOverviewCard(
 private fun LockScreenMockup(
     image: Bitmap?,
     lockscreenJson: String?,
-    templateEditorJson: String?,
     subjectMaskPath: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -156,7 +153,7 @@ private fun LockScreenMockup(
     // 优先用官方组件渲染（真实壁纸 + 官方时钟样式）；失败回退 Compose 复刻。
     // 同步创建在 UI 线程，首次几十 ms 可接受；反射全部 try/catch，绝不影响其它功能。
     val officialView = remember(
-        lockscreenJson, templateEditorJson, image, subjectMaskPath,
+        lockscreenJson, image, subjectMaskPath,
         cardSize.first, cardSize.second
     ) {
         if (!lockscreenJson.isNullOrEmpty() && cardSize.first > 0 && cardSize.second > 0) {
@@ -164,7 +161,6 @@ private fun LockScreenMockup(
                 OfficialTemplatePreview.createClockContainer(
                     context,
                     lockscreenJson,
-                    templateEditorJson,
                     image,
                     subjectMaskPath,
                     cardSize.first,
