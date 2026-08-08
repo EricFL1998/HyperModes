@@ -47,25 +47,32 @@ import top.yukonga.miuix.kmp.basic.Text
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.delay
+import org.json.JSONObject
 
 /**
  * 壁纸概览大卡片：复刻官方个性化界面顶部的预览样式
  * （kg_settings_view_template.xml），横向两个等宽手机 mockup（锁屏 / 桌面），
  * 20dp 圆角、8dp 间距、竖屏比例：
  *
- * - 锁屏 mockup：壁纸背景 + 时钟（当前时间）+ 日期，底部中央"自定义"胶囊按钮
- * - 桌面 mockup：壁纸背景 + 图标/组件占位网格，底部中央"自定义"胶囊按钮
+ * - 锁屏 mockup：真实锁屏壁纸背景 + 按官方锁屏 JSON（clockInfo）渲染的时钟/日期，
+ *   底部中央"自定义"胶囊按钮
+ * - 桌面 mockup：真实桌面壁纸背景 + 图标/组件占位网格，底部中央"自定义"胶囊按钮
  *
- * - 未配置（WallpaperSet 子项为 null）：显示系统当前锁屏/桌面壁纸。
+ * - 未配置（WallpaperSet 子项为 null）：显示系统当前锁屏/桌面壁纸
+ *   （systemWallpaper 来自 system_server 快照，锁屏普通 App 读不到文件，
+ *   必须由 system_server 复制到 App 可读目录）。
  * - 已配置：显示配置的壁纸图片。
  *
  * @param wallpaper 模式保存的壁纸 set（lock / desktop 子项可单独为 null）
+ * @param systemWallpaper 系统当前壁纸快照（未配置时作为预览底图；可为 null）
  * @param onClick 点击卡片（进入官方壁纸界面）
  * @param onClear 清除已保存的壁纸配置（恢复"未编辑"状态）；null 则不显示清除入口
  */
 @Composable
 fun WallpaperOverviewCard(
     wallpaper: WallpaperSet?,
+    systemWallpaper: WallpaperSet?,
     onClick: () -> Unit,
     onClear: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -96,16 +103,20 @@ fun WallpaperOverviewCard(
                 LockScreenMockup(
                     image = rememberWallpaperBitmap(
                         context = context,
-                        configuredPath = wallpaper?.lock?.imagePath,
+                        configuredPath = wallpaper?.lock?.imagePath
+                            ?: systemWallpaper?.lock?.imagePath,
                         which = WallpaperManager.FLAG_LOCK
                     ),
+                    lockscreenJson = wallpaper?.lock?.lockscreenJson
+                        ?: systemWallpaper?.lock?.lockscreenJson,
                     onClick = onClick,
                     modifier = Modifier.weight(1f)
                 )
                 HomeScreenMockup(
                     image = rememberWallpaperBitmap(
                         context = context,
-                        configuredPath = wallpaper?.desktop?.imagePath,
+                        configuredPath = wallpaper?.desktop?.imagePath
+                            ?: systemWallpaper?.desktop?.imagePath,
                         which = WallpaperManager.FLAG_SYSTEM
                     ),
                     onClick = onClick,
@@ -125,25 +136,36 @@ fun WallpaperOverviewCard(
 }
 
 /**
- * 锁屏 mockup：官方个性化顶部锁屏预览样式——壁纸背景 + 时钟（大字时分，
- * 分钟略透明）+ 日期，底部中央"自定义"胶囊按钮。
+ * 锁屏 mockup：官方个性化顶部锁屏预览样式——真实壁纸背景 + 按官方锁屏 JSON
+ * （clockInfo.templateId / primaryColor / isAutoPrimaryColor）渲染的时钟与日期，
+ * 底部中央"自定义"胶囊按钮。
+ *
+ * @param lockscreenJson Settings.Secure constant_lockscreen_info 的 JSON，
+ * 用于读取时钟模板与颜色；为 null 时回退经典大字时钟。
  */
 @Composable
 private fun LockScreenMockup(
     image: Bitmap?,
+    lockscreenJson: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val now = remember { Calendar.getInstance() }
-    val hour = remember(now) {
-        String.format("%02d", now.get(Calendar.HOUR_OF_DAY))
+    // 时钟每分钟刷新，与官方预览一致实时走动
+    var now by remember { mutableStateOf(Calendar.getInstance()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            now = Calendar.getInstance()
+        }
     }
-    val minute = remember(now) {
-        String.format("%02d", now.get(Calendar.MINUTE))
-    }
-    val date = remember(now) {
-        SimpleDateFormat("M/d EEE", Locale.CHINA).format(now.time)
-    }
+    val hour = String.format("%02d", now.get(Calendar.HOUR_OF_DAY))
+    val minute = String.format("%02d", now.get(Calendar.MINUTE))
+    val date = SimpleDateFormat("M/d EEE", Locale.CHINA).format(now.time)
+    // 解析官方锁屏 JSON 的时钟样式
+    val clockStyle = remember(lockscreenJson) { parseClockStyle(lockscreenJson) }
+    val primaryColor = clockStyle.primaryColor
+        ?: if (clockStyle.isAutoPrimaryColor) Color.White else Color.White
+    val secondaryColor = clockStyle.secondaryColor ?: primaryColor.copy(alpha = 0.75f)
 
     Box(
         modifier = modifier
@@ -175,26 +197,72 @@ private fun LockScreenMockup(
                     text = hour,
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Light,
-                    color = Color.White
+                    color = primaryColor
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = minute,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Light,
-                    color = Color.White.copy(alpha = 0.75f)
+                    color = secondaryColor
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = date,
                 fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.9f)
+                color = primaryColor.copy(alpha = 0.9f)
             )
             Spacer(modifier = Modifier.weight(1f))
             CustomizePill(onClick = onClick)
             Spacer(modifier = Modifier.height(4.dp))
         }
+    }
+}
+
+/** 从官方锁屏 JSON 解析出的时钟样式（颜色按 ARGB int，可能为 null=用默认白）。 */
+private data class ClockStyle(
+    val templateId: String?,
+    val primaryColor: Color?,
+    val secondaryColor: Color?,
+    val isAutoPrimaryColor: Boolean = true
+)
+
+/**
+ * 解析 Settings.Secure constant_lockscreen_info 的 JSON。
+ * 结构：{"clockInfo":{"templateId":"classic","primaryColor":...,
+ * "secondaryColor":...,"isAutoPrimaryColor":true,...}}
+ * 颜色字段可能是 int(ARGB) 或 "#RRGGBB" 字符串，解析失败回退 null（白色）。
+ */
+private fun parseClockStyle(json: String?): ClockStyle {
+    if (json.isNullOrEmpty()) return ClockStyle(null, null, null)
+    return runCatching {
+        val root = JSONObject(json)
+        val clock = root.optJSONObject("clockInfo") ?: return@runCatching ClockStyle(null, null, null)
+        ClockStyle(
+            templateId = clock.optString("templateId").takeIf { it.isNotEmpty() },
+            primaryColor = parseColor(clock, "primaryColor"),
+            secondaryColor = parseColor(clock, "secondaryColor"),
+            isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true)
+        )
+    }.getOrDefault(ClockStyle(null, null, null))
+}
+
+private fun parseColor(clock: JSONObject, key: String): Color? {
+    if (!clock.has(key)) return null
+    val v = clock.opt(key)
+    return when (v) {
+        null -> null
+        is Int -> runCatching { Color(v) }.getOrNull()
+        is String -> runCatching {
+            val s = v.removePrefix("#")
+            when (s.length) {
+                6 -> Color(0xFF000000.toInt() or s.toLong(16).toInt())
+                8 -> Color(s.toLong(16).toInt())
+                else -> null
+            }
+        }.getOrNull()
+        else -> null
     }
 }
 

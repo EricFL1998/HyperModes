@@ -19,7 +19,28 @@ import com.banana.hypermodes.protocol.Protocol
  */
 object WallpaperSnapshotBridge {
 
+    /**
+     * Capture the current lock-screen style JSON + wallpaper files into a shared
+     * preview dir (never overwrites a mode's saved wallpaper). Used when entering
+     * the detail page so unconfigured previews show the real system wallpaper
+     * and lock-screen style.
+     */
+    fun captureCurrent(context: Context, onResult: (WallpaperSet?) -> Unit) {
+        captureInternal(context, modeId = "preview", previewOnly = true, onResult)
+    }
+
+    /** Capture into a mode-specific dir; used after the user edits wallpaper in
+     *  the official UI so the resulting set can be stored in the mode. */
     fun capture(context: Context, modeId: String, onResult: (WallpaperSet?) -> Unit) {
+        captureInternal(context, modeId = modeId, previewOnly = false, onResult)
+    }
+
+    private fun captureInternal(
+        context: Context,
+        modeId: String,
+        previewOnly: Boolean,
+        onResult: (WallpaperSet?) -> Unit
+    ) {
         val handler = Handler(Looper.getMainLooper())
         var delivered = false
         fun deliver(result: WallpaperSet?) {
@@ -41,6 +62,7 @@ object WallpaperSnapshotBridge {
                 Intent(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT).apply {
                     setPackage(Protocol.FRAMEWORK_PACKAGE)
                     putExtra(Protocol.EXTRA_MODE_ID, modeId)
+                    putExtra(Protocol.EXTRA_PREVIEW_ONLY, previewOnly)
                     putExtra(Protocol.EXTRA_RESULT_RECEIVER, receiver)
                 }
             )

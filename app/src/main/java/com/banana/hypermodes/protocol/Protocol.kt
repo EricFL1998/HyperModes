@@ -80,6 +80,10 @@ object Protocol {
     const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"
     const val EXTRA_WALLPAPER_EFFECT_TYPE = "wallpaperEffectType"
     const val EXTRA_WALLPAPER_CHANGED = "wallpaperChanged"
+    /** Capture the current system wallpaper into a shared preview dir instead of
+     *  a mode-specific one, so entering the detail page never overwrites a saved
+     *  mode's wallpaper files. */
+    const val EXTRA_PREVIEW_ONLY = "previewOnly"
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"
     /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
      * (scheduled sleep/wake alarms or the Clock app's own toggle). */

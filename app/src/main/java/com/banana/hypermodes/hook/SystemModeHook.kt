@@ -256,15 +256,21 @@ class SystemModeHook(private val module: XposedModule) {
             return
         }
         val modeId = intent.getStringExtra(Protocol.EXTRA_MODE_ID) ?: "mode"
+        // 预览快照写入共享目录，避免覆盖已保存的模式壁纸文件
+        val previewOnly = intent.getBooleanExtra(Protocol.EXTRA_PREVIEW_ONLY, false)
         val userId = Process.myUid() / 100000
         val systemDir = File(Environment.getDataDirectory(), "system/users/$userId")
 
-        // App external files dir: /sdcard/Android/data/com.banana.hypermodes/files/wallpapers/{modeId}/
+        // App external files dir: /sdcard/Android/data/com.banana.hypermodes/files/wallpapers/
         val appWallpaperRoot = File(
             File(Environment.getExternalStorageDirectory(), "Android/data"),
             Protocol.MODULE_PACKAGE + "/files/wallpapers"
         )
-        val targetDir = File(appWallpaperRoot, modeId)
+        val targetDir = if (previewOnly) {
+            File(appWallpaperRoot, "preview")
+        } else {
+            File(appWallpaperRoot, modeId)
+        }
         targetDir.mkdirs()
 
         val bundle = Bundle()
@@ -317,7 +323,7 @@ class SystemModeHook(private val module: XposedModule) {
                 Protocol.EXTRA_WALLPAPER_CHANGED,
                 Settings.Secure.getString(resolver, "wallpaper_changed_2")
             )
-            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId dir=${targetDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
+            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId preview=$previewOnly dir=${targetDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
         } catch (t: Throwable) {
             log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
         }

@@ -117,6 +117,13 @@ fun ModeDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     // 点击壁纸卡片打开官方 UI 后，等待用户返回时捕获当前壁纸快照并保存
     var pendingWallpaperCapture by remember(mode.id) { mutableStateOf(false) }
+    // 系统当前壁纸快照（详情页进入时拉取一次，未配置时作为预览底图/锁屏样式）
+    var systemWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
+    LaunchedEffect(mode.id) {
+        WallpaperSnapshotBridge.captureCurrent(context) { snapshot ->
+            systemWallpaper = snapshot
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, mode.id) {
@@ -563,6 +570,7 @@ fun ModeDetailScreen(
             item {
                 WallpaperOverviewCard(
                     wallpaper = editedMode.settings.wallpaper,
+                    systemWallpaper = systemWallpaper,
                     onClick = {
                         pendingWallpaperCapture = true
                         onOpenWallpaper(editedMode)
