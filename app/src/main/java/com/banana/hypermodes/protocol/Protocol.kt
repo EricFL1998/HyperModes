@@ -82,6 +82,8 @@ object Protocol {
      *  app writes these bytes to its own files dir instead). */
     const val EXTRA_LOCK_IMAGE_BYTES = "lockImageBytes"
     const val EXTRA_DESKTOP_IMAGE_BYTES = "desktopImageBytes"
+    /** 锁屏壁纸主体蒙版（subject_mask）JPEG 字节，用于预览景深效果。 */
+    const val EXTRA_SUBJECT_MASK_BYTES = "subjectMaskBytes"
     const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"
     const val EXTRA_WALLPAPER_EFFECT_TYPE = "wallpaperEffectType"
     const val EXTRA_WALLPAPER_CHANGED = "wallpaperChanged"

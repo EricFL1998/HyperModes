@@ -58,14 +58,16 @@ import top.yukonga.miuix.kmp.basic.Text
  *
  * @param wallpaper 模式保存的壁纸 set（lock / desktop 子项可单独为 null）
  * @param systemWallpaper 系统当前壁纸快照（未配置时作为预览底图；可为 null）
- * @param onClick 点击卡片（进入官方壁纸界面）
+ * @param onLockClick 点击锁屏 mockup（进入锁屏自定义界面）
+ * @param onDesktopClick 点击桌面 mockup（进入桌面自定义界面）
  * @param onClear 清除已保存的壁纸配置（恢复"未编辑"状态）；null 则不显示清除入口
  */
 @Composable
 fun WallpaperOverviewCard(
     wallpaper: WallpaperSet?,
     systemWallpaper: WallpaperSet?,
-    onClick: () -> Unit,
+    onLockClick: () -> Unit,
+    onDesktopClick: () -> Unit,
     onClear: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -101,7 +103,11 @@ fun WallpaperOverviewCard(
                     ),
                     lockscreenJson = wallpaper?.lock?.lockscreenJson
                         ?: systemWallpaper?.lock?.lockscreenJson,
-                    onClick = onClick,
+                    templateEditorJson = wallpaper?.lock?.templateEditorJson
+                        ?: systemWallpaper?.lock?.templateEditorJson,
+                    subjectMaskPath = wallpaper?.lock?.subjectMaskPath
+                        ?: systemWallpaper?.lock?.subjectMaskPath,
+                    onClick = onLockClick,
                     modifier = Modifier.weight(1f)
                 )
                 HomeScreenMockup(
@@ -111,7 +117,7 @@ fun WallpaperOverviewCard(
                             ?: systemWallpaper?.desktop?.imagePath,
                         which = WallpaperManager.FLAG_SYSTEM
                     ),
-                    onClick = onClick,
+                    onClick = onDesktopClick,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -139,6 +145,8 @@ fun WallpaperOverviewCard(
 private fun LockScreenMockup(
     image: Bitmap?,
     lockscreenJson: String?,
+    templateEditorJson: String?,
+    subjectMaskPath: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -147,11 +155,20 @@ private fun LockScreenMockup(
     var cardSize by remember { mutableStateOf(0 to 0) }
     // 优先用官方组件渲染（真实壁纸 + 官方时钟样式）；失败回退 Compose 复刻。
     // 同步创建在 UI 线程，首次几十 ms 可接受；反射全部 try/catch，绝不影响其它功能。
-    val officialView = remember(lockscreenJson, image, cardSize.first, cardSize.second) {
+    val officialView = remember(
+        lockscreenJson, templateEditorJson, image, subjectMaskPath,
+        cardSize.first, cardSize.second
+    ) {
         if (!lockscreenJson.isNullOrEmpty() && cardSize.first > 0 && cardSize.second > 0) {
             runCatching {
                 OfficialTemplatePreview.createClockContainer(
-                    context, lockscreenJson, image, cardSize.first, cardSize.second
+                    context,
+                    lockscreenJson,
+                    templateEditorJson,
+                    image,
+                    subjectMaskPath,
+                    cardSize.first,
+                    cardSize.second
                 )
             }.getOrNull()
         } else {

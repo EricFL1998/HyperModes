@@ -34,12 +34,18 @@ object WallpaperSnapshotBridge {
         val lockFile = File(dir, "lock_wallpaper.jpg")
         val desktopFile = File(dir, "desktop_wallpaper.jpg")
         val lockJsonFile = File(dir, "lockscreen.json")
+        val templateEditorFile = File(dir, "template_editor.json")
+        val subjectMaskFile = File(dir, "subject_mask.jpg")
         if (!lockFile.exists() && !desktopFile.exists()) return null
         return WallpaperSet(
             lock = if (lockFile.exists()) {
                 WallpaperItem(
                     imagePath = lockFile.absolutePath,
                     lockscreenJson = runCatching { lockJsonFile.takeIf { it.exists() }?.readText() }.getOrNull(),
+                    templateEditorJson = runCatching {
+                        templateEditorFile.takeIf { it.exists() }?.readText()
+                    }.getOrNull(),
+                    subjectMaskPath = subjectMaskFile.takeIf { it.exists() }?.absolutePath,
                     which = 2
                 )
             } else null,
@@ -107,15 +113,25 @@ object WallpaperSnapshotBridge {
         if (data == null) return null
         if (previewOnly) {
             cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
+            cacheTemplateEditorJson(context, data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON))
         }
         val lockBytes = data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES)
         val desktopBytes = data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES)
+        val subjectMaskBytes = data.getByteArray(Protocol.EXTRA_SUBJECT_MASK_BYTES)
         Log.i(
             "WallpaperSnapshotBridge",
             "parse: previewOnly=$previewOnly lockBytes=${lockBytes?.size} desktopBytes=${desktopBytes?.size} " +
+                "subjectMaskBytes=${subjectMaskBytes?.size} " +
                 "lockPath=${data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH)} " +
                 "desktopPath=${data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH)} " +
                 "lockJson=${data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)?.length}"
+        )
+        persistWallpaper(
+            context,
+            subjectMaskBytes,
+            null,
+            "subject_mask.jpg",
+            previewOnly
         )
         val lockImage = persistWallpaper(
             context,
@@ -193,6 +209,16 @@ object WallpaperSnapshotBridge {
             val dir = previewDir(context)
             dir.mkdirs()
             File(dir, "lockscreen.json").writeText(json)
+        }
+    }
+
+    /** preview 模式额外缓存完整 template_editor JSON（官方完整锁屏模板需要）。 */
+    private fun cacheTemplateEditorJson(context: Context, json: String?) {
+        if (json.isNullOrEmpty()) return
+        runCatching {
+            val dir = previewDir(context)
+            dir.mkdirs()
+            File(dir, "template_editor.json").writeText(json)
         }
     }
 }

@@ -96,7 +96,8 @@ fun ModeDetailScreen(
     onOpenDrivingBluetoothPicker: (Mode) -> Unit,
     onOpenDeviceControl: (Mode) -> Unit,
     onOpenDrivingDetect: (Mode) -> Unit,
-    onOpenWallpaper: (Mode) -> Unit,
+    /** caller: "lock" 或 "desktop"，用于进入对应的自定义界面。 */
+    onOpenWallpaper: (Mode, String) -> Unit,
     onRename: (Mode) -> Unit,
     onDelete: (Mode) -> Unit,
     onSave: (Mode) -> Unit,
@@ -603,10 +604,15 @@ fun ModeDetailScreen(
                 WallpaperOverviewCard(
                     wallpaper = editedMode.settings.wallpaper,
                     systemWallpaper = systemWallpaper,
-                    onClick = {
+                    onLockClick = {
                         beforeWallpaper = systemWallpaper
                         pendingWallpaperCapture = true
-                        onOpenWallpaper(editedMode)
+                        onOpenWallpaper(editedMode, "lock")
+                    },
+                    onDesktopClick = {
+                        beforeWallpaper = systemWallpaper
+                        pendingWallpaperCapture = true
+                        onOpenWallpaper(editedMode, "desktop")
                     },
                     onClear = {
                         editedMode = editedMode.copy(

@@ -94,6 +94,7 @@ data class WallpaperSet(
  * @param imagePath 壁纸图片路径（App 外部存储 / 系统可读路径），null = 未配置
  * @param lockscreenJson 锁屏样式 JSON（constant_lockscreen_info 整段，仅锁屏子项使用）
  * @param templateEditorJson constant_template_editor_info 的 lockscreenInfo 包装（仅锁屏）
+ * @param subjectMaskPath 锁屏壁纸主体蒙版（景深效果，仅锁屏）
  * @param scrollEnabled 桌面滚动壁纸开关（仅桌面子项）
  * @param effectType 壁纸特效类型（wallpaper_effect_type_1/2）
  * @param which 应用范围：1 桌面 / 2 锁屏 / 3 两者
@@ -102,6 +103,7 @@ data class WallpaperItem(
     val imagePath: String? = null,
     val lockscreenJson: String? = null,
     val templateEditorJson: String? = null,
+    val subjectMaskPath: String? = null,
     val scrollEnabled: Boolean? = null,
     val effectType: Int? = null,
     val which: Int = 3

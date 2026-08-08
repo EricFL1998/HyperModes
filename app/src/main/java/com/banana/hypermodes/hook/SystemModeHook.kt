@@ -323,6 +323,16 @@ class SystemModeHook(private val module: XposedModule) {
                 )
             }
 
+            // 2b. 锁屏壁纸主体蒙版（景深效果）。路径在 lockscreenInfo.wallpaperInfo.subject，
+            //     从模板目录读取并压缩传回；不存在则跳过（预览无景深层）。
+            val subjectMask = resolveSubjectMask(lockscreenInfo)
+            if (subjectMask != null) {
+                bundle.putByteArray(
+                    Protocol.EXTRA_SUBJECT_MASK_BYTES,
+                    encodePreview(subjectMask)
+                )
+            }
+
             // 4. 桌面滚动/特效键
             bundle.putBoolean(
                 Protocol.EXTRA_DESKTOP_SCROLL_ENABLED,
@@ -341,6 +351,19 @@ class SystemModeHook(private val module: XposedModule) {
             log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
         }
         resultReceiver.send(0, bundle)
+    }
+
+    /** 从 lockscreenInfo JSON 解析 wallpaperInfo.subject 路径（主体蒙版文件）。 */
+    private fun resolveSubjectMask(lockscreenInfo: String?): File? {
+        if (lockscreenInfo.isNullOrEmpty()) return null
+        return runCatching {
+            val root = org.json.JSONObject(lockscreenInfo)
+            val wallpaperInfo = root.optJSONObject("wallpaperInfo") ?: return null
+            val subject = wallpaperInfo.optString("subject").takeIf { it.isNotEmpty() }
+                ?: return null
+            val f = File(subject)
+            f.takeIf { it.exists() && it.isFile }
+        }.getOrNull()
     }
 
     /** 从 constant_template_editor_info 提取 lockscreenInfo 子对象 JSON。 */

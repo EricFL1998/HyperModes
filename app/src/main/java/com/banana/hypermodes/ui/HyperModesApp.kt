@@ -94,7 +94,7 @@ private fun sortModes(list: List<Mode>): List<Mode> = list.sortedWith(
  * 仅作为 saveCallingSource 里 launchFromPackage 的参考值，不影响白名单校验）。
  * 失败回退壁纸选择器 / WallpaperSettingsActivity / ThemeTabActivity。
  */
-private fun openOfficialWallpaperUi(context: Context) {
+private fun openOfficialWallpaperUi(context: Context, caller: String = "lock") {
     val themePackage = "com.android.thememanager"
 
     // 1) 锁屏/桌面编辑器（与个性化顶部"自定义"按钮一致）。
@@ -103,7 +103,7 @@ private fun openOfficialWallpaperUi(context: Context) {
         Intent().apply {
             action = "miui.keyguard.editor.common"
             setClassName("com.miui.aod", "com.miui.keyguard.editor.CommonEditorActivity")
-            putExtra("caller", "lock")
+            putExtra("caller", caller)
             putExtra("argConfigPath", "@MINE")
             putExtra("argTemplateSource", -1L)
             putExtra("whereFrom", "homepage")
@@ -522,9 +522,9 @@ fun HyperModesApp() {
                             editingMode = updated
                             currentScreen = Screen.DrivingDetect(updated)
                         },
-                        onOpenWallpaper = { updated ->
+                        onOpenWallpaper = { updated, caller ->
                             editingMode = updated
-                            openOfficialWallpaperUi(context)
+                            openOfficialWallpaperUi(context, caller)
                         },
                         onRename = { updated ->
                             modeToEditInDialog = updated
