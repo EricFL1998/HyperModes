@@ -175,10 +175,33 @@ private fun LockScreenMockup(
     } else {
         clockStyle.secondaryColor ?: primaryColor.copy(alpha = 0.75f)
     }
-    // oversize_* 是超大时钟模板，字号更大更接近官方预览
-    val oversize = clockStyle.templateId?.startsWith("oversize") == true
-    val hourSize = if (oversize) 52.sp else 40.sp
-    val minuteSize = if (oversize) 30.sp else 24.sp
+    val template = clockStyle.templateId ?: "classic"
+    // oversize_*：超大时钟（前景小时 + 背景分钟重叠），日期左下角
+    val oversize = template.startsWith("oversize")
+    // magazine_*：杂志风（日期大、时间小）
+    val magazine = template.startsWith("magazine")
+    // classic_*：经典大字时钟
+    val classic = template.startsWith("classic") || template == "rhombus"
+    // clockWeight：官方字重（clockInfo.clockWeight，如 420），映射到 Compose 字重
+    val fontWeight = when {
+        clockStyle.clockWeight >= 600 -> FontWeight.SemiBold
+        clockStyle.clockWeight >= 500 -> FontWeight.Medium
+        clockStyle.clockWeight >= 400 -> FontWeight.Normal
+        clockStyle.clockWeight > 0 -> FontWeight.Light
+        else -> FontWeight.Light
+    }
+    val hourSize = when {
+        oversize -> 60.sp
+        magazine -> 30.sp
+        classic -> 44.sp
+        else -> 44.sp
+    }
+    val minuteSize = when {
+        oversize -> 26.sp
+        magazine -> 30.sp
+        classic -> 26.sp
+        else -> 26.sp
+    }
 
     Box(
         modifier = modifier
@@ -202,30 +225,68 @@ private fun LockScreenMockup(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.weight(1f))
-            // 时钟：小时大字 + 分钟小字（仿官方杂志时钟）
-            Row(
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Text(
-                    text = hour,
-                    fontSize = hourSize,
-                    fontWeight = FontWeight.Light,
-                    color = primaryColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = minute,
-                    fontSize = minuteSize,
-                    fontWeight = FontWeight.Light,
-                    color = secondaryColor
-                )
+            // 时钟：oversize 模板为前后双层时钟，小时为前景（前景小时 + 背景分钟重叠），
+            // 分钟在底层、右对齐偏右半透明；小时覆盖其上。参考官方
+            // OversizeBHourClock/OversizeBMinuteClock 布局。
+            if (oversize) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = minute,
+                        fontSize = hourSize * 1.5f,
+                        fontWeight = fontWeight,
+                        color = secondaryColor.copy(alpha = 0.55f),
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 2.dp)
+                    )
+                    Text(
+                        text = hour,
+                        fontSize = hourSize,
+                        fontWeight = fontWeight,
+                        color = primaryColor,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        text = hour,
+                        fontSize = hourSize,
+                        fontWeight = fontWeight,
+                        color = primaryColor
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = minute,
+                        fontSize = minuteSize,
+                        fontWeight = fontWeight,
+                        color = secondaryColor
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = date,
-                fontSize = 11.sp,
-                color = primaryColor.copy(alpha = 0.9f)
-            )
+            // 日期：oversize 模板官方在左下方，其它模板居中
+            if (oversize) {
+                Text(
+                    text = date,
+                    fontSize = 11.sp,
+                    color = secondaryColor.copy(alpha = 0.95f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, top = 2.dp)
+                )
+            } else {
+                Text(
+                    text = date,
+                    fontSize = 11.sp,
+                    color = secondaryColor.copy(alpha = 0.95f)
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             CustomizePill(onClick = onClick)
             Spacer(modifier = Modifier.height(4.dp))
@@ -239,7 +300,10 @@ private data class ClockStyle(
     val primaryColor: Color?,
     val secondaryColor: Color?,
     val isAutoPrimaryColor: Boolean = true,
-    val isAutoSecondaryColor: Boolean = true
+    val isAutoSecondaryColor: Boolean = true,
+    val style: Int = 0,
+    val clockWeight: Int = 0,
+    val clockEffect: Int = 0
 )
 
 /**
@@ -260,7 +324,10 @@ private fun parseClockStyle(json: String?): ClockStyle {
             primaryColor = parseColor(clock, "primaryColor"),
             secondaryColor = parseColor(clock, "secondaryColor"),
             isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true),
-            isAutoSecondaryColor = clock.optBoolean("isAutoSecondaryColor", true)
+            isAutoSecondaryColor = clock.optBoolean("isAutoSecondaryColor", true),
+            style = clock.optInt("style", 0),
+            clockWeight = clock.optInt("clockWeight", 0),
+            clockEffect = clock.optInt("clockEffect", 0)
         )
     }.getOrDefault(ClockStyle(null, null, null))
 }
