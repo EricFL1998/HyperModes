@@ -226,7 +226,9 @@ object OfficialTemplatePreview {
         //    "背景壁纸 → 分钟层（oversize_b，被主体遮挡）→ 景深主体 → 小时层
         //    （oversize_b_hour，在主体之上、不被遮挡）"。
         //    所以主体层必须插在分钟层和小时层之间。
-        if (wallpaper != null && !subjectMaskPath.isNullOrEmpty()) {
+        //    仅当样式声明支持主体（supportSubject=true）且有蒙版时才叠加；
+        //    样式没有景深时即使系统残留旧 subject_mask 也不显示景深。
+        if (wallpaper != null && fields.supportSubject && !subjectMaskPath.isNullOrEmpty()) {
             runCatching {
                 val mask = BitmapFactory.decodeFile(subjectMaskPath) ?: return@runCatching
                 val foreground = composeSubjectForeground(wallpaper, mask)
@@ -485,6 +487,8 @@ object OfficialTemplatePreview {
             val clock = root.optJSONObject("clockInfo")
                 ?: root.optJSONObject("lockscreenInfo")?.optJSONObject("clockInfo")
                 ?: return null
+            val wallpaperInfo = root.optJSONObject("wallpaperInfo")
+                ?: root.optJSONObject("lockscreenInfo")?.optJSONObject("wallpaperInfo")
             ClockBeanFields(
                 templateId = clock.optString("templateId").takeIf { it.isNotEmpty() },
                 primaryColor = clock.optInt("primaryColor", 0),
@@ -495,7 +499,8 @@ object OfficialTemplatePreview {
                 enableDiffusion = clock.optBoolean("enableDiffusion", false),
                 style = clock.optInt("style", 0),
                 clockWeight = clock.optInt("clockWeight", 0),
-                clockEffect = clock.optInt("clockEffect", 0)
+                clockEffect = clock.optInt("clockEffect", 0),
+                supportSubject = wallpaperInfo?.optBoolean("supportSubject", false) ?: false
             )
         }.getOrNull()
     }
@@ -510,7 +515,8 @@ object OfficialTemplatePreview {
         val enableDiffusion: Boolean,
         val style: Int,
         val clockWeight: Int,
-        val clockEffect: Int
+        val clockEffect: Int,
+        val supportSubject: Boolean = false
     )
 }
 

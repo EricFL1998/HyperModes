@@ -55,6 +55,10 @@ object Protocol {
      *  wallpaper in the official ThemeManager UI so HyperModes can store the set. */
     const val ACTION_CAPTURE_WALLPAPER_SNAPSHOT =
         "com.banana.hypermodes.CAPTURE_WALLPAPER_SNAPSHOT"
+    /** App -> system_server: 把模式已保存的单个壁纸子项（锁屏/桌面）写入系统，
+     *  让官方编辑器从保存的样式开始编辑（而不是每次从当前系统样式开始）。 */
+    const val ACTION_PREPARE_WALLPAPER_EDIT =
+        "com.banana.hypermodes.PREPARE_WALLPAPER_EDIT"
 
     // System_server -> Engine: Polaris geofence event (internal authenticated broadcast)
     const val ACTION_POLARIS_GEOFENCE_EVENT =
@@ -96,6 +100,8 @@ object Protocol {
      *  a mode-specific one, so entering the detail page never overwrites a saved
      *  mode's wallpaper files. */
     const val EXTRA_PREVIEW_ONLY = "previewOnly"
+    /** 预置编辑时指定子项：1 桌面 / 2 锁屏（对应 WallpaperItem.which）。 */
+    const val EXTRA_WHICH = "which"
     const val ACTION_RESULT = "com.banana.hypermodes.RESULT"
     /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
      * (scheduled sleep/wake alarms or the Clock app's own toggle). */

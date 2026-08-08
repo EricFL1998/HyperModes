@@ -20,6 +20,8 @@ import java.io.File
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
+import com.banana.hypermodes.systemserver.config.WallpaperItemConfig
+import com.banana.hypermodes.systemserver.executor.WallpaperController
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
 import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceAdapter
 import io.github.libxposed.api.XposedInterface
@@ -153,6 +155,10 @@ class SystemModeHook(private val module: XposedModule) {
                         captureWallpaperSnapshot(c, intent)
                         return
                     }
+                    Protocol.ACTION_PREPARE_WALLPAPER_EDIT -> {
+                        prepareWallpaperForEdit(c, intent)
+                        return
+                    }
                 }
                 val packages = intent.getStringArrayExtra(Protocol.EXTRA_PACKAGES)
                     ?.toList() ?: return
@@ -176,6 +182,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
             addAction(Protocol.ACTION_PROBE_POLARIS)
             addAction(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT)
+            addAction(Protocol.ACTION_PREPARE_WALLPAPER_EDIT)
             addAction(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         }
         context.registerReceiver(
@@ -184,6 +191,46 @@ class SystemModeHook(private val module: XposedModule) {
             Context.RECEIVER_EXPORTED
         )
         log("mode bridge receiver registered in system_server")
+    }
+
+    /**
+     * 把模式已保存的单个壁纸子项预置到系统，供官方编辑器作为起始样式。
+     * setStream 会阻塞到裁剪重建完成，放到后台线程执行，避免卡 system_server 主线程；
+     * 完成后通过 ResultReceiver 通知 App 再打开编辑器。
+     */
+    private fun prepareWallpaperForEdit(context: Context, intent: Intent) {
+        val resultReceiver =
+            intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        val which = intent.getIntExtra(Protocol.EXTRA_WHICH, 2)
+        Thread {
+            try {
+                val item = WallpaperItemConfig(
+                    imagePath = when (which) {
+                        2 -> intent.getStringExtra(Protocol.EXTRA_LOCK_IMAGE_PATH)
+                        else -> intent.getStringExtra(Protocol.EXTRA_DESKTOP_IMAGE_PATH)
+                    },
+                    sysImagePath = when (which) {
+                        2 -> intent.getStringExtra(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH)
+                        else -> intent.getStringExtra(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH)
+                    },
+                    sysSubjectMaskPath = intent.getStringExtra(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH),
+                    lockscreenJson = intent.getStringExtra(Protocol.EXTRA_LOCKSCREEN_JSON),
+                    templateEditorJson = intent.getStringExtra(Protocol.EXTRA_TEMPLATE_EDITOR_JSON),
+                    scrollEnabled = if (intent.hasExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED)) {
+                        intent.getBooleanExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED, false)
+                    } else null,
+                    effectType = if (intent.hasExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)) {
+                        intent.getIntExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE, 0)
+                    } else null,
+                    which = which
+                )
+                WallpaperController(context).prepareForEdit(item)
+                resultReceiver?.send(0, Bundle())
+            } catch (t: Throwable) {
+                log("PREPARE_WALLPAPER_EDIT failed: ${t.message}")
+                resultReceiver?.send(1, Bundle())
+            }
+        }.start()
     }
 
     /**
@@ -312,7 +359,10 @@ class SystemModeHook(private val module: XposedModule) {
             //      模式应用/复原时 WallpaperController 从该路径复制，避免读 App 私有目录失败。
             val sysModeDir = File("/data/system/hypermodes_backup/modes", modeId)
             sysModeDir.mkdirs()
+            // 锁屏源图：无独立锁屏壁纸（跟随桌面）时回退到桌面源图，
+            // 保证捕获始终有锁屏壁纸字节，保存后预览不会丢失锁屏图。
             val lockOrig = File(systemDir, "wallpaper_lock_orig")
+                .takeIf { it.exists() } ?: File(systemDir, "wallpaper_orig")
             if (lockOrig.exists()) {
                 val bytes = encodePreview(lockOrig)
                 bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, bytes)
@@ -372,6 +422,9 @@ class SystemModeHook(private val module: XposedModule) {
         return runCatching {
             val root = org.json.JSONObject(lockscreenInfo)
             val wallpaperInfo = root.optJSONObject("wallpaperInfo") ?: return null
+            // 样式声明不支持主体（无景深）时不读取残留的 subject_mask，
+            // 避免预览/保存把旧蒙版当成当前样式的景深。
+            if (!wallpaperInfo.optBoolean("supportSubject", false)) return null
             val subject = wallpaperInfo.optString("subject").takeIf { it.isNotEmpty() }
                 ?: return null
             val f = File(subject)

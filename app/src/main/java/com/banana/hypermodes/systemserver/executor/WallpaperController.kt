@@ -1,5 +1,6 @@
 package com.banana.hypermodes.systemserver.executor
 
+import android.app.WallpaperManager
 import android.content.Context
 import android.os.Environment
 import android.os.Process
@@ -21,9 +22,14 @@ import java.io.File
  * 机制（基于解包确认）：
  * - 锁屏样式 JSON 写回 Settings.Secure[constant_lockscreen_info] 与
  *   [constant_template_editor_info]，SystemUI 的观察者自动应用。
- * - 壁纸源图复制到 wallpaper_orig / wallpaper_lock_orig，服务端
- *   WallpaperObserver（FileObserver）自动重新生成裁剪并重绑组件。
- * - 进入模式前先备份当前值（"原始快照"），退出时用快照回写。
+ * - 壁纸走官方 WallpaperManager.setStream()：服务端会先置
+ *   imageWallpaperPending=true 再落盘，WallpaperObserver 的 CLOSE_WRITE
+ *   门控（component==null || event!=8 || imageWallpaperPending）必然通过，
+ *   每次都能重新生成裁剪图并重绑组件。直接写 wallpaper_orig 只有首次
+ *   （组件未绑定）有效，组件绑定后后续写文件全部被忽略，导致
+ *   restore / 重复 apply 失效。
+ * - 进入模式前先备份当前值（"原始快照"），退出时用快照回写并清理备份，
+ *   保证下一次 apply 备份的是"当时"的系统状态而不是首次的状态。
  */
 class WallpaperController(private val context: Context) {
 
@@ -43,6 +49,8 @@ class WallpaperController(private val context: Context) {
     private val aodTemplateDir: File =
         File("/data/user_de/0/com.miui.aod/files/templates/current")
     private val subjectMaskFile: File get() = File(aodTemplateDir, "subject_mask")
+    /** 备份标记：原锁屏没有独立壁纸（跟随桌面），restore 时应 clear(FLAG_LOCK)。 */
+    private val MARKER_LOCK_FOLLOWS_HOME = "lock_follows_home"
 
     /** 锁屏样式 JSON 键（SystemUI 观察者监听 constant_template_editor_info）。 */
     private val KEY_LOCKSCREEN_INFO = "constant_lockscreen_info"
@@ -53,6 +61,10 @@ class WallpaperController(private val context: Context) {
     private val KEY_WALLPAPER_EFFECT_1 = "wallpaper_effect_type_1"
     private val KEY_WALLPAPER_EFFECT_2 = "wallpaper_effect_type_2"
     private val KEY_WALLPAPER_CHANGED = "wallpaper_changed_2"
+
+    private val wallpaperManager: WallpaperManager by lazy {
+        WallpaperManager.getInstance(context)
+    }
 
     /**
      * 应用模式的壁纸 set。无数据子项跳过（不备份、不应用）。
@@ -85,6 +97,58 @@ class WallpaperController(private val context: Context) {
     /** 是否有任何子项被应用过（用于退出模式时判断是否需要 restore）。 */
     fun hasApplied(): Boolean = lockBackupDir.exists() || desktopBackupDir.exists()
 
+    /**
+     * 为官方编辑器预置起始样式：把模式已保存的单个子项（锁屏/桌面）写入系统，
+     * 让编辑器从保存的样式开始编辑。不创建备份、不参与模式激活/复原，
+     * 只是把系统状态临时切到该样式供编辑器加载。
+     */
+    fun prepareForEdit(item: WallpaperItemConfig) {
+        try {
+            if (item.which == 2) {
+                // 锁屏：样式 JSON + 壁纸 + 主体蒙版
+                if (!item.lockscreenJson.isNullOrEmpty()) {
+                    putSecure(KEY_LOCKSCREEN_INFO, item.lockscreenJson)
+                    putSecure(
+                        KEY_TEMPLATE_EDITOR_INFO,
+                        item.templateEditorJson
+                            ?: "{\"lockscreenInfo\":${item.lockscreenJson}}"
+                    )
+                }
+                if (!item.imagePath.isNullOrEmpty()) {
+                    val src = resolveReadableSource(item.sysImagePath, item.imagePath)
+                    if (src != null) {
+                        setWallpaperStream(src, WallpaperManager.FLAG_LOCK)
+                    } else {
+                        log("prepareForEdit lock: no readable wallpaper source")
+                    }
+                }
+                if (!item.sysSubjectMaskPath.isNullOrEmpty()) {
+                    val src = File(item.sysSubjectMaskPath)
+                    if (src.exists()) {
+                        copyFile(src, subjectMaskFile)
+                    }
+                }
+                log("prepareForEdit: staged lock item for editor")
+            } else {
+                // 桌面：壁纸 + 滚动/特效键
+                if (!item.imagePath.isNullOrEmpty()) {
+                    val src = resolveReadableSource(item.sysImagePath, item.imagePath)
+                    if (src != null) {
+                        setWallpaperStream(src, WallpaperManager.FLAG_SYSTEM)
+                    } else {
+                        log("prepareForEdit desktop: no readable wallpaper source")
+                    }
+                }
+                item.scrollEnabled?.let { putSecureInt(KEY_DESKTOP_SCROLL, if (it) 1 else 0) }
+                item.effectType?.let { putSecureInt(KEY_WALLPAPER_EFFECT_1, it) }
+                putSecure(KEY_WALLPAPER_CHANGED, "com.android.thememanager")
+                log("prepareForEdit: staged desktop item for editor")
+            }
+        } catch (e: Exception) {
+            log("prepareForEdit failed: ${e.message}")
+        }
+    }
+
     // ---- 锁屏子项 ----
 
     private fun applyLock(item: WallpaperItemConfig) {
@@ -101,14 +165,14 @@ class WallpaperController(private val context: Context) {
             )
         }
 
-        // 3. 复制锁屏壁纸源图（触发 FileObserver 重绑组件）
+        // 3. 设置锁屏壁纸（官方 setStream，每次都能触发裁剪重建 + 组件重绑）
         //    优先用 system_server 落盘的 sys 路径（App 私有目录 uid 1000 读不了）。
         if (!item.imagePath.isNullOrEmpty()) {
-            backupFileOnce(lockOrigFile, lockBackupDir)
+            backupLockWallpaperOnce()
             val src = resolveReadableSource(item.sysImagePath, item.imagePath)
             if (src != null) {
-                copyFile(src, lockOrigFile)
-                log("apply lock: wrote wallpaper to $lockOrigFile (src=$src)")
+                setWallpaperStream(src, WallpaperManager.FLAG_LOCK)
+                log("apply lock: set lock wallpaper via setStream (src=$src)")
             } else {
                 log("apply lock: no readable wallpaper source")
             }
@@ -123,6 +187,18 @@ class WallpaperController(private val context: Context) {
             }
         }
         log("apply lock: done (json=${!item.lockscreenJson.isNullOrEmpty()}, image=${!item.imagePath.isNullOrEmpty()}, mask=${!item.sysSubjectMaskPath.isNullOrEmpty()})")
+    }
+
+    /** 备份当前锁屏壁纸：有独立文件则存字节；没有（跟随桌面）则打标记。 */
+    private fun backupLockWallpaperOnce() {
+        lockBackupDir.mkdirs()
+        val backup = File(lockBackupDir, lockOrigFile.name)
+        if (backup.exists()) return
+        if (lockOrigFile.exists()) {
+            copyFile(lockOrigFile, backup)
+        } else {
+            File(lockBackupDir, MARKER_LOCK_FOLLOWS_HOME).writeText("1")
+        }
     }
 
     private fun restoreLock() {
@@ -140,15 +216,21 @@ class WallpaperController(private val context: Context) {
             putSecureInt(KEY_LOCKSCREEN_INFO_VERSION, f.readText().toIntOrNull() ?: 3)
         }
 
-        // 2. 恢复锁屏壁纸源图
-        File(lockBackupDir, lockOrigFile.name).takeIf { it.exists() }?.let { backup ->
-            copyFile(backup, lockOrigFile)
-            log("restore lock: restored wallpaper from backup")
+        // 2. 恢复锁屏壁纸：有备份则流式写回；只有标记则清空锁屏（跟随桌面）
+        val lockBackup = File(lockBackupDir, lockOrigFile.name)
+        if (lockBackup.exists()) {
+            setWallpaperStream(lockBackup, WallpaperManager.FLAG_LOCK)
+            log("restore lock: restored lock wallpaper via setStream")
+        } else if (File(lockBackupDir, MARKER_LOCK_FOLLOWS_HOME).exists()) {
+            wallpaperManager.clear(WallpaperManager.FLAG_LOCK)
+            log("restore lock: cleared lock wallpaper (was following home)")
         }
         File(lockBackupDir, subjectMaskFile.name).takeIf { it.exists() }?.let { backup ->
             copyFile(backup, subjectMaskFile)
             log("restore lock: restored subject mask from backup")
         }
+        // 3. 清理备份，保证下一次 apply 重新备份"当时"的系统状态
+        lockBackupDir.deleteRecursively()
         log("restore lock: done")
     }
 
@@ -180,12 +262,13 @@ class WallpaperController(private val context: Context) {
             getSecure(KEY_WALLPAPER_CHANGED)?.let { File(desktopBackupDir, KEY_WALLPAPER_CHANGED).writeText(it) }
         }
 
-        // 2. 复制桌面壁纸源图（优先 system_server 落盘的 sys 路径）
+        // 2. 设置桌面壁纸（官方 setStream，每次都能触发裁剪重建 + 组件重绑）
+        //    优先 system_server 落盘的 sys 路径
         if (!item.imagePath.isNullOrEmpty()) {
             val src = resolveReadableSource(item.sysImagePath, item.imagePath)
             if (src != null) {
-                copyFile(src, desktopOrigFile)
-                log("apply desktop: wrote wallpaper to $desktopOrigFile (src=$src)")
+                setWallpaperStream(src, WallpaperManager.FLAG_SYSTEM)
+                log("apply desktop: set desktop wallpaper via setStream (src=$src)")
             } else {
                 log("apply desktop: no readable wallpaper source")
             }
@@ -200,8 +283,8 @@ class WallpaperController(private val context: Context) {
 
     private fun restoreDesktop() {
         File(desktopBackupDir, desktopOrigFile.name).takeIf { it.exists() }?.let { backup ->
-            copyFile(backup, desktopOrigFile)
-            log("restore desktop: restored wallpaper from backup")
+            setWallpaperStream(backup, WallpaperManager.FLAG_SYSTEM)
+            log("restore desktop: restored desktop wallpaper via setStream")
         }
         File(desktopBackupDir, KEY_DESKTOP_SCROLL).takeIf { it.exists() }?.let { f ->
             putSecureInt(KEY_DESKTOP_SCROLL, f.readText().toIntOrNull() ?: 0)
@@ -212,10 +295,22 @@ class WallpaperController(private val context: Context) {
         File(desktopBackupDir, KEY_WALLPAPER_CHANGED).takeIf { it.exists() }?.let { f ->
             putSecure(KEY_WALLPAPER_CHANGED, f.readText())
         }
+        desktopBackupDir.deleteRecursively()
         log("restore desktop: done")
     }
 
     // ---- 工具 ----
+
+    /**
+     * 官方路径设置壁纸：原始字节流式写入。服务端内部先置
+     * imageWallpaperPending=true 再落盘，CLOSE_WRITE 事件必然通过
+     * needsUpdate 门控，触发裁剪重建与组件重绑；阻塞到完成。
+     */
+    private fun setWallpaperStream(src: File, which: Int) {
+        src.inputStream().use { input ->
+            wallpaperManager.setStream(input, null, true, which)
+        }
+    }
 
     private fun backupFileOnce(source: File, dir: File) {
         dir.mkdirs()

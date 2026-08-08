@@ -1,9 +1,11 @@
 package com.banana.hypermodes.ui
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -59,25 +61,114 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
+/** 锁屏子项是否被用户实际修改（JSON 或壁纸图任一变化）。 */
+private fun lockItemChanged(before: WallpaperSet?, now: WallpaperSet?): Boolean {
+    val a = before?.lock ?: return false
+    val b = now?.lock ?: return true
+    if (a?.lockscreenJson != b?.lockscreenJson) return true
+    return !sameImageFile(a.imagePath, b.imagePath)
+}
+
 /**
- * 比较两次壁纸快照是否一致（用于判断用户是否真的修改过壁纸）。
- * 锁屏 JSON、锁屏图、桌面图都相同才算未修改。
+ * 合并编辑后的快照与模式已有配置：快照缺失的字段（如系统锁屏无独立源图时
+ * imagePath 为 null）保留原值，避免把已保存的壁纸路径覆盖成 null，
+ * 导致预览全部丢失。快照有值的字段以快照为准。
  */
-private fun sameWallpaper(a: WallpaperSet, b: WallpaperSet): Boolean {
-    if (a.lock?.lockscreenJson != b.lock?.lockscreenJson) return false
-    if (!sameImageFile(a.lock?.imagePath, b.lock?.imagePath)) return false
-    if (!sameImageFile(a.desktop?.imagePath, b.desktop?.imagePath)) return false
-    return true
+private fun mergeSnapshotItem(snap: WallpaperItem?, prev: WallpaperItem?): WallpaperItem? {
+    if (snap == null) return prev
+    if (prev == null) return snap
+    return snap.copy(
+        imagePath = snap.imagePath ?: prev.imagePath,
+        sysImagePath = snap.sysImagePath ?: prev.sysImagePath,
+        subjectMaskPath = snap.subjectMaskPath ?: prev.subjectMaskPath,
+        sysSubjectMaskPath = snap.sysSubjectMaskPath ?: prev.sysSubjectMaskPath
+    )
+}
+
+/**
+ * 编辑会话结束后恢复真实系统壁纸/样式到编辑前状态。
+ * 复用 prepareEdit 桥接（把 WallpaperItem 写回系统），
+ * 模式未激活时调用，避免"在模式里编辑"改掉真实锁屏/桌面。
+ */
+private fun restoreEditSystem(context: Context, pre: WallpaperSet?) {
+    if (pre == null) return
+    pre.lock?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { } }
+    pre.desktop?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { } }
+}
+
+/** 桌面子项是否被用户实际修改（壁纸图变化）。 */
+private fun desktopItemChanged(before: WallpaperSet?, now: WallpaperSet?): Boolean {
+    val a = before?.desktop ?: return false
+    val b = now?.desktop ?: return true
+    return !sameImageFile(a.imagePath, b.imagePath)
+}
+
+/**
+ * 把模式已保存的壁纸图复制到 App 缓存目录作为"编辑前基线"。
+ * 编辑后的捕获会覆盖模式目录里的同名文件（imagePath 不变、内容变），
+ * 若基线直接引用原路径，编辑前后的比较会读到同一个新文件而永远判为"未修改"，
+ * 导致只换壁纸不换样式时保存不了新壁纸、预览不更新。复制到临时文件后
+ * 比较的是编辑前的旧内容。
+ */
+private fun copyBaselineItem(context: Context, item: WallpaperItem?): WallpaperItem? {
+    val srcPath = item?.imagePath ?: return item
+    val src = File(srcPath)
+    if (!src.exists()) return item
+    val tmp = File(context.cacheDir, "wp_baseline_" + src.name)
+    return runCatching {
+        src.inputStream().use { input ->
+            tmp.outputStream().use { output -> input.copyTo(output) }
+        }
+        item.copy(imagePath = tmp.absolutePath)
+    }.getOrDefault(item)
 }
 
 private fun sameImageFile(p1: String?, p2: String?): Boolean {
     if (p1 == null || p2 == null) return p1 == p2
+    val f1 = File(p1)
+    val f2 = File(p2)
+    if (!f1.exists() || !f2.exists()) return false
+    // 快速路径：字节完全一致
+    if (runCatching { f1.readBytes().contentEquals(f2.readBytes()) }.getOrDefault(false)) {
+        return true
+    }
+    // 容差路径：解码缩小后逐像素比较，容忍 JPEG 重压缩导致的字节差异
+    // （预置保存的样式到系统后再捕获，图片内容相同但字节必然不同）。
     return runCatching {
-        val f1 = File(p1)
-        val f2 = File(p2)
-        if (!f1.exists() || !f2.exists()) return@runCatching false
-        f1.readBytes().contentEquals(f2.readBytes())
+        val b1 = decodeSampled(f1, 48)
+        val b2 = decodeSampled(f2, 48)
+        if (b1 == null || b2 == null) return@runCatching false
+        if (b1.width != b2.width || b1.height != b2.height) return@runCatching false
+        var diff = 0L
+        var total = 0
+        for (y in 0 until b1.height) {
+            for (x in 0 until b1.width) {
+                val c1 = b1.getPixel(x, y)
+                val c2 = b2.getPixel(x, y)
+                diff += Math.abs(((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF))
+                diff += Math.abs(((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF))
+                diff += Math.abs((c1 and 0xFF) - (c2 and 0xFF))
+                total++
+            }
+        }
+        // 平均每通道差 < 8/255 ≈ 3%，容错 JPEG 重压缩，区分真正的换图
+        diff < total * 3L * 8L
     }.getOrDefault(false)
+}
+
+/** 按最大边长采样解码（缩小到 ~48px，像素级比较前先降采样）。 */
+private fun decodeSampled(file: File, maxSide: Int): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) {
+        sample *= 2
+    }
+    return BitmapFactory.decodeFile(
+        file.absolutePath,
+        BitmapFactory.Options().apply { inSampleSize = sample }
+    )
 }
 
 @Composable
@@ -144,6 +235,9 @@ fun ModeDetailScreen(
     var systemWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
     // 打开编辑器前的系统快照基线，用于返回后判断用户是否真的改过
     var beforeWallpaper by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
+    // 编辑会话开始前的真实系统壁纸状态，用于会话结束后恢复
+    // （官方编辑器直接写真实系统，模式未激活时编辑完要还原，不改变真实锁屏/桌面）
+    var preEditSystem by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
     LaunchedEffect(mode.id) {
         // 先用上次缓存的预览立即显示，避免每次进详情页都等 1-2s 跨进程拉取
         systemWallpaper = WallpaperSnapshotBridge.readCachedCurrent(context)
@@ -159,16 +253,39 @@ fun ModeDetailScreen(
             if (event == Lifecycle.Event.ON_RESUME && pendingWallpaperCapture) {
                 pendingWallpaperCapture = false
                 WallpaperSnapshotBridge.capture(context, editedMode.id) { snapshot ->
-                    // 与打开前的系统快照对比：没改过就不保存，
-                    // 避免"只是打开编辑器看一眼"就出现"恢复默认"按钮
+                    // 与打开前的系统快照逐子项对比：只保存用户实际修改的那一侧，
+                    // 未修改的子项保留原配置（不误配置成系统当前值）。
                     val before = beforeWallpaper
-                    val unchanged = before != null && snapshot != null &&
-                        sameWallpaper(before, snapshot)
-                    if (snapshot != null && !unchanged) {
+                    if (snapshot != null) {
+                        // 预览底图同步为编辑后的最新系统状态（未配置/恢复默认时立即生效）
+                        systemWallpaper = snapshot
+                        val prevWallpaper = editedMode.settings.wallpaper
+                        val lockChanged = lockItemChanged(before, snapshot)
+                        val desktopChanged = desktopItemChanged(before, snapshot)
+                        val newWallpaper = WallpaperSet(
+                            lock = if (lockChanged) {
+                                mergeSnapshotItem(snapshot.lock, prevWallpaper?.lock)
+                            } else {
+                                prevWallpaper?.lock
+                            },
+                            desktop = if (desktopChanged) {
+                                mergeSnapshotItem(snapshot.desktop, prevWallpaper?.desktop)
+                            } else {
+                                prevWallpaper?.desktop
+                            }
+                        )
+                        val hasAny = newWallpaper.lock != null || newWallpaper.desktop != null
                         editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(wallpaper = snapshot)
+                            settings = editedMode.settings.copy(
+                                wallpaper = if (hasAny) newWallpaper else null
+                            )
                         )
                         onSave(editedMode)
+                        // 编辑会话结束：模式未激活时恢复真实系统状态，
+                        // 让"在模式里编辑"不改变真实锁屏/桌面（激活时模式样式本就应生效）
+                        if (!editedMode.enabled) {
+                            restoreEditSystem(context, preEditSystem)
+                        }
                     }
                 }
             }
@@ -599,28 +716,72 @@ fun ModeDetailScreen(
                 }
             }
 
-            // 壁纸 section: 锁屏 + 桌面概览大卡片（在触发条件下面、通知过滤上面）
+            // 壁纸 section: 标题 + 锁屏/桌面概览大卡片（在触发条件下面、通知过滤上面）
+            item {
+                SmallTitle(
+                    text = stringResource(R.string.wallpaper),
+                    modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp)
+                )
+            }
             item {
                 WallpaperOverviewCard(
                     wallpaper = editedMode.settings.wallpaper,
                     systemWallpaper = systemWallpaper,
                     onLockClick = {
-                        beforeWallpaper = systemWallpaper
                         pendingWallpaperCapture = true
-                        onOpenWallpaper(editedMode, "lock")
+                        // 记录编辑前真实系统状态（会话结束后恢复）
+                        preEditSystem = systemWallpaper
+                        val saved = editedMode.settings.wallpaper?.lock
+                        val hasSavedLock = saved != null && (
+                            !saved.lockscreenJson.isNullOrEmpty() ||
+                                !saved.imagePath.isNullOrEmpty()
+                            )
+                        if (hasSavedLock) {
+                            // 已有已保存样式：预置到系统，编辑器从它开始；
+                            // 基线 = 保存的锁屏（壁纸图复制到临时文件，避免被
+                            // 编辑后的捕获覆盖同一路径导致比较失效）+ 当前系统桌面。
+                            beforeWallpaper = WallpaperSet(
+                                lock = copyBaselineItem(context, editedMode.settings.wallpaper?.lock),
+                                desktop = systemWallpaper?.desktop
+                            )
+                            WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
+                                if (ok) onOpenWallpaper(editedMode, "lock")
+                            }
+                        } else {
+                            beforeWallpaper = systemWallpaper
+                            onOpenWallpaper(editedMode, "lock")
+                        }
                     },
                     onDesktopClick = {
-                        beforeWallpaper = systemWallpaper
                         pendingWallpaperCapture = true
-                        onOpenWallpaper(editedMode, "desktop")
+                        // 记录编辑前真实系统状态（会话结束后恢复）
+                        preEditSystem = systemWallpaper
+                        val saved = editedMode.settings.wallpaper?.desktop
+                        if (saved != null && !saved.imagePath.isNullOrEmpty()) {
+                            // 基线 = 当前系统锁屏（锁屏未动）+ 保存的桌面。
+                            beforeWallpaper = WallpaperSet(
+                                lock = systemWallpaper?.lock,
+                                desktop = copyBaselineItem(context, editedMode.settings.wallpaper?.desktop)
+                            )
+                            WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
+                                if (ok) onOpenWallpaper(editedMode, "desktop")
+                            }
+                        } else {
+                            beforeWallpaper = systemWallpaper
+                            onOpenWallpaper(editedMode, "desktop")
+                        }
                     },
                     onClear = {
                         editedMode = editedMode.copy(
                             settings = editedMode.settings.copy(wallpaper = null)
                         )
                         onSave(editedMode)
+                        // 恢复初始后立即刷新系统当前壁纸，预览切到系统当前状态
+                        WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                            if (snap != null) systemWallpaper = snap
+                        }
                     },
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier
                 )
             }
 

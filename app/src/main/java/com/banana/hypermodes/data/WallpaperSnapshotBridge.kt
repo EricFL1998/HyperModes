@@ -71,6 +71,64 @@ object WallpaperSnapshotBridge {
         captureInternal(context, modeId = modeId, previewOnly = false, onResult)
     }
 
+    /**
+     * 打开官方编辑器前，把模式已保存的单个子项（锁屏/桌面）预置到系统，
+     * 让编辑器从保存的样式开始编辑而不是当前系统样式。
+     *
+     * @param item 模式已保存的 WallpaperItem（lock 或 desktop）
+     * @param onDone 预置完成后回调（主线程）；true=成功（含超时失败）
+     */
+    fun prepareEdit(context: Context, item: WallpaperItem, onDone: (Boolean) -> Unit) {
+        val handler = Handler(Looper.getMainLooper())
+        var delivered = false
+        val receiver = object : ResultReceiver(handler) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                if (delivered) return
+                delivered = true
+                onDone(resultCode == 0)
+            }
+        }
+        val timeout = Runnable {
+            if (delivered) return@Runnable
+            delivered = true
+            onDone(false)
+        }
+        handler.postDelayed(timeout, 5000)
+        try {
+            context.sendBroadcast(
+                Intent(Protocol.ACTION_PREPARE_WALLPAPER_EDIT).apply {
+                    setPackage(Protocol.FRAMEWORK_PACKAGE)
+                    putExtra(Protocol.EXTRA_RESULT_RECEIVER, receiver)
+                    putExtra(Protocol.EXTRA_WHICH, item.which)
+                    when (item.which) {
+                        2 -> putExtra(Protocol.EXTRA_LOCK_IMAGE_PATH, item.imagePath)
+                        else -> putExtra(Protocol.EXTRA_DESKTOP_IMAGE_PATH, item.imagePath)
+                    }
+                    putExtra(
+                        if (item.which == 2) Protocol.EXTRA_LOCK_SYS_IMAGE_PATH
+                        else Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH,
+                        item.sysImagePath
+                    )
+                    putExtra(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH, item.sysSubjectMaskPath)
+                    putExtra(Protocol.EXTRA_LOCKSCREEN_JSON, item.lockscreenJson)
+                    putExtra(Protocol.EXTRA_TEMPLATE_EDITOR_JSON, item.templateEditorJson)
+                    item.scrollEnabled?.let {
+                        putExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED, it)
+                    }
+                    item.effectType?.let {
+                        putExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE, it)
+                    }
+                }
+            )
+        } catch (t: Throwable) {
+            handler.removeCallbacks(timeout)
+            if (!delivered) {
+                delivered = true
+                onDone(false)
+            }
+        }
+    }
+
     private fun captureInternal(
         context: Context,
         modeId: String,

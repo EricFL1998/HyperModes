@@ -67,7 +67,7 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:configChanges="uiMode|fontScale|locale|layoutDirection|density"
+            android:configChanges="uiMode|fontScale|locale|layoutDirection|density|assetsPaths"
             android:theme="@style/Theme.HyperModes">
         </activity>
 

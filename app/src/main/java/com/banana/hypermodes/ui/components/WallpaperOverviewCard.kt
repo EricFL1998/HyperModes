@@ -37,9 +37,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.banana.hypermodes.R
 import com.banana.hypermodes.data.WallpaperSet
+import java.io.File
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 
 /**
@@ -85,11 +85,6 @@ fun WallpaperOverviewCard(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            SmallTitle(
-                text = stringResource(R.string.wallpaper),
-                modifier = Modifier.padding(bottom = 4.dp),
-                insideMargin = PaddingValues(0.dp)
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -120,12 +115,13 @@ fun WallpaperOverviewCard(
                 )
             }
             if (wallpaper?.hasAny == true && onClear != null) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 TextButton(
                     text = stringResource(R.string.wallpaper_clear),
                     onClick = onClear,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
@@ -303,7 +299,12 @@ private fun rememberWallpaperBitmap(
 ): Bitmap? {
     // 同步解码（小图 20KB 级别，UI 线程几十 ms 可接受），
     // 确保官方时钟/桌面容器创建时壁纸一定有值，不再异步导致首次为 null。
-    return remember(configuredPath, which) {
+    // key 里带上文件最后修改时间：编辑后捕获会覆盖同一路径的文件（路径不变、
+    // 内容变），仅按路径缓存会一直显示旧图；时间戳变化才触发重新解码。
+    val stamp = configuredPath?.let {
+        runCatching { File(it).lastModified() }.getOrDefault(0L)
+    } ?: 0L
+    return remember(configuredPath, stamp, which) {
         loadWallpaperBitmap(context, configuredPath, which)
     }
 }
