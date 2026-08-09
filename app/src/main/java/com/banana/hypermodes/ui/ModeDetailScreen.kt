@@ -238,6 +238,8 @@ fun ModeDetailScreen(
     // 编辑会话开始前的真实系统壁纸状态，用于会话结束后恢复
     // （官方编辑器直接写真实系统，模式未激活时编辑完要还原，不改变真实锁屏/桌面）
     var preEditSystem by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
+    // 壁纸内容变化的刷新信号：捕获/恢复后递增，强制预览重新解码
+    var wallpaperRefreshTick by remember(mode.id) { mutableIntStateOf(0) }
     LaunchedEffect(mode.id) {
         // 先用上次缓存的预览立即显示，避免每次进详情页都等 1-2s 跨进程拉取
         systemWallpaper = WallpaperSnapshotBridge.readCachedCurrent(context)
@@ -281,10 +283,13 @@ fun ModeDetailScreen(
                             )
                         )
                         onSave(editedMode)
+                        // 内容可能变化但数据相等（路径/JSON 未变）：强制预览刷新
+                        wallpaperRefreshTick++
                         // 编辑会话结束：模式未激活时恢复真实系统状态，
                         // 让"在模式里编辑"不改变真实锁屏/桌面（激活时模式样式本就应生效）
                         if (!editedMode.enabled) {
                             restoreEditSystem(context, preEditSystem)
+                            wallpaperRefreshTick++
                         }
                     }
                 }
@@ -727,6 +732,7 @@ fun ModeDetailScreen(
                 WallpaperOverviewCard(
                     wallpaper = editedMode.settings.wallpaper,
                     systemWallpaper = systemWallpaper,
+                    refreshTick = wallpaperRefreshTick,
                     onLockClick = {
                         pendingWallpaperCapture = true
                         // 记录编辑前真实系统状态（会话结束后恢复）
@@ -780,6 +786,7 @@ fun ModeDetailScreen(
                         WallpaperSnapshotBridge.captureCurrent(context) { snap ->
                             if (snap != null) systemWallpaper = snap
                         }
+                        wallpaperRefreshTick++
                     },
                     modifier = Modifier
                 )

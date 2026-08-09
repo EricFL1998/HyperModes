@@ -66,6 +66,10 @@ import top.yukonga.miuix.kmp.basic.Text
 fun WallpaperOverviewCard(
     wallpaper: WallpaperSet?,
     systemWallpaper: WallpaperSet?,
+    /** 壁纸内容变化的刷新信号：文件被覆盖但路径/JSON 不变时，
+     *  Compose 会因输入数据相等跳过重组，预览无法感知内容变化；
+     *  每次捕获/恢复后递增此值强制重新解码。 */
+    refreshTick: Int = 0,
     onLockClick: () -> Unit,
     onDesktopClick: () -> Unit,
     onClear: (() -> Unit)? = null,
@@ -94,7 +98,8 @@ fun WallpaperOverviewCard(
                         context = context,
                         configuredPath = wallpaper?.lock?.imagePath
                             ?: systemWallpaper?.lock?.imagePath,
-                        which = WallpaperManager.FLAG_LOCK
+                        which = WallpaperManager.FLAG_LOCK,
+                        refreshTick = refreshTick
                     ),
                     lockscreenJson = wallpaper?.lock?.lockscreenJson
                         ?: systemWallpaper?.lock?.lockscreenJson,
@@ -108,7 +113,8 @@ fun WallpaperOverviewCard(
                         context = context,
                         configuredPath = wallpaper?.desktop?.imagePath
                             ?: systemWallpaper?.desktop?.imagePath,
-                        which = WallpaperManager.FLAG_SYSTEM
+                        which = WallpaperManager.FLAG_SYSTEM,
+                        refreshTick = refreshTick
                     ),
                     onClick = onDesktopClick,
                     modifier = Modifier.weight(1f)
@@ -295,7 +301,8 @@ private fun CustomizePill(
 private fun rememberWallpaperBitmap(
     context: Context,
     configuredPath: String?,
-    which: Int
+    which: Int,
+    refreshTick: Int = 0
 ): Bitmap? {
     // 同步解码（小图 20KB 级别，UI 线程几十 ms 可接受），
     // 确保官方时钟/桌面容器创建时壁纸一定有值，不再异步导致首次为 null。
@@ -304,7 +311,8 @@ private fun rememberWallpaperBitmap(
     val stamp = configuredPath?.let {
         runCatching { File(it).lastModified() }.getOrDefault(0L)
     } ?: 0L
-    return remember(configuredPath, stamp, which) {
+    // refreshTick：内容变化但路径/时间戳未变（或数据相等跳过重组）时强制重新解码
+    return remember(configuredPath, stamp, which, refreshTick) {
         loadWallpaperBitmap(context, configuredPath, which)
     }
 }
