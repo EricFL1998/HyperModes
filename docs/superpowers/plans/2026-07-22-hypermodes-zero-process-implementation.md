@@ -296,9 +296,7 @@ git commit -m "feat(core): add config data models and JSON parser
 
 - Add ModeConfig, FullConfig with all fields
 - Add ConfigParser for JSON serialization/deserialization
-- Add comprehensive unit tests
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Add comprehensive unit tests"
 ```
 
 ---
@@ -608,9 +606,7 @@ git commit -m "feat(core): implement RoutineCoreEngine with ContentObserver
 - Initialize engine in system_server on systemReady
 - Monitor Settings.Global for config changes
 - Implement activateMode/deactivateMode
-- Add stub ModeActionExecutor
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Add stub ModeActionExecutor"
 ```
 
 ---
@@ -702,9 +698,7 @@ adb shell stop && adb shell start
 ```bash
 git add app/src/main/java/com/banana/hypermodes/systemserver/PermissionGrantHook.kt
 git add app/src/main/java/com/banana/hypermodes/XposedInit.kt
-git commit -m "feat(core): add permission grant hook for WRITE_SECURE_SETTINGS
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+git commit -m "feat(core): add permission grant hook for WRITE_SECURE_SETTINGS"
 ```
 
 ---
@@ -918,9 +912,7 @@ git commit -m "feat(app): rewrite ModeStore to use Settings.Global
 
 - Add Mode<->ModeConfig conversion functions
 - Write modes to Settings.Global as JSON
-- Remove old SharedPreferences storage
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Remove old SharedPreferences storage"
 ```
 
 ---
@@ -1058,9 +1050,7 @@ git commit -m "refactor: remove old App-process architecture
 
 - Delete ModeEngine, ModeScheduler, EngineReceiver
 - Delete driving detectors and receivers
-- All logic now in system_server
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- All logic now in system_server"
 ```
 
 ---
