@@ -38,6 +38,12 @@
 !.github/
 !.github/**
 
+# Allow qwen-eyes tool (keep API key config ignored)
+!tools/
+!tools/qwen-eyes/
+!tools/qwen-eyes/eyes.py
+!tools/qwen-eyes/README.md
+
 # Allow root project files
 !.gitignore
 !settings.gradle.kts
