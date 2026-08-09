@@ -33,6 +33,31 @@ import org.json.JSONObject
 object OfficialTemplatePreview {
     private const val TAG = "OfficialTemplatePreview"
 
+    /**
+     * 双层时钟：主层（分钟/小时层）+ 副层（前景层）。官方 SystemUI
+     * （MiuiKeyguardUtils.SECONDARY_LAYER_CLOCK_TEMPLATE_ID）在副层容器
+     * 里用"原 templateId 的克隆 + 副层模板 id"创建第二个 MiuiClockController
+     * 叠加在主层上（displayType=64，isSecondaryType）。
+     *
+     * 注意 oversize_a 的副层是 _minute（分钟层，主层是小时层），oversize_b
+     * 的副层是 _hour（小时层，主层是分钟层），不能统一用 _hour 后缀。
+     */
+    private val SECONDARY_LAYER_TEMPLATE_IDS = mapOf(
+        "pad_exclusive_a" to "pad_exclusive_a_signature",
+        "pad_exclusive_c" to "pad_exclusive_c_minute",
+        "eastern_c" to "eastern_c_minute",
+        "eastern_c_notification" to "eastern_c_minute",
+        "eastern_a" to "eastern_a_minute",
+        "eastern_a_notification" to "eastern_a_minute",
+        "oversize_a" to "oversize_a_minute",
+        "oversize_b" to "oversize_b_hour",
+        "eastern_b" to "eastern_b_data",
+        "classic" to "classic_signature",
+        "classic_max" to "classic_max_minute",
+        "classic_plus" to "classic_plus_signature",
+        "depth_pets" to "depth_pets_secondary"
+    )
+
     /** 优先 AOD（未混淆、方法名完整），回退主题管家（打包了全套组件）。 */
     private val SOURCE_PACKAGES = listOf(
         "com.miui.aod",
@@ -247,22 +272,24 @@ object OfficialTemplatePreview {
             }
         }
 
-        // 7. oversize_* 是双层时钟（官方 OversizeBTemplateView）：
-        //    背景层 = templateId（如 oversize_b，分钟层），
-        //    前景层 = templateId + "_hour"（如 oversize_b_hour，小时层），
-        //    前景覆盖在背景+景深主体之上（小时不被主体遮挡）。缺失小时层会导致只显示分钟。
+        // 7. 双层时钟（官方 SECONDARY_LAYER_CLOCK_TEMPLATE_ID）：
+        //    主层 = templateId（如 oversize_b = 分钟层），
+        //    副层 = 映射的模板 id（如 oversize_b_hour = 小时层），
+        //    副层覆盖在主层+景深主体之上（小时不被主体遮挡）。缺失副层会导致只显示一半。
         val templateId = fields.templateId
-        if (templateId != null && templateId.startsWith("oversize")) {
+        val secondaryTemplateId = templateId?.let { SECONDARY_LAYER_TEMPLATE_IDS[it] }
+        if (secondaryTemplateId != null) {
             runCatching {
-                val foreTemplate = templateId + "_hour"
-                val foreBean = beanCls.getConstructor(String::class.java).newInstance(foreTemplate)
+                val foreBean = beanCls.getConstructor(String::class.java).newInstance(secondaryTemplateId)
                 // 前景小时层复用主 bean 的颜色/字重字段（官方 initTemplateBean 同样复制）
                 fillClockBean(beanCls, foreBean, fields)
                 val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
-                initClockView(clockViewCls, foreView, foreBean, beanCls)
+                // 官方副层用 displayType=64（isSecondaryType），副层模板
+                // 在该类型下解析为正确的布局（如 oversize_a_minute）。
+                initClockView(clockViewCls, foreView, foreBean, beanCls, displayType = 64)
                 addScaledClockView(root, foreView, screenW, screenH, targetScaleX, targetScaleY)
             }.onFailure { t ->
-                Log.w(TAG, "oversize fore clock layer failed", t)
+                Log.w(TAG, "secondary clock layer failed ($secondaryTemplateId)", t)
             }
         }
         return root
@@ -306,7 +333,7 @@ object OfficialTemplatePreview {
         return out
     }
 
-    /** 填充 ClockBean 字段（颜色/字重/特效），主层与前景层共用。 */
+    /** 填充 ClockBean 字段（颜色/字重/特效/信息行），主层与前景层共用。 */
     private fun fillClockBean(
         beanCls: Class<*>,
         bean: Any,
@@ -318,15 +345,38 @@ object OfficialTemplatePreview {
         fun setBool(name: String, value: Boolean) {
             runCatching { beanCls.getMethod(name, Boolean::class.javaPrimitiveType).invoke(bean, value) }
         }
+        fun setString(name: String, value: String?) {
+            if (!value.isNullOrEmpty()) {
+                runCatching { beanCls.getMethod(name, String::class.java).invoke(bean, value) }
+            }
+        }
         setInt("setPrimaryColor", fields.primaryColor)
         setInt("setSecondaryColor", fields.secondaryColor)
+        setInt("setBlendColor", fields.blendColor)
+        setInt("setSecondaryBlendColor", fields.secondaryBlendColor)
+        setInt("setInfoAreaColor", fields.infoAreaColor)
         setInt("setStyle", fields.style)
         setInt("setClockWeight", fields.clockWeight)
         setInt("setClockEffect", fields.clockEffect)
+        setInt("setExtraFlag", fields.extraFlag)
+        setInt("setClassicLine1", fields.classicLine1)
+        setInt("setClassicLine2", fields.classicLine2)
+        setInt("setClassicLine3", fields.classicLine3)
+        setInt("setClassicLine4", fields.classicLine4)
+        setInt("setClassicLine5", fields.classicLine5)
         setBool("setAutoPrimaryColor", fields.isAutoPrimaryColor)
         setBool("setAutoSecondaryColor", fields.isAutoSecondaryColor)
         setBool("setDiffHourMinuteColor", fields.isDiffHourMinuteColor)
         setBool("setEnableDiffusion", fields.enableDiffusion)
+        setBool("setUnablePresetData", fields.unablePresetData)
+        setBool("setDisableContainerPassBlur", fields.disableContainerPassBlur)
+        setString("setSignatureLine1", fields.signatureLine1)
+        setString("setSignatureLine2", fields.signatureLine2)
+        setString("setSignatureLine3", fields.signatureLine3)
+        setString("setClassicSignature", fields.classicSignature)
+        setString("setPresetWeatherJson", fields.presetWeatherJson)
+        setString("setPresetHealthJson", fields.presetHealthJson)
+        setString("setDualClockLocalCity", fields.dualClockLocalCity)
     }
 
     /** 反射调用 MiuiClockView.init(clockBean, displayType, async)。 */
@@ -334,7 +384,8 @@ object OfficialTemplatePreview {
         clockViewCls: Class<*>,
         clockView: View,
         bean: Any,
-        beanCls: Class<*>
+        beanCls: Class<*>,
+        displayType: Int = 0
     ) {
         val initMethod = clockViewCls.getMethod(
             "init",
@@ -342,7 +393,7 @@ object OfficialTemplatePreview {
             Int::class.javaPrimitiveType,
             Boolean::class.javaPrimitiveType
         )
-        initMethod.invoke(clockView, bean, 0, false)
+        initMethod.invoke(clockView, bean, displayType, false)
     }
 
     /** 以全屏尺寸 + 左上角缩放挂到 root（与 createScaledPreviewTemplateView 一致）。 */
@@ -488,6 +539,9 @@ object OfficialTemplatePreview {
                 templateId = clock.optString("templateId").takeIf { it.isNotEmpty() },
                 primaryColor = clock.optInt("primaryColor", 0),
                 secondaryColor = clock.optInt("secondaryColor", 0),
+                blendColor = clock.optInt("blendColor", 0),
+                secondaryBlendColor = clock.optInt("secondaryBlendColor", 0),
+                infoAreaColor = clock.optInt("infoAreaColor", 0),
                 isAutoPrimaryColor = clock.optBoolean("isAutoPrimaryColor", true),
                 isAutoSecondaryColor = clock.optBoolean("isAutoSecondaryColor", true),
                 isDiffHourMinuteColor = clock.optBoolean("isDiffHourMinuteColor", false),
@@ -495,6 +549,21 @@ object OfficialTemplatePreview {
                 style = clock.optInt("style", 0),
                 clockWeight = clock.optInt("clockWeight", 0),
                 clockEffect = clock.optInt("clockEffect", 0),
+                extraFlag = clock.optInt("extraFlag", 0),
+                classicLine1 = clock.optInt("classicLine1", 0),
+                classicLine2 = clock.optInt("classicLine2", 0),
+                classicLine3 = clock.optInt("classicLine3", 0),
+                classicLine4 = clock.optInt("classicLine4", 0),
+                classicLine5 = clock.optInt("classicLine5", 0),
+                unablePresetData = clock.optBoolean("unablePresetData", false),
+                disableContainerPassBlur = clock.optBoolean("disableContainerPassBlur", false),
+                signatureLine1 = clock.optString("signatureLine1").takeIf { it.isNotEmpty() },
+                signatureLine2 = clock.optString("signatureLine2").takeIf { it.isNotEmpty() },
+                signatureLine3 = clock.optString("signatureLine3").takeIf { it.isNotEmpty() },
+                classicSignature = clock.optString("classicSignature").takeIf { it.isNotEmpty() },
+                presetWeatherJson = clock.optString("presetWeatherJson").takeIf { it.isNotEmpty() },
+                presetHealthJson = clock.optString("presetHealthJson").takeIf { it.isNotEmpty() },
+                dualClockLocalCity = clock.optString("dualClockLocalCity").takeIf { it.isNotEmpty() },
                 supportSubject = wallpaperInfo?.optBoolean("supportSubject", false) ?: false
             )
         }.getOrNull()
@@ -504,6 +573,9 @@ object OfficialTemplatePreview {
         val templateId: String?,
         val primaryColor: Int,
         val secondaryColor: Int,
+        val blendColor: Int,
+        val secondaryBlendColor: Int,
+        val infoAreaColor: Int,
         val isAutoPrimaryColor: Boolean,
         val isAutoSecondaryColor: Boolean,
         val isDiffHourMinuteColor: Boolean,
@@ -511,6 +583,21 @@ object OfficialTemplatePreview {
         val style: Int,
         val clockWeight: Int,
         val clockEffect: Int,
+        val extraFlag: Int,
+        val classicLine1: Int,
+        val classicLine2: Int,
+        val classicLine3: Int,
+        val classicLine4: Int,
+        val classicLine5: Int,
+        val unablePresetData: Boolean,
+        val disableContainerPassBlur: Boolean,
+        val signatureLine1: String?,
+        val signatureLine2: String?,
+        val signatureLine3: String?,
+        val classicSignature: String?,
+        val presetWeatherJson: String?,
+        val presetHealthJson: String?,
+        val dualClockLocalCity: String?,
         val supportSubject: Boolean = false
     )
 }

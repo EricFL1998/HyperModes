@@ -62,6 +62,23 @@ class WallpaperController(private val context: Context) {
     private val KEY_WALLPAPER_EFFECT_2 = "wallpaper_effect_type_2"
     private val KEY_WALLPAPER_CHANGED = "wallpaper_changed_2"
 
+    /**
+     * 息屏样式相关设置键（Settings.Secure）。应用涂鸦等锁屏样式后，系统会把
+     * 息屏样式自动切成传统 AOD（预期行为）；退出模式恢复时需把这些键还原成
+     * 进入前的值，否则息屏样式会一直停留在传统 AOD。
+     */
+    private val AOD_STYLE_KEYS = listOf(
+        "aod_style_state",
+        "full_screen_aod_on",
+        "aod_category_name",
+        "linkage_state",
+        "aod_show_style",
+        "aod_mode_user_set"
+    )
+
+    /** 备份文件中"原值不存在"的标记（恢复时删除该设置键）。 */
+    private val VALUE_NULL = "__hypermodes_null__"
+
     private val wallpaperManager: WallpaperManager by lazy {
         WallpaperManager.getInstance(context)
     }
@@ -154,6 +171,8 @@ class WallpaperController(private val context: Context) {
     private fun applyLock(item: WallpaperItemConfig) {
         // 1. 备份当前锁屏样式 JSON（仅首次）
         backupLockJsonOnce()
+        // 1.1 备份息屏样式设置（涂鸦等样式会切传统 AOD，恢复时需还原）
+        backupAodStyleOnce()
 
         // 2. 写回锁屏样式 JSON（触发 SystemUI 观察者）
         if (!item.lockscreenJson.isNullOrEmpty()) {
@@ -202,6 +221,9 @@ class WallpaperController(private val context: Context) {
     }
 
     private fun restoreLock() {
+        // 0. 还原息屏样式设置（涂鸦样式应用后系统会切传统 AOD）
+        restoreAodStyle()
+
         // 1. 恢复锁屏样式 JSON
         File(lockBackupDir, KEY_LOCKSCREEN_INFO).takeIf { it.exists() }?.let { f ->
             putSecure(KEY_LOCKSCREEN_INFO, f.readText())
@@ -241,6 +263,34 @@ class WallpaperController(private val context: Context) {
             getSecure(KEY_TEMPLATE_EDITOR_INFO)?.let { File(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO).writeText(it) }
             getSecure(KEY_DEFAULT_LOCKSCREEN_INFO)?.let { File(lockBackupDir, KEY_DEFAULT_LOCKSCREEN_INFO).writeText(it) }
             getSecureInt(KEY_LOCKSCREEN_INFO_VERSION)?.let { File(lockBackupDir, KEY_LOCKSCREEN_INFO_VERSION).writeText(it.toString()) }
+        }
+    }
+
+    /** 备份息屏样式设置键当前值（仅首次），key 存为文件名。 */
+    private fun backupAodStyleOnce() {
+        lockBackupDir.mkdirs()
+        for (key in AOD_STYLE_KEYS) {
+            val backup = File(lockBackupDir, "secure_$key")
+            if (backup.exists()) continue
+            val current = getSecure(key)
+            backup.writeText(current ?: VALUE_NULL)
+        }
+    }
+
+    /** 还原息屏样式设置键：有原值写回，原值不存在则删除该键。 */
+    private fun restoreAodStyle() {
+        for (key in AOD_STYLE_KEYS) {
+            val backup = File(lockBackupDir, "secure_$key")
+            if (!backup.exists()) continue
+            val value = backup.readText()
+            if (value == VALUE_NULL) {
+                runCatching {
+                    context.contentResolver.delete(Settings.Secure.getUriFor(key), null, null)
+                }.onFailure { t -> log("restore AOD style $key: delete failed: ${t.message}") }
+            } else {
+                putSecure(key, value)
+            }
+            log("restore AOD style: $key -> ${if (value == VALUE_NULL) "<deleted>" else value}")
         }
     }
 
