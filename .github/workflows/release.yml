@@ -92,7 +92,6 @@ jobs:
           - `dimWallpaper` and `keepScreenOff` not supported
 
           ---
-          Built with ❤️ using Claude Code
         draft: false
         prerelease: false
       env:

@@ -17,7 +17,7 @@
 - `toModeConfig()` writes the driving `TriggerConfig` whenever `id == "driving"` (even with auto-detect off) so picked devices survive toggling. Verified safe: the only `mode.triggers` consumer besides `Models.kt` is `DrivingTriggerManager.kt:153`, gated on `type == DYNAMIC_TRIGGER`.
 - Every new string goes in BOTH `app/src/main/res/values/strings.xml` and `app/src/main/res/values-zh-rCN/strings.xml`.
 - This repo has no unit-test infrastructure (spec confirms). Verification = `./gradlew.bat :app:assembleDebug` BUILD SUCCESSFUL + the round-trip inspection in Task 1.
-- Commits: conventional style (`feat:` / `fix:`) with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` trailer. Commit ONLY the files listed in each task's commit step — the working tree contains unrelated v1.3 work and several files are already staged; always `git commit -- <paths>` with explicit paths.
+- Commits: conventional style (`feat:` / `fix:`). Commit ONLY the files listed in each task's commit step — the working tree contains unrelated v1.3 work and several files are already staged; always `git commit -- <paths>` with explicit paths.
 - Note: `.\gradlew.bat :app:assembleDebug` can exceed 10 minutes on a cold daemon; run it in the background if the foreground call times out.
 
 ---
@@ -99,9 +99,7 @@ Expected: BUILD SUCCESSFUL
 - [ ] **Step 6: Commit**
 
 ```bash
-git commit -m "feat: persist picked Bluetooth devices for driving detection
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" -- app/src/main/java/com/banana/hypermodes/data/Models.kt
+git commit -m "feat: persist picked Bluetooth devices for driving detection" -- app/src/main/java/com/banana/hypermodes/data/Models.kt
 ```
 
 ---
@@ -334,9 +332,7 @@ Expected: BUILD SUCCESSFUL
 - [ ] **Step 9: Commit**
 
 ```bash
-git commit -m "feat: driving mode Bluetooth device picker UI
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" -- app/src/main/java/com/banana/hypermodes/ui/ModeDetailScreen.kt app/src/main/java/com/banana/hypermodes/ui/HyperModesApp.kt app/src/main/res/values/strings.xml app/src/main/res/values-zh-rCN/strings.xml
+git commit -m "feat: driving mode Bluetooth device picker UI" -- app/src/main/java/com/banana/hypermodes/ui/ModeDetailScreen.kt app/src/main/java/com/banana/hypermodes/ui/HyperModesApp.kt app/src/main/res/values/strings.xml app/src/main/res/values-zh-rCN/strings.xml
 ```
 
 ---

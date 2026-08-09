@@ -240,9 +240,7 @@ git commit -m "feat: add identity-based weak registry for Focus detail sessions
 - Identity-based lookup (not equals/hashCode)
 - Thread-safe synchronized access
 - Weak references prevent SystemUI leaks
-- Constants for tile spec, category, suffix
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Constants for tile spec, category, suffix"
 ```
 
 ---
@@ -511,9 +509,7 @@ git commit -m "feat: extract hook policy into pure testable functions
 - shouldUseSpecificHeight validates adapter registration
 - resolveOuterContent handles synthetic this$0 and fallback
 - readItemsArray/readSuffix with reflection helpers
-- All functions return null on validation failure
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- All functions return null on validation failure"
 ```
 
 ---
@@ -772,9 +768,7 @@ git commit -m "feat: implement detail session state machine
 - destroy moves to CLOSED immediately
 - Weak reference to current content
 - Pending card refresh flag during CLOSING
-- Registry cleanup on destroy
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Registry cleanup on destroy"
 ```
 
 ---
@@ -1013,9 +1007,7 @@ git commit -m "feat: complete session with native binding and refresh
 - hasPendingCardRefresh/clearPendingCardRefresh accessors
 - Real DetailAdapter proxy with metrics category and createDetailView
 - All operations thread-safe with synchronized blocks
-- Weak reference to current content
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Weak reference to current content"
 ```
 
 ---
@@ -1131,9 +1123,7 @@ git commit -m "refactor: adapter delegates to session
 - Session registered in registry on construction
 - setDetailListening/refreshItems/destroy delegate to session
 - Remove old manual builder logic (session owns native binding)
-- Existing tests adjusted for session-based structure
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- Existing tests adjusted for session-based structure"
 ```
 
 ---
@@ -1291,9 +1281,7 @@ git commit -m "refactor: provider manages observer by card+detail claims
 - Config changes defer card refresh when CLOSING
 - Remove synchronous refreshState from setDetailListening(false)
 - Observer releases when both claims gone
-- onPanelHidden posts pending card refresh
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+- onPanelHidden posts pending card refresh"
 ```
 
 ---
