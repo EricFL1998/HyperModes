@@ -39,6 +39,7 @@ import com.banana.hypermodes.automation.SavedAutomation
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.window.WindowListPopup
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * 自动化操作项数据类
@@ -218,7 +219,7 @@ fun AutomationActionDialog(
         }
     }
     
-    OverlayDialog(
+    WindowBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
         title = "选择操作"
@@ -226,8 +227,9 @@ fun AutomationActionDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.9f)
         ) {
-            // 搜索框
+            // 搜索框（最顶部，可搜索全部操作）
             SearchBar(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -239,18 +241,18 @@ fun AutomationActionDialog(
                         onSearch = { },
                         expanded = false,
                         onExpandedChange = { },
-                        label = "搜索常用控制..."
+                        label = "搜索全部操作..."
                     )
                 },
                 expanded = false,
                 onExpandedChange = { }
             ) { }
             
-            // 常用控制项列表
+            // 操作列表
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 400.dp)
+                    .weight(1f)
             ) {
                 items(filteredActions) { action ->
                     Row(
@@ -296,13 +298,6 @@ fun AutomationActionDialog(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
-                text = stringResource(R.string.cancel),
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
