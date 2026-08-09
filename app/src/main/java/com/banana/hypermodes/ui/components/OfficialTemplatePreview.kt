@@ -66,7 +66,6 @@ object OfficialTemplatePreview {
                     host, lockscreenJson, wallpaper, subjectMaskPath, targetWidthPx, targetHeightPx
                 )
                 if (container != null) {
-                    Log.i(TAG, "official clock created from $pkg")
                     return container
                 }
                 lastError = IllegalStateException("buildClockContainer returned null from $pkg")
@@ -99,7 +98,6 @@ object OfficialTemplatePreview {
                     host, wallpaper, targetWidthPx, targetHeightPx
                 )
                 if (container != null) {
-                    Log.i(TAG, "official home created from $pkg")
                     return container
                 }
                 lastError = IllegalStateException("buildHomeContainer returned null from $pkg")
@@ -141,7 +139,6 @@ object OfficialTemplatePreview {
             field.isAccessible = true
             if (field.get(null) == null) {
                 field.set(null, context.applicationContext)
-                Log.i(TAG, "EditorApplicationProxy.sInstance initialized")
             }
         }.onFailure { t ->
             Log.w(TAG, "init EditorApplicationProxy.sInstance failed", t)
@@ -244,7 +241,6 @@ object OfficialTemplatePreview {
                         pivotY = 0f
                     }
                     root.addView(fg)
-                    Log.i(TAG, "depth foreground layer added (below hour layer)")
                 }
             }.onFailure { t ->
                 Log.w(TAG, "depth foreground layer failed", t)
@@ -265,7 +261,6 @@ object OfficialTemplatePreview {
                 val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
                 initClockView(clockViewCls, foreView, foreBean, beanCls)
                 addScaledClockView(root, foreView, screenW, screenH, targetScaleX, targetScaleY)
-                Log.i(TAG, "oversize fore clock layer added: $foreTemplate")
             }.onFailure { t ->
                 Log.w(TAG, "oversize fore clock layer failed", t)
             }

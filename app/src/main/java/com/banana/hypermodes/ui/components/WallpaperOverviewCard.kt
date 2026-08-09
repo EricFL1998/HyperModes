@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -188,11 +189,16 @@ private fun LockScreenMockup(
             .clickable(onClick = onClick)
     ) {
         if (officialView != null) {
-            // 官方组件渲染：真实壁纸 + 官方时钟模板
-            AndroidView(
-                factory = { officialView },
-                modifier = Modifier.fillMaxSize()
-            )
+            // 官方组件渲染：真实壁纸 + 官方时钟模板。
+            // AndroidView 的 factory 只在首次组合执行一次，remember 生成的新容器
+            // 不会自动替换旧视图——用 key(officialView) 让容器变化时重建整个子树，
+            // 否则编辑后预览永远停留在首次创建的旧视图。
+            key(officialView) {
+                AndroidView(
+                    factory = { officialView },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             // 底部"自定义"胶囊按钮叠加在官方时钟上
             Column(
                 modifier = Modifier
@@ -248,10 +254,12 @@ private fun HomeScreenMockup(
             .clickable(onClick = onClick)
     ) {
         if (officialView != null) {
-            AndroidView(
-                factory = { officialView },
-                modifier = Modifier.fillMaxSize()
-            )
+            key(officialView) {
+                AndroidView(
+                    factory = { officialView },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()

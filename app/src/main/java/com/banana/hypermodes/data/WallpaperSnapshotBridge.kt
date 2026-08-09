@@ -8,7 +8,6 @@ import android.os.Looper
 import android.os.ResultReceiver
 import com.banana.hypermodes.protocol.Protocol
 import java.io.File
-import android.util.Log
 
 /**
  * Ask the system_server bridge to capture the current lock-screen style JSON +
@@ -181,14 +180,6 @@ object WallpaperSnapshotBridge {
         val lockBytes = data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES)
         val desktopBytes = data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES)
         val subjectMaskBytes = data.getByteArray(Protocol.EXTRA_SUBJECT_MASK_BYTES)
-        Log.i(
-            "WallpaperSnapshotBridge",
-            "parse: previewOnly=$previewOnly lockBytes=${lockBytes?.size} desktopBytes=${desktopBytes?.size} " +
-                "subjectMaskBytes=${subjectMaskBytes?.size} " +
-                "lockPath=${data.getString(Protocol.EXTRA_LOCK_IMAGE_PATH)} " +
-                "desktopPath=${data.getString(Protocol.EXTRA_DESKTOP_IMAGE_PATH)} " +
-                "lockJson=${data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)?.length}"
-        )
         val subjectMaskPath = persistWallpaper(
             context,
             subjectMaskBytes,
