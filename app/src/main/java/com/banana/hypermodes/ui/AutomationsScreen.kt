@@ -477,13 +477,19 @@ private fun AutomationCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                // 图标在名称上面
+                Text(
+                    text = automation.icon,
+                    style = MiuixTheme.textStyles.headline2,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
                 Text(
                     text = automation.name,
                     style = MiuixTheme.textStyles.headline1,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
             }
-            // 右上角运行按钮
+            // 最右侧运行按钮
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -499,12 +505,6 @@ private fun AutomationCard(
                     modifier = Modifier.size(22.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = automation.icon,
-                style = MiuixTheme.textStyles.headline2,
-                modifier = Modifier.padding(start = 16.dp)
-            )
         }
     }
 }

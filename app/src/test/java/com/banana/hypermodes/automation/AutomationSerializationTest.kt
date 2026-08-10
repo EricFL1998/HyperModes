@@ -27,7 +27,7 @@ class AutomationSerializationTest {
         children = listOf(
             AutomationBlock(
                 id = "cond-1",
-                type = BlockType.CheckWifiState,
+                type = BlockType.CheckWifiOn,
                 label = "检查 WiFi 状态",
                 icon = "📶",
                 iconColor = Color(0xFF30B0C7),

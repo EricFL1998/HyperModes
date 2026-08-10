@@ -25,12 +25,16 @@ class AutomationTriggerTest {
         val triggerTypes = listOf(
             BlockType.TriggerTime,
             BlockType.TriggerWifi,
-            BlockType.TriggerWifiState,
-            BlockType.TriggerBluetooth,
+            BlockType.TriggerWifiOn,
+            BlockType.TriggerWifiOff,
+            BlockType.TriggerBluetoothOn,
+            BlockType.TriggerBluetoothOff,
             BlockType.TriggerBattery,
-            BlockType.TriggerCharging,
+            BlockType.TriggerChargingStart,
+            BlockType.TriggerChargingStop,
             BlockType.TriggerNetwork,
-            BlockType.TriggerMusic,
+            BlockType.TriggerMusicStart,
+            BlockType.TriggerMusicStop,
             BlockType.TriggerApp,
             BlockType.TriggerDayOfWeek
         )
@@ -42,13 +46,15 @@ class AutomationTriggerTest {
     @Test
     fun `non trigger blocks are not recognized as triggers`() {
         val nonTrigger = listOf(
-            BlockType.ToggleWifi,
+            BlockType.ToggleWifiOn,
+            BlockType.ToggleWifiOff,
             BlockType.SetDnd,
             BlockType.AdjustVolume,
             BlockType.EnableMode,
             BlockType.OpenApp,
             BlockType.IfCondition,
-            BlockType.CheckWifiState,
+            BlockType.CheckWifiOn,
+            BlockType.CheckWifiOff,
             BlockType.CheckBatteryLevel
         )
         for (type in nonTrigger) {
@@ -71,7 +77,7 @@ class AutomationTriggerTest {
     @Test
     fun `global automation has no trigger blocks`() {
         val globalBlocks = listOf(
-            block(BlockType.ToggleWifi, listOf(BlockParameter.BooleanParam("enabled", "开启", true))),
+            block(BlockType.ToggleWifiOn),
             block(BlockType.SetDnd, listOf(BlockParameter.ChoiceParam("level", "勿扰级别", "仅优先", listOf("关闭"))))
         )
         assertTrue(globalBlocks.none { it.isTriggerBlock() })

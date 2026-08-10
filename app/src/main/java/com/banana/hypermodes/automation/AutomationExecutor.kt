@@ -112,47 +112,68 @@ class AutomationExecutor(
             // ==================== 触发条件 ====================
             is BlockType.TriggerTime -> checkTimeRange(block, "触发")
             is BlockType.TriggerWifi -> checkWifiSsid(block)
-            is BlockType.TriggerWifiState -> checkWifiState(block)
-            is BlockType.TriggerBluetooth -> checkBluetoothState(block)
+            is BlockType.TriggerWifiOn -> checkWifiState(block, expected = true, "触发")
+            is BlockType.TriggerWifiOff -> checkWifiState(block, expected = false, "触发")
+            is BlockType.TriggerBluetoothOn -> checkBluetoothState(block, expected = true, "触发")
+            is BlockType.TriggerBluetoothOff -> checkBluetoothState(block, expected = false, "触发")
             is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
-            is BlockType.TriggerCharging -> checkChargingState(block)
+            is BlockType.TriggerChargingStart -> checkChargingState(block, expected = true, "触发")
+            is BlockType.TriggerChargingStop -> checkChargingState(block, expected = false, "触发")
             is BlockType.TriggerNetwork -> checkNetworkType(block)
-            is BlockType.TriggerMusic -> checkMusicPlaying(block)
+            is BlockType.TriggerMusicStart -> checkMusicPlaying(block, expected = true, "触发")
+            is BlockType.TriggerMusicStop -> checkMusicPlaying(block, expected = false, "触发")
             is BlockType.TriggerApp -> checkAppForeground(block)
             is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
 
             // ==================== 系统控制 ====================
-            is BlockType.ToggleWifi -> executeToggleWifi(block)
-            is BlockType.ToggleBluetooth -> executeToggleBluetooth(block)
-            is BlockType.ToggleMobileData -> executeToggleMobileData(block)
-            is BlockType.ToggleAirplane -> executeToggleAirplane(block)
-            is BlockType.ToggleHotspot -> executeToggleHotspot(block)
-            is BlockType.ToggleNfc -> executeToggleNfc(block)
-            is BlockType.ToggleGps -> executeToggleGps(block)
-            is BlockType.ToggleFlashlight -> executeToggleFlashlight(block)
-            is BlockType.ToggleAutoRotate -> executeToggleAutoRotate(block)
-            is BlockType.ToggleBatterySaver -> executeToggleBatterySaver(block)
-            is BlockType.SetSilentMode -> executeSetSilentMode(block)
+            is BlockType.ToggleWifiOn -> executeToggleWifi(block, true)
+            is BlockType.ToggleWifiOff -> executeToggleWifi(block, false)
+            is BlockType.ToggleBluetoothOn -> executeToggleBluetooth(block, true)
+            is BlockType.ToggleBluetoothOff -> executeToggleBluetooth(block, false)
+            is BlockType.ToggleMobileDataOn -> executeToggleMobileData(block, true)
+            is BlockType.ToggleMobileDataOff -> executeToggleMobileData(block, false)
+            is BlockType.ToggleAirplaneOn -> executeToggleAirplane(block, true)
+            is BlockType.ToggleAirplaneOff -> executeToggleAirplane(block, false)
+            is BlockType.ToggleHotspotOn -> executeToggleHotspot(block, true)
+            is BlockType.ToggleHotspotOff -> executeToggleHotspot(block, false)
+            is BlockType.ToggleNfcOn -> executeToggleNfc(block, true)
+            is BlockType.ToggleNfcOff -> executeToggleNfc(block, false)
+            is BlockType.ToggleGpsOn -> executeToggleGps(block, true)
+            is BlockType.ToggleGpsOff -> executeToggleGps(block, false)
+            is BlockType.ToggleFlashlightOn -> executeToggleFlashlight(block, true)
+            is BlockType.ToggleFlashlightOff -> executeToggleFlashlight(block, false)
+            is BlockType.ToggleAutoRotateOn -> executeToggleAutoRotate(block, true)
+            is BlockType.ToggleAutoRotateOff -> executeToggleAutoRotate(block, false)
+            is BlockType.ToggleBatterySaverOn -> executeToggleBatterySaver(block, true)
+            is BlockType.ToggleBatterySaverOff -> executeToggleBatterySaver(block, false)
+            is BlockType.SetSilentModeOn -> executeSetSilentMode(block, true)
+            is BlockType.SetSilentModeOff -> executeSetSilentMode(block, false)
             is BlockType.SetDnd -> executeSetDnd(block)
             is BlockType.AdjustVolume -> executeAdjustVolume(block)
             is BlockType.AdjustBrightness -> executeAdjustBrightness(block)
-            is BlockType.SetAutoBrightness -> executeSetAutoBrightness(block)
+            is BlockType.SetAutoBrightnessOn -> executeSetAutoBrightness(block, true)
+            is BlockType.SetAutoBrightnessOff -> executeSetAutoBrightness(block, false)
 
             // ==================== 显示 ====================
-            is BlockType.SetDarkMode -> executeSetDarkMode(block)
-            is BlockType.SetGrayscale -> executeSetGrayscale(block)
-            is BlockType.SetAod -> executeSetAod(block)
-            is BlockType.SetRaiseToWake -> executeSetRaiseToWake(block)
-            is BlockType.SetWakeForNotifications -> executeSetWakeForNotifications(block)
-            is BlockType.SetEyeCare -> executeSetEyeCare(block)
+            is BlockType.SetGrayscaleOn -> executeSetGrayscale(block, true)
+            is BlockType.SetGrayscaleOff -> executeSetGrayscale(block, false)
+            is BlockType.SetRaiseToWakeOn -> executeSetRaiseToWake(block, true)
+            is BlockType.SetRaiseToWakeOff -> executeSetRaiseToWake(block, false)
+            is BlockType.SetWakeForNotificationsOn -> executeSetWakeForNotifications(block, true)
+            is BlockType.SetWakeForNotificationsOff -> executeSetWakeForNotifications(block, false)
+            is BlockType.SetEyeCareOn -> executeSetEyeCare(block, true)
+            is BlockType.SetEyeCareOff -> executeSetEyeCare(block, false)
             is BlockType.SetRefreshRate -> executeSetRefreshRate(block)
-            is BlockType.SetAdaptiveRefreshRatePro -> executeSetAdaptiveRefreshRatePro(block)
+            is BlockType.SetAdaptiveRefreshRateProOn -> executeSetAdaptiveRefreshRatePro(block, true)
+            is BlockType.SetAdaptiveRefreshRateProOff -> executeSetAdaptiveRefreshRatePro(block, false)
 
             // ==================== 设备 ====================
             is BlockType.SetPerformanceMode -> executeSetPerformanceMode(block)
-            is BlockType.Set5g -> executeSet5g(block)
+            is BlockType.Set5gOn -> executeSet5g(block, true)
+            is BlockType.Set5gOff -> executeSet5g(block, false)
             is BlockType.SetPreferredSim -> executeSetPreferredSim(block)
-            is BlockType.SetMotionSicknessRelief -> executeSetMotionSicknessRelief(block)
+            is BlockType.SetMotionSicknessReliefOn -> executeSetMotionSicknessRelief(block, true)
+            is BlockType.SetMotionSicknessReliefOff -> executeSetMotionSicknessRelief(block, false)
 
             // ==================== 模式 ====================
             is BlockType.EnableMode -> executeEnableMode(block)
@@ -175,25 +196,37 @@ class AutomationExecutor(
             is BlockType.OrCondition -> executeOr(block, steps)
 
             // ==================== 条件判断 ====================
-            is BlockType.CheckWifiState -> checkWifiState(block)
-            is BlockType.CheckBluetoothState -> checkBluetoothState(block)
+            is BlockType.CheckWifiOn -> checkWifiState(block, expected = true)
+            is BlockType.CheckWifiOff -> checkWifiState(block, expected = false)
+            is BlockType.CheckBluetoothOn -> checkBluetoothState(block, expected = true)
+            is BlockType.CheckBluetoothOff -> checkBluetoothState(block, expected = false)
             is BlockType.CheckBatteryLevel -> checkBatteryLevel(block)
-            is BlockType.CheckChargingState -> checkChargingState(block)
+            is BlockType.CheckChargingOn -> checkChargingState(block, expected = true)
+            is BlockType.CheckChargingOff -> checkChargingState(block, expected = false)
             is BlockType.CheckTimeRange -> checkTimeRange(block)
             is BlockType.CheckDayOfWeek -> checkDayOfWeek(block)
-            is BlockType.CheckDarkModeState -> checkDarkModeState(block)
-            is BlockType.CheckScreenState -> checkScreenState(block)
-            is BlockType.CheckAirplaneState -> checkAirplaneState(block)
-            is BlockType.CheckDndState -> checkDndState(block)
-            is BlockType.CheckSilentState -> checkSilentState(block)
-            is BlockType.CheckMobileDataState -> checkMobileDataState(block)
+            is BlockType.CheckScreenOn -> checkScreenState(block, expected = true)
+            is BlockType.CheckScreenOff -> checkScreenState(block, expected = false)
+            is BlockType.CheckAirplaneOn -> checkAirplaneState(block, expected = true)
+            is BlockType.CheckAirplaneOff -> checkAirplaneState(block, expected = false)
+            is BlockType.CheckDndOn -> checkDndState(block, expected = true)
+            is BlockType.CheckDndOff -> checkDndState(block, expected = false)
+            is BlockType.CheckSilentOn -> checkSilentState(block, expected = true)
+            is BlockType.CheckSilentOff -> checkSilentState(block, expected = false)
+            is BlockType.CheckMobileDataOn -> checkMobileDataState(block, expected = true)
+            is BlockType.CheckMobileDataOff -> checkMobileDataState(block, expected = false)
             is BlockType.CheckNetworkType -> checkNetworkType(block)
-            is BlockType.CheckMusicPlaying -> checkMusicPlaying(block)
+            is BlockType.CheckMusicPlayingOn -> checkMusicPlaying(block, expected = true)
+            is BlockType.CheckMusicPlayingOff -> checkMusicPlaying(block, expected = false)
             is BlockType.CheckAppForeground -> checkAppForeground(block)
-            is BlockType.CheckAutoRotateState -> checkAutoRotateState(block)
-            is BlockType.CheckHotspotState -> checkHotspotState(block)
-            is BlockType.CheckNfcState -> checkNfcState(block)
-            is BlockType.CheckGpsState -> checkGpsState(block)
+            is BlockType.CheckAutoRotateOn -> checkAutoRotateState(block, expected = true)
+            is BlockType.CheckAutoRotateOff -> checkAutoRotateState(block, expected = false)
+            is BlockType.CheckHotspotOn -> checkHotspotState(block, expected = true)
+            is BlockType.CheckHotspotOff -> checkHotspotState(block, expected = false)
+            is BlockType.CheckNfcOn -> checkNfcState(block, expected = true)
+            is BlockType.CheckNfcOff -> checkNfcState(block, expected = false)
+            is BlockType.CheckGpsOn -> checkGpsState(block, expected = true)
+            is BlockType.CheckGpsOff -> checkGpsState(block, expected = false)
             is BlockType.CheckVolumeLevel -> checkVolumeLevel(block)
             is BlockType.CheckBrightnessLevel -> checkBrightnessLevel(block)
         }
@@ -215,8 +248,7 @@ class AutomationExecutor(
 
     // ==================== 系统控制实现 ====================
 
-    private fun executeToggleWifi(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleWifi(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("svc wifi ${if (enabled) "enable" else "disable"}")
         if (ok) return ExecutionResult(true, "WiFi 已${if (enabled) "开启" else "关闭"}")
         // 降级：Settings.Global 写入（需 WRITE_SECURE_SETTINGS）
@@ -228,8 +260,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleBluetooth(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleBluetooth(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         // 优先用系统 API（BLUETOOTH_CONNECT 已授权）
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
         if (adapter != null) {
@@ -251,8 +282,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleMobileData(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleMobileData(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("svc data ${if (enabled) "enable" else "disable"}") ||
                 writeSetting("global", "mobile_data", if (enabled) "1" else "0")
         return if (ok) {
@@ -262,8 +292,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleAirplane(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleAirplane(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("cmd connectivity airplane-mode ${if (enabled) "enable" else "disable"}")
         if (ok) return ExecutionResult(true, "飞行模式已${if (enabled) "开启" else "关闭"}")
         return try {
@@ -281,8 +310,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleHotspot(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleHotspot(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("cmd connectivity tethering ${if (enabled) "enable" else "disable"} wifi")
         if (ok) return ExecutionResult(true, "热点已${if (enabled) "开启" else "关闭"}")
         return try {
@@ -296,8 +324,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleNfc(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleNfc(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put secure nfc_on ${if (enabled) 1 else 0}") ||
                 writeSetting("secure", "nfc_on", if (enabled) "1" else "0")
         return if (ok) {
@@ -307,8 +334,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleGps(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleGps(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val mode = if (enabled) 3 else 0 // 3 = 高精度
         val ok = runRoot("settings put secure location_mode $mode") ||
                 writeSetting("secure", "location_mode", mode.toString())
@@ -319,8 +345,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleFlashlight(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleFlashlight(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("cmd flashlight set-flashlight ${if (enabled) "on" else "off"}")
         return if (ok) {
             ExecutionResult(true, "手电筒已${if (enabled) "开启" else "关闭"}")
@@ -329,8 +354,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleAutoRotate(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleAutoRotate(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put system accelerometer_rotation ${if (enabled) 1 else 0}") ||
                 writeSetting("system", "accelerometer_rotation", if (enabled) "1" else "0")
         return if (ok) {
@@ -340,8 +364,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeToggleBatterySaver(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeToggleBatterySaver(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("cmd battery_saver set ${if (enabled) "true" else "false"}") ||
                 writeSetting("global", "low_power", if (enabled) "1" else "0")
         return if (ok) {
@@ -351,8 +374,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetSilentMode(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetSilentMode(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         // MIUI silence_mode: 4 = 开启, 0 = 关闭
         val ok = runRoot("settings put system silence_mode ${if (enabled) 4 else 0}") ||
                 writeSetting("system", "silence_mode", if (enabled) "4" else "0")
@@ -414,8 +436,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetAutoBrightness(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetAutoBrightness(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put system screen_brightness_mode ${if (enabled) 1 else 0}") ||
                 writeSetting("system", "screen_brightness_mode", if (enabled) "1" else "0")
         return if (ok) {
@@ -427,19 +448,7 @@ class AutomationExecutor(
 
     // ==================== 显示实现 ====================
 
-    private fun executeSetDarkMode(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
-        val ok = runRoot("cmd uimode night ${if (enabled) "yes" else "no"}") ||
-                writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "深色模式已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "深色模式控制失败")
-        }
-    }
-
-    private fun executeSetGrayscale(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetGrayscale(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot(
             "settings put secure accessibility_display_daltonizer_enabled ${if (enabled) 1 else 0}",
             "settings put secure accessibility_display_daltonizer 0"
@@ -452,19 +461,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetAod(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
-        val ok = runRoot("settings put secure aod_mode ${if (enabled) 1 else 0}") ||
-                writeSetting("secure", "aod_mode", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "息屏显示已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "息屏显示控制失败")
-        }
-    }
-
-    private fun executeSetRaiseToWake(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetRaiseToWake(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put system gesture_wakeup ${if (enabled) 1 else 0}") ||
                 writeSetting("system", "gesture_wakeup", if (enabled) "1" else "0")
         return if (ok) {
@@ -474,8 +471,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetWakeForNotifications(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetWakeForNotifications(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put system wakeup_for_keyguard_notification ${if (enabled) 1 else 0}") ||
                 writeSetting("system", "wakeup_for_keyguard_notification", if (enabled) "1" else "0")
         return if (ok) {
@@ -485,8 +481,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetEyeCare(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetEyeCare(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put system screen_paper_mode_enabled ${if (enabled) 1 else 0}") ||
                 writeSetting("system", "screen_paper_mode_enabled", if (enabled) "1" else "0")
         return if (ok) {
@@ -507,8 +502,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetAdaptiveRefreshRatePro(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetAdaptiveRefreshRatePro(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         // mimotion_pwm_enable: 2 = 自适应 Pro, 1 = 关闭
         val ok = runRoot("settings put secure mimotion_pwm_enable ${if (enabled) 2 else 1}") ||
                 writeSetting("secure", "mimotion_pwm_enable", if (enabled) "2" else "1")
@@ -537,8 +531,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSet5g(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSet5g(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot("settings put global enabled_5g_mode ${if (enabled) 1 else 0}") ||
                 writeSetting("global", "enabled_5g_mode", if (enabled) "1" else "0")
         return if (ok) {
@@ -563,8 +556,7 @@ class AutomationExecutor(
         }
     }
 
-    private fun executeSetMotionSicknessRelief(block: AutomationBlock): ExecutionResult {
-        val enabled = block.boolParam("enabled", true)
+    private fun executeSetMotionSicknessRelief(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         return try {
             val intent = Intent().apply {
                 component = ComponentName(
@@ -755,18 +747,16 @@ class AutomationExecutor(
 
     // ==================== 条件判断实现 ====================
 
-    private fun checkWifiState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkWifiState(block: AutomationBlock, expected: Boolean, label: String = "WiFi 状态"): ExecutionResult {
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val actual = wifiManager.isWifiEnabled
-        return conditionResult("WiFi 状态", actual, expected)
+        return conditionResult(label, actual, expected)
     }
 
-    private fun checkBluetoothState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkBluetoothState(block: AutomationBlock, expected: Boolean, label: String = "蓝牙状态"): ExecutionResult {
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
         val actual = adapter?.isEnabled ?: false
-        return conditionResult("蓝牙状态", actual, expected)
+        return conditionResult(label, actual, expected)
     }
 
     private fun checkBatteryLevel(block: AutomationBlock, label: String = "电量"): ExecutionResult {
@@ -782,12 +772,11 @@ class AutomationExecutor(
         )
     }
 
-    private fun checkChargingState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkChargingState(block: AutomationBlock, expected: Boolean, label: String = "充电状态"): ExecutionResult {
         val status = currentBatteryStatus()
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                 status == BatteryManager.BATTERY_STATUS_FULL
-        return conditionResult("充电状态", charging, expected)
+        return conditionResult(label, charging, expected)
     }
 
     private fun checkTimeRange(block: AutomationBlock, label: String = "当前时间"): ExecutionResult {
@@ -855,25 +844,13 @@ class AutomationExecutor(
         }", conditionMet = met)
     }
 
-    private fun checkDarkModeState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
-        val actual = Settings.System.getInt(
-            context.contentResolver,
-            "dark_mode_enable",
-            0
-        ) == 1
-        return conditionResult("深色模式", actual, expected)
-    }
-
-    private fun checkScreenState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkScreenState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val actual = pm.isInteractive
         return conditionResult("屏幕状态", actual, expected)
     }
 
-    private fun checkAirplaneState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkAirplaneState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.Global.getInt(
             context.contentResolver,
             Settings.Global.AIRPLANE_MODE_ON,
@@ -882,21 +859,18 @@ class AutomationExecutor(
         return conditionResult("飞行模式", actual, expected)
     }
 
-    private fun checkDndState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkDndState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val actual = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
         return conditionResult("勿扰模式", actual, expected)
     }
 
-    private fun checkSilentState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkSilentState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.System.getInt(context.contentResolver, "silence_mode", 0) == 4
         return conditionResult("静音模式", actual, expected)
     }
 
-    private fun checkMobileDataState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkMobileDataState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.Global.getInt(context.contentResolver, "mobile_data", 0) == 1
         return conditionResult("移动数据", actual, expected)
     }
@@ -919,14 +893,13 @@ class AutomationExecutor(
         return ExecutionResult(true, "当前网络：$actual", conditionMet = met)
     }
 
-    private fun checkMusicPlaying(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkMusicPlaying(block: AutomationBlock, expected: Boolean, label: String = "音乐播放"): ExecutionResult {
         val msm = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
         val controllers = msm.getActiveSessions(null)
         val playing = controllers.any { ctrl ->
             ctrl.playbackState?.state == PlaybackState.STATE_PLAYING
         }
-        return conditionResult("音乐播放", playing, expected)
+        return conditionResult(label, playing, expected)
     }
 
     private fun checkAppForeground(block: AutomationBlock): ExecutionResult {
@@ -940,8 +913,7 @@ class AutomationExecutor(
         )
     }
 
-    private fun checkAutoRotateState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkAutoRotateState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.System.getInt(
             context.contentResolver,
             Settings.System.ACCELEROMETER_ROTATION,
@@ -950,8 +922,7 @@ class AutomationExecutor(
         return conditionResult("自动旋转", actual, expected)
     }
 
-    private fun checkHotspotState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkHotspotState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = try {
             val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             wifiManager.javaClass.getMethod("isWifiApEnabled").invoke(wifiManager) as Boolean
@@ -961,14 +932,12 @@ class AutomationExecutor(
         return conditionResult("个人热点", actual, expected)
     }
 
-    private fun checkNfcState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkNfcState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.Secure.getInt(context.contentResolver, "nfc_on", 0) == 1
         return conditionResult("NFC", actual, expected)
     }
 
-    private fun checkGpsState(block: AutomationBlock): ExecutionResult {
-        val expected = block.boolParam("expected", true)
+    private fun checkGpsState(block: AutomationBlock, expected: Boolean): ExecutionResult {
         val actual = Settings.Secure.getInt(
             context.contentResolver,
             Settings.Secure.LOCATION_MODE,
@@ -1155,12 +1124,16 @@ data class ExecutionResult(
 fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
     is BlockType.TriggerTime,
     is BlockType.TriggerWifi,
-    is BlockType.TriggerWifiState,
-    is BlockType.TriggerBluetooth,
+    is BlockType.TriggerWifiOn,
+    is BlockType.TriggerWifiOff,
+    is BlockType.TriggerBluetoothOn,
+    is BlockType.TriggerBluetoothOff,
     is BlockType.TriggerBattery,
-    is BlockType.TriggerCharging,
+    is BlockType.TriggerChargingStart,
+    is BlockType.TriggerChargingStop,
     is BlockType.TriggerNetwork,
-    is BlockType.TriggerMusic,
+    is BlockType.TriggerMusicStart,
+    is BlockType.TriggerMusicStop,
     is BlockType.TriggerApp,
     is BlockType.TriggerDayOfWeek -> true
     else -> false

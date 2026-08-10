@@ -508,14 +508,6 @@ private fun BlockCard(
                         text = block.label,
                         style = MiuixTheme.textStyles.body1
                     )
-                    if (isTrigger) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "触发条件",
-                            style = MiuixTheme.textStyles.body2,
-                            color = Color(0xFFFF9500)
-                        )
-                    }
                 }
                 // 最右侧 × 删除按钮
                 Box(
@@ -874,10 +866,10 @@ private fun TimeTriggerEditor(
     onUpdate: (AutomationBlock) -> Unit
 ) {
     val start = block.parameters.find { it.key == "start" } as? BlockParameter.StringParam
-    val end = block.parameters.find { it.key == "end" } as? BlockParameter.StringParam
     val repeat = block.parameters.find { it.key == "repeat" } as? BlockParameter.ChoiceParam
 
-    var pickerTarget by remember { mutableStateOf<String?>(null) } // "start" / "end"
+    var showTimePicker by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) } // 展开后显示重复等选项
 
     fun updateParam(updated: BlockParameter) {
         onUpdate(
@@ -930,7 +922,7 @@ private fun TimeTriggerEditor(
     }
 
     Column {
-        // 顶部：时钟图标 + 时间胶囊 + 重复
+        // 第一行：时钟图标 + 开始时间胶囊 + 右侧展开按钮
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -951,71 +943,76 @@ private fun TimeTriggerEditor(
             TimeChip(
                 label = "开始",
                 value = start?.value ?: "",
-                onPick = { pickerTarget = "start" }
+                onPick = { showTimePicker = true }
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "至",
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            TimeChip(
-                label = "结束",
-                value = end?.value ?: "",
-                onPick = { pickerTarget = "end" }
-            )
+            Spacer(modifier = Modifier.weight(1f))
+            // 展开/收起按钮
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
+                    .clickable { expanded = !expanded },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (expanded) "▴" else "▾",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.body1
+                )
+            }
         }
 
-        // 重复选项
-        Spacer(modifier = Modifier.height(14.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "重复",
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-            repeat?.options?.forEach { option ->
-                val selected = option == repeat.value
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (selected) MiuixTheme.colorScheme.primary
-                            else MiuixTheme.colorScheme.secondaryContainer
+        // 展开后才显示重复选项
+        if (expanded) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "重复",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                repeat?.options?.forEach { option ->
+                    val selected = option == repeat.value
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (selected) MiuixTheme.colorScheme.primary
+                                else MiuixTheme.colorScheme.secondaryContainer
+                            )
+                            .clickable { updateParam(repeat.copy(value = option)) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(end = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body2,
+                            color = if (selected) MiuixTheme.colorScheme.onPrimary
+                            else MiuixTheme.colorScheme.onSurface
                         )
-                        .clickable { updateParam(repeat.copy(value = option)) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .padding(end = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = option,
-                        style = MiuixTheme.textStyles.body2,
-                        color = if (selected) MiuixTheme.colorScheme.onPrimary
-                        else MiuixTheme.colorScheme.onSurface
-                    )
+                    }
                 }
             }
         }
     }
 
     // 时间选择器弹窗
-    pickerTarget?.let { target ->
-        val current = if (target == "start") start?.value else end?.value
-        val (initialHour, initialMinute) = parseTime(current ?: "")
+    if (showTimePicker) {
+        val (initialHour, initialMinute) = parseTime(start?.value ?: "")
         TimePickerDialog(
-            title = if (target == "start") "设置开始时间" else "设置结束时间",
+            title = "设置开始时间",
             initialHour = initialHour,
             initialMinute = initialMinute,
             show = true,
-            onDismissRequest = { pickerTarget = null },
+            onDismissRequest = { showTimePicker = false },
             onConfirm = { h, m ->
                 val value = "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}"
-                val param = block.parameters.find { it.key == target } as? BlockParameter.StringParam
+                val param = block.parameters.find { it.key == "start" } as? BlockParameter.StringParam
                 if (param != null) updateParam(param.copy(value = value))
-                pickerTarget = null
+                showTimePicker = false
             }
         )
     }
