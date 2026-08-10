@@ -427,6 +427,13 @@ fun AutomationEditorScreen(
                 }
             }
         }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { coordinates ->
+                    dragController.rootWindowTopLeft = coordinates.boundsInWindow().topLeft
+                }
+        ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -487,6 +494,42 @@ fun AutomationEditorScreen(
                         .padding(bottom = 12.dp)
                 )
             }
+        }
+
+        // 浮动预览：跟随手指的简化块卡片（源块不平移，避免抽搐）
+        dragController.draggedBlock?.let { dragged ->
+            val previewOffset = dragController.draggedWindowTopLeft -
+                    dragController.rootWindowTopLeft +
+                    dragController.dragOffset
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationX = previewOffset.x
+                        translationY = previewOffset.y
+                        shadowElevation = 12f
+                    }
+                    .padding(horizontal = 16.dp)
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                    cornerRadius = 24.dp
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = dragged.icon,
+                            fontSize = 24.sp,
+                            modifier = Modifier.padding(end = 10.dp)
+                        )
+                        Text(
+                            text = dragged.label,
+                            style = MiuixTheme.textStyles.body1,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
         }
     }
 
@@ -1100,7 +1143,7 @@ private class DragController {
     var draggedBlockId by mutableStateOf<String?>(null)
     var draggedBlock by mutableStateOf<AutomationBlock?>(null)
     var dragPosition by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
-    /** 相对手指起点的偏移（用于被拖块视觉跟随）。 */
+    /** 相对手指起点的偏移（用于浮动预览视觉跟随）。 */
     var dragOffset by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
     var dropTargetId by mutableStateOf<String?>(null)
     var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
@@ -1117,6 +1160,9 @@ private class DragController {
     /** 手指按下时的局部起点，用于计算相对偏移（避免所有块一起平移）。 */
     private var startLocal = androidx.compose.ui.geometry.Offset.Zero
 
+    /** 根容器（编辑器内容）的窗口坐标，用于浮动预览定位。 */
+    var rootWindowTopLeft by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+
     fun start(block: AutomationBlock, startLocalPosition: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero) {
         draggedBlockId = block.id
         draggedBlock = block
@@ -1129,7 +1175,7 @@ private class DragController {
     /** 拖动中更新手指窗口位置并计算落点目标。 */
     fun move(localPosition: androidx.compose.ui.geometry.Offset) {
         dragPosition = localPosition
-        // 相对起始点的位移，仅被拖块跟随
+        // 相对起始点的位移（浮动预览用）
         dragOffset = localPosition - startLocal
         val windowPos = draggedWindowTopLeft + localPosition
         dropTargetId = containerBounds.entries
@@ -1200,19 +1246,12 @@ private fun BlockCard(
                 dragController.blockWindowTopLefts[block.id] = coordinates.boundsInWindow().topLeft
             }
             .graphicsLayer {
-                // 仅被拖块视觉跟随手指，其余块保持原位（避免全部平移闪烁）
+                // 源块不平移（避免 feedback 环抽搐），仅降透明度提示正在拖
                 val isDragged = dragController.draggedBlockId == block.id
                 if (isDragged) {
-                    val offset = dragController.dragOffset
-                    translationX = offset.x
-                    translationY = offset.y
-                    alpha = 0.7f
-                    shadowElevation = 12f
+                    alpha = 0.35f
                 } else {
-                    translationX = 0f
-                    translationY = 0f
                     alpha = 1f
-                    shadowElevation = 0f
                 }
             }
             .pointerInput(block.id) {
