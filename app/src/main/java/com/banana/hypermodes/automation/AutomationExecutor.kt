@@ -558,14 +558,52 @@ class AutomationExecutor(
 
     private fun executeSetMotionSicknessRelief(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         return try {
-            val intent = Intent().apply {
-                component = ComponentName(
-                    "com.miui.securitycenter",
-                    "com.miui.carsickness.service.CarSicknessService"
-                )
-                action = if (enabled) "miui.carsickness.remind_always" else "miui.carsickness.close_car_sickness"
+            // 官方开关：securitycenter 监听 settings_car_sickness_mode 并启停服务
+            Settings.System.putInt(
+                context.contentResolver,
+                "settings_car_sickness_mode",
+                if (enabled) 1 else 0
+            )
+
+            if (enabled) {
+                val intent = Intent().apply {
+                    component = ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.carsickness.service.CarSicknessService"
+                    )
+                    action = "miui.carsickness.remind_always"
+                }
+                context.startService(intent)
+            } else {
+                // 1) 广播：Receiver 再次把开关写 0
+                runCatching {
+                    context.sendBroadcast(
+                        Intent("com.miui.action.carsickness_relief_close")
+                    )
+                }
+                // 2) intent：服务调用 AntiCarsickManager.F() 移除黑点
+                runCatching {
+                    val closeIntent = Intent().apply {
+                        component = ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.carsickness.service.CarSicknessService"
+                        )
+                        action = "miui.carsickness.close_car_sickness"
+                    }
+                    context.startService(closeIntent)
+                }
+                // 3) stopService：onDestroy -> F() 兜底移除黑点
+                runCatching {
+                    context.stopService(
+                        Intent().apply {
+                            component = ComponentName(
+                                "com.miui.securitycenter",
+                                "com.miui.carsickness.service.CarSicknessService"
+                            )
+                        }
+                    )
+                }
             }
-            context.startService(intent)
             ExecutionResult(true, "防晕车已${if (enabled) "开启" else "关闭"}")
         } catch (e: Exception) {
             ExecutionResult(false, "防晕车控制失败：${e.message}")

@@ -250,18 +250,54 @@ class DeviceController(private val context: Context) {
      */
     private fun applyMotionSicknessRelief(enabled: Boolean) {
         try {
-            val intent = android.content.Intent().apply {
-                component = android.content.ComponentName(
-                    "com.miui.securitycenter",
-                    "com.miui.carsickness.service.CarSicknessService"
-                )
-                if (enabled) {
+            // 官方开关（settings_car_sickness_mode）：securitycenter 监听它并启停服务
+            Settings.System.putInt(
+                context.contentResolver,
+                "settings_car_sickness_mode",
+                if (enabled) 1 else 0
+            )
+
+            if (enabled) {
+                // 开启：直接启动服务（remind_always = 一直提示）
+                val intent = android.content.Intent().apply {
+                    component = android.content.ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.carsickness.service.CarSicknessService"
+                    )
                     action = "miui.carsickness.remind_always"
-                } else {
-                    action = "miui.carsickness.close_car_sickness"
+                }
+                context.startService(intent)
+            } else {
+                // 关闭：走官方完整关闭路径
+                // 1) 广播：CarsicknessReliefReceiver 会再次把开关写 0
+                runCatching {
+                    context.sendBroadcast(
+                        android.content.Intent("com.miui.action.carsickness_relief_close")
+                    )
+                }
+                // 2) intent：CarSicknessService.onStartCommand 调用 AntiCarsickManager.F() 移除黑点
+                runCatching {
+                    val closeIntent = android.content.Intent().apply {
+                        component = android.content.ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.carsickness.service.CarSicknessService"
+                        )
+                        action = "miui.carsickness.close_car_sickness"
+                    }
+                    context.startService(closeIntent)
+                }
+                // 3) stopService：触发 onDestroy -> c("主动关闭") -> F() 移除黑点（兜底）
+                runCatching {
+                    context.stopService(
+                        android.content.Intent().apply {
+                            component = android.content.ComponentName(
+                                "com.miui.securitycenter",
+                                "com.miui.carsickness.service.CarSicknessService"
+                            )
+                        }
+                    )
                 }
             }
-            context.startService(intent)
             log("applyMotionSicknessRelief: set to $enabled")
         } catch (e: Exception) {
             log("applyMotionSicknessRelief: failed: ${e.message}")

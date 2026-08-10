@@ -1108,12 +1108,19 @@ private class DragController {
     /** 触发器容器的屏幕边界（blockId -> 窗口 Rect），用于落点检测。 */
     val containerBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
 
+    /** 所有块的窗口左上角（blockId -> 窗口 Offset），用于计算被拖块的手指窗口坐标。 */
+    val blockWindowTopLefts = mutableMapOf<String, androidx.compose.ui.geometry.Offset>()
+
     /** 被拖块的窗口坐标（左上角），拖拽手指位置 = 该点 + 局部偏移。 */
     var draggedWindowTopLeft by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
 
-    fun start(block: AutomationBlock) {
+    /** 手指按下时的局部起点，用于计算相对偏移（避免所有块一起平移）。 */
+    private var startLocal = androidx.compose.ui.geometry.Offset.Zero
+
+    fun start(block: AutomationBlock, startLocalPosition: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero) {
         draggedBlockId = block.id
         draggedBlock = block
+        startLocal = startLocalPosition
         dragPosition = androidx.compose.ui.geometry.Offset.Zero
         dragOffset = androidx.compose.ui.geometry.Offset.Zero
         dropTargetId = null
@@ -1122,7 +1129,8 @@ private class DragController {
     /** 拖动中更新手指窗口位置并计算落点目标。 */
     fun move(localPosition: androidx.compose.ui.geometry.Offset) {
         dragPosition = localPosition
-        dragOffset = localPosition
+        // 相对起始点的位移，仅被拖块跟随
+        dragOffset = localPosition - startLocal
         val windowPos = draggedWindowTopLeft + localPosition
         dropTargetId = containerBounds.entries
             .firstOrNull { it.value.contains(windowPos) }
@@ -1188,21 +1196,32 @@ private fun BlockCard(
     val dragModifier = if (dragController != null) {
         Modifier
             .onGloballyPositioned { coordinates ->
-                dragController.draggedWindowTopLeft = coordinates.boundsInWindow().topLeft
+                // 记录每个块的窗口位置，供 move() 计算被拖块的手指窗口坐标
+                dragController.blockWindowTopLefts[block.id] = coordinates.boundsInWindow().topLeft
             }
             .graphicsLayer {
-                // 被拖块视觉跟随手指
-                val offset = dragController.dragOffset
-                translationX = offset.x
-                translationY = offset.y
-                alpha = if (dragController.draggedBlockId == block.id) 0.7f else 1f
-                shadowElevation = if (dragController.draggedBlockId == block.id) 12f else 0f
+                // 仅被拖块视觉跟随手指，其余块保持原位（避免全部平移闪烁）
+                val isDragged = dragController.draggedBlockId == block.id
+                if (isDragged) {
+                    val offset = dragController.dragOffset
+                    translationX = offset.x
+                    translationY = offset.y
+                    alpha = 0.7f
+                    shadowElevation = 12f
+                } else {
+                    translationX = 0f
+                    translationY = 0f
+                    alpha = 1f
+                    shadowElevation = 0f
+                }
             }
             .pointerInput(block.id) {
             detectDragGesturesAfterLongPress(
-                onDragStart = {
-                    dragController.start(block)
-                    // 记录起点窗口坐标，供 move() 计算手指窗口位置
+                onDragStart = { startOffset ->
+                    dragController.start(block, startOffset)
+                    // 记录被拖块的窗口坐标，供 move() 计算手指窗口位置
+                    dragController.draggedWindowTopLeft =
+                        dragController.blockWindowTopLefts[block.id] ?: androidx.compose.ui.geometry.Offset.Zero
                 },
                 onDrag = { change, _ ->
                     change.consume()
