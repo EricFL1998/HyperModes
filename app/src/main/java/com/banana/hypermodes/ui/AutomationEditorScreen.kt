@@ -265,11 +265,14 @@ fun AutomationEditorScreen(
     val coroutineScope = rememberCoroutineScope()
     var isExecuting by remember { mutableStateOf(false) }
 
-    // 拖拽落点：把被拖块移入目标触发器容器的作用域
+    // 拖拽落点：
+    // - targetId == null：拖回顶层
+    // - 目标块（普通或触发器）：按 before 插到其上方/下方（重排）
+    //   拖入触发器 `{}` 作用域由 onDropIntoScope 单独处理
     LaunchedEffect(Unit) {
-        dragController.onDrop = { draggedId, targetId ->
+        dragController.onDrop = { draggedId, targetId, before ->
             if (targetId != null) {
-                blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+                blocks = moveBlockBeforeAfter(blocks, draggedId, targetId, before)
             } else {
                 // 拖出容器：若块在某个容器 children 中，则提取并放回顶层末尾
                 val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
@@ -277,6 +280,9 @@ fun AutomationEditorScreen(
                     blocks = withoutDragged + dragged
                 }
             }
+        }
+        dragController.onDropIntoScope = { draggedId, targetId ->
+            blocks = moveBlockIntoParent(blocks, draggedId, targetId)
         }
     }
 
@@ -449,7 +455,7 @@ fun AutomationEditorScreen(
 
                             override fun onDrop(event: DragAndDropEvent): Boolean {
                                 val draggedId = event.blockIdOrNull() ?: return false
-                                dragController.onDrop?.invoke(draggedId, null)
+                                dragController.onDrop?.invoke(draggedId, null, false)
                                 dragController.draggedBlockId = null
                                 dragController.dropTargetId = null
                                 return true
@@ -1115,6 +1121,59 @@ private fun extractBlockFromTree(
     return result to extracted
 }
 
+/** 在块树中按 id 查找块（含嵌套）。 */
+private fun findBlock(
+    blocks: List<AutomationBlock>,
+    blockId: String
+): AutomationBlock? {
+    for (block in blocks) {
+        if (block.id == blockId) return block
+        findBlock(block.children, blockId)?.let { return it }
+        findBlock(block.elseChildren, blockId)?.let { return it }
+    }
+    return null
+}
+
+/** 重排：把被拖块插到目标块的上方（before）或下方（after），保持同一层级。 */
+private fun moveBlockBeforeAfter(
+    blocks: List<AutomationBlock>,
+    draggedId: String,
+    targetId: String,
+    before: Boolean
+): List<AutomationBlock> {
+    // 同层级重排：先定位目标块所在列表，把被拖块从树中移除，再插到目标旁边
+    val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
+        ?: return blocks
+    if (dragged == null) return blocks
+
+    fun reorder(list: List<AutomationBlock>): List<AutomationBlock> {
+        val idx = list.indexOfFirst { it.id == targetId }
+        if (idx < 0) return list
+        val newList = list.toMutableList()
+        val insertAt = if (before) idx else idx + 1
+        newList.add(insertAt, dragged)
+        return newList
+    }
+
+    fun walk(list: List<AutomationBlock>): Pair<List<AutomationBlock>, Boolean> {
+        val atThisLevel = list.any { it.id == targetId }
+        if (atThisLevel) return reorder(list) to true
+        var changed = false
+        val mapped = list.map { block ->
+            val (newChildren, c1) = walk(block.children)
+            val (newElse, c2) = walk(block.elseChildren)
+            if (c1 || c2) {
+                changed = true
+                block.copy(children = newChildren, elseChildren = newElse)
+            } else block
+        }
+        return mapped to changed
+    }
+
+    val (result, _) = walk(withoutDragged)
+    return result
+}
+
 /** 拖拽结束：把被拖块移入目标触发器容器的 children。 */
 private fun moveBlockIntoParent(
     blocks: List<AutomationBlock>,
@@ -1145,7 +1204,18 @@ private class DragController {
     var dropTargetId by mutableStateOf<String?>(null)
     /** 当前被拖拽的块 id（拖拽开始设置，结束/取消清除）。 */
     var draggedBlockId by mutableStateOf<String?>(null)
-    var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
+    /** 所有块的窗口边界（blockId -> 窗口 Rect），用于判断插到目标上方/下方。 */
+    val blockBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
+    /** 触发器 `{}` 容器的窗口边界（blockId -> 窗口 Rect），落点在其中则移入作用域。 */
+    val scopeBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
+    /**
+     * 落点回调。
+     * @param targetId 目标块 id（null 表示拖回顶层）
+     * @param before 拖到目标块上方（插前）；false 为下方（插后），仅重排时有效
+     */
+    var onDrop: ((draggedId: String, targetId: String?, before: Boolean) -> Unit)? = null
+    /** 拖入触发器 `{}` 作用域的回调。 */
+    var onDropIntoScope: ((draggedId: String, targetId: String) -> Unit)? = null
 }
 
 /** 递归从 children/elseChildren 中移除指定块（拖拽移出作用域时用）。 */
@@ -1188,6 +1258,9 @@ private fun BlockCard(
                 if (dragController != null) {
                     // 触发器块本体也是放置目标：拖到触发器块任意位置即移入其作用域
                     val baseModifier = Modifier
+                        .onGloballyPositioned { coordinates ->
+                            dragController.blockBounds[block.id] = coordinates.boundsInWindow()
+                        }
                         .graphicsLayer {
                             // 拖拽中的源块完全隐藏（系统阴影已跟手，原块直接消失）
                             alpha = if (dragController.draggedBlockId == block.id) 0f else 1f
@@ -1201,39 +1274,54 @@ private fun BlockCard(
                                 )
                             }
                         )
-                    if (block.isTriggerBlock() && nestLevel < 3) {
-                        baseModifier.dragAndDropTarget(
-                            shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
-                            target = remember(block.id) {
-                                object : DragAndDropTarget {
-                                    override fun onEnded(event: DragAndDropEvent) {
-                                        dragController.draggedBlockId = null
+                    // 所有块都可作为放置目标：
+                    // - 落点在触发器 `{}` 作用域内 → 移入作用域
+                    // - 其他情况 → 按落点 Y 决定插到其上方还是下方（重排）
+                    baseModifier.dragAndDropTarget(
+                        shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
+                        target = remember(block.id) {
+                            object : DragAndDropTarget {
+                                override fun onEnded(event: DragAndDropEvent) {
+                                    dragController.draggedBlockId = null
+                                    dragController.dropTargetId = null
+                                }
+
+                                override fun onEntered(event: DragAndDropEvent) {
+                                    dragController.dropTargetId = block.id
+                                }
+
+                                override fun onExited(event: DragAndDropEvent) {
+                                    if (dragController.dropTargetId == block.id) {
                                         dragController.dropTargetId = null
                                     }
+                                }
 
-                                    override fun onEntered(event: DragAndDropEvent) {
-                                        dragController.dropTargetId = block.id
-                                    }
-
-                                    override fun onExited(event: DragAndDropEvent) {
-                                        if (dragController.dropTargetId == block.id) {
-                                            dragController.dropTargetId = null
-                                        }
-                                    }
-
-                                    override fun onDrop(event: DragAndDropEvent): Boolean {
-                                        val draggedId = event.blockIdOrNull() ?: return false
-                                        dragController.onDrop?.invoke(draggedId, block.id)
+                                override fun onDrop(event: DragAndDropEvent): Boolean {
+                                    val draggedId = event.blockIdOrNull() ?: return false
+                                    val y = event.toAndroidDragEvent().y
+                                    // 触发器块：落点在 {} 作用域内则移入作用域
+                                    if (block.isTriggerBlock() &&
+                                        dragController.scopeBounds[block.id]?.let {
+                                            y >= it.top && y <= it.bottom
+                                        } == true
+                                    ) {
+                                        dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
                                         dragController.dropTargetId = null
                                         return true
                                     }
+                                    // 判断落点相对目标块的上/下半，决定插前还是插后
+                                    val before = dragController.blockBounds[block.id]
+                                        ?.let { bounds -> y < bounds.center.y }
+                                        ?: false
+                                    dragController.onDrop?.invoke(draggedId, block.id, before)
+                                    dragController.draggedBlockId = null
+                                    dragController.dropTargetId = null
+                                    return true
                                 }
                             }
-                        )
-                    } else {
-                        baseModifier
-                    }
+                        }
+                    )
                 } else {
                     Modifier
                 }
@@ -1360,6 +1448,12 @@ private fun BlockCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            dragController?.scopeBounds?.put(
+                                block.id,
+                                coordinates.boundsInWindow()
+                            )
+                        }
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (dragController?.dropTargetId == block.id) {
