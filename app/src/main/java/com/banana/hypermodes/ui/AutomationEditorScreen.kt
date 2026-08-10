@@ -274,10 +274,11 @@ fun AutomationEditorScreen(
             if (targetId != null) {
                 blocks = moveBlockBeforeAfter(blocks, draggedId, targetId, before)
             } else {
-                // 拖出容器：若块在某个容器 children 中，则提取并放回顶层末尾
+                // 拖到顶层空白区域：提取后按 before 插到顶层最前或追加末尾
                 val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
-                if (dragged != null && !blocks.any { it.id == draggedId }) {
-                    blocks = withoutDragged + dragged
+                if (dragged != null) {
+                    blocks = if (before) listOf(dragged) + withoutDragged
+                    else withoutDragged + dragged
                 }
             }
         }
@@ -443,7 +444,10 @@ fun AutomationEditorScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // 顶层区域也是放置目标：松手在平级区域则拖回顶层
+                .onGloballyPositioned { coordinates ->
+                    dragController.rootBounds = coordinates.boundsInWindow()
+                }
+                // 顶层区域也是放置目标：按落点位置插到最前或追加末尾
                 .dragAndDropTarget(
                     shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
                     target = remember {
@@ -455,7 +459,11 @@ fun AutomationEditorScreen(
 
                             override fun onDrop(event: DragAndDropEvent): Boolean {
                                 val draggedId = event.blockIdOrNull() ?: return false
-                                dragController.onDrop?.invoke(draggedId, null, false)
+                                val y = event.toAndroidDragEvent().y
+                                val before = dragController.rootBounds
+                                    ?.let { y < it.center.y }
+                                    ?: false
+                                dragController.onDrop?.invoke(draggedId, null, before)
                                 dragController.draggedBlockId = null
                                 dragController.dropTargetId = null
                                 return true
@@ -1208,6 +1216,8 @@ private class DragController {
     val blockBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
     /** 触发器 `{}` 容器的窗口边界（blockId -> 窗口 Rect），落点在其中则移入作用域。 */
     val scopeBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
+    /** 顶层放置区域的窗口边界（用于判断拖到最前还是末尾）。 */
+    var rootBounds by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
     /**
      * 落点回调。
      * @param targetId 目标块 id（null 表示拖回顶层）
