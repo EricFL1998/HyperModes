@@ -1,6 +1,7 @@
 package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
+import android.content.ClipData
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -430,9 +437,19 @@ fun AutomationEditorScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .onGloballyPositioned { coordinates ->
-                    dragController.rootWindowTopLeft = coordinates.boundsInWindow().topLeft
-                }
+                // 顶层区域也是放置目标：松手在平级区域则拖回顶层
+                .dragAndDropTarget(
+                    shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
+                    target = remember {
+                        object : DragAndDropTarget {
+                            override fun onDrop(event: DragAndDropEvent): Boolean {
+                                val draggedId = event.blockIdOrNull() ?: return false
+                                dragController.onDrop?.invoke(draggedId, null)
+                                return true
+                            }
+                        }
+                    }
+                )
         ) {
         LazyColumn(
             modifier = Modifier
@@ -493,41 +510,6 @@ fun AutomationEditorScreen(
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 12.dp)
                 )
-            }
-        }
-
-        // 浮动预览：跟随手指的简化块卡片（源块不平移，避免抽搐）
-        dragController.draggedBlock?.let { dragged ->
-            val previewOffset = dragController.draggedWindowTopLeft -
-                    dragController.rootWindowTopLeft +
-                    dragController.dragOffset
-            Box(
-                modifier = Modifier
-                    .graphicsLayer {
-                        translationX = previewOffset.x
-                        translationY = previewOffset.y
-                        shadowElevation = 12f
-                    }
-                    .padding(horizontal = 16.dp)
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-                    cornerRadius = 24.dp
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = dragged.icon,
-                            fontSize = 24.sp,
-                            modifier = Modifier.padding(end = 10.dp)
-                        )
-                        Text(
-                            text = dragged.label,
-                            style = MiuixTheme.textStyles.body1,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
             }
         }
         }
@@ -1138,71 +1120,23 @@ private fun moveBlockIntoParent(
     return addBlockToChildren(withoutDragged, targetParentId, dragged)
 }
 
-/** 拖拽控制器：跨嵌套层级共享拖拽状态与落点判定。 */
+/** 判断拖放事件是否来自 HyperModes 的块（按 ClipData 类型过滤）。 */
+private fun isHyperModesBlockDrag(event: DragAndDropEvent): Boolean {
+    return event.toAndroidDragEvent().clipData?.description?.hasMimeType(
+        android.content.ClipDescription.MIMETYPE_TEXT_PLAIN
+    ) == true
+}
+
+/** 从拖放事件中读取被拖块的 id。 */
+private fun DragAndDropEvent.blockIdOrNull(): String? {
+    return toAndroidDragEvent().clipData?.getItemAt(0)?.text?.toString()
+}
+
+/** 拖拽控制器：官方 dragAndDrop API 下仅维护高亮状态与落点回调。 */
 private class DragController {
-    var draggedBlockId by mutableStateOf<String?>(null)
-    var draggedBlock by mutableStateOf<AutomationBlock?>(null)
-    var dragPosition by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
-    /** 相对手指起点的偏移（用于浮动预览视觉跟随）。 */
-    var dragOffset by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+    /** 当前高亮的放置目标容器 id（拖拽进入时设置，退出时清空）。 */
     var dropTargetId by mutableStateOf<String?>(null)
     var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
-
-    /** 触发器容器的屏幕边界（blockId -> 窗口 Rect），用于落点检测。 */
-    val containerBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
-
-    /** 所有块的窗口左上角（blockId -> 窗口 Offset），用于计算被拖块的手指窗口坐标。 */
-    val blockWindowTopLefts = mutableMapOf<String, androidx.compose.ui.geometry.Offset>()
-
-    /** 被拖块的窗口坐标（左上角），拖拽手指位置 = 该点 + 局部偏移。 */
-    var draggedWindowTopLeft by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
-
-    /** 手指按下时的局部起点，用于计算相对偏移（避免所有块一起平移）。 */
-    private var startLocal = androidx.compose.ui.geometry.Offset.Zero
-
-    /** 根容器（编辑器内容）的窗口坐标，用于浮动预览定位。 */
-    var rootWindowTopLeft by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
-
-    fun start(block: AutomationBlock, startLocalPosition: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero) {
-        draggedBlockId = block.id
-        draggedBlock = block
-        startLocal = startLocalPosition
-        dragPosition = androidx.compose.ui.geometry.Offset.Zero
-        dragOffset = androidx.compose.ui.geometry.Offset.Zero
-        dropTargetId = null
-    }
-
-    /** 拖动中更新手指窗口位置并计算落点目标。 */
-    fun move(localPosition: androidx.compose.ui.geometry.Offset) {
-        dragPosition = localPosition
-        // 相对起始点的位移（浮动预览用）
-        dragOffset = localPosition - startLocal
-        val windowPos = draggedWindowTopLeft + localPosition
-        dropTargetId = containerBounds.entries
-            .firstOrNull { it.value.contains(windowPos) }
-            ?.key
-    }
-
-    fun end() {
-        val draggedId = draggedBlockId
-        val targetId = dropTargetId
-        draggedBlockId = null
-        draggedBlock = null
-        dragPosition = androidx.compose.ui.geometry.Offset.Zero
-        dragOffset = androidx.compose.ui.geometry.Offset.Zero
-        dropTargetId = null
-        if (draggedId != null) {
-            onDrop?.invoke(draggedId, targetId)
-        }
-    }
-
-    fun cancel() {
-        draggedBlockId = null
-        draggedBlock = null
-        dragPosition = androidx.compose.ui.geometry.Offset.Zero
-        dragOffset = androidx.compose.ui.geometry.Offset.Zero
-        dropTargetId = null
-    }
 }
 
 /** 递归从 children/elseChildren 中移除指定块（拖拽移出作用域时用）。 */
@@ -1238,46 +1172,24 @@ private fun BlockCard(
     modifier: Modifier = Modifier,
     nestLevel: Int = 0
 ) {
-    // 长按拖拽：拖到触发器容器内即移入其作用域
-    val dragModifier = if (dragController != null) {
-        Modifier
-            .onGloballyPositioned { coordinates ->
-                // 记录每个块的窗口位置，供 move() 计算被拖块的手指窗口坐标
-                dragController.blockWindowTopLefts[block.id] = coordinates.boundsInWindow().topLeft
-            }
-            .graphicsLayer {
-                // 源块不平移（避免 feedback 环抽搐），仅降透明度提示正在拖
-                val isDragged = dragController.draggedBlockId == block.id
-                if (isDragged) {
-                    alpha = 0.35f
-                } else {
-                    alpha = 1f
-                }
-            }
-            .pointerInput(block.id) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = { startOffset ->
-                    dragController.start(block, startOffset)
-                    // 记录被拖块的窗口坐标，供 move() 计算手指窗口位置
-                    dragController.draggedWindowTopLeft =
-                        dragController.blockWindowTopLefts[block.id] ?: androidx.compose.ui.geometry.Offset.Zero
-                },
-                onDrag = { change, _ ->
-                    change.consume()
-                    dragController.move(change.position)
-                },
-                onDragEnd = { dragController.end() },
-                onDragCancel = { dragController.cancel() }
-            )
-            }
-    } else {
-        Modifier
-    }
-
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .then(dragModifier),
+            .then(
+                if (dragController != null) {
+                    // 官方拖拽源：长按本块启动拖放，携带 blockId 供放置目标解析
+                    Modifier.dragAndDropSource(
+                        transferData = {
+                            DragAndDropTransferData(
+                                clipData = ClipData.newPlainText("hypermodes_block", block.id),
+                                localState = block.id
+                            )
+                        }
+                    )
+                } else {
+                    Modifier
+                }
+            ),
         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         cornerRadius = 24.dp
     ) {
@@ -1400,12 +1312,30 @@ private fun BlockCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onGloballyPositioned { coordinates ->
-                            dragController?.containerBounds?.put(
-                                block.id,
-                                coordinates.boundsInWindow()
-                            )
-                        }
+                        // 官方放置目标：进入高亮、松手移入本容器作用域
+                        .dragAndDropTarget(
+                            shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
+                            target = remember(block.id) {
+                                object : DragAndDropTarget {
+                                    override fun onEntered(event: DragAndDropEvent) {
+                                        dragController?.dropTargetId = block.id
+                                    }
+
+                                    override fun onExited(event: DragAndDropEvent) {
+                                        if (dragController?.dropTargetId == block.id) {
+                                            dragController?.dropTargetId = null
+                                        }
+                                    }
+
+                                    override fun onDrop(event: DragAndDropEvent): Boolean {
+                                        val draggedId = event.blockIdOrNull() ?: return false
+                                        dragController?.onDrop?.invoke(draggedId, block.id)
+                                        dragController?.dropTargetId = null
+                                        return true
+                                    }
+                                }
+                            }
+                        )
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (dragController?.dropTargetId == block.id) {
