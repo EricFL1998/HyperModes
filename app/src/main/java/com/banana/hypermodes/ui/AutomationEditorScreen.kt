@@ -1189,8 +1189,8 @@ private fun BlockCard(
                     // 官方拖拽源：长按本块启动拖放，携带 blockId 供放置目标解析
                     Modifier
                         .graphicsLayer {
-                            // 拖拽中的源块半透明（系统阴影已跟手，原块淡出提示正在拖）
-                            alpha = if (dragController.draggedBlockId == block.id) 0.35f else 1f
+                            // 拖拽中的源块完全隐藏（系统阴影已跟手，原块直接消失）
+                            alpha = if (dragController.draggedBlockId == block.id) 0f else 1f
                         }
                         .dragAndDropSource(
                             transferData = {
