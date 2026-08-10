@@ -143,8 +143,7 @@ class AutomationExecutor(
             is BlockType.SetMotionSicknessRelief -> executeSetMotionSicknessRelief(block, block.stateExpected())
 
             // ==================== 模式 ====================
-            is BlockType.EnableMode -> executeEnableMode(block)
-            is BlockType.DisableMode -> executeDisableMode(block)
+            is BlockType.SetMode -> executeSetMode(block)
 
             // ==================== 应用 ====================
             is BlockType.OpenApp -> executeOpenApp(block)
@@ -612,18 +611,16 @@ class AutomationExecutor(
 
     // ==================== 模式实现 ====================
 
-    private fun executeEnableMode(block: AutomationBlock): ExecutionResult {
+    private fun executeSetMode(block: AutomationBlock): ExecutionResult {
         val modeId = block.stringParam("modeId")
-        if (modeId.isBlank()) return ExecutionResult(false, "未指定要启用的模式")
-        ModeControlBridge.activateMode(context, modeId)
-        return ExecutionResult(true, "已启用模式：$modeId")
-    }
-
-    private fun executeDisableMode(block: AutomationBlock): ExecutionResult {
-        val modeId = block.stringParam("modeId")
-        if (modeId.isBlank()) return ExecutionResult(false, "未指定要关闭的模式")
-        ModeControlBridge.deactivateMode(context, modeId)
-        return ExecutionResult(true, "已关闭模式：$modeId")
+        if (modeId.isBlank()) return ExecutionResult(false, "未指定模式")
+        val enabled = block.stateExpected()
+        if (enabled) {
+            ModeControlBridge.activateMode(context, modeId)
+        } else {
+            ModeControlBridge.deactivateMode(context, modeId)
+        }
+        return ExecutionResult(true, "已${if (enabled) "启用" else "关闭"}模式：$modeId")
     }
 
     // ==================== 应用实现 ====================

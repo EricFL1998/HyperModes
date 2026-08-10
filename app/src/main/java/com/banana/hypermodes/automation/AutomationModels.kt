@@ -52,8 +52,7 @@ sealed class BlockType(val id: String) {
     data object SetMotionSicknessRelief : BlockType("set_motion_sickness_relief")
 
     // ==================== 模式 ====================
-    data object EnableMode : BlockType("enable_mode")
-    data object DisableMode : BlockType("disable_mode")
+    data object SetMode : BlockType("set_mode")
 
     // ==================== 应用 ====================
     data object OpenApp : BlockType("open_app")
@@ -117,7 +116,7 @@ sealed class BlockType(val id: String) {
             SetPerformanceMode, Set5g,
             SetPreferredSim,
             SetMotionSicknessRelief,
-            EnableMode, DisableMode,
+            SetMode,
             OpenApp, SuspendApps, UnsuspendApps,
             IfCondition, Repeat, RepeatCount, Wait, Comment,
             AndCondition, OrCondition,
@@ -319,9 +318,12 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     )
 
     // ==================== 模式 ====================
-    is BlockType.EnableMode,
-    is BlockType.DisableMode -> listOf(
-        BlockParameter.StringParam("modeId", "模式 ID", "")
+    is BlockType.SetMode -> listOf(
+        BlockParameter.StringParam("modeId", "模式 ID", ""),
+        BlockParameter.ChoiceParam(
+            "state", "状态", "开启",
+            listOf("开启", "关闭")
+        )
     )
 
     // ==================== 应用 ====================

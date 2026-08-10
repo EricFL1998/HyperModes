@@ -76,8 +76,7 @@ object AutomationCatalog {
         Entry("set_motion_sickness_relief", "防晕车", "🎢", Color(0xFF34C759), "开启或关闭防晕车辅助", Category.DEVICE),
 
         // ==================== 模式 ====================
-        Entry("enable_mode", "启用模式", "🌙", Color(0xFF5E5CE6), "启用指定的 HyperMode", Category.MODE),
-        Entry("disable_mode", "关闭模式", "☀️", Color(0xFFFF9500), "关闭指定的 HyperMode", Category.MODE),
+        Entry("set_mode", "切换模式", "🌙", Color(0xFF5E5CE6), "启用或关闭指定的 HyperMode", Category.MODE),
 
         // ==================== 应用 ====================
         Entry("open_app", "打开 App", "📱", Color(0xFF5E5CE6), "启动指定应用程序", Category.APP),

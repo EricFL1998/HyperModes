@@ -1186,8 +1186,8 @@ private fun BlockCard(
             .fillMaxWidth()
             .then(
                 if (dragController != null) {
-                    // 官方拖拽源：长按本块启动拖放，携带 blockId 供放置目标解析
-                    Modifier
+                    // 触发器块本体也是放置目标：拖到触发器块任意位置即移入其作用域
+                    val baseModifier = Modifier
                         .graphicsLayer {
                             // 拖拽中的源块完全隐藏（系统阴影已跟手，原块直接消失）
                             alpha = if (dragController.draggedBlockId == block.id) 0f else 1f
@@ -1201,6 +1201,39 @@ private fun BlockCard(
                                 )
                             }
                         )
+                    if (block.isTriggerBlock() && nestLevel < 3) {
+                        baseModifier.dragAndDropTarget(
+                            shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
+                            target = remember(block.id) {
+                                object : DragAndDropTarget {
+                                    override fun onEnded(event: DragAndDropEvent) {
+                                        dragController.draggedBlockId = null
+                                        dragController.dropTargetId = null
+                                    }
+
+                                    override fun onEntered(event: DragAndDropEvent) {
+                                        dragController.dropTargetId = block.id
+                                    }
+
+                                    override fun onExited(event: DragAndDropEvent) {
+                                        if (dragController.dropTargetId == block.id) {
+                                            dragController.dropTargetId = null
+                                        }
+                                    }
+
+                                    override fun onDrop(event: DragAndDropEvent): Boolean {
+                                        val draggedId = event.blockIdOrNull() ?: return false
+                                        dragController.onDrop?.invoke(draggedId, block.id)
+                                        dragController.draggedBlockId = null
+                                        dragController.dropTargetId = null
+                                        return true
+                                    }
+                                }
+                            }
+                        )
+                    } else {
+                        baseModifier
+                    }
                 } else {
                     Modifier
                 }
@@ -1327,36 +1360,6 @@ private fun BlockCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // 官方放置目标：进入高亮、松手移入本容器作用域
-                        .dragAndDropTarget(
-                            shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
-                            target = remember(block.id) {
-                                object : DragAndDropTarget {
-                                    override fun onEnded(event: DragAndDropEvent) {
-                                        dragController?.draggedBlockId = null
-                                        dragController?.dropTargetId = null
-                                    }
-
-                                    override fun onEntered(event: DragAndDropEvent) {
-                                        dragController?.dropTargetId = block.id
-                                    }
-
-                                    override fun onExited(event: DragAndDropEvent) {
-                                        if (dragController?.dropTargetId == block.id) {
-                                            dragController?.dropTargetId = null
-                                        }
-                                    }
-
-                                    override fun onDrop(event: DragAndDropEvent): Boolean {
-                                        val draggedId = event.blockIdOrNull() ?: return false
-                                        dragController?.onDrop?.invoke(draggedId, block.id)
-                                        dragController?.draggedBlockId = null
-                                        dragController?.dropTargetId = null
-                                        return true
-                                    }
-                                }
-                            }
-                        )
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (dragController?.dropTargetId == block.id) {

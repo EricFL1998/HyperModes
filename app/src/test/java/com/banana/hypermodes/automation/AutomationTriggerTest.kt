@@ -45,7 +45,7 @@ class AutomationTriggerTest {
             BlockType.ToggleBluetooth,
             BlockType.SetDnd,
             BlockType.AdjustVolume,
-            BlockType.EnableMode,
+            BlockType.SetMode,
             BlockType.OpenApp,
             BlockType.IfCondition,
             BlockType.CheckWifiState,

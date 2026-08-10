@@ -5,10 +5,10 @@ object DefaultModes {
     fun get(): List<Mode> = listOf(
         Mode(
             id = "dnd",
-            name = "Do Not Disturb",
+            name = "勿扰模式",
             icon = "🔕",
             statusIcon = "ic_stat_mute",
-            description = "Silence notifications and calls",
+            description = "静音通知和来电",
             settings = ModeSettings(
                 enableDnd = true,
                 dndLevel = DndLevel.PRIORITY
@@ -16,10 +16,10 @@ object DefaultModes {
         ),
         Mode(
             id = "bedtime",
-            name = "Bedtime",
+            name = "睡眠模式",
             icon = "🌙",
             statusIcon = "ic_stat_moon",
-            description = "From 11:00 pm - 7:00 am",
+            description = "每晚 23:00 - 次日 07:00",
             settings = ModeSettings(
                 enableDnd = true,
                 enableGrayscale = true,
@@ -35,10 +35,10 @@ object DefaultModes {
         ),
         Mode(
             id = "driving",
-            name = "Driving",
+            name = "驾驶模式",
             icon = "🚗",
             statusIcon = "ic_stat_car",
-            description = "Using device's motion and Bluetooth connection",
+            description = "通过设备运动和蓝牙连接自动开启",
             settings = ModeSettings(
                 enableDnd = true,
                 dndLevel = DndLevel.PRIORITY,
