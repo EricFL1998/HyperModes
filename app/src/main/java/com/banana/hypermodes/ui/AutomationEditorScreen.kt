@@ -1797,7 +1797,9 @@ private fun DragCollapseHost(
         ),
         label = "sourceCollapse"
     )
-    val collapseModifier = if (isSource || collapseHeight < naturalHeight) {
+    // 仅拖拽源块时约束高度收缩；非拖拽时完全不加约束，
+    // 否则 onSizeChanged 与高度约束互相反馈会形成布局振荡（flicker）。
+    val collapseModifier = if (isSource) {
         Modifier.height(collapseHeight).clip(RoundedCornerShape(24.dp))
     } else {
         Modifier
