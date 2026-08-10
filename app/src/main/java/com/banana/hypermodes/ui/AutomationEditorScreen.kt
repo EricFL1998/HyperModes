@@ -2,6 +2,7 @@ package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -27,6 +28,7 @@ import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -533,7 +535,9 @@ fun AutomationEditorScreen(
 
             items(blocks.size, key = { blocks[it].id }) { index ->
                 val block = blocks[index]
-                Column(
+                DragCollapseHost(
+                    blockId = block.id,
+                    dragController = dragController,
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateItem()
@@ -1160,6 +1164,8 @@ private fun moveBlockBeforeAfter(
     targetId: String,
     before: Boolean
 ): List<AutomationBlock> {
+    // 拖到自身（或目标不存在）：不移动，防止误删
+    if (draggedId == targetId) return blocks
     // 同层级重排：先定位目标块所在列表，把被拖块从树中移除，再插到目标旁边
     val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
         ?: return blocks
@@ -1199,6 +1205,8 @@ private fun moveBlockIntoParent(
     draggedId: String,
     targetParentId: String
 ): List<AutomationBlock> {
+    // 拖到自己（或目标父块不存在）：不移动，防止误删
+    if (draggedId == targetParentId) return blocks
     val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
         ?: return blocks
     if (dragged == null) return blocks
@@ -1239,6 +1247,8 @@ private class DragController {
     var topLevelIds: List<String> = emptyList()
     /** 所有块的窗口边界（blockId -> 窗口 Rect），用于判断插到目标上方/下方。 */
     val blockBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
+    /** 各块的自然布局高度（px），源块塌陷动画用（拖拽时记录，源块高度动画到 0）。 */
+    val naturalHeights = mutableMapOf<String, Int>()
     /** 触发器 `{}` 容器的窗口边界（blockId -> 窗口 Rect），落点在其中则移入作用域。 */
     val scopeBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
     /** 顶层放置区域的窗口边界（用于判断拖到最前还是末尾）。 */
@@ -1574,44 +1584,58 @@ private fun BlockCard(
                         )
                     }
                     block.children.forEach { childBlock ->
-                        DragGapPlaceholder(
-                            dragController = dragController,
+                        DragCollapseHost(
                             blockId = childBlock.id,
-                            before = true,
-                            horizontalPadding = 8.dp
-                        )
-                        BlockCard(
-                            block = childBlock,
                             dragController = dragController,
-                            onUpdate = { updated ->
-                                onUpdate(
-                                    block.copy(
-                                        children = block.children.map {
-                                            if (it.id == updated.id) updated else it
-                                        }
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = childBlock.id,
+                                before = true,
+                                horizontalPadding = 8.dp
+                            )
+                            BlockCard(
+                                block = childBlock,
+                                dragController = dragController,
+                                onUpdate = { updated ->
+                                    onUpdate(
+                                        block.copy(
+                                            children = block.children.map {
+                                                if (it.id == updated.id) updated else it
+                                            }
+                                        )
                                     )
-                                )
-                            },
-                            onPickApps = onPickApps,
-                            onPickWifi = onPickWifi,
-                            onPickBluetooth = onPickBluetooth,
-                            onRemove = {
-                                onUpdate(
-                                    block.copy(
-                                        children = block.children.filter { it.id != childBlock.id }
+                                },
+                                onPickApps = onPickApps,
+                                onPickWifi = onPickWifi,
+                                onPickBluetooth = onPickBluetooth,
+                                onRemove = {
+                                    onUpdate(
+                                        block.copy(
+                                            children = block.children.filter { it.id != childBlock.id }
+                                        )
                                     )
-                                )
-                            },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            nestLevel = nestLevel + 1
-                        )
-                        DragGapPlaceholder(
-                            dragController = dragController,
-                            blockId = childBlock.id,
-                            before = false,
-                            horizontalPadding = 8.dp
-                        )
+                                },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                nestLevel = nestLevel + 1
+                            )
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = childBlock.id,
+                                before = false,
+                                horizontalPadding = 8.dp
+                            )
+                        }
                     }
+                    // 作用域尾部缺口：悬停在 {} 容器空白处时，显示将追加到末尾的占位
+                    DragGapPlaceholder(
+                        dragController = dragController,
+                        blockId = block.id,
+                        before = false,
+                        horizontalPadding = 8.dp,
+                        scopeAppend = true
+                    )
                 }
             }
         
@@ -1633,43 +1657,49 @@ private fun BlockCard(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     block.children.forEach { childBlock ->
-                        DragGapPlaceholder(
-                            dragController = dragController,
+                        DragCollapseHost(
                             blockId = childBlock.id,
-                            before = true,
-                            horizontalPadding = 8.dp
-                        )
-                        BlockCard(
-                            block = childBlock,
                             dragController = dragController,
-                            onUpdate = { updated ->
-                                onUpdate(
-                                    block.copy(
-                                        children = block.children.map {
-                                            if (it.id == updated.id) updated else it
-                                        }
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = childBlock.id,
+                                before = true,
+                                horizontalPadding = 8.dp
+                            )
+                            BlockCard(
+                                block = childBlock,
+                                dragController = dragController,
+                                onUpdate = { updated ->
+                                    onUpdate(
+                                        block.copy(
+                                            children = block.children.map {
+                                                if (it.id == updated.id) updated else it
+                                            }
+                                        )
                                     )
-                                )
-                            },
-                            onPickApps = onPickApps,
-                            onPickWifi = onPickWifi,
-                            onPickBluetooth = onPickBluetooth,
-                            onRemove = {
-                                onUpdate(
-                                    block.copy(
-                                        children = block.children.filter { it.id != childBlock.id }
+                                },
+                                onPickApps = onPickApps,
+                                onPickWifi = onPickWifi,
+                                onPickBluetooth = onPickBluetooth,
+                                onRemove = {
+                                    onUpdate(
+                                        block.copy(
+                                            children = block.children.filter { it.id != childBlock.id }
+                                        )
                                     )
-                                )
-                            },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            nestLevel = nestLevel + 1
-                        )
-                        DragGapPlaceholder(
-                            dragController = dragController,
-                            blockId = childBlock.id,
-                            before = false,
-                            horizontalPadding = 8.dp
-                        )
+                                },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                nestLevel = nestLevel + 1
+                            )
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = childBlock.id,
+                                before = false,
+                                horizontalPadding = 8.dp
+                            )
+                        }
                     }
                 }
             }
@@ -1691,43 +1721,49 @@ private fun BlockCard(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     block.elseChildren.forEach { elseBlock ->
-                        DragGapPlaceholder(
-                            dragController = dragController,
+                        DragCollapseHost(
                             blockId = elseBlock.id,
-                            before = true,
-                            horizontalPadding = 8.dp
-                        )
-                        BlockCard(
-                            block = elseBlock,
                             dragController = dragController,
-                            onUpdate = { updated ->
-                                onUpdate(
-                                    block.copy(
-                                        elseChildren = block.elseChildren.map {
-                                            if (it.id == updated.id) updated else it
-                                        }
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = elseBlock.id,
+                                before = true,
+                                horizontalPadding = 8.dp
+                            )
+                            BlockCard(
+                                block = elseBlock,
+                                dragController = dragController,
+                                onUpdate = { updated ->
+                                    onUpdate(
+                                        block.copy(
+                                            elseChildren = block.elseChildren.map {
+                                                if (it.id == updated.id) updated else it
+                                            }
+                                        )
                                     )
-                                )
-                            },
-                            onPickApps = onPickApps,
-                            onPickWifi = onPickWifi,
-                            onPickBluetooth = onPickBluetooth,
-                            onRemove = {
-                                onUpdate(
-                                    block.copy(
-                                        elseChildren = block.elseChildren.filter { it.id != elseBlock.id }
+                                },
+                                onPickApps = onPickApps,
+                                onPickWifi = onPickWifi,
+                                onPickBluetooth = onPickBluetooth,
+                                onRemove = {
+                                    onUpdate(
+                                        block.copy(
+                                            elseChildren = block.elseChildren.filter { it.id != elseBlock.id }
+                                        )
                                     )
-                                )
-                            },
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            nestLevel = nestLevel + 1
-                        )
-                        DragGapPlaceholder(
-                            dragController = dragController,
-                            blockId = elseBlock.id,
-                            before = false,
-                            horizontalPadding = 8.dp
-                        )
+                                },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                nestLevel = nestLevel + 1
+                            )
+                            DragGapPlaceholder(
+                                dragController = dragController,
+                                blockId = elseBlock.id,
+                                before = false,
+                                horizontalPadding = 8.dp
+                            )
+                        }
                     }
                 }
             }
@@ -1736,22 +1772,74 @@ private fun BlockCard(
 }
 
 /**
+ * 拖拽源块塌陷容器：当本块被拖拽时高度动画收缩到 0，
+ * 让其他卡片补位（解决源块 alpha=0 仍占空间的问题）。
+ */
+@Composable
+private fun DragCollapseHost(
+    blockId: String,
+    dragController: DragController?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    if (dragController == null) {
+        Box(modifier = modifier) { content() }
+        return
+    }
+    val isSource = dragController.draggedBlockId == blockId
+    var naturalHeight by remember(blockId) { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+    val collapseHeight by animateDpAsState(
+        targetValue = if (isSource) 0.dp else naturalHeight,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "sourceCollapse"
+    )
+    val collapseModifier = if (isSource || collapseHeight < naturalHeight) {
+        Modifier.height(collapseHeight).clip(RoundedCornerShape(24.dp))
+    } else {
+        Modifier
+    }
+    Box(
+        modifier = modifier
+            .onSizeChanged { size ->
+                // 非拖拽时记录自然高度，供拖拽时动画到 0 用
+                if (!isSource) {
+                    naturalHeight = with(density) { size.height.toDp() }
+                }
+            }
+            .then(collapseModifier)
+    ) {
+        content()
+    }
+}
+
+/**
  * 拖拽悬停时的占位缺口：在被拖块将落下的位置撑开一段动画高度，
  * 让其他卡片"挤开"，指示松手后的插入位置。
  * [before] 为 true 时缺口位于目标块上方（插前），false 位于下方（插后）。
+ * [scopeAppend] 为 true 时，缺口在触发器 `{}` 作用域高亮（dropTargetId 命中）时显示，
+ * 表示将追加到作用域末尾。
  */
 @Composable
 private fun DragGapPlaceholder(
     dragController: DragController?,
     blockId: String,
     before: Boolean,
-    horizontalPadding: Dp = 12.dp
+    horizontalPadding: Dp = 12.dp,
+    scopeAppend: Boolean = false
 ) {
     if (dragController == null) return
     val dragging = dragController.draggedBlockId != null
-    val active = dragging &&
-        dragController.gapIndicator?.first == blockId &&
-        dragController.gapIndicator?.second == before
+    val active = if (scopeAppend) {
+        dragging && dragController.dropTargetId == blockId
+    } else {
+        dragging &&
+            dragController.gapIndicator?.first == blockId &&
+            dragController.gapIndicator?.second == before
+    }
     val density = LocalDensity.current
     val targetHeight = if (active) {
         with(density) { dragController.draggedHeightPx.toDp() }
