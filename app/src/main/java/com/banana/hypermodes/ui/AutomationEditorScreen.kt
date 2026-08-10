@@ -67,7 +67,9 @@ data class AutomationAction(
 )
 
 /**
- * 自动化操作选择对话框（底部弹出）
+ * 自动化操作选择对话框（底部弹出，图一样式）。
+ * iOS 分组卡片列表：无搜索框，按分类以粗体分组标题引领，
+ * 每行为独立大圆角卡片——左彩色图标 + 双行文字 + 右侧圆形 i 信息按钮。
  */
 @Composable
 fun AutomationActionDialog(
@@ -76,33 +78,6 @@ fun AutomationActionDialog(
     onActionSelected: (AutomationAction) -> Unit = {},
     categories: Set<AutomationCatalog.Category>? = null
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-
-    // 目录中的操作（可按分类过滤，触发条件选择时只显示触发分类）
-    val allActions = AutomationCatalog.entries
-        .filter { categories == null || it.category in categories }
-        .map { entry ->
-            AutomationAction(
-                id = entry.id,
-                name = entry.name,
-                icon = entry.icon,
-                iconColor = entry.iconColor,
-                description = entry.description
-            )
-        }
-    
-    // 根据搜索过滤
-    val filteredActions = remember(searchQuery) {
-        if (searchQuery.isEmpty()) {
-            allActions
-        } else {
-            allActions.filter { action ->
-                action.name.contains(searchQuery, ignoreCase = true) ||
-                action.description.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
-    
     WindowBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
@@ -113,74 +88,110 @@ fun AutomationActionDialog(
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
         ) {
-            // 搜索框（最顶部，可搜索全部操作）
-            SearchBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                inputField = {
-                    InputField(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = { },
-                        expanded = false,
-                        onExpandedChange = { },
-                        label = "搜索全部操作..."
-                    )
-                },
-                expanded = false,
-                onExpandedChange = { }
-            ) { }
-            
-            // 操作列表
+            // 分组操作列表（按分类，以粗体标题分组）
+            val groupedActions = AutomationCatalog.grouped()
+                .filter { (category, _) -> categories == null || category in categories }
+                .entries
+                .map { (category, entries) ->
+                    category to entries.map { entry ->
+                        AutomationAction(
+                            id = entry.id,
+                            name = entry.name,
+                            icon = entry.icon,
+                            iconColor = entry.iconColor,
+                            description = entry.description
+                        )
+                    }
+                }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                items(filteredActions) { action ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
+                groupedActions.forEach { (category, actions) ->
+                    item(key = "header-${category.name}") {
+                        Text(
+                            text = category.label,
+                            style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(
+                                start = 24.dp,
+                                top = 20.dp,
+                                bottom = 12.dp
+                            )
+                        )
+                    }
+                    items(actions, key = { it.id }) { action ->
+                        ActionOptionCard(
+                            action = action,
+                            onClick = {
                                 onActionSelected(action)
                                 onDismiss()
                             }
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // 图标
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(action.iconColor.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = action.icon,
-                                style = MiuixTheme.textStyles.headline1.copy(fontSize = 24.sp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // 文本信息
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = action.name,
-                                style = MiuixTheme.textStyles.body1
-                            )
-                            if (action.description.isNotEmpty()) {
-                                Text(
-                                    text = action.description,
-                                    style = MiuixTheme.textStyles.body2,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                )
-                            }
-                        }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+/** 图一样式的操作选项卡片：左图标 + 双行文字 + 右侧圆形 i 按钮。 */
+@Composable
+private fun ActionOptionCard(
+    action: AutomationAction,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 10.dp),
+        insideMargin = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+        cornerRadius = 24.dp,
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 左侧彩色图标（无底色容器，直接放置）
+            Text(
+                text = action.icon,
+                fontSize = 30.sp,
+                modifier = Modifier.padding(end = 14.dp)
+            )
+
+            // 双行文字
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = action.name,
+                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold)
+                )
+                if (action.description.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "“${action.description}”",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+            }
+
+            // 右侧圆形 i 信息按钮
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "i",
+                    fontSize = 15.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
