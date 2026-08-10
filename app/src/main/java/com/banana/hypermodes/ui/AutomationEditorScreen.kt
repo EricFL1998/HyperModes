@@ -195,7 +195,6 @@ fun AutomationEditorScreen(
 ) {
     var blocks by remember { mutableStateOf(automation.blocks) }
     var showAddActionDialog by remember { mutableStateOf(false) }
-    var showTriggerDialog by remember { mutableStateOf(false) }
     var appPickRequest by remember { mutableStateOf<AppPickRequest?>(null) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -382,74 +381,6 @@ fun AutomationEditorScreen(
                 )
             }
 
-            // 触发条件提示区：带触发块 = 条件触发自动执行；无触发块 = 全局自动化手动运行
-            item {
-                val hasTrigger = blocks.any { it.isTriggerBlock() }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            if (hasTrigger) {
-                                MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                            } else {
-                                MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-                            }
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (hasTrigger) "⚡" else "🌐",
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(end = 10.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (hasTrigger) "条件触发" else "全局自动化",
-                            style = MiuixTheme.textStyles.body1,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = if (hasTrigger) {
-                                "满足触发条件后自动执行（首次添加触发块时建议放在首位）"
-                            } else {
-                                "无触发条件，手动运行"
-                            },
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
-                    if (!hasTrigger) {
-                        // 与块卡片一致的添加入口
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
-                                .clickable { showTriggerDialog = true }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "＋",
-                                    fontSize = 18.sp,
-                                    color = MiuixTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(end = 6.dp)
-                                )
-                                Text(
-                                    text = "添加触发",
-                                    style = MiuixTheme.textStyles.body1,
-                                    color = MiuixTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             items(blocks.size) { index ->
                 val block = blocks[index]
                 BlockCard(
@@ -483,17 +414,6 @@ fun AutomationEditorScreen(
         onActionSelected = { action ->
             blocks = blocks + action.toAutomationBlock()
             showAddActionDialog = false
-        }
-    )
-
-    // 触发条件选择：只显示触发分类
-    AutomationActionDialog(
-        show = showTriggerDialog,
-        onDismiss = { showTriggerDialog = false },
-        categories = setOf(AutomationCatalog.Category.TRIGGER),
-        onActionSelected = { action ->
-            blocks = listOf(action.toAutomationBlock()) + blocks
-            showTriggerDialog = false
         }
     )
 

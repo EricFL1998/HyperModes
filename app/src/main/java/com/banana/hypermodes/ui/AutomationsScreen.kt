@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
-import com.banana.hypermodes.automation.isTriggerBlock
+import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.data.ImportedIntentStore
 import com.banana.hypermodes.data.IntentConfig
 import androidx.compose.ui.graphics.Color
@@ -36,12 +36,15 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.extended.Play
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.window.WindowListPopup
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +66,8 @@ fun AutomationsScreen(
 ) {
     val context = LocalContext.current
     val scrollBehavior = MiuixScrollBehavior()
+    val executor = remember { AutomationExecutor(context) }
+    val coroutineScope = rememberCoroutineScope()
     
     // Long press delete state
     var menuAutomation by remember { mutableStateOf<SavedAutomation?>(null) }
@@ -253,6 +258,17 @@ fun AutomationsScreen(
                         AutomationCard(
                             automation = automation,
                             onClick = { onEditAutomation(automation) },
+                            onRun = {
+                                coroutineScope.launch {
+                                    val result = executor.execute(automation.blocks)
+                                    Toast.makeText(
+                                        context,
+                                        if (result.success) "✅ ${result.message}"
+                                        else "❌ ${result.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
                             onLongPress = {
                                 menuAutomation = automation
                                 showDeleteConfirm = true
@@ -443,7 +459,8 @@ private fun AutomationCard(
     automation: SavedAutomation,
     onClick: () -> Unit,
     onLongPress: () -> Unit = {},
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    onRun: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -465,21 +482,24 @@ private fun AutomationCard(
                     style = MiuixTheme.textStyles.headline1,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (automation.blocks.any { it.isTriggerBlock() }) {
-                        "⚡ 条件触发"
-                    } else {
-                        "🌐 全局自动化"
-                    },
-                    style = MiuixTheme.textStyles.body2,
-                    color = if (automation.blocks.any { it.isTriggerBlock() }) {
-                        Color(0xFFFF9500)
-                    } else {
-                        MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    }
+            }
+            // 右上角运行按钮
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    .clickable(onClick = onRun),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Play,
+                    contentDescription = "运行",
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = automation.icon,
                 style = MiuixTheme.textStyles.headline2,
