@@ -65,7 +65,6 @@ class AutomationExecutor(
         maxSteps: Long = DEFAULT_MAX_STEPS
     ): ExecutionResult {
         val steps = StepBudget(maxSteps)
-        var skippedByTrigger = false
         for (block in blocks) {
             if (!steps.consume()) {
                 return ExecutionResult(success = false, message = "执行步骤超过上限，已中止")
@@ -74,16 +73,8 @@ class AutomationExecutor(
             if (!result.success) {
                 return result
             }
-            // 触发块作为门控：条件不满足时跳过后续所有操作
-            if (block.isTriggerBlock() && result.conditionMet == false) {
-                skippedByTrigger = true
-                break
-            }
         }
-        return ExecutionResult(
-            success = true,
-            message = if (skippedByTrigger) "触发条件未满足，已跳过" else "执行完成"
-        )
+        return ExecutionResult(success = true, message = "执行完成")
     }
 
     /**
@@ -96,7 +87,7 @@ class AutomationExecutor(
         val steps = StepBudget(DEFAULT_MAX_STEPS)
         for (trigger in triggers) {
             if (!steps.consume()) return false
-            val result = executeBlock(trigger, steps)
+            val result = triggerCondition(trigger)
             if (!result.success || result.conditionMet != true) return false
         }
         return true
@@ -110,20 +101,21 @@ class AutomationExecutor(
 
         return when (block.type) {
             // ==================== 触发条件 ====================
-            is BlockType.TriggerTime -> checkTimeRange(block, "触发")
-            is BlockType.TriggerWifi -> checkWifiSsid(block)
-            is BlockType.TriggerWifiOn -> checkWifiState(block, expected = true, "触发")
-            is BlockType.TriggerWifiOff -> checkWifiState(block, expected = false, "触发")
-            is BlockType.TriggerBluetoothOn -> checkBluetoothState(block, expected = true, "触发")
-            is BlockType.TriggerBluetoothOff -> checkBluetoothState(block, expected = false, "触发")
-            is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
-            is BlockType.TriggerChargingStart -> checkChargingState(block, expected = true, "触发")
-            is BlockType.TriggerChargingStop -> checkChargingState(block, expected = false, "触发")
-            is BlockType.TriggerNetwork -> checkNetworkType(block)
-            is BlockType.TriggerMusicStart -> checkMusicPlaying(block, expected = true, "触发")
-            is BlockType.TriggerMusicStop -> checkMusicPlaying(block, expected = false, "触发")
-            is BlockType.TriggerApp -> checkAppForeground(block)
-            is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
+            is BlockType.TriggerTime,
+            is BlockType.TriggerWifi,
+            is BlockType.TriggerWifiOn,
+            is BlockType.TriggerWifiOff,
+            is BlockType.TriggerBluetooth,
+            is BlockType.TriggerBluetoothOn,
+            is BlockType.TriggerBluetoothOff,
+            is BlockType.TriggerBattery,
+            is BlockType.TriggerChargingStart,
+            is BlockType.TriggerChargingStop,
+            is BlockType.TriggerNetwork,
+            is BlockType.TriggerMusicStart,
+            is BlockType.TriggerMusicStop,
+            is BlockType.TriggerApp,
+            is BlockType.TriggerDayOfWeek -> executeTrigger(block, steps)
 
             // ==================== 系统控制 ====================
             is BlockType.ToggleWifiOn -> executeToggleWifi(block, true)
@@ -229,6 +221,46 @@ class AutomationExecutor(
             is BlockType.CheckGpsOff -> checkGpsState(block, expected = false)
             is BlockType.CheckVolumeLevel -> checkVolumeLevel(block)
             is BlockType.CheckBrightnessLevel -> checkBrightnessLevel(block)
+        }
+    }
+
+    /**
+     * 触发器块：仅评估触发条件本身，不执行作用域内操作。
+     */
+    private fun triggerCondition(block: AutomationBlock): ExecutionResult = when (block.type) {
+        is BlockType.TriggerTime -> checkTimeRange(block, "触发")
+        is BlockType.TriggerWifi -> checkWifiSsid(block)
+        is BlockType.TriggerWifiOn -> checkWifiState(block, expected = true, "触发")
+        is BlockType.TriggerWifiOff -> checkWifiState(block, expected = false, "触发")
+        is BlockType.TriggerBluetooth -> checkBluetoothDevice(block)
+        is BlockType.TriggerBluetoothOn -> checkBluetoothState(block, expected = true, "触发")
+        is BlockType.TriggerBluetoothOff -> checkBluetoothState(block, expected = false, "触发")
+        is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
+        is BlockType.TriggerChargingStart -> checkChargingState(block, expected = true, "触发")
+        is BlockType.TriggerChargingStop -> checkChargingState(block, expected = false, "触发")
+        is BlockType.TriggerNetwork -> checkNetworkType(block)
+        is BlockType.TriggerMusicStart -> checkMusicPlaying(block, expected = true, "触发")
+        is BlockType.TriggerMusicStop -> checkMusicPlaying(block, expected = false, "触发")
+        is BlockType.TriggerApp -> checkAppForeground(block)
+        is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
+        else -> ExecutionResult(false, "未知触发类型")
+    }
+
+    /**
+     * 执行触发器：条件满足时执行其 children（{} 作用域内操作），
+     * 不满足时仅跳过作用域内操作，不影响平级块。
+     */
+    private suspend fun executeTrigger(block: AutomationBlock, steps: StepBudget): ExecutionResult {
+        val condition = triggerCondition(block)
+        if (!condition.success) return condition
+        return if (condition.conditionMet == true) {
+            if (block.children.isEmpty()) {
+                ExecutionResult(true, "触发条件满足，无作用域内操作")
+            } else {
+                execute(block.children, steps.remaining())
+            }
+        } else {
+            ExecutionResult(true, "触发条件未满足，跳过作用域内操作")
         }
     }
 
@@ -672,7 +704,7 @@ class AutomationExecutor(
     private suspend fun executeIf(block: AutomationBlock, steps: StepBudget): ExecutionResult {
         // children[0] 为条件块，children[1..] 为 THEN 分支
         if (block.children.isEmpty()) {
-            return ExecutionResult(false, "IF 块缺少条件")
+            return ExecutionResult(false, "如果块缺少条件")
         }
         val condition = block.children.first()
         val result = executeBlock(condition, steps)
@@ -728,10 +760,10 @@ class AutomationExecutor(
             val result = executeBlock(child, steps)
             if (!result.success) return result
             if (result.conditionMet == false) {
-                return ExecutionResult(true, "AND 条件不满足", conditionMet = false)
+                return ExecutionResult(true, "并且条件不满足", conditionMet = false)
             }
         }
-        return ExecutionResult(true, "AND 条件满足", conditionMet = true)
+        return ExecutionResult(true, "并且条件满足", conditionMet = true)
     }
 
     private suspend fun executeOr(block: AutomationBlock, steps: StepBudget): ExecutionResult {
@@ -739,10 +771,10 @@ class AutomationExecutor(
             val result = executeBlock(child, steps)
             if (!result.success) return result
             if (result.conditionMet == true) {
-                return ExecutionResult(true, "OR 条件满足", conditionMet = true)
+                return ExecutionResult(true, "或者条件满足", conditionMet = true)
             }
         }
-        return ExecutionResult(true, "OR 条件不满足", conditionMet = false)
+        return ExecutionResult(true, "或者条件不满足", conditionMet = false)
     }
 
     // ==================== 条件判断实现 ====================
@@ -757,6 +789,48 @@ class AutomationExecutor(
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
         val actual = adapter?.isEnabled ?: false
         return conditionResult(label, actual, expected)
+    }
+
+    private fun checkBluetoothDevice(block: AutomationBlock): ExecutionResult {
+        val expectedDevice = block.stringParam("device").trim()
+        val connect = block.choiceParam("connect", "已连接")
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+        val connectedNames = try {
+            adapter?.bondedDevices
+                ?.filter { isDeviceConnected(it) }
+                ?.map { it.name ?: it.address }
+                ?.toSet()
+                ?: emptySet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+        // 未指定设备时默认"全部蓝牙设备"：只要连接了任意设备即视为已连接
+        val hasAnyDevice = connectedNames.isNotEmpty()
+        val connected = if (expectedDevice.isBlank()) {
+            hasAnyDevice
+        } else {
+            connectedNames.any { it.equals(expectedDevice, ignoreCase = true) }
+        }
+        val met = when (connect) {
+            "已连接" -> connected
+            "已断开连接" -> !connected
+            else -> true // 已连接或断开连接：状态变化即触发（边沿检测处理）
+        }
+        return ExecutionResult(
+            true,
+            "蓝牙触发：当前已连接 ${connectedNames.ifEmpty { "无" }}${if (met) "满足" else "不满足"}",
+            conditionMet = met
+        )
+    }
+
+    /** BluetoothDevice.isConnected 是隐藏 API，通过反射判断。 */
+    private fun isDeviceConnected(device: Any): Boolean {
+        return try {
+            val method = device.javaClass.getMethod("isConnected")
+            method.invoke(device) as? Boolean ?: false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun checkBatteryLevel(block: AutomationBlock, label: String = "电量"): ExecutionResult {
@@ -815,13 +889,20 @@ class AutomationExecutor(
 
     private fun checkWifiSsid(block: AutomationBlock): ExecutionResult {
         val expectedSsid = block.stringParam("ssid").trim().removePrefix("\"").removeSuffix("\"")
-        val connect = block.boolParam("connect", true)
+        val connect = block.choiceParam("connect", "已加入")
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val currentSsid = wifiManager.connectionInfo?.ssid?.removePrefix("\"")?.removeSuffix("\"")
-        val met = if (connect) {
-            expectedSsid.isBlank() || currentSsid.equals(expectedSsid, ignoreCase = true)
+        // 未指定 SSID 时默认"全部 WiFi"：只要连接了任意 WiFi 即视为已加入
+        val hasAnyWifi = !currentSsid.isNullOrBlank()
+        val connected = if (expectedSsid.isBlank()) {
+            hasAnyWifi
         } else {
-            !currentSsid.equals(expectedSsid, ignoreCase = true)
+            currentSsid.equals(expectedSsid, ignoreCase = true)
+        }
+        val met = when (connect) {
+            "已加入" -> connected
+            "已断开连接" -> !connected
+            else -> true // 已加入或断开连接：状态变化即触发（边沿检测处理）
         }
         return ExecutionResult(
             true,
@@ -1126,6 +1207,7 @@ fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
     is BlockType.TriggerWifi,
     is BlockType.TriggerWifiOn,
     is BlockType.TriggerWifiOff,
+    is BlockType.TriggerBluetooth,
     is BlockType.TriggerBluetoothOn,
     is BlockType.TriggerBluetoothOff,
     is BlockType.TriggerBattery,

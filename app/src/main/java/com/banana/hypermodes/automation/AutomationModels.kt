@@ -14,6 +14,7 @@ sealed class BlockType(val id: String) {
     data object TriggerWifi : BlockType("trigger_wifi")
     data object TriggerWifiOn : BlockType("trigger_wifi_on")
     data object TriggerWifiOff : BlockType("trigger_wifi_off")
+    data object TriggerBluetooth : BlockType("trigger_bluetooth")
     data object TriggerBluetoothOn : BlockType("trigger_bluetooth_on")
     data object TriggerBluetoothOff : BlockType("trigger_bluetooth_off")
     data object TriggerBattery : BlockType("trigger_battery")
@@ -135,7 +136,7 @@ sealed class BlockType(val id: String) {
         val all: List<BlockType> by lazy {
             listOf(
             TriggerTime, TriggerWifi, TriggerWifiOn, TriggerWifiOff,
-            TriggerBluetoothOn, TriggerBluetoothOff,
+            TriggerBluetooth, TriggerBluetoothOn, TriggerBluetoothOff,
             TriggerBattery, TriggerChargingStart, TriggerChargingStop,
             TriggerNetwork, TriggerMusicStart, TriggerMusicStop,
             TriggerApp, TriggerDayOfWeek,
@@ -265,10 +266,20 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     )
     is BlockType.TriggerWifi -> listOf(
         BlockParameter.StringParam("ssid", "WiFi 名称 (SSID)", ""),
-        BlockParameter.BooleanParam("connect", "连接时触发", true)
+        BlockParameter.ChoiceParam(
+            "connect", "触发条件", "已加入",
+            listOf("已加入", "已断开连接", "已加入或断开连接")
+        )
     )
     is BlockType.TriggerWifiOn,
     is BlockType.TriggerWifiOff,
+    is BlockType.TriggerBluetooth -> listOf(
+        BlockParameter.StringParam("device", "蓝牙设备", ""),
+        BlockParameter.ChoiceParam(
+            "connect", "触发条件", "已连接",
+            listOf("已连接", "已断开连接", "已连接或断开连接")
+        )
+    )
     is BlockType.TriggerBluetoothOn,
     is BlockType.TriggerBluetoothOff -> emptyList()
     is BlockType.TriggerBattery -> listOf(

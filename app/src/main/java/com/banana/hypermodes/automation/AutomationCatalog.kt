@@ -38,6 +38,7 @@ object AutomationCatalog {
         Entry("trigger_wifi", "WiFi 触发", "📶", Color(0xFF007AFF), "当连接指定 WiFi 时触发", Category.TRIGGER),
         Entry("trigger_wifi_on", "当 WiFi 打开时", "📶", Color(0xFF007AFF), "当 WiFi 打开时触发", Category.TRIGGER),
         Entry("trigger_wifi_off", "当 WiFi 关闭时", "📶", Color(0xFF007AFF), "当 WiFi 关闭时触发", Category.TRIGGER),
+        Entry("trigger_bluetooth", "蓝牙设备触发", "🔵", Color(0xFF007AFF), "当连接指定蓝牙设备时触发", Category.TRIGGER),
         Entry("trigger_bluetooth_on", "当蓝牙打开时", "🔵", Color(0xFF007AFF), "当蓝牙打开时触发", Category.TRIGGER),
         Entry("trigger_bluetooth_off", "当蓝牙关闭时", "🔵", Color(0xFF007AFF), "当蓝牙关闭时触发", Category.TRIGGER),
         Entry("trigger_battery", "电量触发", "🔋", Color(0xFF34C759), "当电量满足条件时触发", Category.TRIGGER),
@@ -109,14 +110,14 @@ object AutomationCatalog {
         Entry("unsuspend_apps", "恢复应用", "▶️", Color(0xFF34C759), "恢复被暂停的应用", Category.APP),
 
         // ==================== 控制流 ====================
-        Entry("if_condition", "If 条件判断", "🔀", Color(0xFF34C759), "根据条件执行不同操作", Category.CONTROL_FLOW),
+        Entry("if_condition", "如果条件判断", "🔀", Color(0xFF34C759), "根据条件执行不同操作", Category.CONTROL_FLOW),
         Entry("repeat_count", "重复 N 次", "🔁", Color(0xFF5856D6), "重复执行指定次数", Category.CONTROL_FLOW),
         Entry("wait", "等待", "⏱️", Color(0xFFFF9500), "暂停执行一段时间", Category.CONTROL_FLOW),
         Entry("comment", "注释", "💬", Color(0xFF8E8E93), "添加说明文字", Category.CONTROL_FLOW),
 
         // ==================== 逻辑 ====================
-        Entry("and_condition", "AND 与运算", "➕", Color(0xFF007AFF), "所有条件都满足", Category.LOGIC),
-        Entry("or_condition", "OR 或运算", "〰️", Color(0xFF007AFF), "任一条件满足", Category.LOGIC),
+        Entry("and_condition", "并且（全部满足）", "➕", Color(0xFF007AFF), "所有条件都满足", Category.LOGIC),
+        Entry("or_condition", "或者（任一满足）", "〰️", Color(0xFF007AFF), "任一条件满足", Category.LOGIC),
 
         // ==================== 条件判断 ====================
         Entry("check_wifi_on", "WiFi 已开启", "📶", Color(0xFF30B0C7), "判断 WiFi 是否开启", Category.CONDITION),

@@ -2,6 +2,7 @@ package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,7 +12,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -195,7 +199,10 @@ fun AutomationEditorScreen(
 ) {
     var blocks by remember { mutableStateOf(automation.blocks) }
     var showAddActionDialog by remember { mutableStateOf(false) }
+    val dragController = remember { DragController() }
     var appPickRequest by remember { mutableStateOf<AppPickRequest?>(null) }
+    var wifiPickRequest by remember { mutableStateOf<WifiPickRequest?>(null) }
+    var bluetoothPickRequest by remember { mutableStateOf<BluetoothPickRequest?>(null) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior()
@@ -203,6 +210,15 @@ fun AutomationEditorScreen(
     val executor = remember { AutomationExecutor(context) }
     val coroutineScope = rememberCoroutineScope()
     var isExecuting by remember { mutableStateOf(false) }
+
+    // 拖拽落点：把被拖块移入目标触发器容器的作用域
+    LaunchedEffect(Unit) {
+        dragController.onDrop = { draggedId, targetId ->
+            if (targetId != null) {
+                blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+            }
+        }
+    }
 
     // System back button must return to the automation list the same way the
     // top-bar back arrow does (auto-save + navigate back).
@@ -386,6 +402,7 @@ fun AutomationEditorScreen(
                 BlockCard(
                     block = block,
                     isTrigger = block.isTriggerBlock(),
+                    dragController = dragController,
                     onUpdate = { updated ->
                         blocks = blocks.map { if (it.id == updated.id) updated else it }
                     },
@@ -395,6 +412,18 @@ fun AutomationEditorScreen(
                             paramKey = param.key,
                             initial = param.value.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
                             single = block.type is BlockType.OpenApp
+                        )
+                    },
+                    onPickWifi = { param ->
+                        wifiPickRequest = WifiPickRequest(
+                            blockId = block.id,
+                            paramKey = param.key
+                        )
+                    },
+                    onPickBluetooth = { param ->
+                        bluetoothPickRequest = BluetoothPickRequest(
+                            blockId = block.id,
+                            paramKey = param.key
                         )
                     },
                     onRemove = {
@@ -435,7 +464,351 @@ fun AutomationEditorScreen(
             }
         )
     }
+
+    // WiFi 选择器（全屏覆盖）
+    wifiPickRequest?.let { req ->
+        WifiPickerScreen(
+            onBack = { wifiPickRequest = null },
+            onSelect = { ssid ->
+                blocks = updateBlockStringParam(
+                    blocks,
+                    blockId = req.blockId,
+                    key = req.paramKey,
+                    value = ssid
+                )
+                wifiPickRequest = null
+            }
+        )
+    }
+
+    // 蓝牙设备选择器（全屏覆盖）
+    bluetoothPickRequest?.let { req ->
+        BluetoothPickerScreen(
+            onBack = { bluetoothPickRequest = null },
+            onSelect = { device ->
+                blocks = updateBlockStringParam(
+                    blocks,
+                    blockId = req.blockId,
+                    key = req.paramKey,
+                    value = "${device.name}|${device.address}"
+                )
+                bluetoothPickRequest = null
+            }
+        )
+    }
 }
+
+/**
+ * WiFi 触发的一行句子式编辑器：
+ * 当 [📶] [WiFi 名称胶囊] [条件胶囊] 时
+ * - WiFi 名称胶囊点击 → 打开 WiFi 选择器
+ * - 条件胶囊点击 → 弹出条件菜单（已加入 / 已断开连接 / 已加入或断开连接）
+ */
+@Composable
+private fun WifiTriggerEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit,
+    onPickWifi: (BlockParameter.StringParam) -> Unit
+) {
+    val ssidParam = block.parameters.find { it.key == "ssid" } as? BlockParameter.StringParam
+    val connectParam = block.parameters.find { it.key == "connect" } as? BlockParameter.ChoiceParam
+
+    var showConnectMenu by remember { mutableStateOf(false) }
+
+    fun updateParam(updated: BlockParameter) {
+        onUpdate(
+            block.copy(
+                parameters = block.parameters.map {
+                    if (it.key == updated.key) updated else it
+                }
+            )
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "当",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(end = 6.dp)
+        )
+
+        // WiFi 图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF0A84FF).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "📶",
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // WiFi 名称胶囊（点击弹选择器）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { ssidParam?.let(onPickWifi) }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (ssidParam?.value.isNullOrBlank()) "全部 WiFi" else ssidParam!!.value,
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 条件胶囊（点击弹菜单）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { showConnectMenu = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = connectParam?.value ?: "已加入",
+                    color = Color(0xFF0A84FF),
+                    fontWeight = FontWeight.Medium,
+                    style = MiuixTheme.textStyles.body1
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "▾",
+                    color = Color(0xFF0A84FF),
+                    style = MiuixTheme.textStyles.body1,
+                    fontSize = 10.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        Text(
+            text = "时",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+    }
+
+    // 条件菜单
+    if (showConnectMenu) {
+        OverlayDialog(
+            show = showConnectMenu,
+            onDismissRequest = { showConnectMenu = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "触发条件",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                (connectParam?.options ?: emptyList()).forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (connectParam != null) updateParam(connectParam.copy(value = option))
+                                showConnectMenu = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (option == connectParam?.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 蓝牙触发的一行句子式编辑器：
+ * 当 [🔵] [设备胶囊] [条件胶囊] 时
+ * - 设备胶囊点击 → 打开蓝牙设备选择器
+ * - 条件胶囊点击 → 弹出条件菜单（已连接 / 已断开连接 / 已连接或断开连接）
+ */
+@Composable
+private fun BluetoothTriggerEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit,
+    onPickBluetooth: (BlockParameter.StringParam) -> Unit
+) {
+    val deviceParam = block.parameters.find { it.key == "device" } as? BlockParameter.StringParam
+    val connectParam = block.parameters.find { it.key == "connect" } as? BlockParameter.ChoiceParam
+
+    var showConnectMenu by remember { mutableStateOf(false) }
+
+    fun updateParam(updated: BlockParameter) {
+        onUpdate(
+            block.copy(
+                parameters = block.parameters.map {
+                    if (it.key == updated.key) updated else it
+                }
+            )
+        )
+    }
+
+    // device 参数存 "名称|地址"，显示名称部分
+    val deviceName = deviceParam?.value?.substringBefore("|")?.takeIf { it.isNotBlank() }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "当",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(end = 6.dp)
+        )
+
+        // 蓝牙图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF0A84FF).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "🔵",
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 设备胶囊（点击弹选择器）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { deviceParam?.let(onPickBluetooth) }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = deviceName ?: "全部蓝牙设备",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 条件胶囊（点击弹菜单）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { showConnectMenu = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = connectParam?.value ?: "已连接",
+                    color = Color(0xFF0A84FF),
+                    fontWeight = FontWeight.Medium,
+                    style = MiuixTheme.textStyles.body1
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "▾",
+                    color = Color(0xFF0A84FF),
+                    style = MiuixTheme.textStyles.body1,
+                    fontSize = 10.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        Text(
+            text = "时",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+    }
+
+    // 条件菜单
+    if (showConnectMenu) {
+        OverlayDialog(
+            show = showConnectMenu,
+            onDismissRequest = { showConnectMenu = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "触发条件",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                (connectParam?.options ?: emptyList()).forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (connectParam != null) updateParam(connectParam.copy(value = option))
+                                showConnectMenu = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (option == connectParam?.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 /** 等待应用选择器返回的参数目标。 */
 private data class AppPickRequest(
@@ -443,6 +816,18 @@ private data class AppPickRequest(
     val paramKey: String,
     val initial: Set<String>,
     val single: Boolean
+)
+
+/** 等待 WiFi 选择器返回的参数目标。 */
+private data class WifiPickRequest(
+    val blockId: String,
+    val paramKey: String
+)
+
+/** 等待蓝牙设备选择器返回的参数目标。 */
+private data class BluetoothPickRequest(
+    val blockId: String,
+    val paramKey: String
 )
 
 /** 递归更新块树中指定 StringParam 的值（支持嵌套 IF/REPEAT）。 */
@@ -470,18 +855,166 @@ private fun updateBlockStringParam(
     }
 }
 
+/** 递归把新块加入指定父块的 children（支持嵌套触发器/IF/REPEAT）。 */
+private fun addBlockToChildren(
+    blocks: List<AutomationBlock>,
+    parentId: String,
+    newBlock: AutomationBlock
+): List<AutomationBlock> = blocks.map { block ->
+    if (block.id == parentId) {
+        block.copy(children = block.children + newBlock)
+    } else {
+        block.copy(
+            children = addBlockToChildren(block.children, parentId, newBlock),
+            elseChildren = addBlockToChildren(block.elseChildren, parentId, newBlock)
+        )
+    }
+}
+
+/** 递归从树中提取指定块（返回移除后的树与被提取的块）。 */
+private fun extractBlockFromTree(
+    blocks: List<AutomationBlock>,
+    blockId: String
+): Pair<List<AutomationBlock>, AutomationBlock?> {
+    var extracted: AutomationBlock? = null
+    val result = blocks.mapNotNull { block ->
+        if (block.id == blockId) {
+            extracted = block
+            null
+        } else {
+            val (newChildren, cExtracted) = extractBlockFromTree(block.children, blockId)
+            val (newElse, eExtracted) = extractBlockFromTree(block.elseChildren, blockId)
+            if (cExtracted != null) extracted = cExtracted
+            if (eExtracted != null) extracted = eExtracted
+            block.copy(children = newChildren, elseChildren = newElse)
+        }
+    }
+    return result to extracted
+}
+
+/** 拖拽结束：把被拖块移入目标触发器容器的 children。 */
+private fun moveBlockIntoParent(
+    blocks: List<AutomationBlock>,
+    draggedId: String,
+    targetParentId: String
+): List<AutomationBlock> {
+    val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
+        ?: return blocks
+    if (dragged == null) return blocks
+    return addBlockToChildren(withoutDragged, targetParentId, dragged)
+}
+
+/** 拖拽控制器：跨嵌套层级共享拖拽状态与落点判定。 */
+private class DragController {
+    var draggedBlockId by mutableStateOf<String?>(null)
+    var draggedBlock by mutableStateOf<AutomationBlock?>(null)
+    var dragPosition by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+    var dropTargetId by mutableStateOf<String?>(null)
+    var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
+
+    /** 触发器容器的屏幕边界（blockId -> 窗口 Rect），用于落点检测。 */
+    val containerBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
+
+    /** 被拖块的窗口坐标（左上角），拖拽手指位置 = 该点 + 局部偏移。 */
+    var draggedWindowTopLeft by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+
+    fun start(block: AutomationBlock) {
+        draggedBlockId = block.id
+        draggedBlock = block
+        dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dropTargetId = null
+    }
+
+    /** 拖动中更新手指窗口位置并计算落点目标。 */
+    fun move(localPosition: androidx.compose.ui.geometry.Offset) {
+        dragPosition = localPosition
+        val windowPos = draggedWindowTopLeft + localPosition
+        dropTargetId = containerBounds.entries
+            .firstOrNull { it.value.contains(windowPos) }
+            ?.key
+    }
+
+    fun end() {
+        val draggedId = draggedBlockId
+        val targetId = dropTargetId
+        draggedBlockId = null
+        draggedBlock = null
+        dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dropTargetId = null
+        if (draggedId != null) {
+            onDrop?.invoke(draggedId, targetId)
+        }
+    }
+
+    fun cancel() {
+        draggedBlockId = null
+        draggedBlock = null
+        dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dropTargetId = null
+    }
+}
+
+/** 递归从 children/elseChildren 中移除指定块（拖拽移出作用域时用）。 */
+private fun removeBlockFromTree(
+    blocks: List<AutomationBlock>,
+    blockId: String
+): Pair<List<AutomationBlock>, Boolean> {
+    var removed = false
+    val result = blocks.mapNotNull { block ->
+        if (block.id == blockId) {
+            removed = true
+            null
+        } else {
+            val (newChildren, cRemoved) = removeBlockFromTree(block.children, blockId)
+            val (newElse, eRemoved) = removeBlockFromTree(block.elseChildren, blockId)
+            if (cRemoved || eRemoved) removed = true
+            block.copy(children = newChildren, elseChildren = newElse)
+        }
+    }
+    return result to removed
+}
+
 @Composable
 private fun BlockCard(
     block: AutomationBlock,
     isTrigger: Boolean = false,
+    dragController: DragController? = null,
     onUpdate: (AutomationBlock) -> Unit,
     onPickApps: (BlockParameter.StringParam) -> Unit,
+    onPickWifi: (BlockParameter.StringParam) -> Unit = {},
+    onPickBluetooth: (BlockParameter.StringParam) -> Unit = {},
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
     nestLevel: Int = 0
 ) {
+    // 长按拖拽：拖到触发器容器内即移入其作用域
+    val dragModifier = if (dragController != null) {
+        Modifier
+            .onGloballyPositioned { coordinates ->
+                dragController.draggedWindowTopLeft = coordinates.boundsInWindow().topLeft
+            }
+            .pointerInput(block.id) {
+            detectDragGesturesAfterLongPress(
+                onDragStart = {
+                    dragController.start(block)
+                    // 记录起点窗口坐标，供 move() 计算手指窗口位置
+                },
+                onDrag = { change, _ ->
+                    change.consume()
+                    dragController.move(change.position)
+                },
+                onDragEnd = { dragController.end() },
+                onDragCancel = { dragController.cancel() }
+            )
+            }
+    } else {
+        Modifier
+    }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(dragModifier),
         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         cornerRadius = 24.dp
     ) {
@@ -533,6 +1066,20 @@ private fun BlockCard(
                     block = block,
                     onUpdate = onUpdate
                 )
+            } else if (block.type is BlockType.TriggerWifi) {
+                // WiFi 触发：一行句子式编辑器（当 [📶] [WiFi名称] [条件] 时）
+                WifiTriggerEditor(
+                    block = block,
+                    onUpdate = onUpdate,
+                    onPickWifi = { param -> onPickWifi(param) }
+                )
+            } else if (block.type is BlockType.TriggerBluetooth) {
+                // 蓝牙触发：一行句子式编辑器（当 [🔵] [设备] [条件] 时）
+                BluetoothTriggerEditor(
+                    block = block,
+                    onUpdate = onUpdate,
+                    onPickBluetooth = { param -> onPickBluetooth(param) }
+                )
             } else {
                 block.parameters.forEach { param ->
                     Spacer(modifier = Modifier.height(12.dp))
@@ -551,10 +1098,80 @@ private fun BlockCard(
                     )
                 }
             }
+
+            // 触发器作用域：{ } 容器，条件满足时才执行内部操作
+            if (block.isTriggerBlock() && nestLevel < 3) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            dragController?.containerBounds?.put(
+                                block.id,
+                                coordinates.boundsInWindow()
+                            )
+                        }
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (dragController?.dropTargetId == block.id) {
+                                MiuixTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            } else {
+                                MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
+                            }
+                        )
+                        .padding(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "{ }",
+                            style = MiuixTheme.textStyles.body1,
+                            fontWeight = FontWeight.Bold,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            text = "触发时执行",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    block.children.forEach { childBlock ->
+                        BlockCard(
+                            block = childBlock,
+                            dragController = dragController,
+                            onUpdate = { updated ->
+                                onUpdate(
+                                    block.copy(
+                                        children = block.children.map {
+                                            if (it.id == updated.id) updated else it
+                                        }
+                                    )
+                                )
+                            },
+                            onPickApps = onPickApps,
+                            onPickWifi = onPickWifi,
+                            onPickBluetooth = onPickBluetooth,
+                            onRemove = {
+                                onUpdate(
+                                    block.copy(
+                                        children = block.children.filter { it.id != childBlock.id }
+                                    )
+                                )
+                            },
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            nestLevel = nestLevel + 1
+                        )
+                    }
+                }
+            }
         
             
-            // 显示嵌套的子块（用于 IF、REPEAT 等）
-            if (block.children.isNotEmpty() && nestLevel < 3) {
+            // 显示嵌套的子块（用于 IF、REPEAT 等，触发器已单独渲染作用域）
+            if (!block.isTriggerBlock() && block.children.isNotEmpty() && nestLevel < 3) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Column(
                     modifier = Modifier
@@ -572,6 +1189,7 @@ private fun BlockCard(
                     block.children.forEach { childBlock ->
                         BlockCard(
                             block = childBlock,
+                            dragController = dragController,
                             onUpdate = { updated ->
                                 onUpdate(
                                     block.copy(
@@ -582,6 +1200,8 @@ private fun BlockCard(
                                 )
                             },
                             onPickApps = onPickApps,
+                            onPickWifi = onPickWifi,
+                            onPickBluetooth = onPickBluetooth,
                             onRemove = {
                                 onUpdate(
                                     block.copy(
@@ -615,6 +1235,7 @@ private fun BlockCard(
                     block.elseChildren.forEach { elseBlock ->
                         BlockCard(
                             block = elseBlock,
+                            dragController = dragController,
                             onUpdate = { updated ->
                                 onUpdate(
                                     block.copy(
@@ -625,6 +1246,8 @@ private fun BlockCard(
                                 )
                             },
                             onPickApps = onPickApps,
+                            onPickWifi = onPickWifi,
+                            onPickBluetooth = onPickBluetooth,
                             onRemove = {
                                 onUpdate(
                                     block.copy(
