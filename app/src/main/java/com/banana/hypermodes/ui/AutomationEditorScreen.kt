@@ -472,9 +472,11 @@ fun AutomationEditorScreen(
                                 val draggedId = event.blockIdOrNull() ?: return false
                                 val y = event.toAndroidDragEvent().y
                                 // 与缺口指示一致：找到指针下方最近的顶层块，插到它前面；否则追加末尾
-                                val firstBelow = dragController.topLevelIds.firstOrNull { id ->
+                                val firstBelow = dragController.topLevelIds
+                                    .filter { it != draggedId }
+                                    .firstOrNull { id ->
                                     dragController.blockBounds[id]?.let { y < it.center.y } == true
-                                }
+                                    }
                                 if (firstBelow != null) {
                                     dragController.onDrop?.invoke(draggedId, firstBelow, true)
                                 } else {
@@ -496,13 +498,16 @@ fun AutomationEditorScreen(
                                     } == true
                                 }
                                 if (!overCard) {
-                                    val firstBelow = dragController.topLevelIds.firstOrNull { id ->
+                                    val dragged = dragController.draggedBlockId
+                                    val firstBelow = dragController.topLevelIds
+                                        .filter { it != dragged }
+                                        .firstOrNull { id ->
                                         dragController.blockBounds[id]?.let { y < it.center.y } == true
-                                    }
+                                        }
                                     dragController.gapIndicator = if (firstBelow != null) {
                                         firstBelow to true
                                     } else {
-                                        dragController.topLevelIds.lastOrNull()?.let { it to false }
+                                        dragController.topLevelIds.lastOrNull { it != dragged }?.let { it to false }
                                     }
                                 }
                             }
@@ -1394,10 +1399,12 @@ private fun BlockCard(
                                         return
                                     }
                                     val y = event.toAndroidDragEvent().y
+                                    val x = event.toAndroidDragEvent().x
                                     // 指针落在子孙块上（嵌套容器内）：交给子孙块处理
                                     val overDescendant = dragController.blockBounds.any { (id, rect) ->
                                         id != block.id &&
                                             id !in dragController.draggedSubtreeIds &&
+                                            x >= rect.left && x <= rect.right &&
                                             y >= rect.top && y <= rect.bottom &&
                                             rect.width < (dragController.blockBounds[block.id]?.width ?: 0f)
                                     }
@@ -1862,8 +1869,6 @@ private fun DragGapPlaceholder(
                 .fillMaxWidth()
                 .padding(horizontal = horizontalPadding)
                 .height(height)
-                .clip(RoundedCornerShape(24.dp))
-                .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f))
         )
     }
 }
