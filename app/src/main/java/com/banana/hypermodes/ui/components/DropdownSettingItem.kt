@@ -8,8 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.*
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.ArrowUpDown
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
@@ -60,13 +58,6 @@ fun <T> DropdownSettingItem(
                                 text = options.find { it.first == value }?.second ?: "",
                                 style = MiuixTheme.textStyles.body2,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = MiuixIcons.Basic.ArrowUpDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                             )
                         }
 

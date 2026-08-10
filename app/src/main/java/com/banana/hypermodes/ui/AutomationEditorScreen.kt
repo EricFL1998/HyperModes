@@ -679,21 +679,12 @@ private fun WifiTriggerEditor(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = connectParam?.value ?: "已加入",
-                    color = Color(0xFF0A84FF),
-                    fontWeight = FontWeight.Medium,
-                    style = MiuixTheme.textStyles.body1
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "▾",
-                    color = Color(0xFF0A84FF),
-                    style = MiuixTheme.textStyles.body1,
-                    fontSize = 10.sp
-                )
-            }
+            Text(
+                text = connectParam?.value ?: "已加入",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
         }
         Spacer(modifier = Modifier.width(6.dp))
 
@@ -836,21 +827,12 @@ private fun BluetoothTriggerEditor(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = connectParam?.value ?: "已连接",
-                    color = Color(0xFF0A84FF),
-                    fontWeight = FontWeight.Medium,
-                    style = MiuixTheme.textStyles.body1
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "▾",
-                    color = Color(0xFF0A84FF),
-                    style = MiuixTheme.textStyles.body1,
-                    fontSize = 10.sp
-                )
-            }
+            Text(
+                text = connectParam?.value ?: "已连接",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
         }
         Spacer(modifier = Modifier.width(6.dp))
 
@@ -972,21 +954,12 @@ private fun StateChipEditor(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stateParam?.value ?: "开启",
-                    color = Color(0xFF0A84FF),
-                    fontWeight = FontWeight.Medium,
-                    style = MiuixTheme.textStyles.body1
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "▾",
-                    color = Color(0xFF0A84FF),
-                    style = MiuixTheme.textStyles.body1,
-                    fontSize = 10.sp
-                )
-            }
+            Text(
+                text = stateParam?.value ?: "开启",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
         }
         Spacer(modifier = Modifier.width(6.dp))
 
@@ -1726,11 +1699,6 @@ private fun ParameterEditor(
                             text = if (selectedCount > 0) "已选择 $selectedCount 个应用" else "选择应用",
                             style = MiuixTheme.textStyles.body1
                         )
-                        Text(
-                            text = "›",
-                            style = MiuixTheme.textStyles.body1,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
                     }
                 } else if (param.key == "modeId") {
                     // 模式选择：点击后弹出模式列表，避免手填 modeId
@@ -1755,11 +1723,6 @@ private fun ParameterEditor(
                             text = selectedMode?.let { "${it.icon} ${it.name}" }
                                 ?: if (param.value.isBlank()) "选择模式" else param.value,
                             style = MiuixTheme.textStyles.body1
-                        )
-                        Text(
-                            text = "›",
-                            style = MiuixTheme.textStyles.body1,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                     if (showModePicker) {
@@ -1890,12 +1853,6 @@ private fun TimeTriggerEditor(
                 fontWeight = FontWeight.Medium,
                 style = MiuixTheme.textStyles.body1
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "▾",
-                color = Color(0xFF0A84FF),
-                style = MiuixTheme.textStyles.body1
-            )
         }
     }
 
@@ -1930,15 +1887,8 @@ private fun TimeTriggerEditor(
                     .size(32.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
-                    .clickable { expanded = !expanded },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (expanded) "▴" else "▾",
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.body1
-                )
-            }
+                    .clickable { expanded = !expanded }
+            )
         }
 
         // 展开后才显示重复选项
