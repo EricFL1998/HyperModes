@@ -2,6 +2,9 @@ package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -53,6 +56,8 @@ import com.banana.hypermodes.automation.toAutomationBlock
 import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.automation.isTriggerBlock
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import android.widget.Toast
@@ -395,6 +400,9 @@ fun AutomationEditorScreen(
         }
     ) { padding ->
         
+        // 同步顶层块顺序，供拖拽空白区域落点计算
+        dragController.topLevelIds = blocks.map { it.id }
+
         // 删除确认对话框
         OverlayDialog(
             show = showDeleteConfirm,
@@ -455,18 +463,46 @@ fun AutomationEditorScreen(
                             override fun onEnded(event: DragAndDropEvent) {
                                 dragController.draggedBlockId = null
                                 dragController.dropTargetId = null
+                                dragController.gapIndicator = null
                             }
 
                             override fun onDrop(event: DragAndDropEvent): Boolean {
                                 val draggedId = event.blockIdOrNull() ?: return false
                                 val y = event.toAndroidDragEvent().y
-                                val before = dragController.rootBounds
-                                    ?.let { y < it.center.y }
-                                    ?: false
-                                dragController.onDrop?.invoke(draggedId, null, before)
+                                // 与缺口指示一致：找到指针下方最近的顶层块，插到它前面；否则追加末尾
+                                val firstBelow = dragController.topLevelIds.firstOrNull { id ->
+                                    dragController.blockBounds[id]?.let { y < it.center.y } == true
+                                }
+                                if (firstBelow != null) {
+                                    dragController.onDrop?.invoke(draggedId, firstBelow, true)
+                                } else {
+                                    dragController.onDrop?.invoke(draggedId, null, false)
+                                }
                                 dragController.draggedBlockId = null
                                 dragController.dropTargetId = null
+                                dragController.gapIndicator = null
                                 return true
+                            }
+
+                            override fun onMoved(event: DragAndDropEvent) {
+                                // 顶层空白区域悬停：最前或最后显示缺口
+                                val y = event.toAndroidDragEvent().y
+                                // 若指针落在某个顶层卡片上，交给卡片处理
+                                val overCard = dragController.topLevelIds.any { id ->
+                                    dragController.blockBounds[id]?.let {
+                                        y >= it.top && y <= it.bottom
+                                    } == true
+                                }
+                                if (!overCard) {
+                                    val firstBelow = dragController.topLevelIds.firstOrNull { id ->
+                                        dragController.blockBounds[id]?.let { y < it.center.y } == true
+                                    }
+                                    dragController.gapIndicator = if (firstBelow != null) {
+                                        firstBelow to true
+                                    } else {
+                                        dragController.topLevelIds.lastOrNull()?.let { it to false }
+                                    }
+                                }
                             }
                         }
                     }
@@ -495,42 +531,58 @@ fun AutomationEditorScreen(
                 )
             }
 
-            items(blocks.size) { index ->
+            items(blocks.size, key = { blocks[it].id }) { index ->
                 val block = blocks[index]
-                BlockCard(
-                    block = block,
-                    isTrigger = block.isTriggerBlock(),
-                    dragController = dragController,
-                    onUpdate = { updated ->
-                        blocks = blocks.map { if (it.id == updated.id) updated else it }
-                    },
-                    onPickApps = { param ->
-                        appPickRequest = AppPickRequest(
-                            blockId = block.id,
-                            paramKey = param.key,
-                            initial = param.value.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
-                            single = block.type is BlockType.OpenApp
-                        )
-                    },
-                    onPickWifi = { param ->
-                        wifiPickRequest = WifiPickRequest(
-                            blockId = block.id,
-                            paramKey = param.key
-                        )
-                    },
-                    onPickBluetooth = { param ->
-                        bluetoothPickRequest = BluetoothPickRequest(
-                            blockId = block.id,
-                            paramKey = param.key
-                        )
-                    },
-                    onRemove = {
-                        blocks = blocks.filter { it.id != block.id }
-                    },
+                Column(
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp)
-                )
+                        .fillMaxWidth()
+                        .animateItem()
+                ) {
+                    DragGapPlaceholder(
+                        dragController = dragController,
+                        blockId = block.id,
+                        before = true
+                    )
+                    BlockCard(
+                        block = block,
+                        isTrigger = block.isTriggerBlock(),
+                        dragController = dragController,
+                        onUpdate = { updated ->
+                            blocks = blocks.map { if (it.id == updated.id) updated else it }
+                        },
+                        onPickApps = { param ->
+                            appPickRequest = AppPickRequest(
+                                blockId = block.id,
+                                paramKey = param.key,
+                                initial = param.value.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
+                                single = block.type is BlockType.OpenApp
+                            )
+                        },
+                        onPickWifi = { param ->
+                            wifiPickRequest = WifiPickRequest(
+                                blockId = block.id,
+                                paramKey = param.key
+                            )
+                        },
+                        onPickBluetooth = { param ->
+                            bluetoothPickRequest = BluetoothPickRequest(
+                                blockId = block.id,
+                                paramKey = param.key
+                            )
+                        },
+                        onRemove = {
+                            blocks = blocks.filter { it.id != block.id }
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    )
+                    DragGapPlaceholder(
+                        dragController = dragController,
+                        blockId = block.id,
+                        before = false
+                    )
+                }
             }
         }
         }
@@ -1165,12 +1217,26 @@ private fun DragAndDropEvent.blockIdOrNull(): String? {
     return toAndroidDragEvent().clipData?.getItemAt(0)?.text?.toString()
 }
 
+/** 收集块及其所有子孙块 id（拖拽时用于忽略对自身子树的悬停）。 */
+private fun collectSubtreeIds(block: AutomationBlock): Set<String> =
+    setOf(block.id) +
+        block.children.flatMap { collectSubtreeIds(it) } +
+        block.elseChildren.flatMap { collectSubtreeIds(it) }
+
 /** 拖拽控制器：官方 dragAndDrop API 下仅维护高亮状态与落点回调。 */
 private class DragController {
     /** 当前高亮的放置目标容器 id（拖拽进入时设置，退出时清空）。 */
     var dropTargetId by mutableStateOf<String?>(null)
     /** 当前被拖拽的块 id（拖拽开始设置，结束/取消清除）。 */
     var draggedBlockId by mutableStateOf<String?>(null)
+    /** 缺口指示：目标块 id + 是否插到其上方；null 表示无缺口。拖拽悬停时让其他卡片挤开。 */
+    var gapIndicator by mutableStateOf<Pair<String, Boolean>?>(null)
+    /** 被拖卡片的高度（px），用于缺口占位高度。 */
+    var draggedHeightPx by mutableStateOf(0f)
+    /** 被拖块及其所有子孙块 id（拖拽时忽略对自身子树的悬停/放置，防止误删）。 */
+    var draggedSubtreeIds by mutableStateOf<Set<String>>(emptySet())
+    /** 顶层块 id 顺序（组合期间同步，用于空白区域落点计算）。 */
+    var topLevelIds: List<String> = emptyList()
     /** 所有块的窗口边界（blockId -> 窗口 Rect），用于判断插到目标上方/下方。 */
     val blockBounds = mutableMapOf<String, androidx.compose.ui.geometry.Rect>()
     /** 触发器 `{}` 容器的窗口边界（blockId -> 窗口 Rect），落点在其中则移入作用域。 */
@@ -1237,6 +1303,9 @@ private fun BlockCard(
                         .dragAndDropSource(
                             transferData = {
                                 dragController.draggedBlockId = block.id
+                                dragController.draggedHeightPx =
+                                    dragController.blockBounds[block.id]?.height ?: 0f
+                                dragController.draggedSubtreeIds = collectSubtreeIds(block)
                                 DragAndDropTransferData(
                                     clipData = ClipData.newPlainText("hypermodes_block", block.id),
                                     localState = block.id
@@ -1253,20 +1322,35 @@ private fun BlockCard(
                                 override fun onEnded(event: DragAndDropEvent) {
                                     dragController.draggedBlockId = null
                                     dragController.dropTargetId = null
+                                    dragController.gapIndicator = null
                                 }
 
                                 override fun onEntered(event: DragAndDropEvent) {
-                                    dragController.dropTargetId = block.id
+                                    updateHover(event)
+                                }
+
+                                override fun onMoved(event: DragAndDropEvent) {
+                                    updateHover(event)
                                 }
 
                                 override fun onExited(event: DragAndDropEvent) {
                                     if (dragController.dropTargetId == block.id) {
                                         dragController.dropTargetId = null
                                     }
+                                    if (dragController.gapIndicator?.first == block.id) {
+                                        dragController.gapIndicator = null
+                                    }
                                 }
 
                                 override fun onDrop(event: DragAndDropEvent): Boolean {
                                     val draggedId = event.blockIdOrNull() ?: return false
+                                    // 拖到自身（或其子孙）上：视为取消，防止误删
+                                    if (block.id == draggedId || block.id in dragController.draggedSubtreeIds) {
+                                        dragController.draggedBlockId = null
+                                        dragController.dropTargetId = null
+                                        dragController.gapIndicator = null
+                                        return true
+                                    }
                                     val y = event.toAndroidDragEvent().y
                                     // 触发器块：落点在 {} 作用域内则移入作用域
                                     if (block.isTriggerBlock() &&
@@ -1277,6 +1361,7 @@ private fun BlockCard(
                                         dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
                                         dragController.dropTargetId = null
+                                        dragController.gapIndicator = null
                                         return true
                                     }
                                     // 判断落点相对目标块的上/下半，决定插前还是插后
@@ -1286,7 +1371,42 @@ private fun BlockCard(
                                     dragController.onDrop?.invoke(draggedId, block.id, before)
                                     dragController.draggedBlockId = null
                                     dragController.dropTargetId = null
+                                    dragController.gapIndicator = null
                                     return true
+                                }
+
+                                /** 悬停时更新高亮与缺口指示：作用域内高亮容器，其余按上下半区显示缺口。 */
+                                private fun updateHover(event: DragAndDropEvent) {
+                                    // 悬停在自己的子孙上：不显示缺口（防止把块拖进自己的作用域）
+                                    if (block.id in dragController.draggedSubtreeIds) {
+                                        dragController.dropTargetId = null
+                                        dragController.gapIndicator = null
+                                        return
+                                    }
+                                    val y = event.toAndroidDragEvent().y
+                                    // 指针落在子孙块上（嵌套容器内）：交给子孙块处理
+                                    val overDescendant = dragController.blockBounds.any { (id, rect) ->
+                                        id != block.id &&
+                                            id !in dragController.draggedSubtreeIds &&
+                                            y >= rect.top && y <= rect.bottom &&
+                                            rect.width < (dragController.blockBounds[block.id]?.width ?: 0f)
+                                    }
+                                    if (overDescendant) return
+                                    // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口
+                                    if (block.isTriggerBlock() &&
+                                        dragController.scopeBounds[block.id]?.let {
+                                            y >= it.top && y <= it.bottom
+                                        } == true
+                                    ) {
+                                        dragController.dropTargetId = block.id
+                                        dragController.gapIndicator = null
+                                        return
+                                    }
+                                    dragController.dropTargetId = null
+                                    val before = dragController.blockBounds[block.id]
+                                        ?.let { bounds -> y < bounds.center.y }
+                                        ?: true
+                                    dragController.gapIndicator = block.id to before
                                 }
                             }
                         }
@@ -1454,6 +1574,12 @@ private fun BlockCard(
                         )
                     }
                     block.children.forEach { childBlock ->
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = childBlock.id,
+                            before = true,
+                            horizontalPadding = 8.dp
+                        )
                         BlockCard(
                             block = childBlock,
                             dragController = dragController,
@@ -1478,6 +1604,12 @@ private fun BlockCard(
                             },
                             modifier = Modifier.padding(bottom = 8.dp),
                             nestLevel = nestLevel + 1
+                        )
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = childBlock.id,
+                            before = false,
+                            horizontalPadding = 8.dp
                         )
                     }
                 }
@@ -1501,6 +1633,12 @@ private fun BlockCard(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     block.children.forEach { childBlock ->
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = childBlock.id,
+                            before = true,
+                            horizontalPadding = 8.dp
+                        )
                         BlockCard(
                             block = childBlock,
                             dragController = dragController,
@@ -1526,6 +1664,12 @@ private fun BlockCard(
                             modifier = Modifier.padding(bottom = 8.dp),
                             nestLevel = nestLevel + 1
                         )
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = childBlock.id,
+                            before = false,
+                            horizontalPadding = 8.dp
+                        )
                     }
                 }
             }
@@ -1547,6 +1691,12 @@ private fun BlockCard(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     block.elseChildren.forEach { elseBlock ->
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = elseBlock.id,
+                            before = true,
+                            horizontalPadding = 8.dp
+                        )
                         BlockCard(
                             block = elseBlock,
                             dragController = dragController,
@@ -1572,10 +1722,59 @@ private fun BlockCard(
                             modifier = Modifier.padding(bottom = 8.dp),
                             nestLevel = nestLevel + 1
                         )
+                        DragGapPlaceholder(
+                            dragController = dragController,
+                            blockId = elseBlock.id,
+                            before = false,
+                            horizontalPadding = 8.dp
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * 拖拽悬停时的占位缺口：在被拖块将落下的位置撑开一段动画高度，
+ * 让其他卡片"挤开"，指示松手后的插入位置。
+ * [before] 为 true 时缺口位于目标块上方（插前），false 位于下方（插后）。
+ */
+@Composable
+private fun DragGapPlaceholder(
+    dragController: DragController?,
+    blockId: String,
+    before: Boolean,
+    horizontalPadding: Dp = 12.dp
+) {
+    if (dragController == null) return
+    val dragging = dragController.draggedBlockId != null
+    val active = dragging &&
+        dragController.gapIndicator?.first == blockId &&
+        dragController.gapIndicator?.second == before
+    val density = LocalDensity.current
+    val targetHeight = if (active) {
+        with(density) { dragController.draggedHeightPx.toDp() }
+    } else {
+        0.dp
+    }
+    val height by animateDpAsState(
+        targetValue = targetHeight,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "dragGap"
+    )
+    if (height > 0.dp) {
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding)
+                .height(height)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f))
+        )
     }
 }
 
