@@ -253,6 +253,7 @@ fun HyperModesApp() {
         modes = sortModes(ModeStore.load(context) { DefaultModes.get() })
     }
 
+
     fun persistModes(updated: List<Mode>) {
         modes = updated
         ModeStore.save(context, updated)

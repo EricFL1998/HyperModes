@@ -17,6 +17,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
+import com.banana.hypermodes.automation.AutomationCatalog
+import com.banana.hypermodes.automation.AutomationCatalog.Category
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -35,157 +37,18 @@ fun AutomationActionPickerScreen(
     BackHandler(onBack = onBack)
     var searchQuery by remember { mutableStateOf("") }
 
-    // 常用系统控制
-    val systemActions = remember {
-        listOf(
+    // 目录中的全部操作
+    val allActions = remember {
+        AutomationCatalog.entries.map { entry ->
             AutomationAction(
-                id = "toggle_wifi",
-                name = "WiFi 开关",
-                icon = "📶",
-                iconColor = Color(0xFF007AFF),
-                description = "切换 WiFi 开关状态"
-            ),
-            AutomationAction(
-                id = "toggle_bluetooth",
-                name = "蓝牙开关",
-                icon = "🔵",
-                iconColor = Color(0xFF007AFF),
-                description = "切换蓝牙开关状态"
-            ),
-            AutomationAction(
-                id = "set_dnd",
-                name = "勿扰模式",
-                icon = "🔕",
-                iconColor = Color(0xFFFF3B30),
-                description = "开启或关闭勿扰模式"
-            ),
-            AutomationAction(
-                id = "adjust_volume",
-                name = "调节音量",
-                icon = "🔊",
-                iconColor = Color(0xFFFF9500),
-                description = "调整设备音量"
-            ),
-            AutomationAction(
-                id = "adjust_brightness",
-                name = "调节亮度",
-                icon = "💡",
-                iconColor = Color(0xFFFFCC00),
-                description = "调整屏幕亮度"
-            ),
-            AutomationAction(
-                id = "enable_mode",
-                name = "启用模式",
-                icon = "🌙",
-                iconColor = Color(0xFF5E5CE6),
-                description = "启用指定的 HyperMode"
-            ),
-            AutomationAction(
-                id = "disable_mode",
-                name = "关闭模式",
-                icon = "☀️",
-                iconColor = Color(0xFFFF9500),
-                description = "关闭指定的 HyperMode"
-            ),
-            AutomationAction(
-                id = "open_app",
-                name = "打开 App",
-                icon = "📱",
-                iconColor = Color(0xFF5E5CE6),
-                description = "启动指定应用程序"
+                id = entry.id,
+                name = entry.name,
+                icon = entry.icon,
+                iconColor = entry.iconColor,
+                description = entry.description
             )
-        )
+        }
     }
-
-    // 控制流
-    val controlFlowActions = remember {
-        listOf(
-            AutomationAction(
-                id = "if_condition",
-                name = "If 条件判断",
-                icon = "🔀",
-                iconColor = Color(0xFF34C759),
-                description = "根据条件执行不同操作"
-            ),
-            AutomationAction(
-                id = "repeat_count",
-                name = "重复 N 次",
-                icon = "🔁",
-                iconColor = Color(0xFF5856D6),
-                description = "重复执行指定次数"
-            ),
-            AutomationAction(
-                id = "wait",
-                name = "等待",
-                icon = "⏱️",
-                iconColor = Color(0xFFFF9500),
-                description = "暂停执行一段时间"
-            ),
-            AutomationAction(
-                id = "comment",
-                name = "注释",
-                icon = "💬",
-                iconColor = Color(0xFF8E8E93),
-                description = "添加说明文字"
-            )
-        )
-    }
-
-    // 逻辑运算
-    val logicActions = remember {
-        listOf(
-            AutomationAction(
-                id = "and_condition",
-                name = "AND 与运算",
-                icon = "➕",
-                iconColor = Color(0xFF007AFF),
-                description = "所有条件都满足"
-            ),
-            AutomationAction(
-                id = "or_condition",
-                name = "OR 或运算",
-                icon = "〰️",
-                iconColor = Color(0xFF007AFF),
-                description = "任一条件满足"
-            )
-        )
-    }
-
-    // 条件判断
-    val conditionActions = remember {
-        listOf(
-            AutomationAction(
-                id = "check_wifi",
-                name = "检查 WiFi 状态",
-                icon = "📶",
-                iconColor = Color(0xFF30B0C7),
-                description = "判断 WiFi 是否开启"
-            ),
-            AutomationAction(
-                id = "check_bluetooth",
-                name = "检查蓝牙状态",
-                icon = "🔵",
-                iconColor = Color(0xFF30B0C7),
-                description = "判断蓝牙是否开启"
-            ),
-            AutomationAction(
-                id = "check_battery",
-                name = "检查电量",
-                icon = "🔋",
-                iconColor = Color(0xFF30B0C7),
-                description = "判断电量是否满足条件"
-            ),
-            AutomationAction(
-                id = "check_time",
-                name = "检查时间范围",
-                icon = "🕐",
-                iconColor = Color(0xFF30B0C7),
-                description = "判断当前时间是否在范围内"
-            )
-        )
-    }
-
-    val allActions = systemActions + controlFlowActions + logicActions + conditionActions
 
     // 根据搜索过滤
     val filteredActions = remember(searchQuery, allActions) {
@@ -204,10 +67,18 @@ fun AutomationActionPickerScreen(
         buildList {
             if (searchQuery.isEmpty()) {
                 // 未搜索时分组显示
-                add("系统控制" to filteredActions.filter { it in systemActions })
-                add("控制流" to filteredActions.filter { it in controlFlowActions })
-                add("逻辑运算" to filteredActions.filter { it in logicActions })
-                add("条件判断" to filteredActions.filter { it in conditionActions })
+                AutomationCatalog.grouped().forEach { (category, entries) ->
+                    val categoryActions = entries.map { entry ->
+                        AutomationAction(
+                            id = entry.id,
+                            name = entry.name,
+                            icon = entry.icon,
+                            iconColor = entry.iconColor,
+                            description = entry.description
+                        )
+                    }
+                    add(category.label to categoryActions.filter { it in filteredActions })
+                }
             } else {
                 // 搜索时不分组
                 add("搜索结果" to filteredActions)

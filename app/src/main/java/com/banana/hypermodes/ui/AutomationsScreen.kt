@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
+import com.banana.hypermodes.automation.isTriggerBlock
 import com.banana.hypermodes.data.ImportedIntentStore
 import com.banana.hypermodes.data.IntentConfig
 import androidx.compose.ui.graphics.Color
@@ -458,12 +459,27 @@ private fun AutomationCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = automation.name,
-                style = MiuixTheme.textStyles.headline1,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = automation.name,
+                    style = MiuixTheme.textStyles.headline1,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (automation.blocks.any { it.isTriggerBlock() }) {
+                        "⚡ 条件触发"
+                    } else {
+                        "🌐 全局自动化"
+                    },
+                    style = MiuixTheme.textStyles.body2,
+                    color = if (automation.blocks.any { it.isTriggerBlock() }) {
+                        Color(0xFFFF9500)
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    }
+                )
+            }
             Text(
                 text = automation.icon,
                 style = MiuixTheme.textStyles.headline2,

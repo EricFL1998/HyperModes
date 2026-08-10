@@ -261,6 +261,7 @@
     <string name="trigger_battery">电量</string>
     <string name="trigger_battery_desc">电量低于或高于某个百分比时</string>
     <string name="add_trigger">添加触发方式</string>
+    <string name="add">添加</string>
     <string name="trigger_at_time">在 %1$s - %2$s 期间</string>
     <string name="trigger_on_app">打开 %1$s 时</string>
     <string name="trigger_on_app_multi">打开 %1$s 等 %2$d 个应用时</string>

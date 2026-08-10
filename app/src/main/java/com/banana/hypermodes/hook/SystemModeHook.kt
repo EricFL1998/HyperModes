@@ -20,6 +20,7 @@ import java.io.File
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
+import com.banana.hypermodes.systemserver.SystemAutomationEngine
 import com.banana.hypermodes.systemserver.config.WallpaperItemConfig
 import com.banana.hypermodes.systemserver.executor.WallpaperController
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
@@ -51,6 +52,9 @@ class SystemModeHook(private val module: XposedModule) {
 
     /** Kept so a package replace/reinstall can re-grant runtime permissions. */
     private var permissionHook: UniversalPermissionHook? = null
+
+    /** 零进程自动化触发引擎（system_server 内运行）。 */
+    private var automationEngine: SystemAutomationEngine? = null
 
     fun install(classLoader: ClassLoader) {
         val ams = try {
@@ -128,6 +132,15 @@ class SystemModeHook(private val module: XposedModule) {
             log("RoutineCoreEngine initialized")
         } catch (t: Throwable) {
             log("RoutineCoreEngine initialization failed: $t")
+        }
+
+        // 零进程自动化触发引擎：应用被杀后触发依然生效
+        try {
+            automationEngine = SystemAutomationEngine(context, classLoader)
+            automationEngine?.init()
+            log("SystemAutomationEngine initialized")
+        } catch (t: Throwable) {
+            log("SystemAutomationEngine initialization failed: $t")
         }
     }
 
@@ -368,7 +381,7 @@ class SystemModeHook(private val module: XposedModule) {
                 bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, bytes)
                 if (bytes != null) {
                     val sysFile = File(sysModeDir, "lock_wallpaper.jpg")
-                    sysFile.writeBytes(bytes)
+                    writeIfChanged(sysFile, bytes)
                     bundle.putString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH, sysFile.absolutePath)
                 }
             }
@@ -378,7 +391,7 @@ class SystemModeHook(private val module: XposedModule) {
                 bundle.putByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES, bytes)
                 if (bytes != null) {
                     val sysFile = File(sysModeDir, "desktop_wallpaper.jpg")
-                    sysFile.writeBytes(bytes)
+                    writeIfChanged(sysFile, bytes)
                     bundle.putString(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH, sysFile.absolutePath)
                 }
             }
@@ -387,11 +400,13 @@ class SystemModeHook(private val module: XposedModule) {
             //     从模板目录读取并压缩传回；不存在则跳过（预览无景深层）。
             val subjectMask = resolveSubjectMask(lockscreenInfo)
             if (subjectMask != null) {
-                val bytes = encodePreview(subjectMask)
+                // 蒙版是灰度/alpha 图，JPEG 有损压缩会破坏景深边缘与灰度精度，
+                // 必须用 PNG 无损编码；尺寸也保持原始（PNG 对黑白蒙版压缩率高）。
+                val bytes = encodeMaskPng(subjectMask)
                 bundle.putByteArray(Protocol.EXTRA_SUBJECT_MASK_BYTES, bytes)
                 if (bytes != null) {
-                    val sysFile = File(sysModeDir, "subject_mask.jpg")
-                    sysFile.writeBytes(bytes)
+                    val sysFile = File(sysModeDir, "subject_mask.png")
+                    writeIfChanged(sysFile, bytes)
                     bundle.putString(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH, sysFile.absolutePath)
                 }
             }
@@ -461,6 +476,32 @@ class SystemModeHook(private val module: XposedModule) {
             bmp.recycle()
             out.toByteArray()
         }.getOrNull()
+    }
+
+    /** 蒙版无损 PNG 编码：不做 JPEG 压缩，避免破坏景深灰度/边缘。 */
+    private fun encodeMaskPng(file: File): ByteArray? {
+        return runCatching {
+            val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return@runCatching null
+            val out = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+            bmp.recycle()
+            out.toByteArray()
+        }.getOrNull()
+    }
+
+    /**
+     * 仅当内容变化时写文件。编辑会话只改样式不改壁纸时，重新编码的字节
+     * 与上次捕获完全一致（同源图 + 同参数确定性压缩），跳过覆盖可保持
+     * sysImagePath 内容不变，WallpaperController.apply 端据此跳过 setStream，
+     * 避免"每次切换样式都算新壁纸"导致最近使用历史无限增长。
+     */
+    private fun writeIfChanged(file: File, bytes: ByteArray) {
+        val same = file.exists() && runCatching {
+            file.readBytes().contentEquals(bytes)
+        }.getOrDefault(false)
+        if (!same) {
+            file.writeBytes(bytes)
+        }
     }
 
     /** Original bypass flag per "pkg/channelId", captured before our first

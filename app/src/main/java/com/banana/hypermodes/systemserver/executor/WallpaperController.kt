@@ -124,11 +124,14 @@ class WallpaperController(private val context: Context) {
             if (item.which == 2) {
                 // 锁屏：样式 JSON + 壁纸 + 主体蒙版
                 if (!item.lockscreenJson.isNullOrEmpty()) {
-                    putSecure(KEY_LOCKSCREEN_INFO, item.lockscreenJson)
+                    // 预置后编辑器从"保存的样式"开始，必须把景深蒙版路径
+                    // 指到模板目录，否则编辑器/系统读不到 subject_mask 而丢失景深。
+                    val json = rewriteSubjectPath(item.lockscreenJson, subjectMaskFile)
+                    putSecure(KEY_LOCKSCREEN_INFO, json)
                     putSecure(
                         KEY_TEMPLATE_EDITOR_INFO,
                         item.templateEditorJson
-                            ?: "{\"lockscreenInfo\":${item.lockscreenJson}}"
+                            ?: "{\"lockscreenInfo\":$json}"
                     )
                 }
                 if (!item.imagePath.isNullOrEmpty()) {
@@ -143,6 +146,7 @@ class WallpaperController(private val context: Context) {
                     val src = File(item.sysSubjectMaskPath)
                     if (src.exists()) {
                         copyFile(src, subjectMaskFile)
+                        log("prepareForEdit lock: wrote subject mask to $subjectMaskFile")
                     }
                 }
                 log("prepareForEdit: staged lock item for editor")
@@ -174,13 +178,15 @@ class WallpaperController(private val context: Context) {
         // 1.1 备份息屏样式设置（涂鸦等样式会切传统 AOD，恢复时需还原）
         backupAodStyleOnce()
 
-        // 2. 写回锁屏样式 JSON（触发 SystemUI 观察者）
+        // 2. 写回锁屏样式 JSON（触发 SystemUI 观察者）；
+        //    同步把 wallpaperInfo.subject 指向模板目录，保证景深蒙版可读。
         if (!item.lockscreenJson.isNullOrEmpty()) {
-            putSecure(KEY_LOCKSCREEN_INFO, item.lockscreenJson)
+            val json = rewriteSubjectPath(item.lockscreenJson, subjectMaskFile)
+            putSecure(KEY_LOCKSCREEN_INFO, json)
             putSecure(
                 KEY_TEMPLATE_EDITOR_INFO,
                 item.templateEditorJson
-                    ?: "{\"lockscreenInfo\":${item.lockscreenJson}}"
+                    ?: "{\"lockscreenInfo\":$json}"
             )
         }
 
@@ -355,11 +361,68 @@ class WallpaperController(private val context: Context) {
      * 官方路径设置壁纸：原始字节流式写入。服务端内部先置
      * imageWallpaperPending=true 再落盘，CLOSE_WRITE 事件必然通过
      * needsUpdate 门控，触发裁剪重建与组件重绑；阻塞到完成。
+     *
+     * 若目标内容与系统当前壁纸一致则跳过写入，避免每次切换样式都
+     * 重新 setStream 导致系统"最近使用"壁纸历史无限增长。
      */
     private fun setWallpaperStream(src: File, which: Int) {
+        if (sameAsCurrent(src, which)) {
+            log("setWallpaperStream: skip (content identical, which=$which)")
+            return
+        }
         src.inputStream().use { input ->
             wallpaperManager.setStream(input, null, true, which)
         }
+    }
+
+    /** 目标壁纸与系统当前壁纸内容是否一致（字节级，防重复 setStream）。 */
+    private fun sameAsCurrent(src: File, which: Int): Boolean {
+        val current = when (which) {
+            WallpaperManager.FLAG_LOCK -> lockOrigFile
+            else -> desktopOrigFile
+        }
+        if (!current.exists()) return false
+        if (!src.exists()) return false
+        // 快速路径：文件大小不同必不同
+        if (src.length() != current.length()) return false
+        return runCatching {
+            var equal = true
+            src.inputStream().use { a -> current.inputStream().use { b ->
+                val bufA = ByteArray(64 * 1024)
+                val bufB = ByteArray(64 * 1024)
+                while (true) {
+                    val nA = a.read(bufA)
+                    val nB = b.read(bufB)
+                    if (nA != nB) {
+                        equal = false
+                        break
+                    }
+                    if (nA < 0) break
+                    if (!bufA.copyOf(nA).contentEquals(bufB.copyOf(nB))) {
+                        equal = false
+                        break
+                    }
+                }
+            } }
+            equal
+        }.getOrDefault(false)
+    }
+
+    /**
+     * 修正 lockscreenJson 中 wallpaperInfo.subject 指向模板目录的 subject_mask，
+     * 确保系统/编辑器从正确位置读取景深蒙版（保存时捕获的可能是历史路径）。
+     */
+    private fun rewriteSubjectPath(lockscreenJson: String, maskFile: File): String {
+        return runCatching {
+            val root = org.json.JSONObject(lockscreenJson)
+            val wallpaperInfo = root.optJSONObject("wallpaperInfo")
+            if (wallpaperInfo != null && wallpaperInfo.has("subject")) {
+                wallpaperInfo.put("subject", maskFile.absolutePath)
+                root.toString()
+            } else {
+                lockscreenJson
+            }
+        }.getOrDefault(lockscreenJson)
     }
 
     private fun backupFileOnce(source: File, dir: File) {

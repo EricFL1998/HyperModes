@@ -1,318 +1,1143 @@
 package com.banana.hypermodes.automation
 
+import android.app.NotificationManager
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.media.AudioManager
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
+import android.os.BatteryManager
+import android.os.PowerManager
+import android.provider.Settings
+import android.telephony.SubscriptionManager
 import android.util.Log
-import kotlinx.coroutines.*
+import com.banana.hypermodes.bridge.ModeControlBridge
+import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.delay
+import java.util.Calendar
 
 /**
  * 自动化执行引擎，负责解释和执行自动化块。
+ *
+ * 实现策略：
+ * - 应用进程持有的普通权限（WiFi/蓝牙状态查询、DND、音量等）直接用 Android API；
+ * - 需要系统级权限的操作（开关无线电、写 Settings.System 等）通过 libsu root shell 执行，
+ *   失败时降级为 Settings.Global/Secure 写入（应用已通过 UniversalPermissionHook 获得
+ *   WRITE_SECURE_SETTINGS），再失败则返回明确错误。
  */
-class AutomationExecutor(private val context: Context) {
-    
+/**
+ * 系统特权操作接口。由 system_server 环境的调用方注入：
+ * 应用进程走广播 + root shell，system_server 内直接调用 AppSuspendController。
+ */
+interface AutomationSystemOps {
+    /** 暂停/恢复指定应用。返回是否成功。 */
+    fun setAppsSuspended(packages: List<String>, suspend: Boolean): Boolean
+}
+
+class AutomationExecutor(
+    private val context: Context,
+    private val systemOps: AutomationSystemOps? = null
+) {
+
     private val TAG = "AutomationExecutor"
-    
-    /**
-     * 执行自动化块列表
-     */
-    suspend fun execute(blocks: List<AutomationBlock>): ExecutionResult {
-        return try {
-            for (block in blocks) {
-                val result = executeBlock(block)
-                if (!result.success) {
-                    return ExecutionResult(
-                        success = false,
-                        message = "执行失败: ",
-                        blockId = block.id
-                    )
-                }
-            }
-            ExecutionResult(success = true, message = "执行完成")
+
+    /** 根 shell 是否可用（libsu 初始化失败或设备无 root 时为 false）。 */
+    private val rootAvailable: Boolean by lazy {
+        try {
+            Shell.isAppGrantedRoot() == true
         } catch (e: Exception) {
-            Log.e(TAG, "Automation execution error", e)
-            ExecutionResult(success = false, message = "执行错误: ")
+            false
         }
     }
-    
+
     /**
-     * 执行单个块
+     * 执行自动化块列表。
+     * @param maxSteps 全局步数上限，防止嵌套/循环失控（INFINITE 表示不限制）。
      */
-    private suspend fun executeBlock(block: AutomationBlock): ExecutionResult {
-        Log.d(TAG, "Executing block:  ()")
-        
+    suspend fun execute(
+        blocks: List<AutomationBlock>,
+        maxSteps: Long = DEFAULT_MAX_STEPS
+    ): ExecutionResult {
+        val steps = StepBudget(maxSteps)
+        var skippedByTrigger = false
+        for (block in blocks) {
+            if (!steps.consume()) {
+                return ExecutionResult(success = false, message = "执行步骤超过上限，已中止")
+            }
+            val result = executeBlock(block, steps)
+            if (!result.success) {
+                return result
+            }
+            // 触发块作为门控：条件不满足时跳过后续所有操作
+            if (block.isTriggerBlock() && result.conditionMet == false) {
+                skippedByTrigger = true
+                break
+            }
+        }
+        return ExecutionResult(
+            success = true,
+            message = if (skippedByTrigger) "触发条件未满足，已跳过" else "执行完成"
+        )
+    }
+
+    /**
+     * 评估自动化中的触发条件是否全部满足（多个触发块按 AND 组合）。
+     * 用于引擎决定是否执行自动化；无触发块时视为恒满足（全局自动化）。
+     */
+    suspend fun evaluateTrigger(blocks: List<AutomationBlock>): Boolean {
+        val triggers = blocks.filter { it.isTriggerBlock() }
+        if (triggers.isEmpty()) return true
+        val steps = StepBudget(DEFAULT_MAX_STEPS)
+        for (trigger in triggers) {
+            if (!steps.consume()) return false
+            val result = executeBlock(trigger, steps)
+            if (!result.success || result.conditionMet != true) return false
+        }
+        return true
+    }
+
+    /**
+     * 执行单个块。
+     */
+    private suspend fun executeBlock(block: AutomationBlock, steps: StepBudget): ExecutionResult {
+        Log.d(TAG, "Executing block: ${block.label} (${block.type.id})")
+
         return when (block.type) {
-            // 系统控制
+            // ==================== 触发条件 ====================
+            is BlockType.TriggerTime -> checkTimeRange(block, "触发")
+            is BlockType.TriggerWifi -> checkWifiSsid(block)
+            is BlockType.TriggerWifiState -> checkWifiState(block)
+            is BlockType.TriggerBluetooth -> checkBluetoothState(block)
+            is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
+            is BlockType.TriggerCharging -> checkChargingState(block)
+            is BlockType.TriggerNetwork -> checkNetworkType(block)
+            is BlockType.TriggerMusic -> checkMusicPlaying(block)
+            is BlockType.TriggerApp -> checkAppForeground(block)
+            is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
+
+            // ==================== 系统控制 ====================
             is BlockType.ToggleWifi -> executeToggleWifi(block)
             is BlockType.ToggleBluetooth -> executeToggleBluetooth(block)
+            is BlockType.ToggleMobileData -> executeToggleMobileData(block)
+            is BlockType.ToggleAirplane -> executeToggleAirplane(block)
+            is BlockType.ToggleHotspot -> executeToggleHotspot(block)
+            is BlockType.ToggleNfc -> executeToggleNfc(block)
+            is BlockType.ToggleGps -> executeToggleGps(block)
+            is BlockType.ToggleFlashlight -> executeToggleFlashlight(block)
+            is BlockType.ToggleAutoRotate -> executeToggleAutoRotate(block)
+            is BlockType.ToggleBatterySaver -> executeToggleBatterySaver(block)
+            is BlockType.SetSilentMode -> executeSetSilentMode(block)
             is BlockType.SetDnd -> executeSetDnd(block)
             is BlockType.AdjustVolume -> executeAdjustVolume(block)
             is BlockType.AdjustBrightness -> executeAdjustBrightness(block)
+            is BlockType.SetAutoBrightness -> executeSetAutoBrightness(block)
+
+            // ==================== 显示 ====================
+            is BlockType.SetDarkMode -> executeSetDarkMode(block)
+            is BlockType.SetGrayscale -> executeSetGrayscale(block)
+            is BlockType.SetAod -> executeSetAod(block)
+            is BlockType.SetRaiseToWake -> executeSetRaiseToWake(block)
+            is BlockType.SetWakeForNotifications -> executeSetWakeForNotifications(block)
+            is BlockType.SetEyeCare -> executeSetEyeCare(block)
+            is BlockType.SetRefreshRate -> executeSetRefreshRate(block)
+            is BlockType.SetAdaptiveRefreshRatePro -> executeSetAdaptiveRefreshRatePro(block)
+
+            // ==================== 设备 ====================
+            is BlockType.SetPerformanceMode -> executeSetPerformanceMode(block)
+            is BlockType.Set5g -> executeSet5g(block)
+            is BlockType.SetPreferredSim -> executeSetPreferredSim(block)
+            is BlockType.SetMotionSicknessRelief -> executeSetMotionSicknessRelief(block)
+
+            // ==================== 模式 ====================
             is BlockType.EnableMode -> executeEnableMode(block)
             is BlockType.DisableMode -> executeDisableMode(block)
+
+            // ==================== 应用 ====================
             is BlockType.OpenApp -> executeOpenApp(block)
-            
-            // 控制流
-            is BlockType.IfCondition -> executeIf(block)
-            is BlockType.Repeat -> executeRepeat(block)
-            is BlockType.RepeatCount -> executeRepeatCount(block)
+            is BlockType.SuspendApps -> executeSuspendApps(block)
+            is BlockType.UnsuspendApps -> executeUnsuspendApps(block)
+
+            // ==================== 控制流 ====================
+            is BlockType.IfCondition -> executeIf(block, steps)
+            is BlockType.Repeat -> executeRepeat(block, steps)
+            is BlockType.RepeatCount -> executeRepeatCount(block, steps)
             is BlockType.Wait -> executeWait(block)
-            is BlockType.Comment -> ExecutionResult(success = true, message = "注释跳过")
-            
-            // 逻辑运算
-            is BlockType.AndCondition -> executeAnd(block)
-            is BlockType.OrCondition -> executeOr(block)
-            
-            // 条件判断
+            is BlockType.Comment -> ExecutionResult(success = true, message = "注释已跳过")
+
+            // ==================== 逻辑运算 ====================
+            is BlockType.AndCondition -> executeAnd(block, steps)
+            is BlockType.OrCondition -> executeOr(block, steps)
+
+            // ==================== 条件判断 ====================
             is BlockType.CheckWifiState -> checkWifiState(block)
             is BlockType.CheckBluetoothState -> checkBluetoothState(block)
             is BlockType.CheckBatteryLevel -> checkBatteryLevel(block)
+            is BlockType.CheckChargingState -> checkChargingState(block)
             is BlockType.CheckTimeRange -> checkTimeRange(block)
-            
-            else -> ExecutionResult(success = false, message = "未知的块类型")
+            is BlockType.CheckDayOfWeek -> checkDayOfWeek(block)
+            is BlockType.CheckDarkModeState -> checkDarkModeState(block)
+            is BlockType.CheckScreenState -> checkScreenState(block)
+            is BlockType.CheckAirplaneState -> checkAirplaneState(block)
+            is BlockType.CheckDndState -> checkDndState(block)
+            is BlockType.CheckSilentState -> checkSilentState(block)
+            is BlockType.CheckMobileDataState -> checkMobileDataState(block)
+            is BlockType.CheckNetworkType -> checkNetworkType(block)
+            is BlockType.CheckMusicPlaying -> checkMusicPlaying(block)
+            is BlockType.CheckAppForeground -> checkAppForeground(block)
+            is BlockType.CheckAutoRotateState -> checkAutoRotateState(block)
+            is BlockType.CheckHotspotState -> checkHotspotState(block)
+            is BlockType.CheckNfcState -> checkNfcState(block)
+            is BlockType.CheckGpsState -> checkGpsState(block)
+            is BlockType.CheckVolumeLevel -> checkVolumeLevel(block)
+            is BlockType.CheckBrightnessLevel -> checkBrightnessLevel(block)
         }
     }
-    
+
+    // ==================== 参数读取辅助 ====================
+
+    private fun AutomationBlock.boolParam(key: String, default: Boolean): Boolean =
+        parameters.find { it.key == key }?.let { (it as? BlockParameter.BooleanParam)?.value } ?: default
+
+    private fun AutomationBlock.intParam(key: String, default: Int): Int =
+        parameters.find { it.key == key }?.let { (it as? BlockParameter.IntParam)?.value } ?: default
+
+    private fun AutomationBlock.stringParam(key: String, default: String = ""): String =
+        parameters.find { it.key == key }?.let { (it as? BlockParameter.StringParam)?.value } ?: default
+
+    private fun AutomationBlock.choiceParam(key: String, default: String = ""): String =
+        parameters.find { it.key == key }?.let { (it as? BlockParameter.ChoiceParam)?.value } ?: default
+
     // ==================== 系统控制实现 ====================
-    
+
     private fun executeToggleWifi(block: AutomationBlock): ExecutionResult {
-        val enabled = block.parameters.find { it.key == "enabled" }?.let {
-            (it as? BlockParameter.BooleanParam)?.value
-        } ?: true
-        
-        Log.d(TAG, "Toggle WiFi: ")
-        // TODO: 实际调用 WiFi 控制
-        return ExecutionResult(success = true, message = "WiFi 已")
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("svc wifi ${if (enabled) "enable" else "disable"}")
+        if (ok) return ExecutionResult(true, "WiFi 已${if (enabled) "开启" else "关闭"}")
+        // 降级：Settings.Global 写入（需 WRITE_SECURE_SETTINGS）
+        return try {
+            Settings.Global.putInt(context.contentResolver, Settings.Global.WIFI_ON, if (enabled) 1 else 0)
+            ExecutionResult(true, "WiFi 已${if (enabled) "开启" else "关闭"}")
+        } catch (e: Exception) {
+            ExecutionResult(false, "WiFi 控制失败：${e.message}")
+        }
     }
-    
+
     private fun executeToggleBluetooth(block: AutomationBlock): ExecutionResult {
-        val enabled = block.parameters.find { it.key == "enabled" }?.let {
-            (it as? BlockParameter.BooleanParam)?.value
-        } ?: true
-        
-        Log.d(TAG, "Toggle Bluetooth: ")
-        // TODO: 实际调用蓝牙控制
-        return ExecutionResult(success = true, message = "蓝牙已")
+        val enabled = block.boolParam("enabled", true)
+        // 优先用系统 API（BLUETOOTH_CONNECT 已授权）
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+        if (adapter != null) {
+            try {
+                val changed = if (enabled) adapter.enable() else adapter.disable()
+                if (changed) return ExecutionResult(true, "蓝牙已${if (enabled) "开启" else "关闭"}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Bluetooth API 失败，尝试 root: ${e.message}")
+            }
+        }
+        val ok = runRoot(
+            "cmd bluetooth_manager ${if (enabled) "enable" else "disable"}",
+            "svc bluetooth ${if (enabled) "enable" else "disable"}"
+        )
+        return if (ok) {
+            ExecutionResult(true, "蓝牙已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "蓝牙控制失败")
+        }
     }
-    
+
+    private fun executeToggleMobileData(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("svc data ${if (enabled) "enable" else "disable"}") ||
+                writeSetting("global", "mobile_data", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "移动数据已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "移动数据控制失败")
+        }
+    }
+
+    private fun executeToggleAirplane(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("cmd connectivity airplane-mode ${if (enabled) "enable" else "disable"}")
+        if (ok) return ExecutionResult(true, "飞行模式已${if (enabled) "开启" else "关闭"}")
+        return try {
+            Settings.Global.putInt(
+                context.contentResolver,
+                Settings.Global.AIRPLANE_MODE_ON,
+                if (enabled) 1 else 0
+            )
+            context.sendBroadcast(
+                Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED).putExtra("state", enabled)
+            )
+            ExecutionResult(true, "飞行模式已${if (enabled) "开启" else "关闭"}")
+        } catch (e: Exception) {
+            ExecutionResult(false, "飞行模式控制失败：${e.message}")
+        }
+    }
+
+    private fun executeToggleHotspot(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("cmd connectivity tethering ${if (enabled) "enable" else "disable"} wifi")
+        if (ok) return ExecutionResult(true, "热点已${if (enabled) "开启" else "关闭"}")
+        return try {
+            // 降级：反射 WifiManager.setWifiApEnabled
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val method = wifiManager.javaClass.getMethod("setWifiApEnabled", android.net.wifi.WifiConfiguration::class.java, Boolean::class.javaPrimitiveType!!)
+            method.invoke(wifiManager, null, enabled)
+            ExecutionResult(true, "热点已${if (enabled) "开启" else "关闭"}")
+        } catch (e: Exception) {
+            ExecutionResult(false, "热点控制失败：${e.message}")
+        }
+    }
+
+    private fun executeToggleNfc(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put secure nfc_on ${if (enabled) 1 else 0}") ||
+                writeSetting("secure", "nfc_on", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "NFC 已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "NFC 控制失败")
+        }
+    }
+
+    private fun executeToggleGps(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val mode = if (enabled) 3 else 0 // 3 = 高精度
+        val ok = runRoot("settings put secure location_mode $mode") ||
+                writeSetting("secure", "location_mode", mode.toString())
+        return if (ok) {
+            ExecutionResult(true, "定位已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "定位控制失败")
+        }
+    }
+
+    private fun executeToggleFlashlight(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("cmd flashlight set-flashlight ${if (enabled) "on" else "off"}")
+        return if (ok) {
+            ExecutionResult(true, "手电筒已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "手电筒控制失败（需 root 或设备不支持）")
+        }
+    }
+
+    private fun executeToggleAutoRotate(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put system accelerometer_rotation ${if (enabled) 1 else 0}") ||
+                writeSetting("system", "accelerometer_rotation", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "自动旋转已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "自动旋转控制失败")
+        }
+    }
+
+    private fun executeToggleBatterySaver(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("cmd battery_saver set ${if (enabled) "true" else "false"}") ||
+                writeSetting("global", "low_power", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "省电模式已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "省电模式控制失败")
+        }
+    }
+
+    private fun executeSetSilentMode(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        // MIUI silence_mode: 4 = 开启, 0 = 关闭
+        val ok = runRoot("settings put system silence_mode ${if (enabled) 4 else 0}") ||
+                writeSetting("system", "silence_mode", if (enabled) "4" else "0")
+        return if (ok) {
+            ExecutionResult(true, "静音模式已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "静音模式控制失败")
+        }
+    }
+
     private fun executeSetDnd(block: AutomationBlock): ExecutionResult {
-        val enabled = block.parameters.find { it.key == "enabled" }?.let {
-            (it as? BlockParameter.BooleanParam)?.value
-        } ?: true
-        
-        Log.d(TAG, "Set DND: ")
-        // TODO: 实际调用勿扰模式控制
-        return ExecutionResult(success = true, message = "勿扰模式已")
+        val level = block.choiceParam("level", "仅优先")
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val filter = when (level) {
+            "关闭" -> NotificationManager.INTERRUPTION_FILTER_ALL
+            "仅闹钟" -> NotificationManager.INTERRUPTION_FILTER_ALARMS
+            "仅优先" -> NotificationManager.INTERRUPTION_FILTER_PRIORITY
+            "完全静音" -> NotificationManager.INTERRUPTION_FILTER_NONE
+            else -> NotificationManager.INTERRUPTION_FILTER_PRIORITY
+        }
+        return try {
+            nm.setInterruptionFilter(filter)
+            ExecutionResult(true, "勿扰模式已设为「$level」")
+        } catch (e: Exception) {
+            ExecutionResult(false, "勿扰模式设置失败：${e.message}")
+        }
     }
-    
+
     private fun executeAdjustVolume(block: AutomationBlock): ExecutionResult {
-        val level = block.parameters.find { it.key == "level" }?.let {
-            (it as? BlockParameter.IntParam)?.value
-        } ?: 50
-        val stream = block.parameters.find { it.key == "stream" }?.let {
-            (it as? BlockParameter.ChoiceParam)?.value
-        } ?: "媒体"
-        
-        Log.d(TAG, "Adjust Volume:  = ")
-        // TODO: 实际调用音量控制
-        return ExecutionResult(success = true, message = " 音量已设置为 %")
+        val level = block.intParam("level", 50)
+        val streamName = block.choiceParam("stream", "媒体")
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val stream = when (streamName) {
+            "媒体" -> AudioManager.STREAM_MUSIC
+            "铃声" -> AudioManager.STREAM_RING
+            "通知" -> AudioManager.STREAM_NOTIFICATION
+            "闹钟" -> AudioManager.STREAM_ALARM
+            else -> AudioManager.STREAM_MUSIC
+        }
+        return try {
+            val max = audioManager.getStreamMaxVolume(stream)
+            val target = (level * max / 100).coerceIn(0, max)
+            audioManager.setStreamVolume(stream, target, 0)
+            ExecutionResult(true, "$streamName 音量已设为 $level%")
+        } catch (e: Exception) {
+            ExecutionResult(false, "音量设置失败：${e.message}")
+        }
     }
-    
+
     private fun executeAdjustBrightness(block: AutomationBlock): ExecutionResult {
-        val level = block.parameters.find { it.key == "level" }?.let {
-            (it as? BlockParameter.IntParam)?.value
-        } ?: 50
-        
-        Log.d(TAG, "Adjust Brightness: ")
-        // TODO: 实际调用亮度控制
-        return ExecutionResult(success = true, message = "亮度已设置为 %")
+        val level = block.intParam("level", 50)
+        val value = (level * 255 / 100).coerceIn(0, 255)
+        val ok = runRoot("settings put system screen_brightness $value") ||
+                writeSetting("system", "screen_brightness", value.toString())
+        return if (ok) {
+            ExecutionResult(true, "亮度已设为 $level%")
+        } else {
+            ExecutionResult(false, "亮度控制失败")
+        }
     }
-    
+
+    private fun executeSetAutoBrightness(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put system screen_brightness_mode ${if (enabled) 1 else 0}") ||
+                writeSetting("system", "screen_brightness_mode", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "自动亮度已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "自动亮度控制失败")
+        }
+    }
+
+    // ==================== 显示实现 ====================
+
+    private fun executeSetDarkMode(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("cmd uimode night ${if (enabled) "yes" else "no"}") ||
+                writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "深色模式已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "深色模式控制失败")
+        }
+    }
+
+    private fun executeSetGrayscale(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot(
+            "settings put secure accessibility_display_daltonizer_enabled ${if (enabled) 1 else 0}",
+            "settings put secure accessibility_display_daltonizer 0"
+        ) || (writeSetting("secure", "accessibility_display_daltonizer_enabled", if (enabled) "1" else "0") &&
+                writeSetting("secure", "accessibility_display_daltonizer", "0"))
+        return if (ok) {
+            ExecutionResult(true, "灰度模式已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "灰度模式控制失败")
+        }
+    }
+
+    private fun executeSetAod(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put secure aod_mode ${if (enabled) 1 else 0}") ||
+                writeSetting("secure", "aod_mode", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "息屏显示已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "息屏显示控制失败")
+        }
+    }
+
+    private fun executeSetRaiseToWake(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put system gesture_wakeup ${if (enabled) 1 else 0}") ||
+                writeSetting("system", "gesture_wakeup", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "抬腕亮屏已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "抬腕亮屏控制失败")
+        }
+    }
+
+    private fun executeSetWakeForNotifications(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put system wakeup_for_keyguard_notification ${if (enabled) 1 else 0}") ||
+                writeSetting("system", "wakeup_for_keyguard_notification", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "通知亮屏已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "通知亮屏控制失败")
+        }
+    }
+
+    private fun executeSetEyeCare(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put system screen_paper_mode_enabled ${if (enabled) 1 else 0}") ||
+                writeSetting("system", "screen_paper_mode_enabled", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "纸质护眼已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "纸质护眼控制失败")
+        }
+    }
+
+    private fun executeSetRefreshRate(block: AutomationBlock): ExecutionResult {
+        val rate = block.choiceParam("rate", "60")
+        val ok = runRoot("settings put secure user_refresh_rate $rate") ||
+                writeSetting("secure", "user_refresh_rate", rate)
+        return if (ok) {
+            ExecutionResult(true, "刷新率已设为 ${rate}Hz")
+        } else {
+            ExecutionResult(false, "刷新率设置失败")
+        }
+    }
+
+    private fun executeSetAdaptiveRefreshRatePro(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        // mimotion_pwm_enable: 2 = 自适应 Pro, 1 = 关闭
+        val ok = runRoot("settings put secure mimotion_pwm_enable ${if (enabled) 2 else 1}") ||
+                writeSetting("secure", "mimotion_pwm_enable", if (enabled) "2" else "1")
+        return if (ok) {
+            ExecutionResult(true, "自适应刷新率 Pro 已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "自适应刷新率 Pro 控制失败")
+        }
+    }
+
+    // ==================== 设备实现 ====================
+
+    private fun executeSetPerformanceMode(block: AutomationBlock): ExecutionResult {
+        val modeName = block.choiceParam("mode", "均衡")
+        val mode = when (modeName) {
+            "性能" -> 1
+            "省电" -> 2
+            else -> 0
+        }
+        val ok = runRoot("settings put system performance_mode $mode") ||
+                writeSetting("system", "performance_mode", mode.toString())
+        return if (ok) {
+            ExecutionResult(true, "性能模式已设为「$modeName」")
+        } else {
+            ExecutionResult(false, "性能模式设置失败")
+        }
+    }
+
+    private fun executeSet5g(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        val ok = runRoot("settings put global enabled_5g_mode ${if (enabled) 1 else 0}") ||
+                writeSetting("global", "enabled_5g_mode", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "5G 已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "5G 控制失败")
+        }
+    }
+
+    private fun executeSetPreferredSim(block: AutomationBlock): ExecutionResult {
+        val slotName = block.choiceParam("slot", "SIM 1")
+        val slot = if (slotName.contains("2")) 1 else 0
+        return try {
+            val sm = context.getSystemService(SubscriptionManager::class.java) ?: return ExecutionResult(false, "订阅服务不可用")
+            val infos = sm.activeSubscriptionInfoList ?: emptyList()
+            val target = infos.firstOrNull { it.simSlotIndex == slot } ?: return ExecutionResult(false, "未找到对应 SIM 卡")
+            val method = SubscriptionManager::class.java.getMethod("setDefaultDataSubId", Int::class.java)
+            method.invoke(sm, target.subscriptionId)
+            ExecutionResult(true, "默认数据卡已切换为 ${if (slot == 0) "SIM 1" else "SIM 2"}")
+        } catch (e: Exception) {
+            ExecutionResult(false, "SIM 切换失败：${e.message}")
+        }
+    }
+
+    private fun executeSetMotionSicknessRelief(block: AutomationBlock): ExecutionResult {
+        val enabled = block.boolParam("enabled", true)
+        return try {
+            val intent = Intent().apply {
+                component = ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.carsickness.service.CarSicknessService"
+                )
+                action = if (enabled) "miui.carsickness.remind_always" else "miui.carsickness.close_car_sickness"
+            }
+            context.startService(intent)
+            ExecutionResult(true, "防晕车已${if (enabled) "开启" else "关闭"}")
+        } catch (e: Exception) {
+            ExecutionResult(false, "防晕车控制失败：${e.message}")
+        }
+    }
+
+    // ==================== 模式实现 ====================
+
     private fun executeEnableMode(block: AutomationBlock): ExecutionResult {
-        Log.d(TAG, "Enable Mode")
-        // TODO: 实际调用模式启用
-        return ExecutionResult(success = true, message = "模式已启用")
+        val modeId = block.stringParam("modeId")
+        if (modeId.isBlank()) return ExecutionResult(false, "未指定要启用的模式")
+        ModeControlBridge.activateMode(context, modeId)
+        return ExecutionResult(true, "已启用模式：$modeId")
     }
-    
+
     private fun executeDisableMode(block: AutomationBlock): ExecutionResult {
-        Log.d(TAG, "Disable Mode")
-        // TODO: 实际调用模式关闭
-        return ExecutionResult(success = true, message = "模式已关闭")
+        val modeId = block.stringParam("modeId")
+        if (modeId.isBlank()) return ExecutionResult(false, "未指定要关闭的模式")
+        ModeControlBridge.deactivateMode(context, modeId)
+        return ExecutionResult(true, "已关闭模式：$modeId")
     }
-    
+
+    // ==================== 应用实现 ====================
+
     private fun executeOpenApp(block: AutomationBlock): ExecutionResult {
-        Log.d(TAG, "Open App")
-        // TODO: 实际调用应用启动
-        return ExecutionResult(success = true, message = "应用已启动")
+        val packages = block.stringParam("packages").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (packages.isEmpty()) return ExecutionResult(false, "未指定应用包名")
+        val pm = context.packageManager
+        var opened = false
+        for (pkg in packages) {
+            try {
+                val intent = pm.getLaunchIntentForPackage(pkg)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                    opened = true
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "openApp failed for $pkg: ${e.message}")
+            }
+        }
+        return if (opened) {
+            ExecutionResult(true, "已打开应用：${packages.joinToString()}")
+        } else {
+            ExecutionResult(false, "应用启动失败（未找到启动入口）")
+        }
     }
-    
+
+    private fun executeSuspendApps(block: AutomationBlock): ExecutionResult {
+        val packages = block.stringParam("packages").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (packages.isEmpty()) return ExecutionResult(false, "未指定应用包名")
+        return suspendOrUnsuspend(packages, true)
+    }
+
+    private fun executeUnsuspendApps(block: AutomationBlock): ExecutionResult {
+        val packages = block.stringParam("packages").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (packages.isEmpty()) return ExecutionResult(false, "未指定应用包名")
+        return suspendOrUnsuspend(packages, false)
+    }
+
+    private fun suspendOrUnsuspend(packages: List<String>, suspend: Boolean): ExecutionResult {
+        // system_server 内：直接调用特权控制器（无需广播绕行）
+        systemOps?.let { ops ->
+            val ok = try {
+                ops.setAppsSuspended(packages, suspend)
+            } catch (e: Exception) {
+                Log.w(TAG, "systemOps suspend failed: ${e.message}")
+                false
+            }
+            if (ok) {
+                return ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
+            }
+            return ExecutionResult(false, "应用${if (suspend) "暂停" else "恢复"}失败")
+        }
+
+        // 应用进程：优先走 system_server 特权桥接（IPackageManager.setPackagesSuspendedAsUser）
+        val sent = try {
+            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_SET_PACKAGES_SUSPENDED)
+                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_PACKAGES, packages.toTypedArray())
+                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_SUSPENDED, suspend)
+                .setPackage("android")
+            context.sendBroadcast(intent, com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "bridge broadcast failed: ${e.message}")
+            false
+        }
+        if (sent) return ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
+
+        // 降级：root shell `pm suspend` / `pm unsuspend`
+        val cmds = packages.map { pkg ->
+            if (suspend) "pm suspend $pkg" else "pm unsuspend $pkg"
+        }
+        val ok = runRoot(*cmds.toTypedArray())
+        return if (ok) {
+            ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
+        } else {
+            ExecutionResult(false, "应用${if (suspend) "暂停" else "恢复"}失败")
+        }
+    }
+
     // ==================== 控制流实现 ====================
-    
-    private suspend fun executeIf(block: AutomationBlock): ExecutionResult {
-        // 执行条件判断（children 中的第一个应该是条件）
-        val conditionResult = if (block.children.isNotEmpty()) {
-            executeBlock(block.children.first())
-        } else {
-            ExecutionResult(success = false, message = "IF 块缺少条件")
+
+    private suspend fun executeIf(block: AutomationBlock, steps: StepBudget): ExecutionResult {
+        // children[0] 为条件块，children[1..] 为 THEN 分支
+        if (block.children.isEmpty()) {
+            return ExecutionResult(false, "IF 块缺少条件")
         }
-        
-        if (!conditionResult.success) {
-            return conditionResult
-        }
-        
-        // 根据条件结果执行相应分支
-        return if (conditionResult.conditionMet == true) {
-            // 执行 THEN 分支（children 中除第一个外的其他块）
+        val condition = block.children.first()
+        val result = executeBlock(condition, steps)
+        if (!result.success) return result
+
+        return if (result.conditionMet == true) {
             val thenBlocks = block.children.drop(1)
-            execute(thenBlocks)
+            if (thenBlocks.isEmpty()) ExecutionResult(true, "条件满足，无操作")
+            else execute(thenBlocks, steps.remaining())
         } else {
-            // 执行 ELSE 分支
-            execute(block.elseChildren)
+            if (block.elseChildren.isEmpty()) ExecutionResult(true, "条件不满足，无操作")
+            else execute(block.elseChildren, steps.remaining())
         }
     }
-    
-    private suspend fun executeRepeat(block: AutomationBlock): ExecutionResult {
-        // 简单的无限循环保护
-        return executeRepeatCount(block.copy(
-            parameters = listOf(BlockParameter.IntParam("count", "重复次数", 1, 1, 100))
-        ))
+
+    private suspend fun executeRepeat(block: AutomationBlock, steps: StepBudget): ExecutionResult {
+        val count = block.intParam("count", 1)
+        return repeatLoop(block, count, steps)
     }
-    
-    private suspend fun executeRepeatCount(block: AutomationBlock): ExecutionResult {
-        val count = block.parameters.find { it.key == "count" }?.let {
-            (it as? BlockParameter.IntParam)?.value
-        } ?: 1
-        
-        repeat(count) {
-            val result = execute(block.children)
+
+    private suspend fun executeRepeatCount(block: AutomationBlock, steps: StepBudget): ExecutionResult {
+        val count = block.intParam("count", 1)
+        return repeatLoop(block, count, steps)
+    }
+
+    private suspend fun repeatLoop(block: AutomationBlock, count: Int, steps: StepBudget): ExecutionResult {
+        val children = block.children
+        if (children.isEmpty()) return ExecutionResult(true, "重复执行完成（0 次操作）")
+        for (i in 1..count) {
+            if (!steps.consume()) return ExecutionResult(false, "执行步骤超过上限，已中止")
+            val result = execute(children, steps.remaining())
             if (!result.success) {
                 return ExecutionResult(
                     success = false,
-                    message = "重复执行失败（第  次）: "
+                    message = "重复执行失败（第 $i 次）：${result.message}",
+                    blockId = result.blockId
                 )
             }
         }
-        
-        return ExecutionResult(success = true, message = "重复执行完成（ 次）")
+        return ExecutionResult(true, "重复执行完成（$count 次）")
     }
-    
+
     private suspend fun executeWait(block: AutomationBlock): ExecutionResult {
-        val seconds = block.parameters.find { it.key == "seconds" }?.let {
-            (it as? BlockParameter.IntParam)?.value
-        } ?: 1
-        
-        Log.d(TAG, "Wait:  seconds")
+        val seconds = block.intParam("seconds", 1)
         delay(seconds * 1000L)
-        return ExecutionResult(success = true, message = "等待  秒")
+        return ExecutionResult(true, "等待 $seconds 秒")
     }
-    
+
     // ==================== 逻辑运算实现 ====================
-    
-    private suspend fun executeAnd(block: AutomationBlock): ExecutionResult {
+
+    private suspend fun executeAnd(block: AutomationBlock, steps: StepBudget): ExecutionResult {
         for (child in block.children) {
-            val result = executeBlock(child)
-            if (!result.success || result.conditionMet == false) {
-                return ExecutionResult(
-                    success = true,
-                    message = "AND 条件不满足",
-                    conditionMet = false
-                )
+            val result = executeBlock(child, steps)
+            if (!result.success) return result
+            if (result.conditionMet == false) {
+                return ExecutionResult(true, "AND 条件不满足", conditionMet = false)
             }
         }
-        return ExecutionResult(success = true, message = "AND 条件满足", conditionMet = true)
+        return ExecutionResult(true, "AND 条件满足", conditionMet = true)
     }
-    
-    private suspend fun executeOr(block: AutomationBlock): ExecutionResult {
+
+    private suspend fun executeOr(block: AutomationBlock, steps: StepBudget): ExecutionResult {
         for (child in block.children) {
-            val result = executeBlock(child)
-            if (result.success && result.conditionMet == true) {
-                return ExecutionResult(
-                    success = true,
-                    message = "OR 条件满足",
-                    conditionMet = true
-                )
+            val result = executeBlock(child, steps)
+            if (!result.success) return result
+            if (result.conditionMet == true) {
+                return ExecutionResult(true, "OR 条件满足", conditionMet = true)
             }
         }
-        return ExecutionResult(success = true, message = "OR 条件不满足", conditionMet = false)
+        return ExecutionResult(true, "OR 条件不满足", conditionMet = false)
     }
-    
+
     // ==================== 条件判断实现 ====================
-    
+
     private fun checkWifiState(block: AutomationBlock): ExecutionResult {
-        val expected = block.parameters.find { it.key == "expected" }?.let {
-            (it as? BlockParameter.BooleanParam)?.value
-        } ?: true
-        
-        // TODO: 实际检查 WiFi 状态
-        val actualState = false // 示例
-        val met = actualState == expected
-        
-        Log.d(TAG, "Check WiFi: expected=, actual=, met=")
-        return ExecutionResult(
-            success = true,
-            message = "WiFi 状态检查",
-            conditionMet = met
-        )
+        val expected = block.boolParam("expected", true)
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val actual = wifiManager.isWifiEnabled
+        return conditionResult("WiFi 状态", actual, expected)
     }
-    
+
     private fun checkBluetoothState(block: AutomationBlock): ExecutionResult {
-        val expected = block.parameters.find { it.key == "expected" }?.let {
-            (it as? BlockParameter.BooleanParam)?.value
-        } ?: true
-        
-        // TODO: 实际检查蓝牙状态
-        val actualState = false // 示例
-        val met = actualState == expected
-        
-        Log.d(TAG, "Check Bluetooth: expected=, actual=, met=")
+        val expected = block.boolParam("expected", true)
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+        val actual = adapter?.isEnabled ?: false
+        return conditionResult("蓝牙状态", actual, expected)
+    }
+
+    private fun checkBatteryLevel(block: AutomationBlock, label: String = "电量"): ExecutionResult {
+        val operator = block.choiceParam("operator", "大于")
+            .let { if (it == "低于" && label == "触发") "小于" else it }
+        val level = block.intParam("level", 50)
+        val actual = currentBatteryLevel()
+        val met = compareInt(actual, level, operator)
         return ExecutionResult(
             success = true,
-            message = "蓝牙状态检查",
+            message = "$label $actual% ${operator} $level%",
             conditionMet = met
         )
     }
-    
-    private fun checkBatteryLevel(block: AutomationBlock): ExecutionResult {
-        val operator = block.parameters.find { it.key == "operator" }?.let {
-            (it as? BlockParameter.ChoiceParam)?.value
-        } ?: "大于"
-        val level = block.parameters.find { it.key == "level" }?.let {
-            (it as? BlockParameter.IntParam)?.value
-        } ?: 50
-        
-        // TODO: 实际获取电量
-        val actualLevel = 80 // 示例
-        
-        val met = when (operator) {
-            "大于" -> actualLevel > level
-            "小于" -> actualLevel < level
-            "等于" -> actualLevel == level
-            else -> false
+
+    private fun checkChargingState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val status = currentBatteryStatus()
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+        return conditionResult("充电状态", charging, expected)
+    }
+
+    private fun checkTimeRange(block: AutomationBlock, label: String = "当前时间"): ExecutionResult {
+        val start = block.stringParam("start", "00:00")
+        val end = block.stringParam("end", "23:59")
+        val now = Calendar.getInstance()
+        val startMin = parseMinutes(start)
+        val endMin = parseMinutes(end)
+        val nowMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+
+        val inTimeRange = if (startMin <= endMin) {
+            nowMin in startMin..endMin
+        } else {
+            // 跨午夜（如 22:00 - 06:00）
+            nowMin >= startMin || nowMin <= endMin
         }
-        
-        Log.d(TAG, "Check Battery:    = ")
+
+        // 星期过滤（时间触发块的"重复"参数：每天/工作日/周末）
+        val repeat = block.choiceParam("repeat", "每天")
+        val today = now.get(Calendar.DAY_OF_WEEK)
+        val isWeekend = today == Calendar.SATURDAY || today == Calendar.SUNDAY
+        val dayOk = when (repeat) {
+            "工作日" -> !isWeekend
+            "周末" -> isWeekend
+            else -> true // 每天或未设置
+        }
+
+        val met = inTimeRange && dayOk
         return ExecutionResult(
             success = true,
-            message = "电量检查",
+            message = "$label ${pad(now.get(Calendar.HOUR_OF_DAY))}:${pad(now.get(Calendar.MINUTE))} " +
+                    "在 $start-$end 内（$repeat）",
             conditionMet = met
         )
     }
-    
-    private fun checkTimeRange(block: AutomationBlock): ExecutionResult {
-        val start = block.parameters.find { it.key == "start" }?.let {
-            (it as? BlockParameter.ChoiceParam)?.value
-        } ?: "00:00"
-        val end = block.parameters.find { it.key == "end" }?.let {
-            (it as? BlockParameter.ChoiceParam)?.value
-        } ?: "23:59"
-        
-        // TODO: 实际检查时间范围
-        val met = true // 示例
-        
-        Log.d(TAG, "Check Time Range:  - , met=")
+
+    private fun checkWifiSsid(block: AutomationBlock): ExecutionResult {
+        val expectedSsid = block.stringParam("ssid").trim().removePrefix("\"").removeSuffix("\"")
+        val connect = block.boolParam("connect", true)
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val currentSsid = wifiManager.connectionInfo?.ssid?.removePrefix("\"")?.removeSuffix("\"")
+        val met = if (connect) {
+            expectedSsid.isBlank() || currentSsid.equals(expectedSsid, ignoreCase = true)
+        } else {
+            !currentSsid.equals(expectedSsid, ignoreCase = true)
+        }
         return ExecutionResult(
-            success = true,
-            message = "时间范围检查",
+            true,
+            "WiFi 触发：当前${currentSsid ?: "未连接"}${if (met) "满足" else "不满足"}",
             conditionMet = met
         )
+    }
+
+    private fun checkDayOfWeek(block: AutomationBlock): ExecutionResult {
+        val days = block.choiceParam("days", "每天")
+        val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+        val isWeekend = today == Calendar.SATURDAY || today == Calendar.SUNDAY
+        val met = when (days) {
+            "周一至周五" -> !isWeekend
+            "周末" -> isWeekend
+            else -> true
+        }
+        return ExecutionResult(true, "今天是${weekdayName(today)}，条件${
+            if (met) "满足" else "不满足"
+        }", conditionMet = met)
+    }
+
+    private fun checkDarkModeState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.System.getInt(
+            context.contentResolver,
+            "dark_mode_enable",
+            0
+        ) == 1
+        return conditionResult("深色模式", actual, expected)
+    }
+
+    private fun checkScreenState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val actual = pm.isInteractive
+        return conditionResult("屏幕状态", actual, expected)
+    }
+
+    private fun checkAirplaneState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.Global.getInt(
+            context.contentResolver,
+            Settings.Global.AIRPLANE_MODE_ON,
+            0
+        ) == 1
+        return conditionResult("飞行模式", actual, expected)
+    }
+
+    private fun checkDndState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val actual = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        return conditionResult("勿扰模式", actual, expected)
+    }
+
+    private fun checkSilentState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.System.getInt(context.contentResolver, "silence_mode", 0) == 4
+        return conditionResult("静音模式", actual, expected)
+    }
+
+    private fun checkMobileDataState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.Global.getInt(context.contentResolver, "mobile_data", 0) == 1
+        return conditionResult("移动数据", actual, expected)
+    }
+
+    private fun checkNetworkType(block: AutomationBlock): ExecutionResult {
+        val expected = block.choiceParam("type", "WiFi")
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return ExecutionResult(
+            true, "无网络", conditionMet = (expected == "无网络")
+        )
+        val caps = cm.getNetworkCapabilities(network) ?: return ExecutionResult(
+            true, "无网络", conditionMet = (expected == "无网络")
+        )
+        val actual = when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WiFi"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "移动数据"
+            else -> "无网络"
+        }
+        val met = actual == expected
+        return ExecutionResult(true, "当前网络：$actual", conditionMet = met)
+    }
+
+    private fun checkMusicPlaying(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val msm = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+        val controllers = msm.getActiveSessions(null)
+        val playing = controllers.any { ctrl ->
+            ctrl.playbackState?.state == PlaybackState.STATE_PLAYING
+        }
+        return conditionResult("音乐播放", playing, expected)
+    }
+
+    private fun checkAppForeground(block: AutomationBlock): ExecutionResult {
+        val packageName = block.stringParam("package")
+        if (packageName.isBlank()) return ExecutionResult(false, "未指定应用包名")
+        val actual = foregroundPackage() == packageName
+        return ExecutionResult(
+            true,
+            "前台应用${if (actual) "是" else "不是"} $packageName",
+            conditionMet = actual
+        )
+    }
+
+    private fun checkAutoRotateState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.System.getInt(
+            context.contentResolver,
+            Settings.System.ACCELEROMETER_ROTATION,
+            0
+        ) == 1
+        return conditionResult("自动旋转", actual, expected)
+    }
+
+    private fun checkHotspotState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiManager.javaClass.getMethod("isWifiApEnabled").invoke(wifiManager) as Boolean
+        } catch (e: Exception) {
+            false
+        }
+        return conditionResult("个人热点", actual, expected)
+    }
+
+    private fun checkNfcState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.Secure.getInt(context.contentResolver, "nfc_on", 0) == 1
+        return conditionResult("NFC", actual, expected)
+    }
+
+    private fun checkGpsState(block: AutomationBlock): ExecutionResult {
+        val expected = block.boolParam("expected", true)
+        val actual = Settings.Secure.getInt(
+            context.contentResolver,
+            Settings.Secure.LOCATION_MODE,
+            Settings.Secure.LOCATION_MODE_OFF
+        ) != Settings.Secure.LOCATION_MODE_OFF
+        return conditionResult("定位", actual, expected)
+    }
+
+    private fun checkVolumeLevel(block: AutomationBlock): ExecutionResult {
+        val operator = block.choiceParam("operator", "大于")
+        val level = block.intParam("level", 50)
+        val streamName = block.choiceParam("stream", "媒体")
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val stream = when (streamName) {
+            "媒体" -> AudioManager.STREAM_MUSIC
+            "铃声" -> AudioManager.STREAM_RING
+            "通知" -> AudioManager.STREAM_NOTIFICATION
+            "闹钟" -> AudioManager.STREAM_ALARM
+            else -> AudioManager.STREAM_MUSIC
+        }
+        val max = audioManager.getStreamMaxVolume(stream)
+        val current = audioManager.getStreamVolume(stream)
+        val actualPct = if (max > 0) current * 100 / max else 0
+        val met = compareInt(actualPct, level, operator)
+        return ExecutionResult(
+            true,
+            "$streamName 音量 $actualPct% ${operator} $level%",
+            conditionMet = met
+        )
+    }
+
+    private fun checkBrightnessLevel(block: AutomationBlock): ExecutionResult {
+        val operator = block.choiceParam("operator", "大于")
+        val level = block.intParam("level", 50)
+        val raw = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
+        val actualPct = raw * 100 / 255
+        val met = compareInt(actualPct, level, operator)
+        return ExecutionResult(
+            true,
+            "亮度 $actualPct% ${operator} $level%",
+            conditionMet = met
+        )
+    }
+
+    // ==================== 内部工具 ====================
+
+    private fun conditionResult(label: String, actual: Boolean, expected: Boolean): ExecutionResult {
+        val met = actual == expected
+        return ExecutionResult(
+            success = true,
+            message = "$label${if (met) "满足" else "不满足"}条件",
+            conditionMet = met
+        )
+    }
+
+    private fun compareInt(actual: Int, target: Int, operator: String): Boolean = when (operator) {
+        "大于" -> actual > target
+        "小于" -> actual < target
+        "等于" -> actual == target
+        else -> false
+    }
+
+    private fun currentBatteryLevel(): Int {
+        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    }
+
+    private fun currentBatteryStatus(): Int {
+        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+    }
+
+    private fun parseMinutes(hhmm: String): Int {
+        val parts = hhmm.split(":")
+        val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        return h.coerceIn(0, 23) * 60 + m.coerceIn(0, 59)
+    }
+
+    private fun pad(v: Int) = v.toString().padStart(2, '0')
+
+    private fun weekdayName(day: Int): String = when (day) {
+        Calendar.MONDAY -> "周一"
+        Calendar.TUESDAY -> "周二"
+        Calendar.WEDNESDAY -> "周三"
+        Calendar.THURSDAY -> "周四"
+        Calendar.FRIDAY -> "周五"
+        Calendar.SATURDAY -> "周六"
+        else -> "周日"
+    }
+
+    private fun foregroundPackage(): String? {
+        // 尝试 ActivityManager.getRunningTasks（需 GET_TASKS 权限，应用已声明）
+        try {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val tasks = am.getRunningTasks(1)
+            tasks?.firstOrNull()?.topActivity?.packageName?.let { return it }
+        } catch (e: Exception) {
+            Log.w(TAG, "getRunningTasks failed: ${e.message}")
+        }
+        // 降级：root dumpsys
+        return try {
+            val result = Shell.cmd("dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp' | head -1").exec()
+            if (result.isSuccess) {
+                val line = result.getOut().firstOrNull() ?: return null
+                Regex("([a-zA-Z0-9_.]+)/").find(line)?.groupValues?.get(1)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 执行 root shell 命令。任一命令成功即返回 true。
+     */
+    private fun runRoot(vararg commands: String): Boolean {
+        if (!rootAvailable) return false
+        return try {
+            commands.any { cmd ->
+                val result = Shell.cmd(cmd).exec()
+                if (result.isSuccess) true
+                else {
+                    Log.d(TAG, "root cmd failed: $cmd -> ${result.getErr().joinToString()}")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "root shell error: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * 直接写入 Settings（system_server 有全部系统权限；应用进程通过
+     * UniversalPermissionHook 获得 WRITE_SECURE_SETTINGS，Global/Secure 可写）。
+     * 作为 root 命令的降级路径，保证零进程场景（无 root shell）也能执行。
+     *
+     * @param namespace "global" / "secure" / "system"
+     */
+    private fun writeSetting(namespace: String, key: String, value: String): Boolean {
+        return try {
+            val resolver = context.contentResolver
+            val ok = when (namespace) {
+                "global" -> Settings.Global.putString(resolver, key, value)
+                "secure" -> Settings.Secure.putString(resolver, key, value)
+                else -> Settings.System.putString(resolver, key, value)
+            }
+            if (!ok) Log.w(TAG, "writeSetting rejected: $namespace/$key=$value")
+            ok
+        } catch (e: Exception) {
+            Log.w(TAG, "writeSetting failed: $namespace/$key -> ${e.message}")
+            false
+        }
+    }
+
+    companion object {
+        private const val TAG = "AutomationExecutor"
+        private const val DEFAULT_MAX_STEPS = 10_000L
+    }
+
+    /** 全局步数预算：消耗 + 剩余，防止失控循环。 */
+    private class StepBudget(private var remaining: Long) {
+        fun consume(): Boolean {
+            if (remaining <= 0) return false
+            remaining--
+            return true
+        }
+
+        fun remaining(): Long = remaining
     }
 }
 
@@ -325,3 +1150,18 @@ data class ExecutionResult(
     val blockId: String? = null,
     val conditionMet: Boolean? = null // 用于条件判断块
 )
+
+/** 是否为触发条件块（自动化流程中的"当...时"门控）。 */
+fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
+    is BlockType.TriggerTime,
+    is BlockType.TriggerWifi,
+    is BlockType.TriggerWifiState,
+    is BlockType.TriggerBluetooth,
+    is BlockType.TriggerBattery,
+    is BlockType.TriggerCharging,
+    is BlockType.TriggerNetwork,
+    is BlockType.TriggerMusic,
+    is BlockType.TriggerApp,
+    is BlockType.TriggerDayOfWeek -> true
+    else -> false
+}

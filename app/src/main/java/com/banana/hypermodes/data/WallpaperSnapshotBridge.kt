@@ -34,7 +34,7 @@ object WallpaperSnapshotBridge {
         val desktopFile = File(dir, "desktop_wallpaper.jpg")
         val lockJsonFile = File(dir, "lockscreen.json")
         val templateEditorFile = File(dir, "template_editor.json")
-        val subjectMaskFile = File(dir, "subject_mask.jpg")
+        val subjectMaskFile = File(dir, "subject_mask.png")
         if (!lockFile.exists() && !desktopFile.exists()) return null
         return WallpaperSet(
             lock = if (lockFile.exists()) {
@@ -184,7 +184,7 @@ object WallpaperSnapshotBridge {
             context,
             subjectMaskBytes,
             null,
-            "subject_mask.jpg",
+            "subject_mask.png",
             modeId,
             previewOnly
         )

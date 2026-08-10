@@ -5,40 +5,137 @@ import com.banana.hypermodes.ui.AutomationAction
 import java.util.UUID
 
 /**
- * 自动化控制块的类型。包含系统控制和控制流（IF、REPEAT、AND、OR 等）。
+ * 自动化控制块的类型。包含系统控制、显示、设备、模式、应用、控制流和条件判断。
+ * 每个类型的 [id] 与 [AutomationCatalog] 中的操作 id 一一对应。
  */
 sealed class BlockType(val id: String) {
-    // 系统控制类
+    // ==================== 触发条件 ====================
+    data object TriggerTime : BlockType("trigger_time")
+    data object TriggerWifi : BlockType("trigger_wifi")
+    data object TriggerWifiState : BlockType("trigger_wifi_state")
+    data object TriggerBluetooth : BlockType("trigger_bluetooth")
+    data object TriggerBattery : BlockType("trigger_battery")
+    data object TriggerCharging : BlockType("trigger_charging")
+    data object TriggerNetwork : BlockType("trigger_network")
+    data object TriggerMusic : BlockType("trigger_music")
+    data object TriggerApp : BlockType("trigger_app")
+    data object TriggerDayOfWeek : BlockType("trigger_day_of_week")
+
+    // ==================== 系统控制 ====================
     data object ToggleWifi : BlockType("toggle_wifi")
     data object ToggleBluetooth : BlockType("toggle_bluetooth")
+    data object ToggleMobileData : BlockType("toggle_mobile_data")
+    data object ToggleAirplane : BlockType("toggle_airplane")
+    data object ToggleHotspot : BlockType("toggle_hotspot")
+    data object ToggleNfc : BlockType("toggle_nfc")
+    data object ToggleGps : BlockType("toggle_gps")
+    data object ToggleFlashlight : BlockType("toggle_flashlight")
+    data object ToggleAutoRotate : BlockType("toggle_auto_rotate")
+    data object ToggleBatterySaver : BlockType("toggle_battery_saver")
+    data object SetSilentMode : BlockType("set_silent_mode")
     data object SetDnd : BlockType("set_dnd")
     data object AdjustVolume : BlockType("adjust_volume")
     data object AdjustBrightness : BlockType("adjust_brightness")
+    data object SetAutoBrightness : BlockType("set_auto_brightness")
+
+    // ==================== 显示 ====================
+    data object SetDarkMode : BlockType("set_dark_mode")
+    data object SetGrayscale : BlockType("set_grayscale")
+    data object SetAod : BlockType("set_aod")
+    data object SetRaiseToWake : BlockType("set_raise_to_wake")
+    data object SetWakeForNotifications : BlockType("set_wake_for_notifications")
+    data object SetEyeCare : BlockType("set_eye_care")
+    data object SetRefreshRate : BlockType("set_refresh_rate")
+    data object SetAdaptiveRefreshRatePro : BlockType("set_adaptive_refresh_rate_pro")
+
+    // ==================== 设备 ====================
+    data object SetPerformanceMode : BlockType("set_performance_mode")
+    data object Set5g : BlockType("set_5g")
+    data object SetPreferredSim : BlockType("set_preferred_sim")
+    data object SetMotionSicknessRelief : BlockType("set_motion_sickness_relief")
+
+    // ==================== 模式 ====================
     data object EnableMode : BlockType("enable_mode")
     data object DisableMode : BlockType("disable_mode")
+
+    // ==================== 应用 ====================
     data object OpenApp : BlockType("open_app")
-    
-    // 控制流类
+    data object SuspendApps : BlockType("suspend_apps")
+    data object UnsuspendApps : BlockType("unsuspend_apps")
+
+    // ==================== 控制流 ====================
     data object IfCondition : BlockType("if_condition")
     data object Repeat : BlockType("repeat")
     data object RepeatCount : BlockType("repeat_count")
     data object Wait : BlockType("wait")
     data object Comment : BlockType("comment")
-    
-    // 逻辑运算
+
+    // ==================== 逻辑运算 ====================
     data object AndCondition : BlockType("and_condition")
     data object OrCondition : BlockType("or_condition")
-    
-    // 条件判断
-    data object CheckWifiState : BlockType("check_wifi_state")
-    data object CheckBluetoothState : BlockType("check_bluetooth_state")
-    data object CheckBatteryLevel : BlockType("check_battery_level")
-    data object CheckTimeRange : BlockType("check_time_range")
+
+    // ==================== 条件判断 ====================
+    data object CheckWifiState : BlockType("check_wifi")
+    data object CheckBluetoothState : BlockType("check_bluetooth")
+    data object CheckBatteryLevel : BlockType("check_battery")
+    data object CheckChargingState : BlockType("check_charging")
+    data object CheckTimeRange : BlockType("check_time")
+    data object CheckDayOfWeek : BlockType("check_day_of_week")
+    data object CheckDarkModeState : BlockType("check_dark_mode")
+    data object CheckScreenState : BlockType("check_screen")
+    data object CheckAirplaneState : BlockType("check_airplane")
+    data object CheckDndState : BlockType("check_dnd_state")
+    data object CheckSilentState : BlockType("check_silent")
+    data object CheckMobileDataState : BlockType("check_mobile_data")
+    data object CheckNetworkType : BlockType("check_network_type")
+    data object CheckMusicPlaying : BlockType("check_music_playing")
+    data object CheckAppForeground : BlockType("check_app_foreground")
+    data object CheckAutoRotateState : BlockType("check_auto_rotate")
+    data object CheckHotspotState : BlockType("check_hotspot")
+    data object CheckNfcState : BlockType("check_nfc")
+    data object CheckGpsState : BlockType("check_gps")
+    data object CheckVolumeLevel : BlockType("check_volume")
+    data object CheckBrightnessLevel : BlockType("check_brightness")
+
+    companion object {
+        /** 所有类型，按目录顺序排列，用于 id -> BlockType 反查。 */
+        val all: List<BlockType> by lazy {
+            listOf(
+            TriggerTime, TriggerWifi, TriggerWifiState, TriggerBluetooth,
+            TriggerBattery, TriggerCharging, TriggerNetwork, TriggerMusic,
+            TriggerApp, TriggerDayOfWeek,
+            ToggleWifi, ToggleBluetooth, ToggleMobileData, ToggleAirplane,
+            ToggleHotspot, ToggleNfc, ToggleGps, ToggleFlashlight,
+            ToggleAutoRotate, ToggleBatterySaver, SetSilentMode, SetDnd,
+            AdjustVolume, AdjustBrightness, SetAutoBrightness,
+            SetDarkMode, SetGrayscale, SetAod, SetRaiseToWake,
+            SetWakeForNotifications, SetEyeCare, SetRefreshRate,
+            SetAdaptiveRefreshRatePro,
+            SetPerformanceMode, Set5g, SetPreferredSim, SetMotionSicknessRelief,
+            EnableMode, DisableMode,
+            OpenApp, SuspendApps, UnsuspendApps,
+            IfCondition, Repeat, RepeatCount, Wait, Comment,
+            AndCondition, OrCondition,
+            CheckWifiState, CheckBluetoothState, CheckBatteryLevel,
+            CheckChargingState, CheckTimeRange, CheckDayOfWeek,
+            CheckDarkModeState, CheckScreenState, CheckAirplaneState,
+            CheckDndState, CheckSilentState, CheckMobileDataState,
+            CheckNetworkType, CheckMusicPlaying, CheckAppForeground,
+            CheckAutoRotateState, CheckHotspotState, CheckNfcState,
+            CheckGpsState, CheckVolumeLevel, CheckBrightnessLevel
+            )
+        }
+
+        private val byIdMap: Map<String, BlockType> by lazy { all.associateBy { it.id } }
+
+        fun fromId(id: String): BlockType? = byIdMap[id]
+    }
 }
 
 /**
- * Block 的可配置参数。Boolean 用于开关，Int 用于音量/亮度等数值，
- * Choice 用于需要从固定选项中选择的场景（如音量流类型）。
+ * Block 的可配置参数。
+ * Boolean 用于开关，Int 用于音量/亮度等数值，Choice 用于固定选项，
+ * String 用于包名/SSID 等自由文本。
  */
 sealed class BlockParameter {
     abstract val key: String
@@ -64,6 +161,12 @@ sealed class BlockParameter {
         val value: String,
         val options: List<String>
     ) : BlockParameter()
+
+    data class StringParam(
+        override val key: String,
+        override val label: String,
+        val value: String
+    ) : BlockParameter()
 }
 
 /**
@@ -84,28 +187,7 @@ data class AutomationBlock(
  * 将选择操作弹窗中的 [AutomationAction] 转换为带默认参数的 [AutomationBlock]。
  */
 fun AutomationAction.toAutomationBlock(): AutomationBlock {
-    val type = when (id) {
-        "toggle_wifi" -> BlockType.ToggleWifi
-        "toggle_bluetooth" -> BlockType.ToggleBluetooth
-        "set_dnd" -> BlockType.SetDnd
-        "adjust_volume" -> BlockType.AdjustVolume
-        "adjust_brightness" -> BlockType.AdjustBrightness
-        "enable_mode" -> BlockType.EnableMode
-        "disable_mode" -> BlockType.DisableMode
-        "open_app" -> BlockType.OpenApp
-        "if_condition" -> BlockType.IfCondition
-        "repeat" -> BlockType.Repeat
-        "repeat_count" -> BlockType.RepeatCount
-        "wait" -> BlockType.Wait
-        "comment" -> BlockType.Comment
-        "and_condition" -> BlockType.AndCondition
-        "or_condition" -> BlockType.OrCondition
-        "check_wifi" -> BlockType.CheckWifiState
-        "check_bluetooth" -> BlockType.CheckBluetoothState
-        "check_battery" -> BlockType.CheckBatteryLevel
-        "check_time" -> BlockType.CheckTimeRange
-        else -> BlockType.OpenApp
-    }
+    val type = BlockType.fromId(id) ?: BlockType.OpenApp
     return AutomationBlock(
         id = UUID.randomUUID().toString(),
         type = type,
@@ -117,27 +199,124 @@ fun AutomationAction.toAutomationBlock(): AutomationBlock {
 }
 
 private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (type) {
-    // 系统控制
-    is BlockType.ToggleWifi -> listOf(
-        BlockParameter.BooleanParam("enabled", "开启 WiFi", true)
+    // ==================== 触发条件 ====================
+    is BlockType.TriggerTime -> listOf(
+        BlockParameter.StringParam("start", "开始时间 (HH:mm)", ""),
+        BlockParameter.StringParam("end", "结束时间 (HH:mm)", ""),
+        BlockParameter.ChoiceParam(
+            "repeat", "重复", "每天",
+            listOf("每天", "工作日", "周末")
+        )
     )
-    is BlockType.ToggleBluetooth -> listOf(
-        BlockParameter.BooleanParam("enabled", "开启蓝牙", true)
+    is BlockType.TriggerWifi -> listOf(
+        BlockParameter.StringParam("ssid", "WiFi 名称 (SSID)", ""),
+        BlockParameter.BooleanParam("connect", "连接时触发", true)
     )
+    is BlockType.TriggerWifiState -> listOf(
+        BlockParameter.BooleanParam("enabled", "WiFi 开启时触发", true)
+    )
+    is BlockType.TriggerBluetooth -> listOf(
+        BlockParameter.BooleanParam("enabled", "蓝牙开启时触发", true)
+    )
+    is BlockType.TriggerBattery -> listOf(
+        BlockParameter.ChoiceParam("operator", "比较运算符", "低于", listOf("高于", "低于")),
+        BlockParameter.IntParam("level", "电量百分比", 20, 0, 100)
+    )
+    is BlockType.TriggerCharging -> listOf(
+        BlockParameter.BooleanParam("charging", "开始充电时触发", true)
+    )
+    is BlockType.TriggerNetwork -> listOf(
+        BlockParameter.ChoiceParam(
+            "type", "网络类型", "WiFi",
+            listOf("WiFi", "移动数据", "无网络")
+        )
+    )
+    is BlockType.TriggerMusic -> listOf(
+        BlockParameter.BooleanParam("playing", "开始播放时触发", true)
+    )
+    is BlockType.TriggerApp -> listOf(
+        BlockParameter.StringParam("package", "应用包名", "")
+    )
+    is BlockType.TriggerDayOfWeek -> listOf(
+        BlockParameter.ChoiceParam(
+            "days", "星期", "周一至周五",
+            listOf("周一至周五", "周末", "每天")
+        )
+    )
+
+    // ==================== 系统控制 ====================
+    is BlockType.ToggleWifi,
+    is BlockType.ToggleBluetooth,
+    is BlockType.ToggleMobileData,
+    is BlockType.ToggleAirplane,
+    is BlockType.ToggleHotspot,
+    is BlockType.ToggleNfc,
+    is BlockType.ToggleGps,
+    is BlockType.ToggleFlashlight,
+    is BlockType.ToggleAutoRotate,
+    is BlockType.ToggleBatterySaver,
+    is BlockType.SetSilentMode,
+    is BlockType.SetAutoBrightness,
+    is BlockType.SetDarkMode,
+    is BlockType.SetGrayscale,
+    is BlockType.SetAod,
+    is BlockType.SetRaiseToWake,
+    is BlockType.SetWakeForNotifications,
+    is BlockType.SetEyeCare,
+    is BlockType.SetAdaptiveRefreshRatePro,
+    is BlockType.Set5g,
+    is BlockType.SetMotionSicknessRelief -> listOf(
+        BlockParameter.BooleanParam("enabled", "开启", true)
+    )
+
     is BlockType.SetDnd -> listOf(
-        BlockParameter.BooleanParam("enabled", "开启勿扰", true)
+        BlockParameter.ChoiceParam(
+            "level", "勿扰级别", "仅优先",
+            listOf("关闭", "仅闹钟", "仅优先", "完全静音")
+        )
     )
+
     is BlockType.AdjustVolume -> listOf(
         BlockParameter.IntParam("level", "音量", 50, 0, 100),
         BlockParameter.ChoiceParam("stream", "音量类型", "媒体", listOf("媒体", "铃声", "通知", "闹钟"))
     )
+
     is BlockType.AdjustBrightness -> listOf(
         BlockParameter.IntParam("level", "亮度", 50, 0, 100)
     )
-    
-    // 控制流
+
+    // ==================== 显示 ====================
+    is BlockType.SetRefreshRate -> listOf(
+        BlockParameter.ChoiceParam("rate", "刷新率", "60", listOf("60", "90", "120", "144"))
+    )
+
+    // ==================== 设备 ====================
+    is BlockType.SetPerformanceMode -> listOf(
+        BlockParameter.ChoiceParam("mode", "性能模式", "均衡", listOf("均衡", "性能", "省电"))
+    )
+
+    is BlockType.SetPreferredSim -> listOf(
+        BlockParameter.ChoiceParam("slot", "数据卡", "SIM 1", listOf("SIM 1", "SIM 2"))
+    )
+
+    // ==================== 模式 ====================
+    is BlockType.EnableMode,
+    is BlockType.DisableMode -> listOf(
+        BlockParameter.StringParam("modeId", "模式 ID", "")
+    )
+
+    // ==================== 应用 ====================
+    is BlockType.OpenApp,
+    is BlockType.SuspendApps,
+    is BlockType.UnsuspendApps -> listOf(
+        BlockParameter.StringParam("packages", "应用包名（逗号分隔）", "")
+    )
+
+    // ==================== 控制流 ====================
     is BlockType.IfCondition -> emptyList() // 条件由子块决定
-    is BlockType.Repeat -> emptyList()
+    is BlockType.Repeat -> listOf(
+        BlockParameter.IntParam("count", "重复次数", 3, 1, 100)
+    )
     is BlockType.RepeatCount -> listOf(
         BlockParameter.IntParam("count", "重复次数", 3, 1, 100)
     )
@@ -145,28 +324,65 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
         BlockParameter.IntParam("seconds", "等待秒数", 1, 1, 3600)
     )
     is BlockType.Comment -> emptyList()
-    
-    // 逻辑运算
-    is BlockType.AndCondition -> emptyList()
+
+    // ==================== 逻辑运算 ====================
+    is BlockType.AndCondition,
     is BlockType.OrCondition -> emptyList()
-    
-    // 条件判断
-    is BlockType.CheckWifiState -> listOf(
+
+    // ==================== 条件判断 ====================
+    is BlockType.CheckWifiState,
+    is BlockType.CheckBluetoothState,
+    is BlockType.CheckChargingState,
+    is BlockType.CheckDarkModeState,
+    is BlockType.CheckScreenState,
+    is BlockType.CheckAirplaneState,
+    is BlockType.CheckDndState,
+    is BlockType.CheckSilentState,
+    is BlockType.CheckMobileDataState,
+    is BlockType.CheckMusicPlaying,
+    is BlockType.CheckAutoRotateState,
+    is BlockType.CheckHotspotState,
+    is BlockType.CheckNfcState,
+    is BlockType.CheckGpsState -> listOf(
         BlockParameter.BooleanParam("expected", "期望状态：开启", true)
     )
-    is BlockType.CheckBluetoothState -> listOf(
-        BlockParameter.BooleanParam("expected", "期望状态：开启", true)
-    )
+
     is BlockType.CheckBatteryLevel -> listOf(
         BlockParameter.ChoiceParam("operator", "比较运算符", "大于", listOf("大于", "小于", "等于")),
         BlockParameter.IntParam("level", "电量百分比", 50, 0, 100)
     )
+
     is BlockType.CheckTimeRange -> listOf(
-        BlockParameter.ChoiceParam("start", "开始时间", "00:00", emptyList()),
-        BlockParameter.ChoiceParam("end", "结束时间", "23:59", emptyList())
+        BlockParameter.StringParam("start", "开始时间 (HH:mm)", "00:00"),
+        BlockParameter.StringParam("end", "结束时间 (HH:mm)", "23:59")
     )
-    
-    is BlockType.EnableMode,
-    is BlockType.DisableMode,
-    is BlockType.OpenApp -> emptyList()
+
+    is BlockType.CheckDayOfWeek -> listOf(
+        BlockParameter.ChoiceParam(
+            "days", "星期", "周一至周五",
+            listOf("周一至周五", "周末", "每天")
+        )
+    )
+
+    is BlockType.CheckNetworkType -> listOf(
+        BlockParameter.ChoiceParam(
+            "type", "网络类型", "WiFi",
+            listOf("WiFi", "移动数据", "无网络")
+        )
+    )
+
+    is BlockType.CheckAppForeground -> listOf(
+        BlockParameter.StringParam("package", "应用包名", "")
+    )
+
+    is BlockType.CheckVolumeLevel -> listOf(
+        BlockParameter.ChoiceParam("operator", "比较运算符", "大于", listOf("大于", "小于", "等于")),
+        BlockParameter.IntParam("level", "音量百分比", 50, 0, 100),
+        BlockParameter.ChoiceParam("stream", "音量类型", "媒体", listOf("媒体", "铃声", "通知", "闹钟"))
+    )
+
+    is BlockType.CheckBrightnessLevel -> listOf(
+        BlockParameter.ChoiceParam("operator", "比较运算符", "大于", listOf("大于", "小于", "等于")),
+        BlockParameter.IntParam("level", "亮度百分比", 50, 0, 100)
+    )
 }
