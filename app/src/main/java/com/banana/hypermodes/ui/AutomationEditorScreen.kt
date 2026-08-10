@@ -630,13 +630,6 @@ private fun WifiTriggerEditor(
             .padding(top = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "当",
-            style = MiuixTheme.textStyles.body1,
-            color = MiuixTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(end = 6.dp)
-        )
-
         // WiFi 图标
         Box(
             modifier = Modifier
@@ -778,13 +771,6 @@ private fun BluetoothTriggerEditor(
             .padding(top = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "当",
-            style = MiuixTheme.textStyles.body1,
-            color = MiuixTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(end = 6.dp)
-        )
-
         // 蓝牙图标
         Box(
             modifier = Modifier
