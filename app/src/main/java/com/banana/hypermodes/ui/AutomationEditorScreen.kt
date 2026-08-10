@@ -442,9 +442,16 @@ fun AutomationEditorScreen(
                     shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
                     target = remember {
                         object : DragAndDropTarget {
+                            override fun onEnded(event: DragAndDropEvent) {
+                                dragController.draggedBlockId = null
+                                dragController.dropTargetId = null
+                            }
+
                             override fun onDrop(event: DragAndDropEvent): Boolean {
                                 val draggedId = event.blockIdOrNull() ?: return false
                                 dragController.onDrop?.invoke(draggedId, null)
+                                dragController.draggedBlockId = null
+                                dragController.dropTargetId = null
                                 return true
                             }
                         }
@@ -1120,15 +1127,15 @@ private fun moveBlockIntoParent(
     return addBlockToChildren(withoutDragged, targetParentId, dragged)
 }
 
-/** 判断拖放事件是否来自 HyperModes 的块（按 ClipData 类型过滤）。 */
+/** 判断拖放事件是否来自 HyperModes 的块（按 localState 识别，clipData 在某些系统上不可靠）。 */
 private fun isHyperModesBlockDrag(event: DragAndDropEvent): Boolean {
-    return event.toAndroidDragEvent().clipData?.description?.hasMimeType(
-        android.content.ClipDescription.MIMETYPE_TEXT_PLAIN
-    ) == true
+    return event.blockIdOrNull() != null
 }
 
-/** 从拖放事件中读取被拖块的 id。 */
+/** 从拖放事件中读取被拖块的 id（优先 localState，失败再读 clipData）。 */
 private fun DragAndDropEvent.blockIdOrNull(): String? {
+    val local = toAndroidDragEvent().localState as? String
+    if (!local.isNullOrBlank()) return local
     return toAndroidDragEvent().clipData?.getItemAt(0)?.text?.toString()
 }
 
@@ -1136,6 +1143,8 @@ private fun DragAndDropEvent.blockIdOrNull(): String? {
 private class DragController {
     /** 当前高亮的放置目标容器 id（拖拽进入时设置，退出时清空）。 */
     var dropTargetId by mutableStateOf<String?>(null)
+    /** 当前被拖拽的块 id（拖拽开始设置，结束/取消清除）。 */
+    var draggedBlockId by mutableStateOf<String?>(null)
     var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
 }
 
@@ -1178,14 +1187,20 @@ private fun BlockCard(
             .then(
                 if (dragController != null) {
                     // 官方拖拽源：长按本块启动拖放，携带 blockId 供放置目标解析
-                    Modifier.dragAndDropSource(
-                        transferData = {
-                            DragAndDropTransferData(
-                                clipData = ClipData.newPlainText("hypermodes_block", block.id),
-                                localState = block.id
-                            )
+                    Modifier
+                        .graphicsLayer {
+                            // 拖拽中的源块半透明（系统阴影已跟手，原块淡出提示正在拖）
+                            alpha = if (dragController.draggedBlockId == block.id) 0.35f else 1f
                         }
-                    )
+                        .dragAndDropSource(
+                            transferData = {
+                                dragController.draggedBlockId = block.id
+                                DragAndDropTransferData(
+                                    clipData = ClipData.newPlainText("hypermodes_block", block.id),
+                                    localState = block.id
+                                )
+                            }
+                        )
                 } else {
                     Modifier
                 }
@@ -1317,6 +1332,11 @@ private fun BlockCard(
                             shouldStartDragAndDrop = { isHyperModesBlockDrag(it) },
                             target = remember(block.id) {
                                 object : DragAndDropTarget {
+                                    override fun onEnded(event: DragAndDropEvent) {
+                                        dragController?.draggedBlockId = null
+                                        dragController?.dropTargetId = null
+                                    }
+
                                     override fun onEntered(event: DragAndDropEvent) {
                                         dragController?.dropTargetId = block.id
                                     }
@@ -1330,6 +1350,7 @@ private fun BlockCard(
                                     override fun onDrop(event: DragAndDropEvent): Boolean {
                                         val draggedId = event.blockIdOrNull() ?: return false
                                         dragController?.onDrop?.invoke(draggedId, block.id)
+                                        dragController?.draggedBlockId = null
                                         dragController?.dropTargetId = null
                                         return true
                                     }
