@@ -78,6 +78,8 @@ fun AutomationActionDialog(
     onActionSelected: (AutomationAction) -> Unit = {},
     categories: Set<AutomationCatalog.Category>? = null
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
     WindowBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
@@ -88,40 +90,88 @@ fun AutomationActionDialog(
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
         ) {
+            // 搜索框（最顶部，可搜索全部操作）
+            SearchBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                inputField = {
+                    InputField(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        onSearch = { },
+                        expanded = false,
+                        onExpandedChange = { },
+                        label = "搜索全部操作..."
+                    )
+                },
+                expanded = false,
+                onExpandedChange = { }
+            ) { }
+
             // 分组操作列表（按分类，以粗体标题分组）
-            val groupedActions = AutomationCatalog.grouped()
-                .filter { (category, _) -> categories == null || category in categories }
-                .entries
-                .map { (category, entries) ->
-                    category to entries.map { entry ->
-                        AutomationAction(
-                            id = entry.id,
-                            name = entry.name,
-                            icon = entry.icon,
-                            iconColor = entry.iconColor,
-                            description = entry.description
-                        )
+            val allActions = AutomationCatalog.entries
+                .filter { categories == null || it.category in categories }
+                .map { entry ->
+                    AutomationAction(
+                        id = entry.id,
+                        name = entry.name,
+                        icon = entry.icon,
+                        iconColor = entry.iconColor,
+                        description = entry.description
+                    )
+                }
+            val filteredActions = remember(searchQuery, allActions) {
+                if (searchQuery.isBlank()) {
+                    allActions
+                } else {
+                    allActions.filter { action ->
+                        action.name.contains(searchQuery, ignoreCase = true) ||
+                                action.description.contains(searchQuery, ignoreCase = true)
                     }
                 }
+            }
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                groupedActions.forEach { (category, actions) ->
-                    item(key = "header-${category.name}") {
-                        Text(
-                            text = category.label,
-                            style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.padding(
-                                start = 24.dp,
-                                top = 20.dp,
-                                bottom = 12.dp
-                            )
-                        )
-                    }
-                    items(actions, key = { it.id }) { action ->
+                if (searchQuery.isBlank()) {
+                    AutomationCatalog.grouped()
+                        .filter { (category, _) -> categories == null || category in categories }
+                        .forEach { (category, entries) ->
+                            item(key = "header-${category.name}") {
+                                Text(
+                                    text = category.label,
+                                    style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
+                                    modifier = Modifier.padding(
+                                        start = 24.dp,
+                                        top = 20.dp,
+                                        bottom = 12.dp
+                                    )
+                                )
+                            }
+                            items(entries.map { entry ->
+                                AutomationAction(
+                                    id = entry.id,
+                                    name = entry.name,
+                                    icon = entry.icon,
+                                    iconColor = entry.iconColor,
+                                    description = entry.description
+                                )
+                            }, key = { it.id }) { action ->
+                                ActionOptionCard(
+                                    action = action,
+                                    onClick = {
+                                        onActionSelected(action)
+                                        onDismiss()
+                                    }
+                                )
+                            }
+                        }
+                } else {
+                    items(filteredActions, key = { it.id }) { action ->
                         ActionOptionCard(
                             action = action,
                             onClick = {
@@ -178,21 +228,6 @@ private fun ActionOptionCard(
                 }
             }
 
-            // 右侧圆形 i 信息按钮
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "i",
-                    fontSize = 15.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
@@ -835,7 +870,8 @@ private fun BluetoothTriggerEditor(
 @Composable
 private fun StateChipEditor(
     block: AutomationBlock,
-    onUpdate: (AutomationBlock) -> Unit
+    onUpdate: (AutomationBlock) -> Unit,
+    showWhenSuffix: Boolean = true
 ) {
     val stateParam = block.parameters.find { it.key == "state" } as? BlockParameter.ChoiceParam
     var showStateMenu by remember { mutableStateOf(false) }
@@ -856,20 +892,30 @@ private fun StateChipEditor(
             .padding(top = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 状态图标
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(block.iconColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
+        if (showWhenSuffix) {
+            // 状态图标
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(block.iconColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = block.icon,
+                    fontSize = 13.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+        } else {
+            // 操作类：显示名称 + 状态胶囊（如 "WiFi [开启]"）
             Text(
-                text = block.icon,
-                fontSize = 13.sp
+                text = block.label,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(end = 8.dp)
             )
         }
-        Spacer(modifier = Modifier.width(6.dp))
 
         // 状态胶囊（点击弹菜单切换）
         Box(
@@ -898,11 +944,13 @@ private fun StateChipEditor(
         }
         Spacer(modifier = Modifier.width(6.dp))
 
-        Text(
-            text = "时",
-            style = MiuixTheme.textStyles.body1,
-            color = MiuixTheme.colorScheme.onSurface
-        )
+        if (showWhenSuffix) {
+            Text(
+                text = "时",
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface
+            )
+        }
     }
 
     // 状态菜单
@@ -1180,26 +1228,97 @@ private fun BlockCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(block.iconColor.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = block.icon,
-                        style = MiuixTheme.textStyles.headline1.copy(fontSize = 24.sp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
+                // 内容区（去掉顶部图标+名称行，直接渲染编辑器）
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = block.label,
-                        style = MiuixTheme.textStyles.body1
-                    )
+                    if (block.type is BlockType.TriggerTime) {
+                        // 时间触发：图一样式的定制编辑器（时间胶囊 + 重复选项）
+                        TimeTriggerEditor(
+                            block = block,
+                            onUpdate = onUpdate
+                        )
+                    } else if (block.type is BlockType.TriggerWifi) {
+                        // WiFi 触发：一行句子式编辑器（当 [📶] [WiFi名称] [条件] 时）
+                        WifiTriggerEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            onPickWifi = { param -> onPickWifi(param) }
+                        )
+                    } else if (block.type is BlockType.TriggerBluetooth) {
+                        // 蓝牙触发：一行句子式编辑器（当 [🔵] [设备] [条件] 时）
+                        BluetoothTriggerEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            onPickBluetooth = { param -> onPickBluetooth(param) }
+                        )
+                    } else if (block.type is BlockType.TriggerCharging ||
+                        block.type is BlockType.TriggerMusic ||
+                        block.type is BlockType.CheckWifiState ||
+                        block.type is BlockType.CheckBluetoothState ||
+                        block.type is BlockType.CheckChargingState ||
+                        block.type is BlockType.CheckScreenState ||
+                        block.type is BlockType.CheckAirplaneState ||
+                        block.type is BlockType.CheckDndState ||
+                        block.type is BlockType.CheckSilentState ||
+                        block.type is BlockType.CheckMobileDataState ||
+                        block.type is BlockType.CheckMusicPlaying ||
+                        block.type is BlockType.CheckAutoRotateState ||
+                        block.type is BlockType.CheckHotspotState ||
+                        block.type is BlockType.CheckNfcState ||
+                        block.type is BlockType.CheckGpsState
+                    ) {
+                        // 状态类触发/检查：当 [图标] [状态胶囊] 时
+                        StateChipEditor(
+                            block = block,
+                            onUpdate = onUpdate
+                        )
+                    } else if (block.type is BlockType.ToggleWifi ||
+                        block.type is BlockType.ToggleBluetooth ||
+                        block.type is BlockType.ToggleMobileData ||
+                        block.type is BlockType.ToggleAirplane ||
+                        block.type is BlockType.ToggleHotspot ||
+                        block.type is BlockType.ToggleNfc ||
+                        block.type is BlockType.ToggleGps ||
+                        block.type is BlockType.ToggleFlashlight ||
+                        block.type is BlockType.ToggleAutoRotate ||
+                        block.type is BlockType.ToggleBatterySaver ||
+                        block.type is BlockType.SetSilentMode ||
+                        block.type is BlockType.SetAutoBrightness ||
+                        block.type is BlockType.SetGrayscale ||
+                        block.type is BlockType.SetRaiseToWake ||
+                        block.type is BlockType.SetWakeForNotifications ||
+                        block.type is BlockType.SetEyeCare ||
+                        block.type is BlockType.SetAdaptiveRefreshRatePro ||
+                        block.type is BlockType.Set5g ||
+                        block.type is BlockType.SetMotionSicknessRelief
+                    ) {
+                        // 开关操作：显示名称 + 状态胶囊（如 "WiFi [开启]"）
+                        StateChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            showWhenSuffix = false
+                        )
+                    } else {
+                        block.parameters.forEach { param ->
+                            Spacer(modifier = Modifier.height(6.dp))
+                            ParameterEditor(
+                                param = param,
+                                onChange = { newParam ->
+                                    onUpdate(
+                                        block.copy(
+                                            parameters = block.parameters.map {
+                                                if (it.key == newParam.key) newParam else it
+                                            }
+                                        )
+                                    )
+                                },
+                                onPickApps = { if (it is BlockParameter.StringParam) onPickApps(it) }
+                            )
+                        }
+                    }
                 }
-                // 最右侧 × 删除按钮
+
+                // 右侧 × 删除按钮
+                Spacer(modifier = Modifier.width(10.dp))
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -1213,66 +1332,6 @@ private fun BlockCard(
                         fontSize = 20.sp,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.body1
-                    )
-                }
-            }
-
-            if (block.type is BlockType.TriggerTime) {
-                // 时间触发：图一样式的定制编辑器（时间胶囊 + 重复选项）
-                TimeTriggerEditor(
-                    block = block,
-                    onUpdate = onUpdate
-                )
-            } else if (block.type is BlockType.TriggerWifi) {
-                // WiFi 触发：一行句子式编辑器（当 [📶] [WiFi名称] [条件] 时）
-                WifiTriggerEditor(
-                    block = block,
-                    onUpdate = onUpdate,
-                    onPickWifi = { param -> onPickWifi(param) }
-                )
-            } else if (block.type is BlockType.TriggerBluetooth) {
-                // 蓝牙触发：一行句子式编辑器（当 [🔵] [设备] [条件] 时）
-                BluetoothTriggerEditor(
-                    block = block,
-                    onUpdate = onUpdate,
-                    onPickBluetooth = { param -> onPickBluetooth(param) }
-                )
-            } else if (block.type is BlockType.TriggerCharging ||
-                block.type is BlockType.TriggerMusic ||
-                block.type is BlockType.CheckWifiState ||
-                block.type is BlockType.CheckBluetoothState ||
-                block.type is BlockType.CheckChargingState ||
-                block.type is BlockType.CheckScreenState ||
-                block.type is BlockType.CheckAirplaneState ||
-                block.type is BlockType.CheckDndState ||
-                block.type is BlockType.CheckSilentState ||
-                block.type is BlockType.CheckMobileDataState ||
-                block.type is BlockType.CheckMusicPlaying ||
-                block.type is BlockType.CheckAutoRotateState ||
-                block.type is BlockType.CheckHotspotState ||
-                block.type is BlockType.CheckNfcState ||
-                block.type is BlockType.CheckGpsState
-            ) {
-                // 状态类触发/检查：当 [图标] [状态胶囊] 时
-                StateChipEditor(
-                    block = block,
-                    onUpdate = onUpdate
-                )
-            } else {
-                block.parameters.forEach { param ->
-                    Spacer(modifier = Modifier.height(12.dp))
-                    ParameterEditor(
-                        param = param,
-                        onChange = { newParam ->
-                            onUpdate(
-                                block.copy(
-                                    parameters = block.parameters.map {
-                                        if (it.key == newParam.key) newParam else it
-                                    }
-                                )
-                            )
-                        },
-                        onPickApps = { if (it is BlockParameter.StringParam) onPickApps(it) }
                     )
                 }
             }

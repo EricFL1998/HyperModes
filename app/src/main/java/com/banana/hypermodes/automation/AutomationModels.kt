@@ -21,54 +21,35 @@ sealed class BlockType(val id: String) {
     data object TriggerDayOfWeek : BlockType("trigger_day_of_week")
 
     // ==================== 系统控制 ====================
-    data object ToggleWifiOn : BlockType("toggle_wifi_on")
-    data object ToggleWifiOff : BlockType("toggle_wifi_off")
-    data object ToggleBluetoothOn : BlockType("toggle_bluetooth_on")
-    data object ToggleBluetoothOff : BlockType("toggle_bluetooth_off")
-    data object ToggleMobileDataOn : BlockType("toggle_mobile_data_on")
-    data object ToggleMobileDataOff : BlockType("toggle_mobile_data_off")
-    data object ToggleAirplaneOn : BlockType("toggle_airplane_on")
-    data object ToggleAirplaneOff : BlockType("toggle_airplane_off")
-    data object ToggleHotspotOn : BlockType("toggle_hotspot_on")
-    data object ToggleHotspotOff : BlockType("toggle_hotspot_off")
-    data object ToggleNfcOn : BlockType("toggle_nfc_on")
-    data object ToggleNfcOff : BlockType("toggle_nfc_off")
-    data object ToggleGpsOn : BlockType("toggle_gps_on")
-    data object ToggleGpsOff : BlockType("toggle_gps_off")
-    data object ToggleFlashlightOn : BlockType("toggle_flashlight_on")
-    data object ToggleFlashlightOff : BlockType("toggle_flashlight_off")
-    data object ToggleAutoRotateOn : BlockType("toggle_auto_rotate_on")
-    data object ToggleAutoRotateOff : BlockType("toggle_auto_rotate_off")
-    data object ToggleBatterySaverOn : BlockType("toggle_battery_saver_on")
-    data object ToggleBatterySaverOff : BlockType("toggle_battery_saver_off")
-    data object SetSilentModeOn : BlockType("set_silent_mode_on")
-    data object SetSilentModeOff : BlockType("set_silent_mode_off")
+    data object ToggleWifi : BlockType("toggle_wifi")
+    data object ToggleBluetooth : BlockType("toggle_bluetooth")
+    data object ToggleMobileData : BlockType("toggle_mobile_data")
+    data object ToggleAirplane : BlockType("toggle_airplane")
+    data object ToggleHotspot : BlockType("toggle_hotspot")
+    data object ToggleNfc : BlockType("toggle_nfc")
+    data object ToggleGps : BlockType("toggle_gps")
+    data object ToggleFlashlight : BlockType("toggle_flashlight")
+    data object ToggleAutoRotate : BlockType("toggle_auto_rotate")
+    data object ToggleBatterySaver : BlockType("toggle_battery_saver")
+    data object SetSilentMode : BlockType("set_silent_mode")
     data object SetDnd : BlockType("set_dnd")
     data object AdjustVolume : BlockType("adjust_volume")
     data object AdjustBrightness : BlockType("adjust_brightness")
-    data object SetAutoBrightnessOn : BlockType("set_auto_brightness_on")
-    data object SetAutoBrightnessOff : BlockType("set_auto_brightness_off")
+    data object SetAutoBrightness : BlockType("set_auto_brightness")
 
     // ==================== 显示 ====================
-    data object SetGrayscaleOn : BlockType("set_grayscale_on")
-    data object SetGrayscaleOff : BlockType("set_grayscale_off")
-    data object SetRaiseToWakeOn : BlockType("set_raise_to_wake_on")
-    data object SetRaiseToWakeOff : BlockType("set_raise_to_wake_off")
-    data object SetWakeForNotificationsOn : BlockType("set_wake_for_notifications_on")
-    data object SetWakeForNotificationsOff : BlockType("set_wake_for_notifications_off")
-    data object SetEyeCareOn : BlockType("set_eye_care_on")
-    data object SetEyeCareOff : BlockType("set_eye_care_off")
+    data object SetGrayscale : BlockType("set_grayscale")
+    data object SetRaiseToWake : BlockType("set_raise_to_wake")
+    data object SetWakeForNotifications : BlockType("set_wake_for_notifications")
+    data object SetEyeCare : BlockType("set_eye_care")
     data object SetRefreshRate : BlockType("set_refresh_rate")
-    data object SetAdaptiveRefreshRateProOn : BlockType("set_adaptive_refresh_rate_pro_on")
-    data object SetAdaptiveRefreshRateProOff : BlockType("set_adaptive_refresh_rate_pro_off")
+    data object SetAdaptiveRefreshRatePro : BlockType("set_adaptive_refresh_rate_pro")
 
     // ==================== 设备 ====================
     data object SetPerformanceMode : BlockType("set_performance_mode")
-    data object Set5gOn : BlockType("set_5g_on")
-    data object Set5gOff : BlockType("set_5g_off")
+    data object Set5g : BlockType("set_5g")
     data object SetPreferredSim : BlockType("set_preferred_sim")
-    data object SetMotionSicknessReliefOn : BlockType("set_motion_sickness_relief_on")
-    data object SetMotionSicknessReliefOff : BlockType("set_motion_sickness_relief_off")
+    data object SetMotionSicknessRelief : BlockType("set_motion_sickness_relief")
 
     // ==================== 模式 ====================
     data object EnableMode : BlockType("enable_mode")
@@ -121,27 +102,21 @@ sealed class BlockType(val id: String) {
             TriggerBattery, TriggerCharging,
             TriggerNetwork, TriggerMusic,
             TriggerApp, TriggerDayOfWeek,
-            ToggleWifiOn, ToggleWifiOff, ToggleBluetoothOn, ToggleBluetoothOff,
-            ToggleMobileDataOn, ToggleMobileDataOff,
-            ToggleAirplaneOn, ToggleAirplaneOff,
-            ToggleHotspotOn, ToggleHotspotOff,
-            ToggleNfcOn, ToggleNfcOff,
-            ToggleGpsOn, ToggleGpsOff,
-            ToggleFlashlightOn, ToggleFlashlightOff,
-            ToggleAutoRotateOn, ToggleAutoRotateOff,
-            ToggleBatterySaverOn, ToggleBatterySaverOff,
-            SetSilentModeOn, SetSilentModeOff, SetDnd,
+            ToggleWifi, ToggleBluetooth,
+            ToggleMobileData, ToggleAirplane,
+            ToggleHotspot, ToggleNfc,
+            ToggleGps, ToggleFlashlight,
+            ToggleAutoRotate, ToggleBatterySaver,
+            SetSilentMode, SetDnd,
             AdjustVolume, AdjustBrightness,
-            SetAutoBrightnessOn, SetAutoBrightnessOff,
-            SetGrayscaleOn, SetGrayscaleOff,
-            SetRaiseToWakeOn, SetRaiseToWakeOff,
-            SetWakeForNotificationsOn, SetWakeForNotificationsOff,
-            SetEyeCareOn, SetEyeCareOff,
+            SetAutoBrightness,
+            SetGrayscale, SetRaiseToWake,
+            SetWakeForNotifications, SetEyeCare,
             SetRefreshRate,
-            SetAdaptiveRefreshRateProOn, SetAdaptiveRefreshRateProOff,
-            SetPerformanceMode, Set5gOn, Set5gOff,
+            SetAdaptiveRefreshRatePro,
+            SetPerformanceMode, Set5g,
             SetPreferredSim,
-            SetMotionSicknessReliefOn, SetMotionSicknessReliefOff,
+            SetMotionSicknessRelief,
             EnableMode, DisableMode,
             OpenApp, SuspendApps, UnsuspendApps,
             IfCondition, Repeat, RepeatCount, Wait, Comment,
@@ -288,44 +263,30 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     )
 
     // ==================== 系统控制 ====================
-    is BlockType.ToggleWifiOn,
-    is BlockType.ToggleWifiOff,
-    is BlockType.ToggleBluetoothOn,
-    is BlockType.ToggleBluetoothOff,
-    is BlockType.ToggleMobileDataOn,
-    is BlockType.ToggleMobileDataOff,
-    is BlockType.ToggleAirplaneOn,
-    is BlockType.ToggleAirplaneOff,
-    is BlockType.ToggleHotspotOn,
-    is BlockType.ToggleHotspotOff,
-    is BlockType.ToggleNfcOn,
-    is BlockType.ToggleNfcOff,
-    is BlockType.ToggleGpsOn,
-    is BlockType.ToggleGpsOff,
-    is BlockType.ToggleFlashlightOn,
-    is BlockType.ToggleFlashlightOff,
-    is BlockType.ToggleAutoRotateOn,
-    is BlockType.ToggleAutoRotateOff,
-    is BlockType.ToggleBatterySaverOn,
-    is BlockType.ToggleBatterySaverOff,
-    is BlockType.SetSilentModeOn,
-    is BlockType.SetSilentModeOff,
-    is BlockType.SetAutoBrightnessOn,
-    is BlockType.SetAutoBrightnessOff,
-    is BlockType.SetGrayscaleOn,
-    is BlockType.SetGrayscaleOff,
-    is BlockType.SetRaiseToWakeOn,
-    is BlockType.SetRaiseToWakeOff,
-    is BlockType.SetWakeForNotificationsOn,
-    is BlockType.SetWakeForNotificationsOff,
-    is BlockType.SetEyeCareOn,
-    is BlockType.SetEyeCareOff,
-    is BlockType.SetAdaptiveRefreshRateProOn,
-    is BlockType.SetAdaptiveRefreshRateProOff,
-    is BlockType.Set5gOn,
-    is BlockType.Set5gOff,
-    is BlockType.SetMotionSicknessReliefOn,
-    is BlockType.SetMotionSicknessReliefOff -> emptyList()
+    is BlockType.ToggleWifi,
+    is BlockType.ToggleBluetooth,
+    is BlockType.ToggleMobileData,
+    is BlockType.ToggleAirplane,
+    is BlockType.ToggleHotspot,
+    is BlockType.ToggleNfc,
+    is BlockType.ToggleGps,
+    is BlockType.ToggleFlashlight,
+    is BlockType.ToggleAutoRotate,
+    is BlockType.ToggleBatterySaver,
+    is BlockType.SetSilentMode,
+    is BlockType.SetAutoBrightness,
+    is BlockType.SetGrayscale,
+    is BlockType.SetRaiseToWake,
+    is BlockType.SetWakeForNotifications,
+    is BlockType.SetEyeCare,
+    is BlockType.SetAdaptiveRefreshRatePro,
+    is BlockType.Set5g,
+    is BlockType.SetMotionSicknessRelief -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "状态", "开启",
+            listOf("开启", "关闭")
+        )
+    )
 
     is BlockType.SetDnd -> listOf(
         BlockParameter.ChoiceParam(
