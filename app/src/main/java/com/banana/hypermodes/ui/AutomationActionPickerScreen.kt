@@ -127,7 +127,7 @@ fun AutomationActionPickerScreen(
                             onSearch = { },
                             expanded = false,
                             onExpandedChange = { },
-                            label = "搜索操作..."
+                            label = "搜索操作"
                         )
                     },
                     expanded = false,

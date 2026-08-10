@@ -129,12 +129,14 @@ class AutomationExecutor(
             is BlockType.SetAutoBrightness -> executeSetAutoBrightness(block, block.stateExpected())
 
             // ==================== 显示 ====================
+            is BlockType.SetDarkMode -> executeSetDarkMode(block, block.stateExpected())
             is BlockType.SetGrayscale -> executeSetGrayscale(block, block.stateExpected())
             is BlockType.SetRaiseToWake -> executeSetRaiseToWake(block, block.stateExpected())
             is BlockType.SetWakeForNotifications -> executeSetWakeForNotifications(block, block.stateExpected())
             is BlockType.SetEyeCare -> executeSetEyeCare(block, block.stateExpected())
             is BlockType.SetRefreshRate -> executeSetRefreshRate(block)
             is BlockType.SetAdaptiveRefreshRatePro -> executeSetAdaptiveRefreshRatePro(block, block.stateExpected())
+            is BlockType.SetAod -> executeSetAod(block, block.stateExpected())
 
             // ==================== 设备 ====================
             is BlockType.SetPerformanceMode -> executeSetPerformanceMode(block)
@@ -447,6 +449,16 @@ class AutomationExecutor(
 
     // ==================== 显示实现 ====================
 
+    private fun executeSetDarkMode(block: AutomationBlock, enabled: Boolean): ExecutionResult {
+        val ok = runRoot("cmd uimode night ${if (enabled) "yes" else "no"}") ||
+                writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "深色模式已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "深色模式控制失败")
+        }
+    }
+
     private fun executeSetGrayscale(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val ok = runRoot(
             "settings put secure accessibility_display_daltonizer_enabled ${if (enabled) 1 else 0}",
@@ -509,6 +521,16 @@ class AutomationExecutor(
             ExecutionResult(true, "自适应刷新率 Pro 已${if (enabled) "开启" else "关闭"}")
         } else {
             ExecutionResult(false, "自适应刷新率 Pro 控制失败")
+        }
+    }
+
+    private fun executeSetAod(block: AutomationBlock, enabled: Boolean): ExecutionResult {
+        val ok = runRoot("settings put secure aod_mode ${if (enabled) 1 else 0}") ||
+                writeSetting("secure", "aod_mode", if (enabled) "1" else "0")
+        return if (ok) {
+            ExecutionResult(true, "息屏显示已${if (enabled) "开启" else "关闭"}")
+        } else {
+            ExecutionResult(false, "息屏显示控制失败")
         }
     }
 

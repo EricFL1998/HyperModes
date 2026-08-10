@@ -109,7 +109,7 @@ fun AutomationActionDialog(
                         onSearch = { },
                         expanded = false,
                         onExpandedChange = { },
-                        label = "搜索全部操作..."
+                        label = "搜索全部操作"
                     )
                 },
                 expanded = false,
@@ -1399,11 +1399,13 @@ private fun BlockCard(
                         block.type is BlockType.ToggleBatterySaver ||
                         block.type is BlockType.SetSilentMode ||
                         block.type is BlockType.SetAutoBrightness ||
+                        block.type is BlockType.SetDarkMode ||
                         block.type is BlockType.SetGrayscale ||
                         block.type is BlockType.SetRaiseToWake ||
                         block.type is BlockType.SetWakeForNotifications ||
                         block.type is BlockType.SetEyeCare ||
                         block.type is BlockType.SetAdaptiveRefreshRatePro ||
+                        block.type is BlockType.SetAod ||
                         block.type is BlockType.Set5g ||
                         block.type is BlockType.SetMotionSicknessRelief
                     ) {
@@ -1721,7 +1723,7 @@ private fun ParameterEditor(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (selectedCount > 0) "已选择 $selectedCount 个应用" else "选择应用...",
+                            text = if (selectedCount > 0) "已选择 $selectedCount 个应用" else "选择应用",
                             style = MiuixTheme.textStyles.body1
                         )
                         Text(
@@ -1751,7 +1753,7 @@ private fun ParameterEditor(
                     ) {
                         Text(
                             text = selectedMode?.let { "${it.icon} ${it.name}" }
-                                ?: if (param.value.isBlank()) "选择模式..." else param.value,
+                                ?: if (param.value.isBlank()) "选择模式" else param.value,
                             style = MiuixTheme.textStyles.body1
                         )
                         Text(

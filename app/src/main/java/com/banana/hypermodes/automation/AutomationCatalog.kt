@@ -62,12 +62,14 @@ object AutomationCatalog {
         Entry("set_auto_brightness", "自动亮度", "☀️", Color(0xFFFFCC00), "开启或关闭自动亮度", Category.SYSTEM_CONTROL),
 
         // ==================== 显示 ====================
+        Entry("set_dark_mode", "深色模式", "🌙", Color(0xFF5E5CE6), "开启或关闭深色模式", Category.DISPLAY),
         Entry("set_grayscale", "灰度模式", "⬜", Color(0xFF8E8E93), "开启或关闭屏幕灰度显示", Category.DISPLAY),
         Entry("set_raise_to_wake", "抬腕亮屏", "🤚", Color(0xFF30B0C7), "开启或关闭抬腕亮屏", Category.DISPLAY),
         Entry("set_wake_for_notifications", "通知亮屏", "🔔", Color(0xFF30B0C7), "开启或关闭通知亮屏", Category.DISPLAY),
         Entry("set_eye_care", "纸质护眼", "📖", Color(0xFF34C759), "开启或关闭纸质护眼模式", Category.DISPLAY),
         Entry("set_refresh_rate", "屏幕刷新率", "⚡", Color(0xFFFF9500), "设置屏幕刷新率", Category.DISPLAY),
         Entry("set_adaptive_refresh_rate_pro", "自适应刷新率 Pro", "🚀", Color(0xFF5856D6), "开启或关闭自适应刷新率 Pro", Category.DISPLAY),
+        Entry("set_aod", "息屏显示", "🕐", Color(0xFF30B0C7), "开启或关闭息屏显示（AOD）", Category.DISPLAY),
 
         // ==================== 设备 ====================
         Entry("set_performance_mode", "性能模式", "🏎️", Color(0xFFFF9500), "设置性能模式（均衡/性能/省电）", Category.DEVICE),

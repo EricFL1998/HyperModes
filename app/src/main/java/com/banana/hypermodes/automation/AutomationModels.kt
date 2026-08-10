@@ -38,12 +38,14 @@ sealed class BlockType(val id: String) {
     data object SetAutoBrightness : BlockType("set_auto_brightness")
 
     // ==================== 显示 ====================
+    data object SetDarkMode : BlockType("set_dark_mode")
     data object SetGrayscale : BlockType("set_grayscale")
     data object SetRaiseToWake : BlockType("set_raise_to_wake")
     data object SetWakeForNotifications : BlockType("set_wake_for_notifications")
     data object SetEyeCare : BlockType("set_eye_care")
     data object SetRefreshRate : BlockType("set_refresh_rate")
     data object SetAdaptiveRefreshRatePro : BlockType("set_adaptive_refresh_rate_pro")
+    data object SetAod : BlockType("set_aod")
 
     // ==================== 设备 ====================
     data object SetPerformanceMode : BlockType("set_performance_mode")
@@ -109,10 +111,12 @@ sealed class BlockType(val id: String) {
             SetSilentMode, SetDnd,
             AdjustVolume, AdjustBrightness,
             SetAutoBrightness,
+            SetDarkMode,
             SetGrayscale, SetRaiseToWake,
             SetWakeForNotifications, SetEyeCare,
             SetRefreshRate,
             SetAdaptiveRefreshRatePro,
+            SetAod,
             SetPerformanceMode, Set5g,
             SetPreferredSim,
             SetMotionSicknessRelief,
@@ -274,11 +278,13 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     is BlockType.ToggleBatterySaver,
     is BlockType.SetSilentMode,
     is BlockType.SetAutoBrightness,
+    is BlockType.SetDarkMode,
     is BlockType.SetGrayscale,
     is BlockType.SetRaiseToWake,
     is BlockType.SetWakeForNotifications,
     is BlockType.SetEyeCare,
     is BlockType.SetAdaptiveRefreshRatePro,
+    is BlockType.SetAod,
     is BlockType.Set5g,
     is BlockType.SetMotionSicknessRelief -> listOf(
         BlockParameter.ChoiceParam(
