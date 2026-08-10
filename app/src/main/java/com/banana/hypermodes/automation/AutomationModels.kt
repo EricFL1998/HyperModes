@@ -12,17 +12,11 @@ sealed class BlockType(val id: String) {
     // ==================== 触发条件 ====================
     data object TriggerTime : BlockType("trigger_time")
     data object TriggerWifi : BlockType("trigger_wifi")
-    data object TriggerWifiOn : BlockType("trigger_wifi_on")
-    data object TriggerWifiOff : BlockType("trigger_wifi_off")
     data object TriggerBluetooth : BlockType("trigger_bluetooth")
-    data object TriggerBluetoothOn : BlockType("trigger_bluetooth_on")
-    data object TriggerBluetoothOff : BlockType("trigger_bluetooth_off")
     data object TriggerBattery : BlockType("trigger_battery")
-    data object TriggerChargingStart : BlockType("trigger_charging_start")
-    data object TriggerChargingStop : BlockType("trigger_charging_stop")
+    data object TriggerCharging : BlockType("trigger_charging")
     data object TriggerNetwork : BlockType("trigger_network")
-    data object TriggerMusicStart : BlockType("trigger_music_start")
-    data object TriggerMusicStop : BlockType("trigger_music_stop")
+    data object TriggerMusic : BlockType("trigger_music")
     data object TriggerApp : BlockType("trigger_app")
     data object TriggerDayOfWeek : BlockType("trigger_day_of_week")
 
@@ -97,37 +91,24 @@ sealed class BlockType(val id: String) {
     data object OrCondition : BlockType("or_condition")
 
     // ==================== 条件判断 ====================
-    data object CheckWifiOn : BlockType("check_wifi_on")
-    data object CheckWifiOff : BlockType("check_wifi_off")
-    data object CheckBluetoothOn : BlockType("check_bluetooth_on")
-    data object CheckBluetoothOff : BlockType("check_bluetooth_off")
+    data object CheckWifiState : BlockType("check_wifi")
+    data object CheckBluetoothState : BlockType("check_bluetooth")
     data object CheckBatteryLevel : BlockType("check_battery")
-    data object CheckChargingOn : BlockType("check_charging_on")
-    data object CheckChargingOff : BlockType("check_charging_off")
+    data object CheckChargingState : BlockType("check_charging")
     data object CheckTimeRange : BlockType("check_time")
     data object CheckDayOfWeek : BlockType("check_day_of_week")
-    data object CheckScreenOn : BlockType("check_screen_on")
-    data object CheckScreenOff : BlockType("check_screen_off")
-    data object CheckAirplaneOn : BlockType("check_airplane_on")
-    data object CheckAirplaneOff : BlockType("check_airplane_off")
-    data object CheckDndOn : BlockType("check_dnd_state_on")
-    data object CheckDndOff : BlockType("check_dnd_state_off")
-    data object CheckSilentOn : BlockType("check_silent_on")
-    data object CheckSilentOff : BlockType("check_silent_off")
-    data object CheckMobileDataOn : BlockType("check_mobile_data_on")
-    data object CheckMobileDataOff : BlockType("check_mobile_data_off")
+    data object CheckScreenState : BlockType("check_screen")
+    data object CheckAirplaneState : BlockType("check_airplane")
+    data object CheckDndState : BlockType("check_dnd_state")
+    data object CheckSilentState : BlockType("check_silent")
+    data object CheckMobileDataState : BlockType("check_mobile_data")
     data object CheckNetworkType : BlockType("check_network_type")
-    data object CheckMusicPlayingOn : BlockType("check_music_playing_on")
-    data object CheckMusicPlayingOff : BlockType("check_music_playing_off")
+    data object CheckMusicPlaying : BlockType("check_music_playing")
     data object CheckAppForeground : BlockType("check_app_foreground")
-    data object CheckAutoRotateOn : BlockType("check_auto_rotate_on")
-    data object CheckAutoRotateOff : BlockType("check_auto_rotate_off")
-    data object CheckHotspotOn : BlockType("check_hotspot_on")
-    data object CheckHotspotOff : BlockType("check_hotspot_off")
-    data object CheckNfcOn : BlockType("check_nfc_on")
-    data object CheckNfcOff : BlockType("check_nfc_off")
-    data object CheckGpsOn : BlockType("check_gps_on")
-    data object CheckGpsOff : BlockType("check_gps_off")
+    data object CheckAutoRotateState : BlockType("check_auto_rotate")
+    data object CheckHotspotState : BlockType("check_hotspot")
+    data object CheckNfcState : BlockType("check_nfc")
+    data object CheckGpsState : BlockType("check_gps")
     data object CheckVolumeLevel : BlockType("check_volume")
     data object CheckBrightnessLevel : BlockType("check_brightness")
 
@@ -135,10 +116,10 @@ sealed class BlockType(val id: String) {
         /** 所有类型，按目录顺序排列，用于 id -> BlockType 反查。 */
         val all: List<BlockType> by lazy {
             listOf(
-            TriggerTime, TriggerWifi, TriggerWifiOn, TriggerWifiOff,
-            TriggerBluetooth, TriggerBluetoothOn, TriggerBluetoothOff,
-            TriggerBattery, TriggerChargingStart, TriggerChargingStop,
-            TriggerNetwork, TriggerMusicStart, TriggerMusicStop,
+            TriggerTime, TriggerWifi,
+            TriggerBluetooth,
+            TriggerBattery, TriggerCharging,
+            TriggerNetwork, TriggerMusic,
             TriggerApp, TriggerDayOfWeek,
             ToggleWifiOn, ToggleWifiOff, ToggleBluetoothOn, ToggleBluetoothOff,
             ToggleMobileDataOn, ToggleMobileDataOff,
@@ -165,20 +146,16 @@ sealed class BlockType(val id: String) {
             OpenApp, SuspendApps, UnsuspendApps,
             IfCondition, Repeat, RepeatCount, Wait, Comment,
             AndCondition, OrCondition,
-            CheckWifiOn, CheckWifiOff, CheckBluetoothOn, CheckBluetoothOff,
-            CheckBatteryLevel, CheckChargingOn, CheckChargingOff,
+            CheckWifiState, CheckBluetoothState,
+            CheckBatteryLevel, CheckChargingState,
             CheckTimeRange, CheckDayOfWeek,
-            CheckScreenOn, CheckScreenOff,
-            CheckAirplaneOn, CheckAirplaneOff,
-            CheckDndOn, CheckDndOff,
-            CheckSilentOn, CheckSilentOff,
-            CheckMobileDataOn, CheckMobileDataOff,
-            CheckNetworkType, CheckMusicPlayingOn, CheckMusicPlayingOff,
+            CheckScreenState, CheckAirplaneState,
+            CheckDndState, CheckSilentState,
+            CheckMobileDataState,
+            CheckNetworkType, CheckMusicPlaying,
             CheckAppForeground,
-            CheckAutoRotateOn, CheckAutoRotateOff,
-            CheckHotspotOn, CheckHotspotOff,
-            CheckNfcOn, CheckNfcOff,
-            CheckGpsOn, CheckGpsOff,
+            CheckAutoRotateState, CheckHotspotState,
+            CheckNfcState, CheckGpsState,
             CheckVolumeLevel, CheckBrightnessLevel
             )
         }
@@ -271,8 +248,6 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
             listOf("已加入", "已断开连接", "已加入或断开连接")
         )
     )
-    is BlockType.TriggerWifiOn,
-    is BlockType.TriggerWifiOff,
     is BlockType.TriggerBluetooth -> listOf(
         BlockParameter.StringParam("device", "蓝牙设备", ""),
         BlockParameter.ChoiceParam(
@@ -280,22 +255,28 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
             listOf("已连接", "已断开连接", "已连接或断开连接")
         )
     )
-    is BlockType.TriggerBluetoothOn,
-    is BlockType.TriggerBluetoothOff -> emptyList()
     is BlockType.TriggerBattery -> listOf(
         BlockParameter.ChoiceParam("operator", "比较运算符", "低于", listOf("高于", "低于")),
         BlockParameter.IntParam("level", "电量百分比", 20, 0, 100)
     )
-    is BlockType.TriggerChargingStart,
-    is BlockType.TriggerChargingStop -> emptyList()
+    is BlockType.TriggerCharging -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "充电状态", "开始充电",
+            listOf("开始充电", "停止充电")
+        )
+    )
     is BlockType.TriggerNetwork -> listOf(
         BlockParameter.ChoiceParam(
             "type", "网络类型", "WiFi",
             listOf("WiFi", "移动数据", "无网络")
         )
     )
-    is BlockType.TriggerMusicStart,
-    is BlockType.TriggerMusicStop -> emptyList()
+    is BlockType.TriggerMusic -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "音乐状态", "开始播放",
+            listOf("开始播放", "停止播放")
+        )
+    )
     is BlockType.TriggerApp -> listOf(
         BlockParameter.StringParam("package", "应用包名", "")
     )
@@ -407,32 +388,24 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     is BlockType.OrCondition -> emptyList()
 
     // ==================== 条件判断 ====================
-    is BlockType.CheckWifiOn,
-    is BlockType.CheckWifiOff,
-    is BlockType.CheckBluetoothOn,
-    is BlockType.CheckBluetoothOff,
-    is BlockType.CheckChargingOn,
-    is BlockType.CheckChargingOff,
-    is BlockType.CheckScreenOn,
-    is BlockType.CheckScreenOff,
-    is BlockType.CheckAirplaneOn,
-    is BlockType.CheckAirplaneOff,
-    is BlockType.CheckDndOn,
-    is BlockType.CheckDndOff,
-    is BlockType.CheckSilentOn,
-    is BlockType.CheckSilentOff,
-    is BlockType.CheckMobileDataOn,
-    is BlockType.CheckMobileDataOff,
-    is BlockType.CheckMusicPlayingOn,
-    is BlockType.CheckMusicPlayingOff,
-    is BlockType.CheckAutoRotateOn,
-    is BlockType.CheckAutoRotateOff,
-    is BlockType.CheckHotspotOn,
-    is BlockType.CheckHotspotOff,
-    is BlockType.CheckNfcOn,
-    is BlockType.CheckNfcOff,
-    is BlockType.CheckGpsOn,
-    is BlockType.CheckGpsOff -> emptyList()
+    is BlockType.CheckWifiState,
+    is BlockType.CheckBluetoothState,
+    is BlockType.CheckChargingState,
+    is BlockType.CheckScreenState,
+    is BlockType.CheckAirplaneState,
+    is BlockType.CheckDndState,
+    is BlockType.CheckSilentState,
+    is BlockType.CheckMobileDataState,
+    is BlockType.CheckMusicPlaying,
+    is BlockType.CheckAutoRotateState,
+    is BlockType.CheckHotspotState,
+    is BlockType.CheckNfcState,
+    is BlockType.CheckGpsState -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "期望状态", "开启",
+            listOf("开启", "关闭")
+        )
+    )
 
     is BlockType.CheckBatteryLevel -> listOf(
         BlockParameter.ChoiceParam("operator", "比较运算符", "大于", listOf("大于", "小于", "等于")),

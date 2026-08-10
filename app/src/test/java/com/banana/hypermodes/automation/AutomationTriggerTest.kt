@@ -25,16 +25,11 @@ class AutomationTriggerTest {
         val triggerTypes = listOf(
             BlockType.TriggerTime,
             BlockType.TriggerWifi,
-            BlockType.TriggerWifiOn,
-            BlockType.TriggerWifiOff,
-            BlockType.TriggerBluetoothOn,
-            BlockType.TriggerBluetoothOff,
+            BlockType.TriggerBluetooth,
             BlockType.TriggerBattery,
-            BlockType.TriggerChargingStart,
-            BlockType.TriggerChargingStop,
+            BlockType.TriggerCharging,
             BlockType.TriggerNetwork,
-            BlockType.TriggerMusicStart,
-            BlockType.TriggerMusicStop,
+            BlockType.TriggerMusic,
             BlockType.TriggerApp,
             BlockType.TriggerDayOfWeek
         )
@@ -53,8 +48,7 @@ class AutomationTriggerTest {
             BlockType.EnableMode,
             BlockType.OpenApp,
             BlockType.IfCondition,
-            BlockType.CheckWifiOn,
-            BlockType.CheckWifiOff,
+            BlockType.CheckWifiState,
             BlockType.CheckBatteryLevel
         )
         for (type in nonTrigger) {

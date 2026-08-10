@@ -103,17 +103,11 @@ class AutomationExecutor(
             // ==================== 触发条件 ====================
             is BlockType.TriggerTime,
             is BlockType.TriggerWifi,
-            is BlockType.TriggerWifiOn,
-            is BlockType.TriggerWifiOff,
             is BlockType.TriggerBluetooth,
-            is BlockType.TriggerBluetoothOn,
-            is BlockType.TriggerBluetoothOff,
             is BlockType.TriggerBattery,
-            is BlockType.TriggerChargingStart,
-            is BlockType.TriggerChargingStop,
+            is BlockType.TriggerCharging,
             is BlockType.TriggerNetwork,
-            is BlockType.TriggerMusicStart,
-            is BlockType.TriggerMusicStop,
+            is BlockType.TriggerMusic,
             is BlockType.TriggerApp,
             is BlockType.TriggerDayOfWeek -> executeTrigger(block, steps)
 
@@ -188,37 +182,24 @@ class AutomationExecutor(
             is BlockType.OrCondition -> executeOr(block, steps)
 
             // ==================== 条件判断 ====================
-            is BlockType.CheckWifiOn -> checkWifiState(block, expected = true)
-            is BlockType.CheckWifiOff -> checkWifiState(block, expected = false)
-            is BlockType.CheckBluetoothOn -> checkBluetoothState(block, expected = true)
-            is BlockType.CheckBluetoothOff -> checkBluetoothState(block, expected = false)
+            is BlockType.CheckWifiState -> checkWifiState(block, expected = block.stateExpected(), label = "WiFi 状态")
+            is BlockType.CheckBluetoothState -> checkBluetoothState(block, expected = block.stateExpected(), label = "蓝牙状态")
             is BlockType.CheckBatteryLevel -> checkBatteryLevel(block)
-            is BlockType.CheckChargingOn -> checkChargingState(block, expected = true)
-            is BlockType.CheckChargingOff -> checkChargingState(block, expected = false)
+            is BlockType.CheckChargingState -> checkChargingState(block, expected = block.stateExpected(), label = "充电状态")
             is BlockType.CheckTimeRange -> checkTimeRange(block)
             is BlockType.CheckDayOfWeek -> checkDayOfWeek(block)
-            is BlockType.CheckScreenOn -> checkScreenState(block, expected = true)
-            is BlockType.CheckScreenOff -> checkScreenState(block, expected = false)
-            is BlockType.CheckAirplaneOn -> checkAirplaneState(block, expected = true)
-            is BlockType.CheckAirplaneOff -> checkAirplaneState(block, expected = false)
-            is BlockType.CheckDndOn -> checkDndState(block, expected = true)
-            is BlockType.CheckDndOff -> checkDndState(block, expected = false)
-            is BlockType.CheckSilentOn -> checkSilentState(block, expected = true)
-            is BlockType.CheckSilentOff -> checkSilentState(block, expected = false)
-            is BlockType.CheckMobileDataOn -> checkMobileDataState(block, expected = true)
-            is BlockType.CheckMobileDataOff -> checkMobileDataState(block, expected = false)
+            is BlockType.CheckScreenState -> checkScreenState(block, expected = block.stateExpected())
+            is BlockType.CheckAirplaneState -> checkAirplaneState(block, expected = block.stateExpected())
+            is BlockType.CheckDndState -> checkDndState(block, expected = block.stateExpected())
+            is BlockType.CheckSilentState -> checkSilentState(block, expected = block.stateExpected())
+            is BlockType.CheckMobileDataState -> checkMobileDataState(block, expected = block.stateExpected())
             is BlockType.CheckNetworkType -> checkNetworkType(block)
-            is BlockType.CheckMusicPlayingOn -> checkMusicPlaying(block, expected = true)
-            is BlockType.CheckMusicPlayingOff -> checkMusicPlaying(block, expected = false)
+            is BlockType.CheckMusicPlaying -> checkMusicPlaying(block, expected = block.stateExpected(), label = "音乐播放")
             is BlockType.CheckAppForeground -> checkAppForeground(block)
-            is BlockType.CheckAutoRotateOn -> checkAutoRotateState(block, expected = true)
-            is BlockType.CheckAutoRotateOff -> checkAutoRotateState(block, expected = false)
-            is BlockType.CheckHotspotOn -> checkHotspotState(block, expected = true)
-            is BlockType.CheckHotspotOff -> checkHotspotState(block, expected = false)
-            is BlockType.CheckNfcOn -> checkNfcState(block, expected = true)
-            is BlockType.CheckNfcOff -> checkNfcState(block, expected = false)
-            is BlockType.CheckGpsOn -> checkGpsState(block, expected = true)
-            is BlockType.CheckGpsOff -> checkGpsState(block, expected = false)
+            is BlockType.CheckAutoRotateState -> checkAutoRotateState(block, expected = block.stateExpected())
+            is BlockType.CheckHotspotState -> checkHotspotState(block, expected = block.stateExpected())
+            is BlockType.CheckNfcState -> checkNfcState(block, expected = block.stateExpected())
+            is BlockType.CheckGpsState -> checkGpsState(block, expected = block.stateExpected())
             is BlockType.CheckVolumeLevel -> checkVolumeLevel(block)
             is BlockType.CheckBrightnessLevel -> checkBrightnessLevel(block)
         }
@@ -230,17 +211,19 @@ class AutomationExecutor(
     private fun triggerCondition(block: AutomationBlock): ExecutionResult = when (block.type) {
         is BlockType.TriggerTime -> checkTimeRange(block, "触发")
         is BlockType.TriggerWifi -> checkWifiSsid(block)
-        is BlockType.TriggerWifiOn -> checkWifiState(block, expected = true, "触发")
-        is BlockType.TriggerWifiOff -> checkWifiState(block, expected = false, "触发")
         is BlockType.TriggerBluetooth -> checkBluetoothDevice(block)
-        is BlockType.TriggerBluetoothOn -> checkBluetoothState(block, expected = true, "触发")
-        is BlockType.TriggerBluetoothOff -> checkBluetoothState(block, expected = false, "触发")
         is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
-        is BlockType.TriggerChargingStart -> checkChargingState(block, expected = true, "触发")
-        is BlockType.TriggerChargingStop -> checkChargingState(block, expected = false, "触发")
+        is BlockType.TriggerCharging -> checkChargingState(
+            block,
+            expected = block.choiceParam("state", "开始充电") == "开始充电",
+            "触发"
+        )
         is BlockType.TriggerNetwork -> checkNetworkType(block)
-        is BlockType.TriggerMusicStart -> checkMusicPlaying(block, expected = true, "触发")
-        is BlockType.TriggerMusicStop -> checkMusicPlaying(block, expected = false, "触发")
+        is BlockType.TriggerMusic -> checkMusicPlaying(
+            block,
+            expected = block.choiceParam("state", "开始播放") == "开始播放",
+            "触发"
+        )
         is BlockType.TriggerApp -> checkAppForeground(block)
         is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
         else -> ExecutionResult(false, "未知触发类型")
@@ -277,6 +260,10 @@ class AutomationExecutor(
 
     private fun AutomationBlock.choiceParam(key: String, default: String = ""): String =
         parameters.find { it.key == key }?.let { (it as? BlockParameter.ChoiceParam)?.value } ?: default
+
+    /** 从 state 参数（开启/关闭）解析期望布尔状态。 */
+    private fun AutomationBlock.stateExpected(default: Boolean = true): Boolean =
+        choiceParam("state", if (default) "开启" else "关闭") == "开启"
 
     // ==================== 系统控制实现 ====================
 
@@ -1205,17 +1192,11 @@ data class ExecutionResult(
 fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
     is BlockType.TriggerTime,
     is BlockType.TriggerWifi,
-    is BlockType.TriggerWifiOn,
-    is BlockType.TriggerWifiOff,
     is BlockType.TriggerBluetooth,
-    is BlockType.TriggerBluetoothOn,
-    is BlockType.TriggerBluetoothOff,
     is BlockType.TriggerBattery,
-    is BlockType.TriggerChargingStart,
-    is BlockType.TriggerChargingStop,
+    is BlockType.TriggerCharging,
     is BlockType.TriggerNetwork,
-    is BlockType.TriggerMusicStart,
-    is BlockType.TriggerMusicStop,
+    is BlockType.TriggerMusic,
     is BlockType.TriggerApp,
     is BlockType.TriggerDayOfWeek -> true
     else -> false

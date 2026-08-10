@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.boundsInWindow
@@ -216,6 +217,12 @@ fun AutomationEditorScreen(
         dragController.onDrop = { draggedId, targetId ->
             if (targetId != null) {
                 blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+            } else {
+                // 拖出容器：若块在某个容器 children 中，则提取并放回顶层末尾
+                val (withoutDragged, dragged) = extractBlockFromTree(blocks, draggedId)
+                if (dragged != null && !blocks.any { it.id == draggedId }) {
+                    blocks = withoutDragged + dragged
+                }
             }
         }
     }
@@ -809,6 +816,131 @@ private fun BluetoothTriggerEditor(
     }
 }
 
+/**
+ * 状态类触发/检查的一行句子式编辑器：
+ * 当 [图标] [状态胶囊] 时
+ * 状态胶囊点击弹出菜单切换（开启/关闭 或 开始/停止 等），不再显示开关。
+ */
+@Composable
+private fun StateChipEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit
+) {
+    val stateParam = block.parameters.find { it.key == "state" } as? BlockParameter.ChoiceParam
+    var showStateMenu by remember { mutableStateOf(false) }
+
+    fun updateParam(updated: BlockParameter) {
+        onUpdate(
+            block.copy(
+                parameters = block.parameters.map {
+                    if (it.key == updated.key) updated else it
+                }
+            )
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 状态图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(block.iconColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = block.icon,
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 状态胶囊（点击弹菜单切换）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { showStateMenu = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stateParam?.value ?: "开启",
+                    color = Color(0xFF0A84FF),
+                    fontWeight = FontWeight.Medium,
+                    style = MiuixTheme.textStyles.body1
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "▾",
+                    color = Color(0xFF0A84FF),
+                    style = MiuixTheme.textStyles.body1,
+                    fontSize = 10.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        Text(
+            text = "时",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+    }
+
+    // 状态菜单
+    if (showStateMenu) {
+        OverlayDialog(
+            show = showStateMenu,
+            onDismissRequest = { showStateMenu = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "状态",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                (stateParam?.options ?: emptyList()).forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (stateParam != null) updateParam(stateParam.copy(value = option))
+                                showStateMenu = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (option == stateParam?.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 /** 等待应用选择器返回的参数目标。 */
 private data class AppPickRequest(
@@ -909,6 +1041,8 @@ private class DragController {
     var draggedBlockId by mutableStateOf<String?>(null)
     var draggedBlock by mutableStateOf<AutomationBlock?>(null)
     var dragPosition by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+    /** 相对手指起点的偏移（用于被拖块视觉跟随）。 */
+    var dragOffset by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
     var dropTargetId by mutableStateOf<String?>(null)
     var onDrop: ((draggedId: String, targetId: String?) -> Unit)? = null
 
@@ -922,12 +1056,14 @@ private class DragController {
         draggedBlockId = block.id
         draggedBlock = block
         dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dragOffset = androidx.compose.ui.geometry.Offset.Zero
         dropTargetId = null
     }
 
     /** 拖动中更新手指窗口位置并计算落点目标。 */
     fun move(localPosition: androidx.compose.ui.geometry.Offset) {
         dragPosition = localPosition
+        dragOffset = localPosition
         val windowPos = draggedWindowTopLeft + localPosition
         dropTargetId = containerBounds.entries
             .firstOrNull { it.value.contains(windowPos) }
@@ -940,6 +1076,7 @@ private class DragController {
         draggedBlockId = null
         draggedBlock = null
         dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dragOffset = androidx.compose.ui.geometry.Offset.Zero
         dropTargetId = null
         if (draggedId != null) {
             onDrop?.invoke(draggedId, targetId)
@@ -950,6 +1087,7 @@ private class DragController {
         draggedBlockId = null
         draggedBlock = null
         dragPosition = androidx.compose.ui.geometry.Offset.Zero
+        dragOffset = androidx.compose.ui.geometry.Offset.Zero
         dropTargetId = null
     }
 }
@@ -992,6 +1130,14 @@ private fun BlockCard(
         Modifier
             .onGloballyPositioned { coordinates ->
                 dragController.draggedWindowTopLeft = coordinates.boundsInWindow().topLeft
+            }
+            .graphicsLayer {
+                // 被拖块视觉跟随手指
+                val offset = dragController.dragOffset
+                translationX = offset.x
+                translationY = offset.y
+                alpha = if (dragController.draggedBlockId == block.id) 0.7f else 1f
+                shadowElevation = if (dragController.draggedBlockId == block.id) 12f else 0f
             }
             .pointerInput(block.id) {
             detectDragGesturesAfterLongPress(
@@ -1079,6 +1225,27 @@ private fun BlockCard(
                     block = block,
                     onUpdate = onUpdate,
                     onPickBluetooth = { param -> onPickBluetooth(param) }
+                )
+            } else if (block.type is BlockType.TriggerCharging ||
+                block.type is BlockType.TriggerMusic ||
+                block.type is BlockType.CheckWifiState ||
+                block.type is BlockType.CheckBluetoothState ||
+                block.type is BlockType.CheckChargingState ||
+                block.type is BlockType.CheckScreenState ||
+                block.type is BlockType.CheckAirplaneState ||
+                block.type is BlockType.CheckDndState ||
+                block.type is BlockType.CheckSilentState ||
+                block.type is BlockType.CheckMobileDataState ||
+                block.type is BlockType.CheckMusicPlaying ||
+                block.type is BlockType.CheckAutoRotateState ||
+                block.type is BlockType.CheckHotspotState ||
+                block.type is BlockType.CheckNfcState ||
+                block.type is BlockType.CheckGpsState
+            ) {
+                // 状态类触发/检查：当 [图标] [状态胶囊] 时
+                StateChipEditor(
+                    block = block,
+                    onUpdate = onUpdate
                 )
             } else {
                 block.parameters.forEach { param ->
