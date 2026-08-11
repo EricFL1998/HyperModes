@@ -832,19 +832,18 @@ fun AutomationEditorScreen(
                                     BlockParameter.StringParam("action", "广播 Action", action)
                                 )
                             )
-                            val cleared = blocks.map { b ->
-                                if (b.id == block.id) {
-                                    b.copy(
-                                        parameters = b.parameters.map { p ->
-                                            when (p.key) {
-                                                "packageName", "intentName", "action" ->
-                                                    (p as? BlockParameter.StringParam)?.copy(value = "")
-                                                        ?: p
-                                                else -> p
-                                            }
+                            // 递归清空"当"块的绑定参数（支持嵌套），恢复"拖入意图"
+                            val cleared = updateBlockInTree(blocks, block.id) { b ->
+                                b.copy(
+                                    parameters = b.parameters.map { p ->
+                                        when (p.key) {
+                                            "packageName", "intentName", "action" ->
+                                                (p as? BlockParameter.StringParam)?.copy(value = "")
+                                                    ?: p
+                                            else -> p
                                         }
-                                    )
-                                } else b
+                                    }
+                                )
                             }
                             // 插入到"当"块之后（保持与原位置相邻）
                             val idx = cleared.indexOfFirst { it.id == block.id }
