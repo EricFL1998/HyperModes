@@ -328,7 +328,7 @@ private fun CategoryChip(
             .clip(RoundedCornerShape(16.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 17.dp, vertical = 7.dp)
     ) {
         Text(
             text = label,
