@@ -12,9 +12,19 @@ object ImportedIntentStore {
     private const val PREF_NAME = "hypermodes_prefs"
     private const val KEY_IMPORTED_INTENTS = "imported_intent_configs"
 
+    /** 进程内缓存：避免每次读取都解析 SharedPreferences JSON。 */
+    @Volatile
+    private var cache: List<IntentConfig>? = null
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+    }
+
+    /** 带进程级缓存的读取。 */
+    fun loadAllCached(context: Context): List<IntentConfig> {
+        cache?.let { return it }
+        return loadAll(context).also { cache = it }
     }
 
     fun loadAll(context: Context): List<IntentConfig> {
@@ -35,5 +45,7 @@ object ImportedIntentStore {
         existing.add(0, config)
         val raw = json.encodeToString<List<IntentConfig>>(existing)
         prefs.edit().putString(KEY_IMPORTED_INTENTS, raw).apply()
+        // 更新缓存，保持与存储一致
+        cache = existing
     }
 }

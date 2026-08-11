@@ -119,9 +119,10 @@ fun AutomationActionDialog(
         else categories.toList()
     }
 
-    // 已导入的意图：app 名作为类别，每个 IntentAction 作为一个操作
+    // 已导入的意图：app 名作为类别，每个 IntentAction 作为一个操作。
+    // 用进程级缓存，避免每次弹窗/重组都重新读 SharedPreferences。
     val context = LocalContext.current
-    val importedConfigs = remember(show) { ImportedIntentStore.loadAll(context) }
+    val importedConfigs = remember { ImportedIntentStore.loadAllCached(context) }
 
     /** 根据 id 判断当前选中项是否为某个意图类别。 */
     fun isIntentCategorySelected(packageName: String): Boolean =
