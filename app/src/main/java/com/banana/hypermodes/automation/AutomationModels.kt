@@ -278,7 +278,6 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     is BlockType.ToggleBatterySaver,
     is BlockType.SetSilentMode,
     is BlockType.SetAutoBrightness,
-    is BlockType.SetDarkMode,
     is BlockType.SetGrayscale,
     is BlockType.SetRaiseToWake,
     is BlockType.SetWakeForNotifications,
@@ -290,6 +289,13 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
         BlockParameter.ChoiceParam(
             "state", "状态", "开启",
             listOf("开启", "关闭")
+        )
+    )
+
+    is BlockType.SetDarkMode -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "模式", "深色",
+            listOf("浅色", "深色")
         )
     )
 

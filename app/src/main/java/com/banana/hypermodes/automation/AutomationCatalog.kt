@@ -62,7 +62,7 @@ object AutomationCatalog {
         Entry("set_auto_brightness", "自动亮度", "☀️", Color(0xFFFFCC00), "开启或关闭自动亮度", Category.SYSTEM_CONTROL),
 
         // ==================== 显示 ====================
-        Entry("set_dark_mode", "深色模式", "🌙", Color(0xFF5E5CE6), "开启或关闭深色模式", Category.DISPLAY),
+        Entry("set_dark_mode", "深色模式", "🌙", Color(0xFF5E5CE6), "切换浅色/深色模式", Category.DISPLAY),
         Entry("set_grayscale", "灰度模式", "⬜", Color(0xFF8E8E93), "开启或关闭屏幕灰度显示", Category.DISPLAY),
         Entry("set_raise_to_wake", "抬腕亮屏", "🤚", Color(0xFF30B0C7), "开启或关闭抬腕亮屏", Category.DISPLAY),
         Entry("set_wake_for_notifications", "通知亮屏", "🔔", Color(0xFF30B0C7), "开启或关闭通知亮屏", Category.DISPLAY),

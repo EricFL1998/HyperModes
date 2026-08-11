@@ -143,7 +143,7 @@ class AutomationExecutor(
             is BlockType.SetAutoBrightness -> executeSetAutoBrightness(block, block.stateExpected())
 
             // ==================== 显示 ====================
-            is BlockType.SetDarkMode -> executeSetDarkMode(block, block.stateExpected())
+            is BlockType.SetDarkMode -> executeSetDarkMode(block)
             is BlockType.SetGrayscale -> executeSetGrayscale(block, block.stateExpected())
             is BlockType.SetRaiseToWake -> executeSetRaiseToWake(block, block.stateExpected())
             is BlockType.SetWakeForNotifications -> executeSetWakeForNotifications(block, block.stateExpected())
@@ -412,13 +412,14 @@ class AutomationExecutor(
 
     // ==================== 显示实现 ====================
 
-    private fun executeSetDarkMode(block: AutomationBlock, enabled: Boolean): ExecutionResult {
+    private fun executeSetDarkMode(block: AutomationBlock): ExecutionResult {
+        val enabled = block.choiceParam("state", "深色") == "深色"
         // MIUI 深色模式开关 + 立即生效标记（与 DisplayModeController 一致）
         val ok = ops.writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
         ops.writeSetting("system", "dark_mode_switch_now", "1")
         return systemResult(
             ok,
-            "深色模式已${if (enabled) "开启" else "关闭"}",
+            "深色模式已切换为${if (enabled) "深色" else "浅色"}",
             "深色模式控制失败"
         )
     }
