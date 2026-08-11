@@ -115,6 +115,8 @@
     <string name="wifi_control_desc">Enable or disable WiFi</string>
     <string name="bluetooth_control">Bluetooth</string>
     <string name="bluetooth_control_desc">Enable or disable Bluetooth</string>
+    <string name="hotspot_control">Hotspot</string>
+    <string name="hotspot_control_desc">Enable or disable personal hotspot</string>
     <string name="silent_mode">Silent Mode</string>
     <string name="silent_mode_desc">Mute all sounds including media</string>
     <string name="airplane_mode">Airplane Mode</string>

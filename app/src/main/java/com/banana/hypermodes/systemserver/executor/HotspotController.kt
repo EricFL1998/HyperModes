@@ -16,6 +16,18 @@ import android.util.Log
  */
 class HotspotController(private val context: Context) {
 
+    /** 当前热点是否开启（isSoftApEnabled 是公开 API）。 */
+    fun isHotspotEnabled(): Boolean {
+        return try {
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifi.javaClass.getMethod("isSoftApEnabled").invoke(wifi) as? Boolean ?: false
+        } catch (t: Throwable) {
+            log("isHotspotEnabled failed: ${t.message}")
+            false
+        }
+    }
+
     /** 开关个人热点。返回是否成功。 */
     fun setHotspotEnabled(enabled: Boolean): Boolean {
         return try {

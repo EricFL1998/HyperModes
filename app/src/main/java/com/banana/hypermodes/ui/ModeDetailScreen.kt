@@ -1488,6 +1488,7 @@ fun deviceControlSummary(settings: ModeSettings): String {
         if (settings.enable5g != null) add(stringResource(R.string.five_g_network))
         if (settings.enableWifi != null) add(stringResource(R.string.wifi_control))
         if (settings.enableBluetooth != null) add(stringResource(R.string.bluetooth_control))
+        if (settings.enableHotspot != null) add(stringResource(R.string.hotspot_control))
     }
     return when {
         enabled.isEmpty() -> stringResource(R.string.options_none)

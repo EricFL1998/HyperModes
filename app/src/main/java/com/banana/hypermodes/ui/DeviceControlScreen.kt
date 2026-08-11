@@ -224,6 +224,30 @@ fun DeviceControlScreen(
                 )
             }
 
+            // Hotspot Control
+            item {
+                DropdownSettingItem(
+                    title = stringResource(R.string.hotspot_control),
+                    subtitle = stringResource(R.string.hotspot_control_desc),
+                    selected = editedMode.settings.enableHotspot != null,
+                    onToggle = { enabled ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableHotspot = if (enabled) true else null)
+                        )
+                        validateAndSave(newMode)
+                    },
+                    value = editedMode.settings.enableHotspot ?: true,
+                    options = booleanOptions,
+                    onValueChange = { value ->
+                        val newMode = editedMode.copy(
+                            settings = editedMode.settings.copy(enableHotspot = value)
+                        )
+                        validateAndSave(newMode)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+
             // Silent Mode
             item {
                 DropdownSettingItem(

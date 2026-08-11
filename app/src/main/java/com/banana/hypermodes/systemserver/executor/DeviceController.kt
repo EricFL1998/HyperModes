@@ -12,6 +12,8 @@ import com.banana.hypermodes.systemserver.config.DeviceConfig
  */
 class DeviceController(private val context: Context) {
 
+    private val hotspotController = HotspotController(context)
+
     private fun saveOriginal(key: String, value: Int) {
         if (Settings.Global.getInt(context.contentResolver, key, -1) == -1) {
             Settings.Global.putInt(context.contentResolver, key, value)
@@ -63,6 +65,13 @@ class DeviceController(private val context: Context) {
                 log("apply: set Bluetooth to $enabled")
             }
 
+            // Hotspot
+            device.enableHotspot?.let { enabled ->
+                saveOriginal(KEY_ORIG_HOTSPOT_ON, if (hotspotController.isHotspotEnabled()) 1 else 0)
+                hotspotController.setHotspotEnabled(enabled)
+                log("apply: set Hotspot to $enabled")
+            }
+
             // Airplane Mode (apply after individual radios)
             device.airplaneMode?.let { enabled ->
                 applyAirplaneMode(enabled)
@@ -105,6 +114,11 @@ class DeviceController(private val context: Context) {
 
             takeOriginal(KEY_ORIG_BLUETOOTH_ON)?.let { original ->
                 Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, original)
+            }
+
+            takeOriginal(KEY_ORIG_HOTSPOT_ON)?.let { original ->
+                hotspotController.setHotspotEnabled(original == 1)
+                log("restore: set Hotspot to ${original == 1}")
             }
 
             takeOriginal(KEY_ORIG_PREFERRED_SIM_SLOT)?.let { originalSlot ->
@@ -413,6 +427,7 @@ class DeviceController(private val context: Context) {
         private const val KEY_ORIG_5G_MODE = "hypermodes_orig_5g_mode"
         private const val KEY_ORIG_WIFI_ON = "hypermodes_orig_wifi_on"
         private const val KEY_ORIG_BLUETOOTH_ON = "hypermodes_orig_bluetooth_on"
+        private const val KEY_ORIG_HOTSPOT_ON = "hypermodes_orig_hotspot_on"
         private const val KEY_ORIG_SILENT_MODE = "hypermodes_orig_silent_mode"
         private const val KEY_ORIG_AIRPLANE_MODE = "hypermodes_orig_airplane_mode"
         private const val KEY_ORIG_PREFERRED_SIM_SLOT = "hypermodes_orig_preferred_sim_slot"

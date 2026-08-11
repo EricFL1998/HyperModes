@@ -115,6 +115,8 @@
     <string name="wifi_control_desc">开启或关闭 WLAN</string>
     <string name="bluetooth_control">蓝牙</string>
     <string name="bluetooth_control_desc">开启或关闭蓝牙</string>
+    <string name="hotspot_control">个人热点</string>
+    <string name="hotspot_control_desc">开启或关闭个人热点</string>
     <string name="silent_mode">静音模式</string>
     <string name="silent_mode_desc">静音所有声音包括媒体</string>
     <string name="airplane_mode">飞行模式</string>

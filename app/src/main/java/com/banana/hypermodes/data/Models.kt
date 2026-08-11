@@ -51,6 +51,7 @@ data class ModeSettings(
     val enable5g: Boolean? = null,
     val enableWifi: Boolean? = null,
     val enableBluetooth: Boolean? = null,
+    val enableHotspot: Boolean? = null,
     val silentMode: Boolean? = null,
     val airplaneMode: Boolean? = null,
     /** Preferred data SIM slot (0 = SIM 1, 1 = SIM 2); null = don't switch. */
@@ -460,6 +461,7 @@ fun Mode.toModeConfig(): ModeConfig {
             enable5g = s.enable5g,
             enableWifi = s.enableWifi,
             enableBluetooth = s.enableBluetooth,
+            enableHotspot = s.enableHotspot,
             silentMode = s.silentMode,
             airplaneMode = s.airplaneMode,
             enableMotionSicknessRelief = s.enableMotionSicknessRelief,
@@ -577,6 +579,7 @@ fun ModeConfig.toMode(isActive: Boolean = false): Mode {
             enable5g = device?.enable5g,
             enableWifi = device?.enableWifi,
             enableBluetooth = device?.enableBluetooth,
+            enableHotspot = device?.enableHotspot,
             silentMode = device?.silentMode,
             airplaneMode = device?.airplaneMode,
             enableMotionSicknessRelief = device?.enableMotionSicknessRelief,
