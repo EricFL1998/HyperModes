@@ -1284,7 +1284,7 @@ private fun IntentTriggerEditor(
             Text(
                 text = displayText,
                 color = if (!bound) {
-                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    MiuixTheme.colorScheme.onSurface
                 } else {
                     Color(0xFF0A84FF)
                 },
