@@ -484,12 +484,12 @@ fun AutomationEditorScreen(
     val scrollBehavior = MiuixScrollBehavior()
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         uri?.let { target ->
             try {
                 val jsonString = AutomationStore.exportToJson(automation.copy(blocks = blocks))
-                context.contentResolver.openOutputStream(target, "w")?.use { out ->
+                context.contentResolver.openOutputStream(target)?.use { out ->
                     out.write(jsonString.toByteArray(Charsets.UTF_8))
                 }
                 Toast.makeText(context, R.string.export_automation_success, Toast.LENGTH_SHORT).show()
@@ -676,7 +676,9 @@ fun AutomationEditorScreen(
                                 index = 1,
                                 onSelectedIndexChange = {
                                     showOverflowMenu = false
-                                    exportLauncher.launch(arrayOf("application/json"))
+                                    exportLauncher.launch(
+                                        "${automation.name.filter { it.isLetterOrDigit() || it == '-' }.ifBlank { "automation" }}.json"
+                                    )
                                 }
                             )
                             DropdownImpl(
