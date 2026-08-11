@@ -19,6 +19,7 @@ import com.banana.hypermodes.automation.AutomationSystemOps
 import com.banana.hypermodes.automation.isTriggerBlock
 import com.banana.hypermodes.systemserver.executor.AppSuspendController
 import com.banana.hypermodes.systemserver.executor.HotspotController
+import com.banana.hypermodes.systemserver.executor.SystemOpsExecutor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,8 +42,9 @@ class SystemAutomationEngine(
 
     private val appSuspendController = AppSuspendController(context, classLoader)
     private val hotspotController = HotspotController(context)
+    private val systemOpsExecutor = SystemOpsExecutor(context)
 
-    /** system_server 内的特权操作：暂停/恢复应用直接调 AppSuspendController。 */
+    /** system_server 内的特权操作：全部直接调控制器，无 root 兜底。 */
     private val systemOps = object : AutomationSystemOps {
         override fun setAppsSuspended(packages: List<String>, suspend: Boolean): Boolean {
             return try {
@@ -67,6 +69,30 @@ class SystemAutomationEngine(
                 Log.w(TAG, "setHotspotEnabled failed: ${t.message}")
                 false
             }
+        }
+
+        override fun writeSetting(namespace: String, key: String, value: String): Boolean {
+            return systemOpsExecutor.writeSetting(namespace, key, value)
+        }
+
+        override fun setAirplaneEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setAirplaneEnabled(enabled)
+        }
+
+        override fun setMobileDataEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setMobileDataEnabled(enabled)
+        }
+
+        override fun setFlashlightEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setFlashlightEnabled(enabled)
+        }
+
+        override fun setPreferredSimSlot(slot: Int): Boolean {
+            return systemOpsExecutor.setPreferredSimSlot(slot)
+        }
+
+        override fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setMotionSicknessReliefEnabled(enabled)
         }
     }
 

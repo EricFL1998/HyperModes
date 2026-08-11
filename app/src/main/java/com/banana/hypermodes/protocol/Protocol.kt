@@ -43,6 +43,24 @@ object Protocol {
     const val ACTION_SET_CHANNELS_BYPASS_DND = "com.banana.hypermodes.SET_CHANNELS_BYPASS_DND"
     /** App -> system_server: 开关个人热点（system_server 内用系统 API flip switch）。 */
     const val ACTION_SET_HOTSPOT_ENABLED = "com.banana.hypermodes.SET_HOTSPOT_ENABLED"
+    /** App -> system_server: 通用特权操作（写 Settings / 飞行模式 / 手电筒 / SIM 等）。
+     *  所有自动化里需要系统级权限的操作统一走这个 action，不再用 root shell 兜底。 */
+    const val ACTION_SYSTEM_OP = "com.banana.hypermodes.SYSTEM_OP"
+    const val EXTRA_OP = "op"
+
+    // ACTION_SYSTEM_OP 的操作码
+    /** 写 Settings 值：EXTRA_NAMESPACE + EXTRA_KEY + EXTRA_VALUE（字符串）。 */
+    const val OP_WRITE_SETTING = "write_setting"
+    const val OP_SET_AIRPLANE_ENABLED = "set_airplane_enabled"
+    const val OP_SET_MOBILE_DATA_ENABLED = "set_mobile_data_enabled"
+    const val OP_SET_FLASHLIGHT_ENABLED = "set_flashlight_enabled"
+    const val OP_SET_PREFERRED_SIM_SLOT = "set_preferred_sim_slot"
+    const val OP_SET_MOTION_SICKNESS_RELIEF = "set_motion_sickness_relief"
+    const val EXTRA_NAMESPACE = "namespace"
+    const val EXTRA_KEY = "key"
+    const val EXTRA_VALUE = "value"
+    const val EXTRA_SLOT = "slot"
+
     /** Ask system_server for the saved (configured) WiFi SSID list; the result
      *  comes back on the ResultReceiver in EXTRA_RESULT_RECEIVER. Apps lost
      *  WifiManager.getConfiguredNetworks() in Android 10 — system_server hasn't. */

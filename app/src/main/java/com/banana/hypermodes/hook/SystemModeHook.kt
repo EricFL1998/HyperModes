@@ -23,6 +23,7 @@ import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.SystemAutomationEngine
 import com.banana.hypermodes.systemserver.config.WallpaperItemConfig
 import com.banana.hypermodes.systemserver.executor.HotspotController
+import com.banana.hypermodes.systemserver.executor.SystemOpsExecutor
 import com.banana.hypermodes.systemserver.executor.WallpaperController
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
 import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceAdapter
@@ -165,6 +166,10 @@ class SystemModeHook(private val module: XposedModule) {
                         setHotspotEnabled(c, intent)
                         return
                     }
+                    Protocol.ACTION_SYSTEM_OP -> {
+                        handleSystemOp(c, intent)
+                        return
+                    }
                     Protocol.ACTION_PROBE_POLARIS -> {
                         probePolaris(c, intent)
                         return
@@ -199,6 +204,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
             addAction(Protocol.ACTION_SET_HOTSPOT_ENABLED)
+            addAction(Protocol.ACTION_SYSTEM_OP)
             addAction(Protocol.ACTION_PROBE_POLARIS)
             addAction(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT)
             addAction(Protocol.ACTION_PREPARE_WALLPAPER_EDIT)
@@ -298,6 +304,41 @@ class SystemModeHook(private val module: XposedModule) {
             false
         }
         log("SET_HOTSPOT_ENABLED($enabled) -> $ok")
+    }
+
+    /**
+     * 通用特权操作分发：把 ACTION_SYSTEM_OP 广播转给 SystemOpsExecutor，
+     * 由 system_server 用系统 API 执行（写 Settings / 飞行模式 / 手电筒等）。
+     */
+    private fun handleSystemOp(context: Context, intent: Intent) {
+        val executor = SystemOpsExecutor(context)
+        val ok = try {
+            when (intent.getStringExtra(Protocol.EXTRA_OP)) {
+                Protocol.OP_WRITE_SETTING -> executor.writeSetting(
+                    intent.getStringExtra(Protocol.EXTRA_NAMESPACE) ?: "",
+                    intent.getStringExtra(Protocol.EXTRA_KEY) ?: "",
+                    intent.getStringExtra(Protocol.EXTRA_VALUE) ?: ""
+                )
+                Protocol.OP_SET_AIRPLANE_ENABLED ->
+                    executor.setAirplaneEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                Protocol.OP_SET_MOBILE_DATA_ENABLED ->
+                    executor.setMobileDataEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                Protocol.OP_SET_FLASHLIGHT_ENABLED ->
+                    executor.setFlashlightEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                Protocol.OP_SET_PREFERRED_SIM_SLOT ->
+                    executor.setPreferredSimSlot(intent.getIntExtra(Protocol.EXTRA_SLOT, 0))
+                Protocol.OP_SET_MOTION_SICKNESS_RELIEF ->
+                    executor.setMotionSicknessReliefEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                else -> {
+                    log("SYSTEM_OP unknown op: ${intent.getStringExtra(Protocol.EXTRA_OP)}")
+                    false
+                }
+            }
+        } catch (t: Throwable) {
+            log("SYSTEM_OP failed: $t")
+            false
+        }
+        log("SYSTEM_OP(${intent.getStringExtra(Protocol.EXTRA_OP)}) -> $ok")
     }
 
     /**

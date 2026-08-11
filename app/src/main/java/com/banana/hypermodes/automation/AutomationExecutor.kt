@@ -3,7 +3,6 @@ package com.banana.hypermodes.automation
 import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -15,10 +14,8 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.PowerManager
 import android.provider.Settings
-import android.telephony.SubscriptionManager
 import android.util.Log
 import com.banana.hypermodes.bridge.ModeControlBridge
-import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.delay
 import java.util.Calendar
 
@@ -27,36 +24,51 @@ import java.util.Calendar
  *
  * 实现策略：
  * - 应用进程持有的普通权限（WiFi/蓝牙状态查询、DND、音量等）直接用 Android API；
- * - 需要系统级权限的操作（开关无线电、写 Settings.System 等）通过 libsu root shell 执行，
- *   失败时降级为 Settings.Global/Secure 写入（应用已通过 UniversalPermissionHook 获得
- *   WRITE_SECURE_SETTINGS），再失败则返回明确错误。
+ * - 需要系统级权限的操作（开关无线电、写 Settings 等）统一走 AutomationSystemOps：
+ *   system_server 内（SystemAutomationEngine）直接用系统 API 执行；
+ *   应用进程（测试/编辑器/触发器）通过 BridgeSystemOps 广播到 system_server 执行。
+ *   不再依赖 root shell，也没有降级兜底。
  */
 /**
- * 系统特权操作接口。由 system_server 环境的调用方注入：
- * 应用进程走广播 + root shell，system_server 内直接调用 AppSuspendController。
+ * 系统特权操作接口。system_server 环境的调用方注入 SystemAutomationEngine 实现；
+ * 应用进程默认注入 BridgeSystemOps（广播到 system_server 执行）。
  */
 interface AutomationSystemOps {
     /** 暂停/恢复指定应用。返回是否成功。 */
     fun setAppsSuspended(packages: List<String>, suspend: Boolean): Boolean
     /** 开关个人热点（system_server 内用系统 API flip switch）。返回是否成功。 */
     fun setHotspotEnabled(enabled: Boolean): Boolean
+    /** 通用写 Settings（namespace: system/secure/global）。返回是否成功。 */
+    fun writeSetting(namespace: String, key: String, value: String): Boolean
+    /** 开关飞行模式。返回是否成功。 */
+    fun setAirplaneEnabled(enabled: Boolean): Boolean
+    /** 开关移动数据。返回是否成功。 */
+    fun setMobileDataEnabled(enabled: Boolean): Boolean
+    /** 开关手电筒。返回是否成功。 */
+    fun setFlashlightEnabled(enabled: Boolean): Boolean
+    /** 切换默认数据 SIM 卡槽（0/1）。返回是否成功。 */
+    fun setPreferredSimSlot(slot: Int): Boolean
+    /** 开关防晕车。返回是否成功。 */
+    fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean
 }
 
 class AutomationExecutor(
     private val context: Context,
-    private val systemOps: AutomationSystemOps? = null
+    systemOps: AutomationSystemOps? = null
 ) {
 
     private val TAG = "AutomationExecutor"
 
-    /** 根 shell 是否可用（libsu 初始化失败或设备无 root 时为 false）。 */
-    private val rootAvailable: Boolean by lazy {
-        try {
-            Shell.isAppGrantedRoot() == true
-        } catch (e: Exception) {
-            false
-        }
-    }
+    /**
+     * 特权操作入口：system_server 内注入 SystemAutomationEngine 的实现；
+     * 应用进程为 null 时默认走 BridgeSystemOps（广播到 system_server）。
+     * 不再有 root shell 兜底。
+     */
+    private val ops: AutomationSystemOps = systemOps ?: BridgeSystemOps(context)
+
+    /** 统一把特权操作结果包装成执行结果。 */
+    private fun systemResult(ok: Boolean, success: String, failure: String): ExecutionResult =
+        if (ok) ExecutionResult(true, success) else ExecutionResult(false, failure)
 
     /**
      * 执行自动化块列表。
@@ -252,169 +264,93 @@ class AutomationExecutor(
     // ==================== 系统控制实现 ====================
 
     private fun executeToggleWifi(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("svc wifi ${if (enabled) "enable" else "disable"}")
-        if (ok) return ExecutionResult(true, "WiFi 已${if (enabled) "开启" else "关闭"}")
-        // 降级：Settings.Global 写入（需 WRITE_SECURE_SETTINGS）
-        return try {
-            Settings.Global.putInt(context.contentResolver, Settings.Global.WIFI_ON, if (enabled) 1 else 0)
-            ExecutionResult(true, "WiFi 已${if (enabled) "开启" else "关闭"}")
-        } catch (e: Exception) {
-            ExecutionResult(false, "WiFi 控制失败：${e.message}")
-        }
+        return systemResult(
+            ops.writeSetting("global", Settings.Global.WIFI_ON, if (enabled) "1" else "0"),
+            "WiFi 已${if (enabled) "开启" else "关闭"}",
+            "WiFi 控制失败"
+        )
     }
 
     private fun executeToggleBluetooth(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        // 优先用系统 API（BLUETOOTH_CONNECT 已授权）
-        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
-        if (adapter != null) {
-            try {
-                val changed = if (enabled) adapter.enable() else adapter.disable()
-                if (changed) return ExecutionResult(true, "蓝牙已${if (enabled) "开启" else "关闭"}")
-            } catch (e: Exception) {
-                Log.w(TAG, "Bluetooth API 失败，尝试 root: ${e.message}")
-            }
-        }
-        val ok = runRoot(
-            "cmd bluetooth_manager ${if (enabled) "enable" else "disable"}",
-            "svc bluetooth ${if (enabled) "enable" else "disable"}"
+        return systemResult(
+            ops.writeSetting("global", Settings.Global.BLUETOOTH_ON, if (enabled) "1" else "0"),
+            "蓝牙已${if (enabled) "开启" else "关闭"}",
+            "蓝牙控制失败"
         )
-        return if (ok) {
-            ExecutionResult(true, "蓝牙已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "蓝牙控制失败")
-        }
     }
 
     private fun executeToggleMobileData(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("svc data ${if (enabled) "enable" else "disable"}") ||
-                writeSetting("global", "mobile_data", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "移动数据已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "移动数据控制失败")
-        }
+        return systemResult(
+            ops.setMobileDataEnabled(enabled),
+            "移动数据已${if (enabled) "开启" else "关闭"}",
+            "移动数据控制失败"
+        )
     }
 
     private fun executeToggleAirplane(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("cmd connectivity airplane-mode ${if (enabled) "enable" else "disable"}")
-        if (ok) return ExecutionResult(true, "飞行模式已${if (enabled) "开启" else "关闭"}")
-        return try {
-            Settings.Global.putInt(
-                context.contentResolver,
-                Settings.Global.AIRPLANE_MODE_ON,
-                if (enabled) 1 else 0
-            )
-            context.sendBroadcast(
-                Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED).putExtra("state", enabled)
-            )
-            ExecutionResult(true, "飞行模式已${if (enabled) "开启" else "关闭"}")
-        } catch (e: Exception) {
-            ExecutionResult(false, "飞行模式控制失败：${e.message}")
-        }
+        return systemResult(
+            ops.setAirplaneEnabled(enabled),
+            "飞行模式已${if (enabled) "开启" else "关闭"}",
+            "飞行模式控制失败"
+        )
     }
 
     private fun executeToggleHotspot(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val action = if (enabled) "开启" else "关闭"
-
-        // system_server 内：直接调用特权控制器（系统 API flip switch）
-        systemOps?.let { ops ->
-            val ok = try {
-                ops.setHotspotEnabled(enabled)
-            } catch (e: Exception) {
-                Log.w(TAG, "systemOps hotspot failed: ${e.message}")
-                false
-            }
-            return if (ok) {
-                ExecutionResult(true, "热点已$action")
-            } else {
-                ExecutionResult(false, "热点${action}失败")
-            }
-        }
-
-        // 应用进程：走 system_server 特权桥接（HotspotController 用系统 API flip switch）
-        val sent = try {
-            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_SET_HOTSPOT_ENABLED)
-                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_ENABLED, enabled)
-                .setPackage(com.banana.hypermodes.protocol.Protocol.FRAMEWORK_PACKAGE)
-            context.sendBroadcast(
-                intent,
-                com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL
-            )
-            true
-        } catch (e: Exception) {
-            Log.w(TAG, "bridge hotspot broadcast failed: ${e.message}")
-            false
-        }
-        if (sent) return ExecutionResult(true, "热点已$action")
-
-        // 降级：root shell 旧命令（老系统或 bridge 不可用）
-        val ok = runRoot("cmd connectivity tethering ${if (enabled) "enable" else "disable"} wifi")
-        return if (ok) {
-            ExecutionResult(true, "热点已$action")
-        } else {
-            ExecutionResult(false, "热点${action}失败")
-        }
+        return systemResult(
+            ops.setHotspotEnabled(enabled),
+            "热点已${if (enabled) "开启" else "关闭"}",
+            "热点${if (enabled) "开启" else "关闭"}失败"
+        )
     }
 
     private fun executeToggleNfc(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put secure nfc_on ${if (enabled) 1 else 0}") ||
-                writeSetting("secure", "nfc_on", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "NFC 已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "NFC 控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("secure", "nfc_on", if (enabled) "1" else "0"),
+            "NFC 已${if (enabled) "开启" else "关闭"}",
+            "NFC 控制失败"
+        )
     }
 
     private fun executeToggleGps(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         val mode = if (enabled) 3 else 0 // 3 = 高精度
-        val ok = runRoot("settings put secure location_mode $mode") ||
-                writeSetting("secure", "location_mode", mode.toString())
-        return if (ok) {
-            ExecutionResult(true, "定位已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "定位控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("secure", Settings.Secure.LOCATION_MODE, mode.toString()),
+            "定位已${if (enabled) "开启" else "关闭"}",
+            "定位控制失败"
+        )
     }
 
     private fun executeToggleFlashlight(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("cmd flashlight set-flashlight ${if (enabled) "on" else "off"}")
-        return if (ok) {
-            ExecutionResult(true, "手电筒已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "手电筒控制失败（需 root 或设备不支持）")
-        }
+        return systemResult(
+            ops.setFlashlightEnabled(enabled),
+            "手电筒已${if (enabled) "开启" else "关闭"}",
+            "手电筒控制失败"
+        )
     }
 
     private fun executeToggleAutoRotate(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put system accelerometer_rotation ${if (enabled) 1 else 0}") ||
-                writeSetting("system", "accelerometer_rotation", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "自动旋转已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "自动旋转控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", Settings.System.ACCELEROMETER_ROTATION, if (enabled) "1" else "0"),
+            "自动旋转已${if (enabled) "开启" else "关闭"}",
+            "自动旋转控制失败"
+        )
     }
 
     private fun executeToggleBatterySaver(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("cmd battery_saver set ${if (enabled) "true" else "false"}") ||
-                writeSetting("global", "low_power", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "省电模式已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "省电模式控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("global", "low_power", if (enabled) "1" else "0"),
+            "省电模式已${if (enabled) "开启" else "关闭"}",
+            "省电模式控制失败"
+        )
     }
 
     private fun executeSetSilentMode(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         // MIUI silence_mode: 4 = 开启, 0 = 关闭
-        val ok = runRoot("settings put system silence_mode ${if (enabled) 4 else 0}") ||
-                writeSetting("system", "silence_mode", if (enabled) "4" else "0")
-        return if (ok) {
-            ExecutionResult(true, "静音模式已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "静音模式控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", "silence_mode", if (enabled) "4" else "0"),
+            "静音模式已${if (enabled) "开启" else "关闭"}",
+            "静音模式控制失败"
+        )
     }
 
     private fun executeSetDnd(block: AutomationBlock): ExecutionResult {
@@ -459,110 +395,96 @@ class AutomationExecutor(
     private fun executeAdjustBrightness(block: AutomationBlock): ExecutionResult {
         val level = block.intParam("level", 50)
         val value = (level * 255 / 100).coerceIn(0, 255)
-        val ok = runRoot("settings put system screen_brightness $value") ||
-                writeSetting("system", "screen_brightness", value.toString())
-        return if (ok) {
-            ExecutionResult(true, "亮度已设为 $level%")
-        } else {
-            ExecutionResult(false, "亮度控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", Settings.System.SCREEN_BRIGHTNESS, value.toString()),
+            "亮度已设为 $level%",
+            "亮度控制失败"
+        )
     }
 
     private fun executeSetAutoBrightness(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put system screen_brightness_mode ${if (enabled) 1 else 0}") ||
-                writeSetting("system", "screen_brightness_mode", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "自动亮度已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "自动亮度控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", Settings.System.SCREEN_BRIGHTNESS_MODE, if (enabled) "1" else "0"),
+            "自动亮度已${if (enabled) "开启" else "关闭"}",
+            "自动亮度控制失败"
+        )
     }
 
     // ==================== 显示实现 ====================
 
     private fun executeSetDarkMode(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("cmd uimode night ${if (enabled) "yes" else "no"}") ||
-                writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "深色模式已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "深色模式控制失败")
-        }
+        // MIUI 深色模式开关 + 立即生效标记（与 DisplayModeController 一致）
+        val ok = ops.writeSetting("system", "dark_mode_enable", if (enabled) "1" else "0")
+        ops.writeSetting("system", "dark_mode_switch_now", "1")
+        return systemResult(
+            ok,
+            "深色模式已${if (enabled) "开启" else "关闭"}",
+            "深色模式控制失败"
+        )
     }
 
     private fun executeSetGrayscale(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot(
-            "settings put secure accessibility_display_daltonizer_enabled ${if (enabled) 1 else 0}",
-            "settings put secure accessibility_display_daltonizer 0"
-        ) || (writeSetting("secure", "accessibility_display_daltonizer_enabled", if (enabled) "1" else "0") &&
-                writeSetting("secure", "accessibility_display_daltonizer", "0"))
-        return if (ok) {
-            ExecutionResult(true, "灰度模式已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "灰度模式控制失败")
-        }
+        val ok = ops.writeSetting(
+            "secure",
+            "accessibility_display_daltonizer_enabled",
+            if (enabled) "1" else "0"
+        )
+        ops.writeSetting("secure", "accessibility_display_daltonizer", "0")
+        return systemResult(
+            ok,
+            "灰度模式已${if (enabled) "开启" else "关闭"}",
+            "灰度模式控制失败"
+        )
     }
 
     private fun executeSetRaiseToWake(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put system gesture_wakeup ${if (enabled) 1 else 0}") ||
-                writeSetting("system", "gesture_wakeup", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "抬腕亮屏已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "抬腕亮屏控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", "gesture_wakeup", if (enabled) "1" else "0"),
+            "抬腕亮屏已${if (enabled) "开启" else "关闭"}",
+            "抬腕亮屏控制失败"
+        )
     }
 
     private fun executeSetWakeForNotifications(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put system wakeup_for_keyguard_notification ${if (enabled) 1 else 0}") ||
-                writeSetting("system", "wakeup_for_keyguard_notification", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "通知亮屏已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "通知亮屏控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", "wakeup_for_keyguard_notification", if (enabled) "1" else "0"),
+            "通知亮屏已${if (enabled) "开启" else "关闭"}",
+            "通知亮屏控制失败"
+        )
     }
 
     private fun executeSetEyeCare(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put system screen_paper_mode_enabled ${if (enabled) 1 else 0}") ||
-                writeSetting("system", "screen_paper_mode_enabled", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "纸质护眼已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "纸质护眼控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", "screen_paper_mode_enabled", if (enabled) "1" else "0"),
+            "纸质护眼已${if (enabled) "开启" else "关闭"}",
+            "纸质护眼控制失败"
+        )
     }
 
     private fun executeSetRefreshRate(block: AutomationBlock): ExecutionResult {
         val rate = block.choiceParam("rate", "60")
-        val ok = runRoot("settings put secure user_refresh_rate $rate") ||
-                writeSetting("secure", "user_refresh_rate", rate)
-        return if (ok) {
-            ExecutionResult(true, "刷新率已设为 ${rate}Hz")
-        } else {
-            ExecutionResult(false, "刷新率设置失败")
-        }
+        return systemResult(
+            ops.writeSetting("secure", "user_refresh_rate", rate),
+            "刷新率已设为 ${rate}Hz",
+            "刷新率设置失败"
+        )
     }
 
     private fun executeSetAdaptiveRefreshRatePro(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         // mimotion_pwm_enable: 2 = 自适应 Pro, 1 = 关闭
-        val ok = runRoot("settings put secure mimotion_pwm_enable ${if (enabled) 2 else 1}") ||
-                writeSetting("secure", "mimotion_pwm_enable", if (enabled) "2" else "1")
-        return if (ok) {
-            ExecutionResult(true, "自适应刷新率 Pro 已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "自适应刷新率 Pro 控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("secure", "mimotion_pwm_enable", if (enabled) "2" else "1"),
+            "自适应刷新率 Pro 已${if (enabled) "开启" else "关闭"}",
+            "自适应刷新率 Pro 控制失败"
+        )
     }
 
     private fun executeSetAod(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put secure aod_mode ${if (enabled) 1 else 0}") ||
-                writeSetting("secure", "aod_mode", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "息屏显示已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "息屏显示控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("secure", "aod_mode", if (enabled) "1" else "0"),
+            "息屏显示已${if (enabled) "开启" else "关闭"}",
+            "息屏显示控制失败"
+        )
     }
 
     // ==================== 设备实现 ====================
@@ -574,92 +496,37 @@ class AutomationExecutor(
             "省电" -> 2
             else -> 0
         }
-        val ok = runRoot("settings put system performance_mode $mode") ||
-                writeSetting("system", "performance_mode", mode.toString())
-        return if (ok) {
-            ExecutionResult(true, "性能模式已设为「$modeName」")
-        } else {
-            ExecutionResult(false, "性能模式设置失败")
-        }
+        return systemResult(
+            ops.writeSetting("system", "performance_mode", mode.toString()),
+            "性能模式已设为「$modeName」",
+            "性能模式设置失败"
+        )
     }
 
     private fun executeSet5g(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("settings put global enabled_5g_mode ${if (enabled) 1 else 0}") ||
-                writeSetting("global", "enabled_5g_mode", if (enabled) "1" else "0")
-        return if (ok) {
-            ExecutionResult(true, "5G 已${if (enabled) "开启" else "关闭"}")
-        } else {
-            ExecutionResult(false, "5G 控制失败")
-        }
+        return systemResult(
+            ops.writeSetting("global", "enabled_5g_mode", if (enabled) "1" else "0"),
+            "5G 已${if (enabled) "开启" else "关闭"}",
+            "5G 控制失败"
+        )
     }
 
     private fun executeSetPreferredSim(block: AutomationBlock): ExecutionResult {
         val slotName = block.choiceParam("slot", "SIM 1")
         val slot = if (slotName.contains("2")) 1 else 0
-        return try {
-            val sm = context.getSystemService(SubscriptionManager::class.java) ?: return ExecutionResult(false, "订阅服务不可用")
-            val infos = sm.activeSubscriptionInfoList ?: emptyList()
-            val target = infos.firstOrNull { it.simSlotIndex == slot } ?: return ExecutionResult(false, "未找到对应 SIM 卡")
-            val method = SubscriptionManager::class.java.getMethod("setDefaultDataSubId", Int::class.java)
-            method.invoke(sm, target.subscriptionId)
-            ExecutionResult(true, "默认数据卡已切换为 ${if (slot == 0) "SIM 1" else "SIM 2"}")
-        } catch (e: Exception) {
-            ExecutionResult(false, "SIM 切换失败：${e.message}")
-        }
+        return systemResult(
+            ops.setPreferredSimSlot(slot),
+            "默认数据卡已切换为 ${if (slot == 0) "SIM 1" else "SIM 2"}",
+            "SIM 切换失败"
+        )
     }
 
     private fun executeSetMotionSicknessRelief(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        return try {
-            // 官方开关：securitycenter 监听 settings_car_sickness_mode 并启停服务
-            Settings.System.putInt(
-                context.contentResolver,
-                "settings_car_sickness_mode",
-                if (enabled) 1 else 0
-            )
-
-            if (enabled) {
-                val intent = Intent().apply {
-                    component = ComponentName(
-                        "com.miui.securitycenter",
-                        "com.miui.carsickness.service.CarSicknessService"
-                    )
-                    action = "miui.carsickness.remind_always"
-                }
-                context.startService(intent)
-            } else {
-                // 1) 广播：Receiver 再次把开关写 0
-                runCatching {
-                    context.sendBroadcast(
-                        Intent("com.miui.action.carsickness_relief_close")
-                    )
-                }
-                // 2) intent：服务调用 AntiCarsickManager.F() 移除黑点
-                runCatching {
-                    val closeIntent = Intent().apply {
-                        component = ComponentName(
-                            "com.miui.securitycenter",
-                            "com.miui.carsickness.service.CarSicknessService"
-                        )
-                        action = "miui.carsickness.close_car_sickness"
-                    }
-                    context.startService(closeIntent)
-                }
-                // 3) stopService：onDestroy -> F() 兜底移除黑点
-                runCatching {
-                    context.stopService(
-                        Intent().apply {
-                            component = ComponentName(
-                                "com.miui.securitycenter",
-                                "com.miui.carsickness.service.CarSicknessService"
-                            )
-                        }
-                    )
-                }
-            }
-            ExecutionResult(true, "防晕车已${if (enabled) "开启" else "关闭"}")
-        } catch (e: Exception) {
-            ExecutionResult(false, "防晕车控制失败：${e.message}")
-        }
+        return systemResult(
+            ops.setMotionSicknessReliefEnabled(enabled),
+            "防晕车已${if (enabled) "开启" else "关闭"}",
+            "防晕车控制失败"
+        )
     }
 
     // ==================== 模式实现 ====================
@@ -715,44 +582,11 @@ class AutomationExecutor(
     }
 
     private fun suspendOrUnsuspend(packages: List<String>, suspend: Boolean): ExecutionResult {
-        // system_server 内：直接调用特权控制器（无需广播绕行）
-        systemOps?.let { ops ->
-            val ok = try {
-                ops.setAppsSuspended(packages, suspend)
-            } catch (e: Exception) {
-                Log.w(TAG, "systemOps suspend failed: ${e.message}")
-                false
-            }
-            if (ok) {
-                return ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
-            }
-            return ExecutionResult(false, "应用${if (suspend) "暂停" else "恢复"}失败")
-        }
-
-        // 应用进程：优先走 system_server 特权桥接（IPackageManager.setPackagesSuspendedAsUser）
-        val sent = try {
-            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_SET_PACKAGES_SUSPENDED)
-                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_PACKAGES, packages.toTypedArray())
-                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_SUSPENDED, suspend)
-                .setPackage("android")
-            context.sendBroadcast(intent, com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL)
-            true
-        } catch (e: Exception) {
-            Log.w(TAG, "bridge broadcast failed: ${e.message}")
-            false
-        }
-        if (sent) return ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
-
-        // 降级：root shell `pm suspend` / `pm unsuspend`
-        val cmds = packages.map { pkg ->
-            if (suspend) "pm suspend $pkg" else "pm unsuspend $pkg"
-        }
-        val ok = runRoot(*cmds.toTypedArray())
-        return if (ok) {
-            ExecutionResult(true, "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}")
-        } else {
-            ExecutionResult(false, "应用${if (suspend) "暂停" else "恢复"}失败")
-        }
+        return systemResult(
+            ops.setAppsSuspended(packages, suspend),
+            "已${if (suspend) "暂停" else "恢复"}应用：${packages.joinToString()}",
+            "应用${if (suspend) "暂停" else "恢复"}失败"
+        )
     }
 
     // ==================== 控制流实现 ====================
@@ -1175,59 +1009,7 @@ class AutomationExecutor(
         } catch (e: Exception) {
             Log.w(TAG, "getRunningTasks failed: ${e.message}")
         }
-        // 降级：root dumpsys
-        return try {
-            val result = Shell.cmd("dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp' | head -1").exec()
-            if (result.isSuccess) {
-                val line = result.getOut().firstOrNull() ?: return null
-                Regex("([a-zA-Z0-9_.]+)/").find(line)?.groupValues?.get(1)
-            } else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    /**
-     * 执行 root shell 命令。任一命令成功即返回 true。
-     */
-    private fun runRoot(vararg commands: String): Boolean {
-        if (!rootAvailable) return false
-        return try {
-            commands.any { cmd ->
-                val result = Shell.cmd(cmd).exec()
-                if (result.isSuccess) true
-                else {
-                    Log.d(TAG, "root cmd failed: $cmd -> ${result.getErr().joinToString()}")
-                    false
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "root shell error: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * 直接写入 Settings（system_server 有全部系统权限；应用进程通过
-     * UniversalPermissionHook 获得 WRITE_SECURE_SETTINGS，Global/Secure 可写）。
-     * 作为 root 命令的降级路径，保证零进程场景（无 root shell）也能执行。
-     *
-     * @param namespace "global" / "secure" / "system"
-     */
-    private fun writeSetting(namespace: String, key: String, value: String): Boolean {
-        return try {
-            val resolver = context.contentResolver
-            val ok = when (namespace) {
-                "global" -> Settings.Global.putString(resolver, key, value)
-                "secure" -> Settings.Secure.putString(resolver, key, value)
-                else -> Settings.System.putString(resolver, key, value)
-            }
-            if (!ok) Log.w(TAG, "writeSetting rejected: $namespace/$key=$value")
-            ok
-        } catch (e: Exception) {
-            Log.w(TAG, "writeSetting failed: $namespace/$key -> ${e.message}")
-            false
-        }
+        return null
     }
 
     companion object {
