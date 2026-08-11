@@ -1219,8 +1219,9 @@ private class BlockDragShadowBuilder(
         outShadowTouchPoint: android.graphics.Point
     ) {
         outShadowSize.set(shadowWidth, shadowHeight)
-        // 触摸点放在卡片中部，跟手更自然
-        outShadowTouchPoint.set(shadowWidth / 2, shadowHeight / 2)
+        // 触摸点放在卡片顶部：阴影完全显示在手指下方，
+        // 避免拖出意图时阴影盖住"当"模块（手指就在"当"模块内）。
+        outShadowTouchPoint.set(shadowWidth / 2, 0)
     }
 
     override fun onDrawShadow(canvas: android.graphics.Canvas) {
@@ -2469,14 +2470,17 @@ private fun BlockCard(
                                         return true
                                     }
                                     val y = event.toAndroidDragEvent().y
-                                    // 触发器块：落点在 {} 作用域内则移入作用域
-                                    // 意图触发（TriggerIntent）块本体任意位置都可绑定意图，
-                                    // 其他触发器仅 {} 作用域内移入。
+                                    // 触发器块：落点在 {} 作用域内则移入作用域；
+                                    // 意图触发（TriggerIntent）块本体下半部分可绑定意图，
+                                    // 上半部分按重排处理（插到上方），其他触发器仅 {} 作用域内移入。
                                     if (block.isTriggerBlock() &&
-                                        (block.type is BlockType.TriggerIntent ||
-                                            dragController.scopeBounds[block.id]?.let {
-                                                y >= it.top && y <= it.bottom
-                                            } == true)
+                                        (dragController.scopeBounds[block.id]?.let {
+                                            y >= it.top && y <= it.bottom
+                                        } == true ||
+                                            (block.type is BlockType.TriggerIntent &&
+                                                dragController.blockBounds[block.id]?.let {
+                                                    y >= it.center.y
+                                                } == true))
                                     ) {
                                         dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
@@ -2514,12 +2518,16 @@ private fun BlockCard(
                                             rect.width < (dragController.blockBounds[block.id]?.width ?: 0f)
                                     }
                                     if (overDescendant) return
-                                    // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口
+                                    // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口；
+                                    // TriggerIntent 块本体下半部分也可绑定（高亮作用域），上半部分显示插入缺口。
                                     if (block.isTriggerBlock() &&
-                                        (block.type is BlockType.TriggerIntent ||
-                                            dragController.scopeBounds[block.id]?.let {
-                                                y >= it.top && y <= it.bottom
-                                            } == true)
+                                        (dragController.scopeBounds[block.id]?.let {
+                                            y >= it.top && y <= it.bottom
+                                        } == true ||
+                                            (block.type is BlockType.TriggerIntent &&
+                                                dragController.blockBounds[block.id]?.let {
+                                                    y >= it.center.y
+                                                } == true))
                                     ) {
                                         dragController.dropTargetId = block.id
                                         dragController.gapIndicator = null
