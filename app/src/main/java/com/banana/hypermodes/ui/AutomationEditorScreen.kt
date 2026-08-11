@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
@@ -99,6 +100,12 @@ fun AutomationActionDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<AutomationCatalog.Category?>(null) }
+    val listState = rememberLazyListState()
+
+    // 切换分类（含切回"全部"）时列表回到顶部
+    LaunchedEffect(selectedCategory) {
+        listState.scrollToItem(0)
+    }
 
     // 可用分类（未限定 categories 时展示全部；被限定则只展示限定分类）
     val availableCategories = remember(categories) {
@@ -186,7 +193,8 @@ fun AutomationActionDialog(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                state = listState
             ) {
                 if (searchQuery.isBlank()) {
                     if (selectedCategory == null) {
