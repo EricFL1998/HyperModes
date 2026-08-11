@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
@@ -108,7 +109,8 @@ fun AutomationActionDialog(
     WindowBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
-        title = "选择操作"
+        title = "选择操作",
+        insideMargin = DpSize(0.dp, 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -119,7 +121,7 @@ fun AutomationActionDialog(
             SearchBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 inputField = {
                     InputField(
                         query = searchQuery,
@@ -138,7 +140,7 @@ fun AutomationActionDialog(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 8.dp),
                 contentPadding = PaddingValues(end = 8.dp)
             ) {
                 item(key = "cat-all") {
@@ -197,7 +199,7 @@ fun AutomationActionDialog(
                                         text = category.label,
                                         style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.padding(
-                                            start = 24.dp,
+                                            start = 16.dp,
                                             top = 20.dp,
                                             bottom = 12.dp
                                         )
@@ -258,10 +260,10 @@ private fun ActionOptionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 8.dp)
             .padding(bottom = 10.dp),
-        insideMargin = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
-        cornerRadius = 24.dp,
+        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
+        cornerRadius = 20.dp,
         onClick = onClick
     ) {
         Row(
