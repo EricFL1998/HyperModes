@@ -1044,6 +1044,8 @@ private fun StateChipEditor(
 ) {
     val stateParam = block.parameters.find { it.key == "state" } as? BlockParameter.ChoiceParam
     var showStateMenu by remember { mutableStateOf(false) }
+    // 深色模式的状态胶囊已含"深色/浅色"，名称只显示"模式"避免重复
+    val displayName = if (block.type is BlockType.SetDarkMode) "模式" else block.label
 
     fun updateParam(updated: BlockParameter) {
         onUpdate(
@@ -1075,14 +1077,6 @@ private fun StateChipEditor(
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
-        } else {
-            // 操作类：显示名称 + 状态胶囊（如 "WiFi [开启]"）
-            Text(
-                text = block.label,
-                style = MiuixTheme.textStyles.body1,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(end = 8.dp)
-            )
         }
 
         // 状态胶囊（点击弹菜单切换）
@@ -1108,6 +1102,14 @@ private fun StateChipEditor(
                 text = "时",
                 style = MiuixTheme.textStyles.body1,
                 color = MiuixTheme.colorScheme.onSurface
+            )
+        } else {
+            // 操作类：状态词在前，名称在后（如 "开启 蓝牙"）
+            Text(
+                text = displayName,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(start = 2.dp)
             )
         }
     }
