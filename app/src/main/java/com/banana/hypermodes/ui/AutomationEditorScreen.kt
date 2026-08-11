@@ -845,13 +845,8 @@ fun AutomationEditorScreen(
                                     }
                                 )
                             }
-                            // 插入到"当"块之后（保持与原位置相邻）
-                            val idx = cleared.indexOfFirst { it.id == block.id }
-                            blocks = if (idx >= 0) {
-                                cleared.toMutableList().apply { add(idx + 1, intentBlock) }
-                            } else {
-                                cleared + intentBlock
-                            }
+                            // 插入到"当"块之后（支持嵌套，保持与原位置相邻）
+                            blocks = insertBlockAfterInTree(cleared, block.id, intentBlock)
                             newId
                         },
                         onRemove = {
@@ -2228,6 +2223,33 @@ private fun extractBlockFromTree(
     return result to extracted
 }
 
+/** 递归在块树中把新块插入到指定锚点块之后（支持嵌套，找不到时追加到顶层末尾）。 */
+private fun insertBlockAfterInTree(
+    blocks: List<AutomationBlock>,
+    anchorId: String,
+    newBlock: AutomationBlock
+): List<AutomationBlock> {
+    fun walk(list: List<AutomationBlock>): Pair<List<AutomationBlock>, Boolean> {
+        val idx = list.indexOfFirst { it.id == anchorId }
+        if (idx >= 0) {
+            val newList = list.toMutableList()
+            newList.add(idx + 1, newBlock)
+            return newList to true
+        }
+        var changed = false
+        val mapped = list.map { block ->
+            val (newChildren, c) = walk(block.children)
+            val (newElse, e) = walk(block.elseChildren)
+            if (c || e) {
+                changed = true
+                block.copy(children = newChildren, elseChildren = newElse)
+            } else block
+        }
+        return mapped to changed
+    }
+    return walk(blocks).first
+}
+
 /** 在块树中按 id 查找块（含嵌套）。 */
 private fun findBlock(
     blocks: List<AutomationBlock>,
@@ -2471,17 +2493,16 @@ private fun BlockCard(
                                     }
                                     val y = event.toAndroidDragEvent().y
                                     // 触发器块：落点在 {} 作用域内则移入作用域；
-                                    // 意图触发（TriggerIntent）块本体下半部分可绑定意图，
-                                    // 上半部分按重排处理（插到上方），其他触发器仅 {} 作用域内移入。
-                                    if (block.isTriggerBlock() &&
-                                        (dragController.scopeBounds[block.id]?.let {
-                                            y >= it.top && y <= it.bottom
-                                        } == true ||
-                                            (block.type is BlockType.TriggerIntent &&
-                                                dragController.blockBounds[block.id]?.let {
-                                                    y >= it.center.y
-                                                } == true))
-                                    ) {
+                                    // 意图触发（TriggerIntent）块本体可绑定意图，
+                                    // 仅顶部窄条（约 25% 高度）按重排插入上方，其余区域绑定。
+                                    val blockRect = dragController.blockBounds[block.id]
+                                    val inScope = dragController.scopeBounds[block.id]?.let {
+                                        y >= it.top && y <= it.bottom
+                                    } == true
+                                    val triggerIntentBind =
+                                        block.type is BlockType.TriggerIntent &&
+                                            blockRect?.let { y >= it.top + it.height * 0.25f } == true
+                                    if (block.isTriggerBlock() && (inScope || triggerIntentBind)) {
                                         dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
                                         dragController.dropTargetId = null
@@ -2489,7 +2510,7 @@ private fun BlockCard(
                                         return true
                                     }
                                     // 判断落点相对目标块的上/下半，决定插前还是插后
-                                    val before = dragController.blockBounds[block.id]
+                                    val before = blockRect
                                         ?.let { bounds -> y < bounds.center.y }
                                         ?: false
                                     dragController.onDrop?.invoke(draggedId, block.id, before)
@@ -2519,22 +2540,21 @@ private fun BlockCard(
                                     }
                                     if (overDescendant) return
                                     // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口；
-                                    // TriggerIntent 块本体下半部分也可绑定（高亮作用域），上半部分显示插入缺口。
-                                    if (block.isTriggerBlock() &&
-                                        (dragController.scopeBounds[block.id]?.let {
-                                            y >= it.top && y <= it.bottom
-                                        } == true ||
-                                            (block.type is BlockType.TriggerIntent &&
-                                                dragController.blockBounds[block.id]?.let {
-                                                    y >= it.center.y
-                                                } == true))
-                                    ) {
+                                    // TriggerIntent 块本体也可绑定（高亮作用域），仅顶部窄条显示插入缺口。
+                                    val blockRect = dragController.blockBounds[block.id]
+                                    val inScope = dragController.scopeBounds[block.id]?.let {
+                                        y >= it.top && y <= it.bottom
+                                    } == true
+                                    val triggerIntentBind =
+                                        block.type is BlockType.TriggerIntent &&
+                                            blockRect?.let { y >= it.top + it.height * 0.25f } == true
+                                    if (block.isTriggerBlock() && (inScope || triggerIntentBind)) {
                                         dragController.dropTargetId = block.id
                                         dragController.gapIndicator = null
                                         return
                                     }
                                     dragController.dropTargetId = null
-                                    val before = dragController.blockBounds[block.id]
+                                    val before = blockRect
                                         ?.let { bounds -> y < bounds.center.y }
                                         ?: true
                                     dragController.gapIndicator = block.id to before
