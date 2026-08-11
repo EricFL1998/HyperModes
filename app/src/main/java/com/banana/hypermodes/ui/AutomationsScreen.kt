@@ -4,9 +4,12 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -19,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.banana.hypermodes.R
@@ -26,6 +30,7 @@ import com.banana.hypermodes.automation.SavedAutomation
 import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.data.ImportedIntentStore
+import com.banana.hypermodes.data.IntentAction
 import com.banana.hypermodes.data.IntentConfig
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Switch
@@ -73,12 +78,18 @@ fun AutomationsScreen(
     var menuAutomation by remember { mutableStateOf<SavedAutomation?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    // Overflow menu (⋮): import intent configs / view imported intents
+    // Overflow menu (⋮): import intent configs / view imported intents / import automation
     var showOverflowMenu by remember { mutableStateOf(false) }
     var importedConfigs by remember { mutableStateOf(ImportedIntentStore.loadAll(context)) }
     var showImportedIntentsDialog by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<IntentConfig?>(null) }
     var showImportConfirm by remember { mutableStateOf(false) }
+    var pendingAutomationImport by remember { mutableStateOf<SavedAutomation?>(null) }
+    var showAutomationImportConfirm by remember { mutableStateOf(false) }
+    var pendingDeleteIntent by remember { mutableStateOf<Pair<IntentConfig, IntentAction>?>(null) }
+    var pendingDeleteApp by remember { mutableStateOf<IntentConfig?>(null) }
+    var showIntentDeleteConfirm by remember { mutableStateOf(false) }
+    var showAppDeleteConfirm by remember { mutableStateOf(false) }
 
     val json = remember {
         Json {
@@ -100,6 +111,28 @@ fun AutomationsScreen(
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, R.string.import_error, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val automationImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val fileContent = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
+                if (fileContent != null) {
+                    val automation = AutomationStore.importFromJson(fileContent)
+                    if (automation != null) {
+                        pendingAutomationImport = automation
+                        showAutomationImportConfirm = true
+                    } else {
+                        Toast.makeText(context, R.string.import_automation_error, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.import_automation_error, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -147,7 +180,7 @@ fun AutomationsScreen(
                         ListPopupColumn {
                             DropdownImpl(
                                 text = stringResource(R.string.import_intent_config),
-                                optionSize = 2,
+                                optionSize = 3,
                                 isSelected = false,
                                 index = 0,
                                 onSelectedIndexChange = {
@@ -157,13 +190,23 @@ fun AutomationsScreen(
                             )
                             DropdownImpl(
                                 text = stringResource(R.string.view_imported_intents),
-                                optionSize = 2,
+                                optionSize = 3,
                                 isSelected = false,
                                 index = 1,
                                 onSelectedIndexChange = {
                                     showOverflowMenu = false
                                     importedConfigs = ImportedIntentStore.loadAll(context)
                                     showImportedIntentsDialog = true
+                                }
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.import_automation),
+                                optionSize = 3,
+                                isSelected = false,
+                                index = 2,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    automationImportLauncher.launch(arrayOf("application/json"))
                                 }
                             )
                         }
@@ -394,6 +437,64 @@ fun AutomationsScreen(
             }
         }
 
+        // Import automation confirmation dialog
+        if (showAutomationImportConfirm && pendingAutomationImport != null) {
+            OverlayDialog(
+                show = showAutomationImportConfirm,
+                onDismissRequest = { showAutomationImportConfirm = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.import_automation_title),
+                        style = MiuixTheme.textStyles.headline2
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.import_automation_message,
+                            pendingAutomationImport?.name ?: ""
+                        ),
+                        style = MiuixTheme.textStyles.body1
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = {
+                                showAutomationImportConfirm = false
+                                pendingAutomationImport = null
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            text = stringResource(R.string.import_confirmed),
+                            onClick = {
+                                pendingAutomationImport?.let { automation ->
+                                    AutomationStore.add(context, automation)
+                                    Toast.makeText(
+                                        context,
+                                        R.string.import_automation_success,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                showAutomationImportConfirm = false
+                                pendingAutomationImport = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.textButtonColorsPrimary()
+                        )
+                    }
+                }
+            }
+        }
+
         // View imported intents dialog (app name + intent names only)
         if (showImportedIntentsDialog) {
             OverlayDialog(
@@ -416,27 +517,70 @@ fun AutomationsScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 400.dp)
+                                .heightIn(max = 420.dp)
                         ) {
-                            items(importedConfigs.size) { configIndex ->
+                            items(importedConfigs.size, key = { importedConfigs[it].packageName }) { configIndex ->
                                 val config = importedConfigs[configIndex]
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp, horizontal = 4.dp)
                                 ) {
-                                    Text(
-                                        text = config.appName,
-                                        style = MiuixTheme.textStyles.body1,
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                    )
-                                    config.intents.forEach { action ->
+                                    // App 名行：长按删除整个 app 类别
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = { },
+                                                onLongClick = {
+                                                    pendingDeleteApp = config
+                                                    showAppDeleteConfirm = true
+                                                }
+                                            )
+                                            .padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(
-                                            text = action.name,
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                            modifier = Modifier.padding(start = 12.dp, top = 2.dp)
+                                            text = config.appName,
+                                            style = MiuixTheme.textStyles.body1,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.weight(1f)
                                         )
+                                        Text(
+                                            text = "长按删除",
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    // 意图横向排开：每个意图一个胶囊，长按删除单个意图
+                                    LazyRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        items(config.intents, key = { it.name }) { action ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color(0xFFDBEBFC))
+                                                    .combinedClickable(
+                                                        onClick = { },
+                                                        onLongClick = {
+                                                            pendingDeleteIntent = config to action
+                                                            showIntentDeleteConfirm = true
+                                                        }
+                                                    )
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = action.name,
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = Color(0xFF0A84FF),
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -448,6 +592,107 @@ fun AutomationsScreen(
                         onClick = { showImportedIntentsDialog = false },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    // 删除单个意图确认
+                    if (showIntentDeleteConfirm && pendingDeleteIntent != null) {
+                        val (config, action) = pendingDeleteIntent!!
+                        OverlayDialog(
+                            show = showIntentDeleteConfirm,
+                            onDismissRequest = { showIntentDeleteConfirm = false }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.delete_intent),
+                                    style = MiuixTheme.textStyles.headline2
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = stringResource(
+                                        R.string.delete_intent_confirm,
+                                        action.name,
+                                        config.appName
+                                    ),
+                                    style = MiuixTheme.textStyles.body1
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    TextButton(
+                                        text = stringResource(R.string.cancel),
+                                        onClick = { showIntentDeleteConfirm = false },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(
+                                        text = stringResource(R.string.delete),
+                                        onClick = {
+                                            ImportedIntentStore.deleteIntent(
+                                                context,
+                                                config.packageName,
+                                                action.name
+                                            )
+                                            importedConfigs = ImportedIntentStore.loadAll(context)
+                                            showIntentDeleteConfirm = false
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.textButtonColorsPrimary()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // 删除整个 app 类别确认
+                    if (showAppDeleteConfirm && pendingDeleteApp != null) {
+                        val config = pendingDeleteApp!!
+                        OverlayDialog(
+                            show = showAppDeleteConfirm,
+                            onDismissRequest = { showAppDeleteConfirm = false }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.delete_app_intents),
+                                    style = MiuixTheme.textStyles.headline2
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = stringResource(
+                                        R.string.delete_app_intents_confirm,
+                                        config.appName
+                                    ),
+                                    style = MiuixTheme.textStyles.body1
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    TextButton(
+                                        text = stringResource(R.string.cancel),
+                                        onClick = { showAppDeleteConfirm = false },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(
+                                        text = stringResource(R.string.delete),
+                                        onClick = {
+                                            ImportedIntentStore.deleteApp(context, config.packageName)
+                                            importedConfigs = ImportedIntentStore.loadAll(context)
+                                            showAppDeleteConfirm = false
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.textButtonColorsPrimary()
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

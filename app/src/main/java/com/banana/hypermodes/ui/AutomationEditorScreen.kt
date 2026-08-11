@@ -2,6 +2,9 @@ package com.banana.hypermodes.ui
 
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -73,6 +76,7 @@ import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import android.widget.Toast
+import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.automation.SavedAutomation
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.icon.extended.More
@@ -479,6 +483,21 @@ fun AutomationEditorScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior()
     val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let { target ->
+            try {
+                val jsonString = AutomationStore.exportToJson(automation.copy(blocks = blocks))
+                context.contentResolver.openOutputStream(target)?.use { out ->
+                    out.write(jsonString.toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, R.string.export_automation_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.export_automation_error, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     val executor = remember { AutomationExecutor(context) }
     val coroutineScope = rememberCoroutineScope()
     var isExecuting by remember { mutableStateOf(false) }
@@ -642,7 +661,7 @@ fun AutomationEditorScreen(
                         ListPopupColumn {
                             DropdownImpl(
                                 text = stringResource(R.string.rename),
-                                optionSize = 2,
+                                optionSize = 3,
                                 isSelected = false,
                                 index = 0,
                                 onSelectedIndexChange = {
@@ -651,10 +670,22 @@ fun AutomationEditorScreen(
                                 }
                             )
                             DropdownImpl(
-                                text = stringResource(R.string.delete),
-                                optionSize = 2,
+                                text = stringResource(R.string.export_automation),
+                                optionSize = 3,
                                 isSelected = false,
                                 index = 1,
+                                onSelectedIndexChange = {
+                                    showOverflowMenu = false
+                                    exportLauncher.launch(
+                                        "${automation.name.filter { it.isLetterOrDigit() || it == '-' }.ifBlank { "automation" }}.json"
+                                    )
+                                }
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.delete),
+                                optionSize = 3,
+                                isSelected = false,
+                                index = 2,
                                 onSelectedIndexChange = {
                                     showOverflowMenu = false
                                     showDeleteConfirm = true

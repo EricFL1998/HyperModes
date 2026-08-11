@@ -103,6 +103,21 @@ object AutomationStore {
         val current = load(context)
         save(context, current.filter { it.id != automationId })
     }
+
+    /** 将单个自动化导出为 JSON 字符串。 */
+    fun exportToJson(automation: SavedAutomation): String {
+        return json.encodeToString(automation.toDto())
+    }
+
+    /** 从 JSON 字符串导入单个自动化；失败时返回 null。 */
+    fun importFromJson(jsonString: String): SavedAutomation? {
+        return try {
+            json.decodeFromString<SavedAutomationDto>(jsonString).toAutomation()
+        } catch (e: Exception) {
+            Log.w(TAG, "importFromJson failed", e)
+            null
+        }
+    }
 }
 
 // ==================== DTO <-> 模型转换 ====================

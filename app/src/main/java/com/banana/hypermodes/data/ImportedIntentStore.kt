@@ -48,4 +48,32 @@ object ImportedIntentStore {
         // 更新缓存，保持与存储一致
         cache = existing
     }
+
+    /** 删除整个 app 类别的意图配置。 */
+    fun deleteApp(context: Context, packageName: String) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val existing = loadAll(context).filterNot { it.packageName == packageName }
+        val raw = json.encodeToString<List<IntentConfig>>(existing)
+        prefs.edit().putString(KEY_IMPORTED_INTENTS, raw).apply()
+        cache = existing
+    }
+
+    /** 删除指定 app 类别中的单个意图；删除后为空则移除整个类别。 */
+    fun deleteIntent(context: Context, packageName: String, intentName: String) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val existing = loadAll(context).toMutableList()
+        val idx = existing.indexOfFirst { it.packageName == packageName }
+        if (idx >= 0) {
+            val config = existing[idx]
+            val remaining = config.intents.filterNot { it.name == intentName }
+            if (remaining.isEmpty()) {
+                existing.removeAt(idx)
+            } else {
+                existing[idx] = config.copy(intents = remaining)
+            }
+            val raw = json.encodeToString<List<IntentConfig>>(existing)
+            prefs.edit().putString(KEY_IMPORTED_INTENTS, raw).apply()
+            cache = existing
+        }
+    }
 }
