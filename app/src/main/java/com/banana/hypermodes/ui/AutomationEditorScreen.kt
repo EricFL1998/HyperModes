@@ -521,6 +521,39 @@ fun AutomationEditorScreen(
                 blocks = moveBlockIntoParent(blocks, draggedId, targetId)
             }
         }
+        // 拖出意图：还原为独立块，并清空"当"的绑定参数
+        dragController.onDetachDrop = { triggerId ->
+            val trigger = findBlock(blocks, triggerId)
+            if (trigger != null) {
+                val pkg = trigger.stringParam("packageName")
+                val name = trigger.stringParam("intentName")
+                val action = trigger.stringParam("action")
+                val intentBlock = AutomationBlock(
+                    id = java.util.UUID.randomUUID().toString(),
+                    type = BlockType.SendIntent,
+                    label = name.ifBlank { "意图" },
+                    icon = "📨",
+                    iconColor = Color(0xFF5856D6),
+                    parameters = listOf(
+                        BlockParameter.StringParam("packageName", "应用包名", pkg),
+                        BlockParameter.StringParam("intentName", "意图名称", name),
+                        BlockParameter.StringParam("action", "广播 Action", action)
+                    )
+                )
+                blocks = updateBlockInTree(blocks, triggerId) { b ->
+                    b.copy(
+                        parameters = b.parameters.map { p ->
+                            when (p.key) {
+                                "packageName", "intentName", "action" ->
+                                    (p as? BlockParameter.StringParam)?.copy(value = "")
+                                        ?: p
+                                else -> p
+                            }
+                        }
+                    )
+                } + intentBlock
+            }
+        }
     }
 
     // System back button must return to the automation list the same way the
@@ -699,6 +732,14 @@ fun AutomationEditorScreen(
 
                             override fun onDrop(event: DragAndDropEvent): Boolean {
                                 val draggedId = event.blockIdOrNull() ?: return false
+                                // 拖出意图：还原为独立块（清空"当"绑定）
+                                if (draggedId.startsWith("detach:")) {
+                                    dragController.onDetachDrop?.invoke(draggedId.removePrefix("detach:"))
+                                    dragController.draggedBlockId = null
+                                    dragController.dropTargetId = null
+                                    dragController.gapIndicator = null
+                                    return true
+                                }
                                 val y = event.toAndroidDragEvent().y
                                 // 与缺口指示一致：找到指针下方最近的顶层块，插到它前面；否则追加末尾
                                 val firstBelow = dragController.topLevelIds
@@ -1070,8 +1111,7 @@ private fun WifiTriggerEditor(
 @Composable
 private fun IntentTriggerEditor(
     block: AutomationBlock,
-    onUpdate: (AutomationBlock) -> Unit,
-    onDetachIntent: () -> Unit = {}
+    onUpdate: (AutomationBlock) -> Unit
 ) {
     val context = LocalContext.current
     val packageName = block.stringParam("packageName")
@@ -1124,10 +1164,10 @@ private fun IntentTriggerEditor(
                     if (bound) {
                         Modifier.dragAndDropSource(
                             transferData = {
-                                onDetachIntent()
+                                // 只携带标记跟手，松手落点时才还原块
                                 DragAndDropTransferData(
-                                    clipData = ClipData.newPlainText("hypermodes_detach_intent", "detach"),
-                                    localState = "detach"
+                                    clipData = ClipData.newPlainText("hypermodes_detach_intent", block.id),
+                                    localState = "detach:${block.id}"
                                 )
                             }
                         )
@@ -2272,6 +2312,8 @@ private class DragController {
     var onDrop: ((draggedId: String, targetId: String?, before: Boolean) -> Unit)? = null
     /** 拖入触发器 `{}` 作用域的回调。 */
     var onDropIntoScope: ((draggedId: String, targetId: String) -> Unit)? = null
+    /** "当收到意图时"上拖出意图：还原为独立块并清空绑定。 */
+    var onDetachDrop: ((triggerId: String) -> Unit)? = null
 }
 
 /** 递归从 children/elseChildren 中移除指定块（拖拽移出作用域时用）。 */
@@ -2367,6 +2409,14 @@ private fun BlockCard(
 
                                 override fun onDrop(event: DragAndDropEvent): Boolean {
                                     val draggedId = event.blockIdOrNull() ?: return false
+                                    // 拖出意图：还原为独立块（清空"当"绑定）
+                                    if (draggedId.startsWith("detach:")) {
+                                        dragController.onDetachDrop?.invoke(draggedId.removePrefix("detach:"))
+                                        dragController.draggedBlockId = null
+                                        dragController.dropTargetId = null
+                                        dragController.gapIndicator = null
+                                        return true
+                                    }
                                     // 拖到自身（或其子孙）上：视为取消，防止误删
                                     if (block.id == draggedId || block.id in dragController.draggedSubtreeIds) {
                                         dragController.draggedBlockId = null
@@ -2556,8 +2606,7 @@ private fun BlockCard(
                         // 意图触发：当 [📨] [意图名] 时（空槽位提示拖入意图）
                         IntentTriggerEditor(
                             block = block,
-                            onUpdate = onUpdate,
-                            onDetachIntent = onDetachIntent
+                            onUpdate = onUpdate
                         )
                     } else if (block.type is BlockType.SendIntent) {
                         // 发送意图：一行只显示意图名
