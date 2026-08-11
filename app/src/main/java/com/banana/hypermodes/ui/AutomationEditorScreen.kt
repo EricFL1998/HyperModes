@@ -1219,31 +1219,21 @@ private class BlockDragShadowBuilder(
         outShadowTouchPoint: android.graphics.Point
     ) {
         outShadowSize.set(shadowWidth, shadowHeight)
-        // 触摸点偏上，让阴影浮在手指上方，避免盖住"当"模块
-        outShadowTouchPoint.set(shadowWidth / 2, (shadowHeight * 0.25f).toInt())
+        // 触摸点放在卡片中部，跟手更自然
+        outShadowTouchPoint.set(shadowWidth / 2, shadowHeight / 2)
     }
 
     override fun onDrawShadow(canvas: android.graphics.Canvas) {
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-        // 白色 MIUIX 块卡片背景，半透明以区分拖拽状态
-        paint.color = (backgroundColor and 0x00FFFFFF) or (0x99000000.toInt())
+        // 白色 MIUIX 块卡片背景（与真实 block 一致）
+        paint.color = backgroundColor
         canvas.drawRoundRect(
             0f, 0f, shadowWidth.toFloat(), shadowHeight.toFloat(),
             20 * density, 20 * density,
             paint
         )
-        // 拖拽描边
-        paint.style = android.graphics.Paint.Style.STROKE
-        paint.strokeWidth = 1.5f * density
-        paint.color = textColor and 0x33FFFFFF
-        canvas.drawRoundRect(
-            0f, 0f, shadowWidth.toFloat(), shadowHeight.toFloat(),
-            20 * density, 20 * density,
-            paint
-        )
-        paint.style = android.graphics.Paint.Style.FILL
         // 意图图标
-        paint.color = (textColor and 0x00FFFFFF) or (0xDD000000.toInt())
+        paint.color = textColor
         paint.textSize = 18 * density
         canvas.drawText(
             "📨",
