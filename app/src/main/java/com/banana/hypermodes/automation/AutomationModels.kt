@@ -214,9 +214,11 @@ fun AutomationAction.toAutomationBlock(): AutomationBlock {
         label = name,
         icon = icon,
         iconColor = iconColor,
-        parameters = if (type is BlockType.SendIntent || type is BlockType.TriggerIntent) {
+        parameters = if (intentPackage != null &&
+            (type is BlockType.SendIntent || type is BlockType.TriggerIntent)
+        ) {
             listOf(
-                BlockParameter.StringParam("packageName", "应用包名", intentPackage ?: ""),
+                BlockParameter.StringParam("packageName", "应用包名", intentPackage),
                 BlockParameter.StringParam("intentName", "意图名称", intentName ?: name),
                 BlockParameter.StringParam("action", "广播 Action", intentAction ?: "")
             )
