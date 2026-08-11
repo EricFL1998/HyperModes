@@ -1175,6 +1175,52 @@ private fun IntentTriggerEditor(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (bound) {
+            // 拖拽把手：长按这里可整体拖动已绑定的"当"模块
+            Box(
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(24.dp)
+                    .pointerInput(block.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                dragController?.let { dc ->
+                                    dc.draggedBlockId = block.id
+                                    dc.draggedHeightPx =
+                                        dc.blockBounds[block.id]?.height ?: 0f
+                                    dc.draggedSubtreeIds = collectSubtreeIds(block)
+                                }
+                                val shadowLabel = "当 $displayText 时"
+                                val shadow = BlockDragShadowBuilder(
+                                    label = shadowLabel,
+                                    density = density,
+                                    widthPx = dragController?.blockBounds
+                                        ?.get(block.id)?.width?.toInt()
+                                        ?: (280 * density).toInt(),
+                                    backgroundColor = cardBackground.toArgb(),
+                                    textColor = cardText.toArgb()
+                                )
+                                view.startDragAndDrop(
+                                    ClipData.newPlainText("hypermodes_block", block.id),
+                                    shadow,
+                                    block.id,
+                                    0
+                                )
+                            },
+                            onDrag = { change, _ -> change.consume() },
+                            onDragEnd = { },
+                            onDragCancel = { }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "≡",
+                    fontSize = 16.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+        }
         Text(
             text = "当",
             style = MiuixTheme.textStyles.body1,
