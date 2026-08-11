@@ -2536,6 +2536,10 @@ private fun BlockCard(
             .then(
                 if (dragController != null) {
                     // 触发器块本体也是放置目标：拖到触发器块任意位置即移入其作用域
+                    // "当"模块已绑定意图时，由胶囊内部的 pointerInput 单独启动意图拖拽，
+                    // 避免外层卡片拖拽把整个"当"块折叠，导致拖出时模块消失。
+                    val isCustomDragSource = block.type is BlockType.TriggerIntent &&
+                        block.stringParam("intentName").isNotBlank()
                     val baseModifier = Modifier
                         .onGloballyPositioned { coordinates ->
                             dragController.blockBounds[block.id] = coordinates.boundsInWindow()
@@ -2544,15 +2548,21 @@ private fun BlockCard(
                             // 拖拽中的源块完全隐藏（系统阴影已跟手，原块直接消失）
                             alpha = if (dragController.draggedBlockId == block.id) 0f else 1f
                         }
-                        .dragAndDropSource(
-                            transferData = {
-                                dragController.draggedBlockId = block.id
-                                dragController.draggedHeightPx =
-                                    dragController.blockBounds[block.id]?.height ?: 0f
-                                dragController.draggedSubtreeIds = collectSubtreeIds(block)
-                                DragAndDropTransferData(
-                                    clipData = ClipData.newPlainText("hypermodes_block", block.id),
-                                    localState = block.id
+                        .then(
+                            if (isCustomDragSource) {
+                                Modifier
+                            } else {
+                                Modifier.dragAndDropSource(
+                                    transferData = {
+                                        dragController.draggedBlockId = block.id
+                                        dragController.draggedHeightPx =
+                                            dragController.blockBounds[block.id]?.height ?: 0f
+                                        dragController.draggedSubtreeIds = collectSubtreeIds(block)
+                                        DragAndDropTransferData(
+                                            clipData = ClipData.newPlainText("hypermodes_block", block.id),
+                                            localState = block.id
+                                        )
+                                    }
                                 )
                             }
                         )
