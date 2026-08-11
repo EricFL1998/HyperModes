@@ -1029,9 +1029,22 @@ private fun IntentTriggerEditor(
     block: AutomationBlock,
     onUpdate: (AutomationBlock) -> Unit
 ) {
+    val context = LocalContext.current
+    val packageName = block.stringParam("packageName")
     val intentName = block.parameters.find { it.key == "intentName" }
         ?.let { (it as? BlockParameter.StringParam)?.value }
         .orEmpty()
+    // 按包名解析 app 名称（来自已导入配置）；找不到时回退显示包名
+    val appName = if (packageName.isNotBlank()) {
+        ImportedIntentStore.loadAllCached(context)
+            .firstOrNull { it.packageName == packageName }
+            ?.appName
+            ?: packageName
+    } else {
+        ""
+    }
+    val bound = intentName.isNotBlank()
+    val displayText = if (bound) "$appName · $intentName" else "拖入意图"
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1066,8 +1079,8 @@ private fun IntentTriggerEditor(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = intentName.ifBlank { "拖入意图" },
-                color = if (intentName.isBlank()) {
+                text = displayText,
+                color = if (!bound) {
                     MiuixTheme.colorScheme.onSurfaceVariantSummary
                 } else {
                     Color(0xFF0A84FF)
