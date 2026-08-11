@@ -40,9 +40,15 @@ object ImportedIntentStore {
     fun save(context: Context, config: IntentConfig) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val existing = loadAll(context).toMutableList()
-        // Replace an existing config for the same package so re-imports update it.
-        existing.removeAll { it.packageName == config.packageName }
-        existing.add(0, config)
+        val idx = existing.indexOfFirst { it.packageName == config.packageName }
+        if (idx >= 0) {
+            // 同一 app 多次导入：合并意图（按名称去重），避免后者覆盖前者
+            val current = existing[idx]
+            val merged = (current.intents + config.intents).distinctBy { it.name }
+            existing[idx] = config.copy(intents = merged)
+        } else {
+            existing.add(0, config)
+        }
         val raw = json.encodeToString<List<IntentConfig>>(existing)
         prefs.edit().putString(KEY_IMPORTED_INTENTS, raw).apply()
         // 更新缓存，保持与存储一致
