@@ -547,7 +547,7 @@ fun AutomationsScreen(
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
-                                            text = "长按删除",
+                                            text = stringResource(R.string.long_press_delete),
                                             style = MiuixTheme.textStyles.body2,
                                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                         )

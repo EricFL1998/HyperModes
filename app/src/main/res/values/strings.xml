@@ -313,6 +313,7 @@
     <string name="delete_app_intents">Delete All Intents</string>
     <string name="delete_intent_confirm">Delete intent "%1$s" from %2$s?</string>
     <string name="delete_app_intents_confirm">Delete all intents for %1$s?</string>
+    <string name="long_press_delete">Long press to delete</string>
     <string name="imported_intents_title">Imported Intents</string>
     <string name="view_imported_intents">View Imported Intents</string>
     <string name="no_imported_intents">No imported intents yet</string>

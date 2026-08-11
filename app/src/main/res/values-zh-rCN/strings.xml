@@ -304,6 +304,20 @@
     <string name="view_imported_intents">查看已导入的意图</string>
     <string name="no_imported_intents">暂无已导入的意图</string>
     <string name="already_added">已添加</string>
+    <string name="import_automation">导入自动化</string>
+    <string name="export_automation">导出自动化</string>
+    <string name="import_automation_title">导入自动化</string>
+    <string name="import_automation_message">导入自动化「%1$s」？</string>
+    <string name="export_automation_title">导出自动化</string>
+    <string name="export_automation_error">导出自动化失败</string>
+    <string name="import_automation_error">导入自动化失败</string>
+    <string name="import_automation_success">自动化已导入</string>
+    <string name="export_automation_success">自动化已导出</string>
+    <string name="delete_intent">删除意图</string>
+    <string name="delete_app_intents">删除全部意图</string>
+    <string name="delete_intent_confirm">从 %2$s 删除意图「%1$s」？</string>
+    <string name="delete_app_intents_confirm">删除 %1$s 的全部意图？</string>
+    <string name="long_press_delete">长按删除</string>
     
     <!-- Intent trigger -->
     <string name="trigger_intent">意图触发</string>
