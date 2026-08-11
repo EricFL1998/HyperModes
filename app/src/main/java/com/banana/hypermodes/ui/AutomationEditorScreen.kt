@@ -694,8 +694,7 @@ private fun WifiTriggerEditor(
 
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 14.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // WiFi 图标
@@ -835,8 +834,7 @@ private fun BluetoothTriggerEditor(
 
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 14.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 蓝牙图标
@@ -970,8 +968,7 @@ private fun StateChipEditor(
 
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 14.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showWhenSuffix) {
@@ -1439,7 +1436,7 @@ private fun BlockCard(
                     Modifier
                 }
             ),
-        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         cornerRadius = 24.dp
     ) {
         Column {
