@@ -110,6 +110,15 @@ fun AutomationActionDialog(
     var selectedCategory by remember { mutableStateOf<Any?>(null) }
     val listState = rememberLazyListState()
 
+    // 每次打开弹窗都重置分类到"全部"、清空搜索
+    LaunchedEffect(show) {
+        if (show) {
+            selectedCategory = null
+            searchQuery = ""
+            listState.scrollToItem(0)
+        }
+    }
+
     // 切换分类（含切回"全部"）时列表回到顶部
     LaunchedEffect(selectedCategory) {
         listState.scrollToItem(0)
