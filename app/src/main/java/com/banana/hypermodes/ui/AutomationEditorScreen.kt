@@ -1162,6 +1162,188 @@ private fun StateChipEditor(
 }
 
 
+/**
+ * 电量判断的一行句子式编辑器：
+ * [🔋] [高于/低于] [80% 滚动数字选择器] 时
+ * 运算符点击弹菜单，百分比点击弹滚动选择器，一行搞定。
+ */
+@Composable
+private fun BatteryLevelEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit,
+    showWhenSuffix: Boolean = true
+) {
+    val operatorParam = block.parameters.find { it.key == "operator" } as? BlockParameter.ChoiceParam
+    val levelParam = block.parameters.find { it.key == "level" } as? BlockParameter.IntParam
+    var showOperatorMenu by remember { mutableStateOf(false) }
+    var showLevelPicker by remember { mutableStateOf(false) }
+
+    fun updateParam(updated: BlockParameter) {
+        onUpdate(
+            block.copy(
+                parameters = block.parameters.map {
+                    if (it.key == updated.key) updated else it
+                }
+            )
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 状态图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(block.iconColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = block.icon,
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 运算符胶囊（点击弹菜单）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { showOperatorMenu = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = operatorParam?.value ?: "高于",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 百分比胶囊（点击弹滚动数字选择器）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .clickable { showLevelPicker = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "${levelParam?.value ?: 20}%",
+                color = Color(0xFF0A84FF),
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
+        }
+
+        if (showWhenSuffix) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "时",
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface
+            )
+        }
+    }
+
+    // 运算符菜单
+    if (showOperatorMenu) {
+        OverlayDialog(
+            show = showOperatorMenu,
+            onDismissRequest = { showOperatorMenu = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "比较方式",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                (operatorParam?.options ?: emptyList()).forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (operatorParam != null) updateParam(operatorParam.copy(value = option))
+                                showOperatorMenu = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (option == operatorParam?.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 百分比滚动数字选择器
+    if (showLevelPicker) {
+        OverlayDialog(
+            show = showLevelPicker,
+            onDismissRequest = { showLevelPicker = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "电量百分比",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                NumberPicker(
+                    value = levelParam?.value ?: 20,
+                    onValueChange = { value ->
+                        if (levelParam != null) updateParam(levelParam.copy(value = value))
+                    },
+                    range = 0..100,
+                    label = { "$it%" }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MiuixTheme.colorScheme.primary)
+                        .clickable { showLevelPicker = false }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "确定",
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+
 /** 等待应用选择器返回的参数目标。 */
 private data class AppPickRequest(
     val blockId: String,
@@ -1556,6 +1738,15 @@ private fun BlockCard(
                             block = block,
                             onUpdate = onUpdate,
                             onPickBluetooth = { param -> onPickBluetooth(param) }
+                        )
+                    } else if (block.type is BlockType.TriggerBattery ||
+                        block.type is BlockType.CheckBatteryLevel
+                    ) {
+                        // 电量判断：一行句子式编辑器（[🔋] [高于/低于] [80% 滚动选择器] 时）
+                        BatteryLevelEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            showWhenSuffix = block.type is BlockType.TriggerBattery
                         )
                     } else if (block.type is BlockType.TriggerCharging ||
                         block.type is BlockType.TriggerMusic ||
