@@ -38,6 +38,8 @@ import java.util.Calendar
 interface AutomationSystemOps {
     /** 暂停/恢复指定应用。返回是否成功。 */
     fun setAppsSuspended(packages: List<String>, suspend: Boolean): Boolean
+    /** 开关个人热点（system_server 内用系统 API flip switch）。返回是否成功。 */
+    fun setHotspotEnabled(enabled: Boolean): Boolean
 }
 
 class AutomationExecutor(
@@ -312,16 +314,45 @@ class AutomationExecutor(
     }
 
     private fun executeToggleHotspot(block: AutomationBlock, enabled: Boolean): ExecutionResult {
-        val ok = runRoot("cmd connectivity tethering ${if (enabled) "enable" else "disable"} wifi")
-        if (ok) return ExecutionResult(true, "热点已${if (enabled) "开启" else "关闭"}")
-        return try {
-            // 降级：反射 WifiManager.setWifiApEnabled
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            val method = wifiManager.javaClass.getMethod("setWifiApEnabled", android.net.wifi.WifiConfiguration::class.java, Boolean::class.javaPrimitiveType!!)
-            method.invoke(wifiManager, null, enabled)
-            ExecutionResult(true, "热点已${if (enabled) "开启" else "关闭"}")
+        val action = if (enabled) "开启" else "关闭"
+
+        // system_server 内：直接调用特权控制器（系统 API flip switch）
+        systemOps?.let { ops ->
+            val ok = try {
+                ops.setHotspotEnabled(enabled)
+            } catch (e: Exception) {
+                Log.w(TAG, "systemOps hotspot failed: ${e.message}")
+                false
+            }
+            return if (ok) {
+                ExecutionResult(true, "热点已$action")
+            } else {
+                ExecutionResult(false, "热点${action}失败")
+            }
+        }
+
+        // 应用进程：走 system_server 特权桥接（HotspotController 用系统 API flip switch）
+        val sent = try {
+            val intent = Intent(com.banana.hypermodes.protocol.Protocol.ACTION_SET_HOTSPOT_ENABLED)
+                .putExtra(com.banana.hypermodes.protocol.Protocol.EXTRA_ENABLED, enabled)
+                .setPackage(com.banana.hypermodes.protocol.Protocol.FRAMEWORK_PACKAGE)
+            context.sendBroadcast(
+                intent,
+                com.banana.hypermodes.protocol.Protocol.PERMISSION_CONTROL
+            )
+            true
         } catch (e: Exception) {
-            ExecutionResult(false, "热点控制失败：${e.message}")
+            Log.w(TAG, "bridge hotspot broadcast failed: ${e.message}")
+            false
+        }
+        if (sent) return ExecutionResult(true, "热点已$action")
+
+        // 降级：root shell 旧命令（老系统或 bridge 不可用）
+        val ok = runRoot("cmd connectivity tethering ${if (enabled) "enable" else "disable"} wifi")
+        return if (ok) {
+            ExecutionResult(true, "热点已$action")
+        } else {
+            ExecutionResult(false, "热点${action}失败")
         }
     }
 

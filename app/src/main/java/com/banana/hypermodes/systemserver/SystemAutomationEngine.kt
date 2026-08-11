@@ -18,6 +18,7 @@ import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.automation.AutomationSystemOps
 import com.banana.hypermodes.automation.isTriggerBlock
 import com.banana.hypermodes.systemserver.executor.AppSuspendController
+import com.banana.hypermodes.systemserver.executor.HotspotController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +40,7 @@ class SystemAutomationEngine(
 ) {
 
     private val appSuspendController = AppSuspendController(context, classLoader)
+    private val hotspotController = HotspotController(context)
 
     /** system_server 内的特权操作：暂停/恢复应用直接调 AppSuspendController。 */
     private val systemOps = object : AutomationSystemOps {
@@ -54,6 +56,15 @@ class SystemAutomationEngine(
                 true
             } catch (t: Throwable) {
                 Log.w(TAG, "setAppsSuspended failed: ${t.message}")
+                false
+            }
+        }
+
+        override fun setHotspotEnabled(enabled: Boolean): Boolean {
+            return try {
+                hotspotController.setHotspotEnabled(enabled)
+            } catch (t: Throwable) {
+                Log.w(TAG, "setHotspotEnabled failed: ${t.message}")
                 false
             }
         }

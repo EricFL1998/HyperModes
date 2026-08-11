@@ -22,6 +22,7 @@ import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.SystemAutomationEngine
 import com.banana.hypermodes.systemserver.config.WallpaperItemConfig
+import com.banana.hypermodes.systemserver.executor.HotspotController
 import com.banana.hypermodes.systemserver.executor.WallpaperController
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
 import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceAdapter
@@ -160,6 +161,10 @@ class SystemModeHook(private val module: XposedModule) {
                         sendConfiguredWifi(c, intent)
                         return
                     }
+                    Protocol.ACTION_SET_HOTSPOT_ENABLED -> {
+                        setHotspotEnabled(c, intent)
+                        return
+                    }
                     Protocol.ACTION_PROBE_POLARIS -> {
                         probePolaris(c, intent)
                         return
@@ -193,6 +198,7 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_SET_PACKAGES_SUSPENDED)
             addAction(Protocol.ACTION_SET_CHANNELS_BYPASS_DND)
             addAction(Protocol.ACTION_GET_CONFIGURED_WIFI)
+            addAction(Protocol.ACTION_SET_HOTSPOT_ENABLED)
             addAction(Protocol.ACTION_PROBE_POLARIS)
             addAction(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT)
             addAction(Protocol.ACTION_PREPARE_WALLPAPER_EDIT)
@@ -276,6 +282,22 @@ class SystemModeHook(private val module: XposedModule) {
         resultReceiver.send(0, android.os.Bundle().apply {
             putStringArray(Protocol.EXTRA_SSIDS, ssids.toTypedArray())
         })
+    }
+
+    /**
+     * 开关个人热点：system_server 内直接调 WifiManager 的系统 API
+     * （startTetheredHotspot / stopSoftAp），等价于系统设置里 flip switch。
+     * 热点开启/关闭是异步的，这里拿到调用成功即返回。
+     */
+    private fun setHotspotEnabled(context: Context, intent: Intent) {
+        val enabled = intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false)
+        val ok = try {
+            HotspotController(context).setHotspotEnabled(enabled)
+        } catch (t: Throwable) {
+            log("SET_HOTSPOT_ENABLED failed: $t")
+            false
+        }
+        log("SET_HOTSPOT_ENABLED($enabled) -> $ok")
     }
 
     /**

@@ -41,6 +41,8 @@ object Protocol {
     // App -> system_server hook (SystemModeHook bridge)
     const val ACTION_SET_PACKAGES_SUSPENDED = "com.banana.hypermodes.SET_PACKAGES_SUSPENDED"
     const val ACTION_SET_CHANNELS_BYPASS_DND = "com.banana.hypermodes.SET_CHANNELS_BYPASS_DND"
+    /** App -> system_server: 开关个人热点（system_server 内用系统 API flip switch）。 */
+    const val ACTION_SET_HOTSPOT_ENABLED = "com.banana.hypermodes.SET_HOTSPOT_ENABLED"
     /** Ask system_server for the saved (configured) WiFi SSID list; the result
      *  comes back on the ResultReceiver in EXTRA_RESULT_RECEIVER. Apps lost
      *  WifiManager.getConfiguredNetworks() in Android 10 — system_server hasn't. */
@@ -71,6 +73,7 @@ object Protocol {
     const val EXTRA_TRIGGER = "trigger" // "start" | "end"
     const val EXTRA_PACKAGES = "packages"
     const val EXTRA_SUSPENDED = "suspended"
+    const val EXTRA_ENABLED = "enabled"
     const val EXTRA_BYPASS = "bypass"
     const val EXTRA_RESULT_RECEIVER = "resultReceiver"
     const val EXTRA_SSIDS = "ssids"
