@@ -128,7 +128,7 @@ fun AutomationActionDialog(
             SearchBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 inputField = {
                     InputField(
                         query = searchQuery,
@@ -147,7 +147,7 @@ fun AutomationActionDialog(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(end = 8.dp)
             ) {
                 item(key = "cat-all") {
@@ -207,7 +207,7 @@ fun AutomationActionDialog(
                                         text = category.label,
                                         style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.padding(
-                                            start = 16.dp,
+                                            start = 20.dp,
                                             top = 20.dp,
                                             bottom = 12.dp
                                         )
@@ -268,9 +268,9 @@ private fun ActionOptionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = 12.dp)
             .padding(bottom = 10.dp),
-        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
+        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         cornerRadius = 20.dp,
         onClick = onClick
     ) {
