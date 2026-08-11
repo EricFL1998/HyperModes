@@ -6,14 +6,17 @@ import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.graphics.Canvas
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -21,6 +24,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -128,14 +132,20 @@ private fun restoreEditSystem(
     pre: WallpaperSet?,
     onDone: () -> Unit = {}
 ) {
+    Log.i("ModeDetailScreen", "restoreEditSystem: pre lock=${pre?.lock?.imagePath} desktop=${pre?.desktop?.imagePath}")
     if (pre == null) {
         onDone()
         return
     }
     var remaining = 0
-    val checkDone = {
+    var failed = 0
+    val checkDone = { ok: Boolean ->
+        if (!ok) failed++
         remaining--
-        if (remaining <= 0) onDone()
+        if (remaining <= 0) {
+            Log.i("ModeDetailScreen", "restoreEditSystem: done failed=$failed")
+            onDone()
+        }
     }
     pre.lock?.let { remaining++ }
     pre.desktop?.let { remaining++ }
@@ -143,8 +153,8 @@ private fun restoreEditSystem(
         onDone()
         return
     }
-    pre.lock?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { checkDone() } }
-    pre.desktop?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { checkDone() } }
+    pre.lock?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { ok -> checkDone(ok) } }
+    pre.desktop?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { ok -> checkDone(ok) } }
 }
 
 /** 桌面子项是否被用户实际修改（壁纸图变化）。 */
@@ -291,12 +301,17 @@ fun ModeDetailScreen(
     var preEditSystem by remember(mode.id) { mutableStateOf<WallpaperSet?>(null) }
     // 壁纸内容变化的刷新信号：捕获/恢复后递增，强制预览重新解码
     var wallpaperRefreshTick by remember(mode.id) { mutableIntStateOf(0) }
+    // 预置已保存壁纸到系统（setStream 重新裁剪）耗时，期间显示加载遮罩并防止重复点击
+    var isPreparingWallpaper by remember(mode.id) { mutableStateOf(false) }
     LaunchedEffect(mode.id) {
         // 先用上次缓存的预览立即显示，避免每次进详情页都等 1-2s 跨进程拉取
         systemWallpaper = WallpaperSnapshotBridge.readCachedCurrent(context)
         // 后台刷新最新快照
         WallpaperSnapshotBridge.captureCurrent(context) { snapshot ->
-            if (snapshot != null) systemWallpaper = snapshot
+            if (snapshot != null) {
+                systemWallpaper = snapshot
+                wallpaperRefreshTick++
+            }
         }
     }
 
@@ -333,19 +348,24 @@ fun ModeDetailScreen(
                                 )
                             )
                             onSave(editedMode)
-                            // 编辑会话结束：模式未激活时恢复真实系统状态，
-                            // 让"在模式里编辑"不改变真实锁屏/桌面（激活时模式样式本就应生效）
-                            if (!editedMode.enabled) {
-                                restoreEditSystem(context, preEditSystem) {
-                                    // 恢复完成后，预览底图必须切回编辑前的真实系统状态，
-                                    // 否则预览会一直显示编辑后的快照，看起来真实壁纸被改了。
-                                    systemWallpaper = preEditSystem ?: snapshot
-                                    wallpaperRefreshTick++
-                                }
-                            } else {
-                                // 模式已激活：预览底图同步为编辑后的最新系统状态
+                            // 模式已激活：预览底图同步为编辑后的最新系统状态（激活时模式样式本就应生效）
+                            if (editedMode.enabled) {
                                 systemWallpaper = snapshot
                                 wallpaperRefreshTick++
+                            }
+                        }
+                        // 编辑会话结束：模式未激活时必须恢复真实系统状态——无论捕获是否成功都要恢复，
+                        // 否则官方编辑器写进真实系统的壁纸会残留（之前嵌在 if(snapshot!=null) 里，
+                        // 捕获失败就跳过恢复，是"编辑后真实壁纸被改"的根因）。
+                        if (!editedMode.enabled) {
+                            Log.i("ModeDetailScreen", "edit done: restore real system (snapshot=${snapshot != null})")
+                            restoreEditSystem(context, preEditSystem) {
+                                // 恢复完成后重新捕获真实系统刷新预览，保证预览与真实壁纸一致，
+                                // 而不是直接信任 preEditSystem（恢复可能只成功了一半）。
+                                WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                                    if (snap != null) systemWallpaper = snap
+                                    wallpaperRefreshTick++
+                                }
                             }
                         }
                     }
@@ -353,7 +373,10 @@ fun ModeDetailScreen(
                     // 非编辑会话返回（从系统设置/主题商店切回等）：刷新系统当前壁纸快照，
                     // 让“初始壁纸预览图”能反映外部对真实壁纸的修改。
                     WallpaperSnapshotBridge.captureCurrent(context) { snap ->
-                        if (snap != null) systemWallpaper = snap
+                        if (snap != null) {
+                            systemWallpaper = snap
+                            wallpaperRefreshTick++
+                        }
                     }
                 }
             }
@@ -792,90 +815,106 @@ fun ModeDetailScreen(
                 )
             }
             item {
-                WallpaperOverviewCard(
-                    wallpaper = editedMode.settings.wallpaper,
-                    systemWallpaper = systemWallpaper,
-                    refreshTick = wallpaperRefreshTick,
-                    onLockClick = {
-                        pendingWallpaperCapture = true
-                        // 实时捕获编辑前系统状态作为基线与恢复依据：进入详情页时的
-                        // systemWallpaper 可能已过期（上次编辑会话结束后系统被恢复，
-                        // 但缓存未同步），用过期基线会导致编辑返回后对比/恢复错乱。
-                        WallpaperSnapshotBridge.captureCurrent(context) { latest ->
-                            val baseline = latest
-                                ?: systemWallpaper
-                                ?: WallpaperSnapshotBridge.readCachedCurrent(context)
-                            // 记录编辑前真实系统状态（会话结束后恢复）
-                            preEditSystem = baseline
-                            val saved = editedMode.settings.wallpaper?.lock
-                            val hasSavedLock = saved != null && (
-                                !saved.lockscreenJson.isNullOrEmpty() ||
-                                    !saved.imagePath.isNullOrEmpty()
-                                )
-                            if (hasSavedLock) {
-                                // 已有已保存样式：预置到系统，编辑器从它开始；
-                                // 基线 = 保存的锁屏（壁纸图复制到临时文件，避免被
-                                // 编辑后的捕获覆盖同一路径导致比较失效）+ 当前系统桌面。
-                                beforeWallpaper = WallpaperSet(
-                                    lock = copyBaselineItem(context, editedMode.settings.wallpaper?.lock),
-                                    desktop = baseline?.desktop
-                                )
-                                WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
-                                    if (ok) {
-                                        onOpenWallpaper(editedMode, "lock")
-                                    } else {
-                                        // 预置失败：不打开编辑器，也不在返回时误捕获保存
-                                        pendingWallpaperCapture = false
+                Box {
+                    WallpaperOverviewCard(
+                        wallpaper = editedMode.settings.wallpaper,
+                        systemWallpaper = systemWallpaper,
+                        refreshTick = wallpaperRefreshTick,
+                        onLockClick = {
+                            if (!isPreparingWallpaper) {
+                                pendingWallpaperCapture = true
+                                // 基线/恢复依据直接用进入时已刷新的 systemWallpaper，点击时不再
+                                // 同步跨进程捕获（这是点击后卡顿数秒的主因）。进入页与每次返回
+                                // 都会刷新 systemWallpaper，因此它足够新。
+                                val baseline = systemWallpaper
+                                    ?: WallpaperSnapshotBridge.readCachedCurrent(context)
+                                // 记录编辑前真实系统状态（会话结束后恢复）
+                                preEditSystem = baseline
+                                val saved = editedMode.settings.wallpaper?.lock
+                                val hasSavedLock = saved != null && (
+                                    !saved.lockscreenJson.isNullOrEmpty() ||
+                                        !saved.imagePath.isNullOrEmpty()
+                                    )
+                                if (hasSavedLock) {
+                                    // 已有已保存样式：预置到系统，编辑器从它开始；
+                                    // 基线 = 保存的锁屏（壁纸图复制到临时文件，避免被
+                                    // 编辑后的捕获覆盖同一路径导致比较失效）+ 当前系统桌面。
+                                    beforeWallpaper = WallpaperSet(
+                                        lock = copyBaselineItem(context, editedMode.settings.wallpaper?.lock),
+                                        desktop = baseline?.desktop
+                                    )
+                                    // 预置需 setStream 重新裁剪（耗时），期间显示加载遮罩
+                                    isPreparingWallpaper = true
+                                    WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
+                                        isPreparingWallpaper = false
+                                        if (ok) {
+                                            onOpenWallpaper(editedMode, "lock")
+                                        } else {
+                                            // 预置失败：不打开编辑器，也不在返回时误捕获保存
+                                            pendingWallpaperCapture = false
+                                        }
                                     }
+                                } else {
+                                    beforeWallpaper = baseline
+                                    onOpenWallpaper(editedMode, "lock")
                                 }
-                            } else {
-                                beforeWallpaper = baseline
-                                onOpenWallpaper(editedMode, "lock")
                             }
-                        }
-                    },
-                    onDesktopClick = {
-                        pendingWallpaperCapture = true
-                        // 同锁屏：实时捕获编辑前系统状态作为基线
-                        WallpaperSnapshotBridge.captureCurrent(context) { latest ->
-                            val baseline = latest
-                                ?: systemWallpaper
-                                ?: WallpaperSnapshotBridge.readCachedCurrent(context)
-                            // 记录编辑前真实系统状态（会话结束后恢复）
-                            preEditSystem = baseline
-                            val saved = editedMode.settings.wallpaper?.desktop
-                            if (saved != null && !saved.imagePath.isNullOrEmpty()) {
-                                // 基线 = 当前系统锁屏（锁屏未动）+ 保存的桌面。
-                                beforeWallpaper = WallpaperSet(
-                                    lock = baseline?.lock,
-                                    desktop = copyBaselineItem(context, editedMode.settings.wallpaper?.desktop)
-                                )
-                                WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
-                                    if (ok) {
-                                        onOpenWallpaper(editedMode, "desktop")
-                                    } else {
-                                        pendingWallpaperCapture = false
+                        },
+                        onDesktopClick = {
+                            if (!isPreparingWallpaper) {
+                                pendingWallpaperCapture = true
+                                // 同锁屏：基线直接用已刷新的 systemWallpaper
+                                val baseline = systemWallpaper
+                                    ?: WallpaperSnapshotBridge.readCachedCurrent(context)
+                                preEditSystem = baseline
+                                val saved = editedMode.settings.wallpaper?.desktop
+                                if (saved != null && !saved.imagePath.isNullOrEmpty()) {
+                                    // 基线 = 当前系统锁屏（锁屏未动）+ 保存的桌面。
+                                    beforeWallpaper = WallpaperSet(
+                                        lock = baseline?.lock,
+                                        desktop = copyBaselineItem(context, editedMode.settings.wallpaper?.desktop)
+                                    )
+                                    isPreparingWallpaper = true
+                                    WallpaperSnapshotBridge.prepareEdit(context, saved) { ok ->
+                                        isPreparingWallpaper = false
+                                        if (ok) {
+                                            onOpenWallpaper(editedMode, "desktop")
+                                        } else {
+                                            pendingWallpaperCapture = false
+                                        }
                                     }
+                                } else {
+                                    beforeWallpaper = baseline
+                                    onOpenWallpaper(editedMode, "desktop")
                                 }
-                            } else {
-                                beforeWallpaper = baseline
-                                onOpenWallpaper(editedMode, "desktop")
                             }
+                        },
+                        onClear = {
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(wallpaper = null)
+                            )
+                            onSave(editedMode)
+                            // 恢复初始后立即刷新系统当前壁纸，预览切到系统当前状态
+                            WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                                if (snap != null) systemWallpaper = snap
+                            }
+                            wallpaperRefreshTick++
+                        },
+                        modifier = Modifier
+                    )
+                    // 预置壁纸到系统期间的加载遮罩（setStream 重新裁剪耗时）
+                    if (isPreparingWallpaper) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.35f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
-                    },
-                    onClear = {
-                        editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(wallpaper = null)
-                        )
-                        onSave(editedMode)
-                        // 恢复初始后立即刷新系统当前壁纸，预览切到系统当前状态
-                        WallpaperSnapshotBridge.captureCurrent(context) { snap ->
-                            if (snap != null) systemWallpaper = snap
-                        }
-                        wallpaperRefreshTick++
-                    },
-                    modifier = Modifier
-                )
+                    }
+                }
             }
 
             // 通知过滤条件 section

@@ -121,6 +121,7 @@ class WallpaperController(private val context: Context) {
      */
     fun prepareForEdit(item: WallpaperItemConfig) {
         try {
+            log("prepareForEdit: which=${item.which} imagePath=${item.imagePath} sysImagePath=${item.sysImagePath} hasJson=${!item.lockscreenJson.isNullOrEmpty()}")
             if (item.which == 2) {
                 // 锁屏：样式 JSON + 壁纸 + 主体蒙版
                 if (!item.lockscreenJson.isNullOrEmpty()) {
@@ -370,9 +371,11 @@ class WallpaperController(private val context: Context) {
             log("setWallpaperStream: skip (content identical, which=$which)")
             return
         }
+        log("setWallpaperStream: setting which=$which src=${src.absolutePath} size=${src.length()}")
         src.inputStream().use { input ->
             wallpaperManager.setStream(input, null, true, which)
         }
+        log("setWallpaperStream: done which=$which")
     }
 
     /** 目标壁纸与系统当前壁纸内容是否一致（字节级，防重复 setStream）。 */

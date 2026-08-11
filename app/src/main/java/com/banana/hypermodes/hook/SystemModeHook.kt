@@ -227,6 +227,7 @@ class SystemModeHook(private val module: XposedModule) {
         val resultReceiver =
             intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
         val which = intent.getIntExtra(Protocol.EXTRA_WHICH, 2)
+        log("PREPARE_WALLPAPER_EDIT received: which=$which")
         Thread {
             try {
                 val item = WallpaperItemConfig(
@@ -249,7 +250,9 @@ class SystemModeHook(private val module: XposedModule) {
                     } else null,
                     which = which
                 )
+                log("PREPARE_WALLPAPER_EDIT: calling prepareForEdit which=$which imagePath=${item.imagePath} sysImagePath=${item.sysImagePath}")
                 WallpaperController(context).prepareForEdit(item)
+                log("PREPARE_WALLPAPER_EDIT: prepareForEdit done which=$which")
                 resultReceiver?.send(0, Bundle())
             } catch (t: Throwable) {
                 log("PREPARE_WALLPAPER_EDIT failed: ${t.message}")

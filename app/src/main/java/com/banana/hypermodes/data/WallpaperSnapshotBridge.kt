@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
+import android.util.Log
 import com.banana.hypermodes.protocol.Protocol
 import java.io.File
 
@@ -36,10 +37,19 @@ object WallpaperSnapshotBridge {
         val templateEditorFile = File(dir, "template_editor.json")
         val subjectMaskFile = File(dir, "subject_mask.png")
         if (!lockFile.exists() && !desktopFile.exists()) return null
+        // system_server 侧预览目录（captureCurrent 时会同步落盘一份）。App 无法直接 stat
+        // /data/system，但预先填上该路径即可：恢复/预置编辑时 system_server 会自行校验
+        // 存在性。否则 sysImagePath 为 null 会回退到 App 私有目录，uid 1000 读不到，
+        // 导致壁纸图恢复被静默跳过（真实壁纸残留的根因之一）。
+        val sysPreviewDir = File("/data/system/hypermodes_backup/modes/preview")
         return WallpaperSet(
             lock = if (lockFile.exists()) {
                 WallpaperItem(
                     imagePath = lockFile.absolutePath,
+                    sysImagePath = File(sysPreviewDir, "lock_wallpaper.jpg").absolutePath,
+                    sysSubjectMaskPath = if (subjectMaskFile.exists()) {
+                        File(sysPreviewDir, "subject_mask.png").absolutePath
+                    } else null,
                     lockscreenJson = runCatching { lockJsonFile.takeIf { it.exists() }?.readText() }.getOrNull(),
                     templateEditorJson = runCatching {
                         templateEditorFile.takeIf { it.exists() }?.readText()
@@ -49,7 +59,11 @@ object WallpaperSnapshotBridge {
                 )
             } else null,
             desktop = if (desktopFile.exists()) {
-                WallpaperItem(imagePath = desktopFile.absolutePath, which = 1)
+                WallpaperItem(
+                    imagePath = desktopFile.absolutePath,
+                    sysImagePath = File(sysPreviewDir, "desktop_wallpaper.jpg").absolutePath,
+                    which = 1
+                )
             } else null
         )
     }
@@ -78,21 +92,24 @@ object WallpaperSnapshotBridge {
      * @param onDone 预置完成后回调（主线程）；true=成功（含超时失败）
      */
     fun prepareEdit(context: Context, item: WallpaperItem, onDone: (Boolean) -> Unit) {
+        Log.i("WallpaperSnapshotBridge", "prepareEdit: which=${item.which} imagePath=${item.imagePath} sysImagePath=${item.sysImagePath}")
         val handler = Handler(Looper.getMainLooper())
         var delivered = false
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 if (delivered) return
                 delivered = true
+                Log.i("WallpaperSnapshotBridge", "prepareEdit result: which=${item.which} resultCode=$resultCode")
                 onDone(resultCode == 0)
             }
         }
         val timeout = Runnable {
             if (delivered) return@Runnable
             delivered = true
+            Log.w("WallpaperSnapshotBridge", "prepareEdit timeout: which=${item.which}")
             onDone(false)
         }
-        handler.postDelayed(timeout, 5000)
+        handler.postDelayed(timeout, 10000)
         try {
             context.sendBroadcast(
                 Intent(Protocol.ACTION_PREPARE_WALLPAPER_EDIT).apply {
@@ -134,6 +151,7 @@ object WallpaperSnapshotBridge {
         previewOnly: Boolean,
         onResult: (WallpaperSet?) -> Unit
     ) {
+        Log.i("WallpaperSnapshotBridge", "captureInternal: modeId=$modeId previewOnly=$previewOnly")
         val handler = Handler(Looper.getMainLooper())
         var delivered = false
         fun deliver(result: WallpaperSet?) {
