@@ -94,6 +94,7 @@ object AutomationCatalog {
         // ==================== 逻辑 ====================
         Entry("and_condition", "并且（全部满足）", "➕", Color(0xFF007AFF), "所有条件都满足", Category.LOGIC),
         Entry("or_condition", "或者（任一满足）", "〰️", Color(0xFF007AFF), "任一条件满足", Category.LOGIC),
+        Entry("trigger_intent", "当收到意图时", "🔔", Color(0xFF5856D6), "监听广播意图，收到时执行 {} 内操作（拖入意图块绑定）", Category.LOGIC),
 
         // ==================== 条件判断 ====================
         Entry("check_wifi", "WiFi 状态", "📶", Color(0xFF30B0C7), "判断 WiFi 开关状态", Category.CONDITION),

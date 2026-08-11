@@ -207,36 +207,18 @@ fun AutomationActionDialog(
             val intentActions: List<Pair<IntentConfig, List<AutomationAction>>> = importedConfigs
                 .filter { config -> selectedCategory == null || selectedCategory == config.packageName }
                 .map { config ->
-                    config to buildList {
-                        // "当"模块：空意图触发块，拖入意图后绑定（复用 {} 作用域）
-                        add(
-                            AutomationAction(
-                                id = "intent_trigger_${config.packageName}",
-                                name = "当收到意图时",
-                                icon = "🔔",
-                                iconColor = Color(0xFF5856D6),
-                                description = "拖入下方的意图块到 {} 中作为触发条件",
-                                intentPackage = config.packageName,
-                                intentName = "",
-                                intentAction = "",
-                                intentTrigger = true
-                            )
-                        )
+                    config to config.intents.map { action ->
                         // 每个意图：发送意图操作（可拖拽进 "当" 的 {} 绑定）
-                        config.intents.forEach { action ->
-                            add(
-                                AutomationAction(
-                                    id = "intent_send_${config.packageName}_${action.name}",
-                                    name = "发送 ${action.name}",
-                                    icon = "📨",
-                                    iconColor = Color(0xFF5856D6),
-                                    description = "向 ${config.appName} 发送广播 ${action.name}",
-                                    intentPackage = config.packageName,
-                                    intentName = action.name,
-                                    intentAction = action.intents.firstOrNull()
-                                )
-                            )
-                        }
+                        AutomationAction(
+                            id = "intent_send_${config.packageName}_${action.name}",
+                            name = "发送 ${action.name}",
+                            icon = "📨",
+                            iconColor = Color(0xFF5856D6),
+                            description = "向 ${config.appName} 发送广播 ${action.name}",
+                            intentPackage = config.packageName,
+                            intentName = action.name,
+                            intentAction = action.intents.firstOrNull()
+                        )
                     }
                 }
             val filteredActions = remember(searchQuery, allActions) {
