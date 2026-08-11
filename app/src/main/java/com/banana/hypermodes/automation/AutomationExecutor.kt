@@ -59,6 +59,10 @@ class AutomationExecutor(
 
     private val TAG = "AutomationExecutor"
 
+    /** 引擎最近收到的意图广播 action（事件驱动触发，评估后清除）。 */
+    @Volatile
+    var pendingIntentAction: String? = null
+
     /**
      * 特权操作入口：system_server 内注入 SystemAutomationEngine 的实现；
      * 应用进程为 null 时默认走 BridgeSystemOps（广播到 system_server）。
@@ -123,7 +127,8 @@ class AutomationExecutor(
             is BlockType.TriggerNetwork,
             is BlockType.TriggerMusic,
             is BlockType.TriggerApp,
-            is BlockType.TriggerDayOfWeek -> executeTrigger(block, steps)
+            is BlockType.TriggerDayOfWeek,
+            is BlockType.TriggerIntent -> executeTrigger(block, steps)
 
             // ==================== 系统控制 ====================
             is BlockType.ToggleWifi -> executeToggleWifi(block, block.stateExpected())
@@ -223,6 +228,16 @@ class AutomationExecutor(
         )
         is BlockType.TriggerApp -> checkAppForeground(block)
         is BlockType.TriggerDayOfWeek -> checkDayOfWeek(block)
+        is BlockType.TriggerIntent -> {
+            val action = block.stringParam("action")
+            val matched = action.isNotBlank() && pendingIntentAction == action
+            if (matched) pendingIntentAction = null // 一次性事件，消费后清除
+            ExecutionResult(
+                success = true,
+                message = if (matched) "收到意图：$action" else "等待意图：$action",
+                conditionMet = matched
+            )
+        }
         else -> ExecutionResult(false, "未知触发类型")
     }
 
@@ -1069,6 +1084,7 @@ fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
     is BlockType.TriggerNetwork,
     is BlockType.TriggerMusic,
     is BlockType.TriggerApp,
-    is BlockType.TriggerDayOfWeek -> true
+    is BlockType.TriggerDayOfWeek,
+    is BlockType.TriggerIntent -> true
     else -> false
 }

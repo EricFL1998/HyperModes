@@ -19,6 +19,8 @@ sealed class BlockType(val id: String) {
     data object TriggerMusic : BlockType("trigger_music")
     data object TriggerApp : BlockType("trigger_app")
     data object TriggerDayOfWeek : BlockType("trigger_day_of_week")
+    /** 意图触发：当收到指定广播意图时触发。 */
+    data object TriggerIntent : BlockType("trigger_intent")
 
     // ==================== 系统控制 ====================
     data object ToggleWifi : BlockType("toggle_wifi")
@@ -105,6 +107,7 @@ sealed class BlockType(val id: String) {
             TriggerBattery, TriggerCharging,
             TriggerNetwork, TriggerMusic,
             TriggerApp, TriggerDayOfWeek,
+            TriggerIntent,
             ToggleWifi, ToggleBluetooth,
             ToggleMobileData, ToggleAirplane,
             ToggleHotspot, ToggleNfc,
@@ -202,7 +205,8 @@ data class AutomationBlock(
  * 将选择操作弹窗中的 [AutomationAction] 转换为带默认参数的 [AutomationBlock]。
  */
 fun AutomationAction.toAutomationBlock(): AutomationBlock {
-    val type = if (intentPackage != null) BlockType.SendIntent
+    val type = if (intentPackage != null && intentTrigger) BlockType.TriggerIntent
+    else if (intentPackage != null) BlockType.SendIntent
     else BlockType.fromId(id) ?: BlockType.OpenApp
     return AutomationBlock(
         id = UUID.randomUUID().toString(),
@@ -210,7 +214,7 @@ fun AutomationAction.toAutomationBlock(): AutomationBlock {
         label = name,
         icon = icon,
         iconColor = iconColor,
-        parameters = if (type is BlockType.SendIntent) {
+        parameters = if (type is BlockType.SendIntent || type is BlockType.TriggerIntent) {
             listOf(
                 BlockParameter.StringParam("packageName", "应用包名", intentPackage ?: ""),
                 BlockParameter.StringParam("intentName", "意图名称", intentName ?: name),
@@ -275,6 +279,11 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
             "days", "星期", "周一至周五",
             listOf("周一至周五", "周末", "每天")
         )
+    )
+    is BlockType.TriggerIntent -> listOf(
+        BlockParameter.StringParam("packageName", "应用包名", ""),
+        BlockParameter.StringParam("intentName", "意图名称", ""),
+        BlockParameter.StringParam("action", "广播 Action", "")
     )
 
     // ==================== 系统控制 ====================

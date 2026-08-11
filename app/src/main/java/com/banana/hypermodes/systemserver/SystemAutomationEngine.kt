@@ -14,8 +14,11 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.automation.AutomationExecutor
+import com.banana.hypermodes.automation.AutomationBlock
 import com.banana.hypermodes.automation.AutomationStore
 import com.banana.hypermodes.automation.AutomationSystemOps
+import com.banana.hypermodes.automation.BlockParameter
+import com.banana.hypermodes.automation.BlockType
 import com.banana.hypermodes.automation.isTriggerBlock
 import com.banana.hypermodes.systemserver.executor.AppSuspendController
 import com.banana.hypermodes.systemserver.executor.HotspotController
@@ -130,11 +133,24 @@ class SystemAutomationEngine(
                     Log.i(TAG, "事件 ${intent.action}，重新评估触发条件")
                     evaluateAll()
                 }
+                else -> {
+                    // 意图触发：匹配到 TriggerIntent 的 action 时执行对应自动化
+                    val action = intent.action
+                    if (action != null && intentActions.contains(action)) {
+                        Log.i(TAG, "收到意图广播 $action，触发匹配的自动化")
+                        handleIntentTrigger(action)
+                    }
+                }
             }
         }
     }
 
+    /** 所有启用自动化中 TriggerIntent 的广播 action 集合（用于意图触发监听）。 */
+    private var intentActions: Set<String> = emptySet()
+
     fun init() {
+        // 收集意图触发的 action，动态注册监听
+        intentActions = collectIntentActions()
         if (!observerRegistered) {
             context.contentResolver.registerContentObserver(
                 Settings.Global.getUriFor(AutomationStore.CONFIG_KEY),
@@ -155,6 +171,7 @@ class SystemAutomationEngine(
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
                 addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+                intentActions.forEach { addAction(it) }
             }
             context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
             receiverRegistered = true
@@ -162,6 +179,47 @@ class SystemAutomationEngine(
         Log.i(TAG, "SystemAutomationEngine 已初始化")
         // 启动时评估一次
         evaluateAll()
+    }
+
+    /** 收集所有启用自动化中 TriggerIntent 块的广播 action。 */
+    private fun collectIntentActions(): Set<String> {
+        val automations = runCatching {
+            AutomationStore.load(context).filter { it.enabled }
+        }.getOrDefault(emptyList())
+        val actions = mutableSetOf<String>()
+        fun walk(blocks: List<AutomationBlock>) {
+            for (block in blocks) {
+                if (block.type is BlockType.TriggerIntent) {
+                    block.stringParam("action").takeIf { it.isNotBlank() }?.let { actions.add(it) }
+                }
+                walk(block.children)
+                walk(block.elseChildren)
+            }
+        }
+        automations.forEach { walk(it.blocks) }
+        return actions
+    }
+
+    /** 收到匹配意图：设置 pendingIntentAction 并直接执行对应自动化（事件触发，不走边沿检测）。 */
+    private fun handleIntentTrigger(action: String) {
+        val automations = runCatching {
+            AutomationStore.load(context).filter { it.enabled }
+        }.getOrDefault(emptyList())
+        for (automation in automations) {
+            val hasMatching = automation.blocks.any { block ->
+                block.type is BlockType.TriggerIntent &&
+                    block.stringParam("action") == action
+            }
+            if (!hasMatching) continue
+            scope.launch {
+                executor.pendingIntentAction = action
+                val result = runCatching {
+                    executor.execute(automation.blocks)
+                }.getOrNull()
+                executor.pendingIntentAction = null
+                Log.i(TAG, "意图触发执行结果：${result?.success} ${result?.message}")
+            }
+        }
     }
 
     fun shutdown() {
@@ -218,3 +276,9 @@ class SystemAutomationEngine(
         private const val TAG = "SystemAutomationEngine"
     }
 }
+
+/** 读取块字符串参数（system_server 触发引擎本地辅助，与 AutomationExecutor 一致）。 */
+private fun AutomationBlock.stringParam(key: String, default: String = ""): String =
+    parameters.find { it.key == key }
+        ?.let { (it as? BlockParameter.StringParam)?.value }
+        ?: default

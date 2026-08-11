@@ -89,7 +89,9 @@ data class AutomationAction(
     /** 已导入意图元数据：非空时表示这是一个"发送意图"操作。 */
     val intentPackage: String? = null,
     val intentName: String? = null,
-    val intentAction: String? = null
+    val intentAction: String? = null,
+    /** true 时创建"当"（意图触发）块，监听意图广播；false 为发送意图操作。 */
+    val intentTrigger: Boolean = false
 )
 
 /**
@@ -205,17 +207,36 @@ fun AutomationActionDialog(
             val intentActions: List<Pair<IntentConfig, List<AutomationAction>>> = importedConfigs
                 .filter { config -> selectedCategory == null || selectedCategory == config.packageName }
                 .map { config ->
-                    config to config.intents.map { action ->
-                        AutomationAction(
-                            id = "intent_${config.packageName}_${action.name}",
-                            name = action.name,
-                            icon = "📨",
-                            iconColor = Color(0xFF5856D6),
-                            description = action.intents.joinToString(" / "),
-                            intentPackage = config.packageName,
-                            intentName = action.name,
-                            intentAction = action.intents.firstOrNull()
+                    config to buildList {
+                        // "当"模块：空意图触发块，拖入意图后绑定（复用 {} 作用域）
+                        add(
+                            AutomationAction(
+                                id = "intent_trigger_${config.packageName}",
+                                name = "当收到意图时",
+                                icon = "🔔",
+                                iconColor = Color(0xFF5856D6),
+                                description = "拖入下方的意图块到 {} 中作为触发条件",
+                                intentPackage = config.packageName,
+                                intentName = "",
+                                intentAction = "",
+                                intentTrigger = true
+                            )
                         )
+                        // 每个意图：发送意图操作（可拖拽进 "当" 的 {} 绑定）
+                        config.intents.forEach { action ->
+                            add(
+                                AutomationAction(
+                                    id = "intent_send_${config.packageName}_${action.name}",
+                                    name = "发送 ${action.name}",
+                                    icon = "📨",
+                                    iconColor = Color(0xFF5856D6),
+                                    description = "向 ${config.appName} 发送广播 ${action.name}",
+                                    intentPackage = config.packageName,
+                                    intentName = action.name,
+                                    intentAction = action.intents.firstOrNull()
+                                )
+                            )
+                        }
                     }
                 }
             val filteredActions = remember(searchQuery, allActions) {
@@ -482,7 +503,34 @@ fun AutomationEditorScreen(
             }
         }
         dragController.onDropIntoScope = { draggedId, targetId ->
-            blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+            // 复用 {} 作用域拖入逻辑：意图块拖进"当"（TriggerIntent）时，
+            // 把意图参数绑定到"当"块，并移除意图块；其余走原有移入 children 逻辑。
+            val targetBlock = findBlock(blocks, targetId)
+            val draggedBlock = findBlock(blocks, draggedId)
+            if (targetBlock?.type is BlockType.TriggerIntent &&
+                draggedBlock?.type is BlockType.SendIntent
+            ) {
+                val (withoutDragged, _) = extractBlockFromTree(blocks, draggedId)
+                blocks = withoutDragged.map { b ->
+                    if (b.id == targetId) {
+                        b.copy(
+                            parameters = b.parameters.map { p ->
+                                when (p.key) {
+                                    "packageName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("packageName"))
+                                    "intentName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("intentName"))
+                                    "action" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("action"))
+                                    else -> p
+                                } ?: p
+                            }
+                        )
+                    } else b
+                }
+            } else {
+                blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+            }
         }
     }
 
@@ -990,6 +1038,73 @@ private fun WifiTriggerEditor(
         }
     }
 }
+
+/**
+ * 意图触发的一行句子式编辑器：
+ * 当 [🔔] [意图名] 时
+ * 意图名来自下方 {} 中绑定的意图块（拖入后回填参数）；未绑定时提示拖入。
+ */
+@Composable
+private fun IntentTriggerEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit
+) {
+    val intentName = block.parameters.find { it.key == "intentName" }
+        ?.let { (it as? BlockParameter.StringParam)?.value }
+        .orEmpty()
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "当",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(end = 6.dp)
+        )
+        // 意图图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF5856D6).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "📨",
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        // 意图名胶囊（空槽位提示拖入）
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFDBEBFC))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = intentName.ifBlank { "拖入意图" },
+                color = if (intentName.isBlank()) {
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                } else {
+                    Color(0xFF0A84FF)
+                },
+                fontWeight = FontWeight.Medium,
+                style = MiuixTheme.textStyles.body1
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "时",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+    }
+}
+
 
 /**
  * 蓝牙触发的一行句子式编辑器：
@@ -1929,6 +2044,12 @@ private fun findBlock(
     return null
 }
 
+/** 读取块字符串参数（编辑器本地辅助，与 AutomationExecutor 保持一致）。 */
+private fun AutomationBlock.stringParam(key: String, default: String = ""): String =
+    parameters.find { it.key == key }
+        ?.let { (it as? BlockParameter.StringParam)?.value }
+        ?: default
+
 /** 重排：把被拖块插到目标块的上方（before）或下方（after），保持同一层级。 */
 private fun moveBlockBeforeAfter(
     blocks: List<AutomationBlock>,
@@ -2306,6 +2427,12 @@ private fun BlockCard(
                             onUpdate = onUpdate,
                             mainKeys = listOf("days"),
                             showWhenSuffix = block.type is BlockType.TriggerDayOfWeek
+                        )
+                    } else if (block.type is BlockType.TriggerIntent) {
+                        // 意图触发：当 [📨] [意图名] 时（空槽位提示拖入意图）
+                        IntentTriggerEditor(
+                            block = block,
+                            onUpdate = onUpdate
                         )
                     } else if (block.type is BlockType.TriggerApp ||
                         block.type is BlockType.CheckAppForeground
