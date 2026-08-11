@@ -2041,7 +2041,8 @@ private fun ParamChip(
             onClick = { showMenu = true }
         }
         is BlockParameter.IntParam -> {
-            label = "${param.value}${if (param.max == 100) "%" else ""}"
+            // max==100 的数值默认是百分比，但重复次数(count)除外
+            label = "${param.value}${if (param.max == 100 && param.key != "count") "%" else ""}"
             onClick = { showNumberPicker = true }
         }
         is BlockParameter.StringParam -> {
