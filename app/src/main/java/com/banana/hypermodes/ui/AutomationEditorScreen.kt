@@ -493,22 +493,20 @@ fun AutomationEditorScreen(
                 draggedBlock?.type is BlockType.SendIntent
             ) {
                 val (withoutDragged, _) = extractBlockFromTree(blocks, draggedId)
-                blocks = withoutDragged.map { b ->
-                    if (b.id == targetId) {
-                        b.copy(
-                            parameters = b.parameters.map { p ->
-                                when (p.key) {
-                                    "packageName" -> (p as? BlockParameter.StringParam)
-                                        ?.copy(value = draggedBlock.stringParam("packageName"))
-                                    "intentName" -> (p as? BlockParameter.StringParam)
-                                        ?.copy(value = draggedBlock.stringParam("intentName"))
-                                    "action" -> (p as? BlockParameter.StringParam)
-                                        ?.copy(value = draggedBlock.stringParam("action"))
-                                    else -> p
-                                } ?: p
-                            }
-                        )
-                    } else b
+                blocks = updateBlockInTree(withoutDragged, targetId) { b ->
+                    b.copy(
+                        parameters = b.parameters.map { p ->
+                            when (p.key) {
+                                "packageName" -> (p as? BlockParameter.StringParam)
+                                    ?.copy(value = draggedBlock.stringParam("packageName"))
+                                "intentName" -> (p as? BlockParameter.StringParam)
+                                    ?.copy(value = draggedBlock.stringParam("intentName"))
+                                "action" -> (p as? BlockParameter.StringParam)
+                                    ?.copy(value = draggedBlock.stringParam("action"))
+                                else -> p
+                            } ?: p
+                        }
+                    )
                 }
             } else {
                 blocks = moveBlockIntoParent(blocks, draggedId, targetId)
@@ -2081,6 +2079,22 @@ private fun AutomationBlock.stringParam(key: String, default: String = ""): Stri
         ?.let { (it as? BlockParameter.StringParam)?.value }
         ?: default
 
+/** 递归在块树中更新指定 id 的块（找不到时原样返回）。 */
+private fun updateBlockInTree(
+    blocks: List<AutomationBlock>,
+    blockId: String,
+    transform: (AutomationBlock) -> AutomationBlock
+): List<AutomationBlock> = blocks.map { block ->
+    if (block.id == blockId) {
+        transform(block)
+    } else {
+        block.copy(
+            children = updateBlockInTree(block.children, blockId, transform),
+            elseChildren = updateBlockInTree(block.elseChildren, blockId, transform)
+        )
+    }
+}
+
 /** 重排：把被拖块插到目标块的上方（before）或下方（after），保持同一层级。 */
 private fun moveBlockBeforeAfter(
     blocks: List<AutomationBlock>,
@@ -2287,10 +2301,13 @@ private fun BlockCard(
                                     }
                                     val y = event.toAndroidDragEvent().y
                                     // 触发器块：落点在 {} 作用域内则移入作用域
+                                    // 意图触发（TriggerIntent）块本体任意位置都可绑定意图，
+                                    // 其他触发器仅 {} 作用域内移入。
                                     if (block.isTriggerBlock() &&
-                                        dragController.scopeBounds[block.id]?.let {
-                                            y >= it.top && y <= it.bottom
-                                        } == true
+                                        (block.type is BlockType.TriggerIntent ||
+                                            dragController.scopeBounds[block.id]?.let {
+                                                y >= it.top && y <= it.bottom
+                                            } == true)
                                     ) {
                                         dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
@@ -2330,9 +2347,10 @@ private fun BlockCard(
                                     if (overDescendant) return
                                     // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口
                                     if (block.isTriggerBlock() &&
-                                        dragController.scopeBounds[block.id]?.let {
-                                            y >= it.top && y <= it.bottom
-                                        } == true
+                                        (block.type is BlockType.TriggerIntent ||
+                                            dragController.scopeBounds[block.id]?.let {
+                                                y >= it.top && y <= it.bottom
+                                            } == true)
                                     ) {
                                         dragController.dropTargetId = block.id
                                         dragController.gapIndicator = null
