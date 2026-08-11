@@ -1283,11 +1283,7 @@ private fun IntentTriggerEditor(
         ) {
             Text(
                 text = displayText,
-                color = if (!bound) {
-                    MiuixTheme.colorScheme.onSurface
-                } else {
-                    Color(0xFF0A84FF)
-                },
+                color = Color(0xFF0A84FF),
                 fontWeight = FontWeight.Medium,
                 style = MiuixTheme.textStyles.body1
             )
