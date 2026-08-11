@@ -35,6 +35,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpSize
@@ -1086,6 +1087,8 @@ private fun IntentTriggerEditor(
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current.density
+    val cardBackground = MiuixTheme.colorScheme.background
+    val cardText = MiuixTheme.colorScheme.onSurface
     val packageName = block.stringParam("packageName")
     val intentName = block.parameters.find { it.key == "intentName" }
         ?.let { (it as? BlockParameter.StringParam)?.value }
@@ -1149,7 +1152,9 @@ private fun IntentTriggerEditor(
                                         }
                                         val shadow = BlockDragShadowBuilder(
                                             label = displayText,
-                                            density = density
+                                            density = density,
+                                            backgroundColor = cardBackground.toArgb(),
+                                            textColor = cardText.toArgb()
                                         )
                                         view.startDragAndDrop(
                                             ClipData.newPlainText("hypermodes_block", newId),
@@ -1198,11 +1203,13 @@ private fun IntentTriggerEditor(
  */
 private class BlockDragShadowBuilder(
     private val label: String,
-    private val density: Float
+    private val density: Float,
+    private val backgroundColor: Int,
+    private val textColor: Int
 ) : android.view.View.DragShadowBuilder() {
 
-    private val shadowWidth = (240 * density).toInt()
-    private val shadowHeight = (56 * density).toInt()
+    private val shadowWidth = (280 * density).toInt()
+    private val shadowHeight = (48 * density).toInt()
 
     override fun onProvideShadowMetrics(
         outShadowSize: android.graphics.Point,
@@ -1215,19 +1222,19 @@ private class BlockDragShadowBuilder(
 
     override fun onDrawShadow(canvas: android.graphics.Canvas) {
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-        // 卡片背景
-        paint.color = 0xFF1C1C1E.toInt()
+        // 白色 MIUIX 块卡片背景（与真实 block 一致）
+        paint.color = backgroundColor
         canvas.drawRoundRect(
             0f, 0f, shadowWidth.toFloat(), shadowHeight.toFloat(),
-            12 * density, 12 * density,
+            20 * density, 20 * density,
             paint
         )
         // 意图图标
-        paint.color = android.graphics.Color.WHITE
+        paint.color = textColor
         paint.textSize = 18 * density
         canvas.drawText(
             "📨",
-            12 * density,
+            16 * density,
             shadowHeight / 2f + 6 * density,
             paint
         )
@@ -1235,7 +1242,7 @@ private class BlockDragShadowBuilder(
         paint.textSize = 15 * density
         canvas.drawText(
             label,
-            40 * density,
+            44 * density,
             shadowHeight / 2f + 5 * density,
             paint
         )
