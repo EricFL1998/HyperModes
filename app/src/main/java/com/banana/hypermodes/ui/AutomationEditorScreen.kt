@@ -1344,6 +1344,377 @@ private fun BatteryLevelEditor(
 }
 
 
+/**
+ * 通用的一行句子式编辑器：
+ * [图标] [参数胶囊...] [展开按钮]
+ * - ChoiceParam 渲染成胶囊，点击弹菜单
+ * - IntParam 渲染成数值胶囊，点击弹滚动数字选择器
+ * - packages/package 渲染成应用选择胶囊
+ * - modeId 渲染成模式选择胶囊
+ * - start/end 渲染成时间胶囊
+ * 高级参数（advancedKeys）默认折叠在展开区，点击右侧按钮展开（学时间触发器）。
+ */
+@Composable
+private fun SentenceChipEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit,
+    onPickApps: (BlockParameter.StringParam) -> Unit = {},
+    mainKeys: List<String>,
+    advancedKeys: List<String> = emptyList(),
+    showWhenSuffix: Boolean = false
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    fun updateParam(updated: BlockParameter) {
+        onUpdate(
+            block.copy(
+                parameters = block.parameters.map {
+                    if (it.key == updated.key) updated else it
+                }
+            )
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 状态图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(block.iconColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = block.icon,
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // 主参数胶囊
+        mainKeys.forEach { key ->
+            val param = block.parameters.find { it.key == key }
+            if (param != null) {
+                ParamChip(
+                    param = param,
+                    onChange = { updateParam(it) },
+                    onPickApps = { onPickApps(it) }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+        }
+
+        if (showWhenSuffix) {
+            Text(
+                text = "时",
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.weight(1f))
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        // 高级选项展开按钮（学时间触发器）
+        if (advancedKeys.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
+                    .clickable { expanded = !expanded },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+        }
+    }
+
+    // 展开区：高级参数（复用胶囊行）
+    if (expanded && advancedKeys.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            advancedKeys.forEach { key ->
+                val param = block.parameters.find { it.key == key }
+                if (param != null) {
+                    Text(
+                        text = param.label,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    ParamChip(
+                        param = param,
+                        onChange = { updateParam(it) },
+                        onPickApps = { onPickApps(it) }
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * 参数胶囊：按参数类型渲染可点击的蓝色胶囊。
+ * - ChoiceParam：显示当前选项，点击弹菜单
+ * - IntParam：显示数值（含单位），点击弹滚动数字选择器
+ * - packages/package：显示已选应用，点击进应用选择器
+ * - modeId：显示模式名，点击弹模式列表
+ * - start/end：显示时间，点击弹时间选择器
+ */
+@Composable
+private fun ParamChip(
+    param: BlockParameter,
+    onChange: (BlockParameter) -> Unit,
+    onPickApps: (BlockParameter.StringParam) -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showNumberPicker by remember { mutableStateOf(false) }
+    var showModePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val label: String
+    val onClick: () -> Unit
+
+    when (param) {
+        is BlockParameter.ChoiceParam -> {
+            label = param.value
+            onClick = { showMenu = true }
+        }
+        is BlockParameter.IntParam -> {
+            label = "${param.value}${if (param.max == 100) "%" else ""}"
+            onClick = { showNumberPicker = true }
+        }
+        is BlockParameter.StringParam -> {
+            when (param.key) {
+                "packages", "package" -> {
+                    val count = param.value.split(",")
+                        .map { it.trim() }
+                        .count { it.isNotEmpty() }
+                    label = if (count > 0) "已选 $count 个应用" else "选择应用..."
+                    onClick = { onPickApps(param) }
+                }
+                "modeId" -> {
+                    label = if (param.value.isBlank()) "选择模式..." else param.value
+                    onClick = { showModePicker = true }
+                }
+                "start", "end" -> {
+                    val parts = param.value.split(":")
+                    label = if (param.value.isBlank()) "--:--" else {
+                        val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                        val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                        "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}"
+                    }
+                    onClick = { showTimePicker = true }
+                }
+                else -> {
+                    label = param.value.ifBlank { "未设置" }
+                    onClick = { showMenu = true }
+                }
+            }
+        }
+        is BlockParameter.BooleanParam -> {
+            label = if (param.value) "开启" else "关闭"
+            onClick = { onChange(param.copy(value = !param.value)) }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFDBEBFC))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = Color(0xFF0A84FF),
+            fontWeight = FontWeight.Medium,
+            style = MiuixTheme.textStyles.body1
+        )
+    }
+
+    // 选项菜单
+    if (showMenu && param is BlockParameter.ChoiceParam) {
+        OverlayDialog(
+            show = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = param.label,
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                param.options.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                onChange(param.copy(value = option))
+                                showMenu = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (option == param.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 数值滚动选择器
+    if (showNumberPicker && param is BlockParameter.IntParam) {
+        OverlayDialog(
+            show = showNumberPicker,
+            onDismissRequest = { showNumberPicker = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = param.label,
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                NumberPicker(
+                    value = param.value,
+                    onValueChange = { onChange(param.copy(value = it)) },
+                    range = param.min..param.max,
+                    label = { "$it${if (param.max == 100) "%" else ""}" }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MiuixTheme.colorScheme.primary)
+                        .clickable { showNumberPicker = false }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "确定",
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+    }
+
+    // 模式选择
+    if (showModePicker && param is BlockParameter.StringParam && param.key == "modeId") {
+        val context = LocalContext.current
+        var modes by remember { mutableStateOf<List<Mode>?>(null) }
+        LaunchedEffect(Unit) {
+            modes = ModeStore.load(context) { DefaultModes.get() }
+        }
+        OverlayDialog(
+            show = showModePicker,
+            onDismissRequest = { showModePicker = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "选择模式",
+                    style = MiuixTheme.textStyles.title3,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                (modes ?: emptyList()).forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                onChange(param.copy(value = mode.id))
+                                showModePicker = false
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = mode.icon,
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                        Text(
+                            text = mode.name,
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (mode.id == param.value) {
+                            Text(
+                                text = "✓",
+                                color = MiuixTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.body1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 时间选择
+    if (showTimePicker && param is BlockParameter.StringParam &&
+        (param.key == "start" || param.key == "end")
+    ) {
+        val parts = param.value.split(":")
+        TimePickerDialog(
+            title = if (param.key == "start") "设置开始时间" else "设置结束时间",
+            initialHour = parts.getOrNull(0)?.toIntOrNull() ?: 0,
+            initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+            show = true,
+            onDismissRequest = { showTimePicker = false },
+            onConfirm = { h, m ->
+                onChange(
+                    param.copy(
+                        value = "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}"
+                    )
+                )
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+
 /** 等待应用选择器返回的参数目标。 */
 private data class AppPickRequest(
     val blockId: String,
@@ -1796,6 +2167,136 @@ private fun BlockCard(
                             block = block,
                             onUpdate = onUpdate,
                             showWhenSuffix = false
+                        )
+                    } else if (block.type is BlockType.TriggerNetwork ||
+                        block.type is BlockType.CheckNetworkType
+                    ) {
+                        // 网络判断：一行句子式编辑器（[🌐] [WiFi/移动数据/无网络] 时）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("type"),
+                            showWhenSuffix = block.type is BlockType.TriggerNetwork
+                        )
+                    } else if (block.type is BlockType.TriggerDayOfWeek ||
+                        block.type is BlockType.CheckDayOfWeek
+                    ) {
+                        // 星期判断：一行句子式编辑器（[📅] [周一至周五/周末/每天] 时）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("days"),
+                            showWhenSuffix = block.type is BlockType.TriggerDayOfWeek
+                        )
+                    } else if (block.type is BlockType.TriggerApp ||
+                        block.type is BlockType.CheckAppForeground
+                    ) {
+                        // 应用判断：一行句子式编辑器（[📱] [选择应用] 时）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            onPickApps = { param -> onPickApps(param) },
+                            mainKeys = listOf("package"),
+                            showWhenSuffix = block.type is BlockType.TriggerApp
+                        )
+                    } else if (block.type is BlockType.SetDnd) {
+                        // 勿扰：一行句子式编辑器（[🔕] [勿扰级别]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("level")
+                        )
+                    } else if (block.type is BlockType.AdjustVolume) {
+                        // 音量：一行主参数（[🔊] [音量]），音量类型折叠在展开区
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("level"),
+                            advancedKeys = listOf("stream")
+                        )
+                    } else if (block.type is BlockType.AdjustBrightness) {
+                        // 亮度：一行句子式编辑器（[💡] [亮度]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("level")
+                        )
+                    } else if (block.type is BlockType.SetRefreshRate) {
+                        // 刷新率：一行句子式编辑器（[🖥] [刷新率]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("rate")
+                        )
+                    } else if (block.type is BlockType.SetPerformanceMode) {
+                        // 性能模式：一行句子式编辑器（[⚡] [性能模式]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("mode")
+                        )
+                    } else if (block.type is BlockType.SetPreferredSim) {
+                        // 数据卡：一行句子式编辑器（[📶] [SIM 1/SIM 2]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("slot")
+                        )
+                    } else if (block.type is BlockType.SetMode) {
+                        // 模式：一行句子式编辑器（[🎯] [选择模式] [开启/关闭]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("modeId", "state")
+                        )
+                    } else if (block.type is BlockType.OpenApp ||
+                        block.type is BlockType.SuspendApps ||
+                        block.type is BlockType.UnsuspendApps
+                    ) {
+                        // 应用操作：一行句子式编辑器（[📱] [选择应用]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            onPickApps = { param -> onPickApps(param) },
+                            mainKeys = listOf("packages")
+                        )
+                    } else if (block.type is BlockType.Repeat ||
+                        block.type is BlockType.RepeatCount
+                    ) {
+                        // 重复：一行句子式编辑器（[🔁] [重复次数]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("count")
+                        )
+                    } else if (block.type is BlockType.Wait) {
+                        // 等待：一行句子式编辑器（[⏳] [秒数]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("seconds")
+                        )
+                    } else if (block.type is BlockType.CheckTimeRange) {
+                        // 时间范围：一行句子式编辑器（[🕐] [开始] [结束]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("start", "end")
+                        )
+                    } else if (block.type is BlockType.CheckVolumeLevel) {
+                        // 音量判断：一行主参数（[🔊] [比较] [音量]），音量类型折叠在展开区
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("operator", "level"),
+                            advancedKeys = listOf("stream")
+                        )
+                    } else if (block.type is BlockType.CheckBrightnessLevel) {
+                        // 亮度判断：一行句子式编辑器（[💡] [比较] [亮度]）
+                        SentenceChipEditor(
+                            block = block,
+                            onUpdate = onUpdate,
+                            mainKeys = listOf("operator", "level")
                         )
                     } else {
                         block.parameters.forEach { param ->
