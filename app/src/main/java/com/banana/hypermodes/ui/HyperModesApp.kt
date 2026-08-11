@@ -447,7 +447,10 @@ fun HyperModesApp() {
                 }
                 is Screen.BedtimeIntro -> {
                     BedtimeIntroScreen(
-                        onBack = { currentScreen = Screen.MainTabs },
+                        onBack = {
+                            mainTabPage = 0
+                            currentScreen = Screen.MainTabs
+                        },
                         onSetup = {
                             // User went through the landing page — don't gate on it again.
                             prefs.edit().putBoolean(KEY_BEDTIME_DELETED, false).apply()
@@ -456,7 +459,10 @@ fun HyperModesApp() {
                 }
                 is Screen.DrivingIntro -> {
                     DrivingIntroScreen(
-                        onBack = { currentScreen = Screen.MainTabs },
+                        onBack = {
+                            mainTabPage = 0
+                            currentScreen = Screen.MainTabs
+                        },
                         onSetup = {
                             prefs.edit().putBoolean(KEY_DRIVING_SETUP, true).apply()
                             val driving = modes.firstOrNull { it.id == "driving" }
@@ -474,7 +480,10 @@ fun HyperModesApp() {
                     }
                     ModeDetailScreen(
                         mode = editingMode ?: currentMode,
-                        onBack = { currentScreen = Screen.MainTabs },
+                        onBack = {
+                            mainTabPage = 0
+                            currentScreen = Screen.MainTabs
+                        },
                         onOpenDisplayOptions = { updated ->
                             editingMode = updated
                             currentScreen = Screen.DisplayOptions(updated)
@@ -1056,6 +1065,13 @@ fun MainTabsScreen(
         if (pagerState.currentPage != initialPage) {
             pagerState.scrollToPage(initialPage)
         }
+    }
+
+    // 滑动 Pager 时同步 mainTabPage（底部 tab 点击已调用 onPageChange，
+    // 但手指滑动不会，导致返回详情页时 initialPage 停留在旧页）。
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .collect { page -> onPageChange(page) }
     }
 
     // Full-screen root Box: pager/content layer, floating capsule overlay, FAB overlay
