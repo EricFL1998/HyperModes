@@ -1171,28 +1171,40 @@ private fun IntentTriggerEditor(
     val bound = intentName.isNotBlank()
     val displayText = if (bound) "$appName · $intentName" else "拖入意图"
 
+    // 用于区分长按位置是在胶囊内（拖出意图）还是胶囊外/空白处（整体拖动"当"模块）
+    var rowBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var capsuleBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val capsuleLocalRect = remember(rowBounds, capsuleBounds) {
+        val r = rowBounds ?: return@remember null
+        val c = capsuleBounds ?: return@remember null
+        androidx.compose.ui.geometry.Rect(
+            left = c.left - r.left,
+            top = c.top - r.top,
+            right = c.right - r.left,
+            bottom = c.bottom - r.top
+        )
+    }
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (bound) {
-            // 拖拽把手：长按这里可整体拖动已绑定的"当"模块
-            Box(
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .size(24.dp)
-                    .pointerInput(block.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = {
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { rowBounds = it.boundsInWindow() }
+            .pointerInput(block.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { startOffset ->
+                        val inCapsule = capsuleLocalRect?.contains(startOffset) == true
+                        if (bound && inCapsule) {
+                            // 长按意图胶囊：把意图拖出成独立块
+                            val newId = onDetachIntent()
+                            if (newId != null) {
                                 dragController?.let { dc ->
-                                    dc.draggedBlockId = block.id
+                                    dc.draggedBlockId = newId
                                     dc.draggedHeightPx =
-                                        dc.blockBounds[block.id]?.height ?: 0f
-                                    dc.draggedSubtreeIds = collectSubtreeIds(block)
+                                        dc.blockBounds?.get(block.id)?.height ?: 0f
+                                    dc.draggedSubtreeIds = setOf(newId)
                                 }
-                                val shadowLabel = "当 $displayText 时"
                                 val shadow = BlockDragShadowBuilder(
-                                    label = shadowLabel,
+                                    label = displayText,
                                     density = density,
                                     widthPx = dragController?.blockBounds
                                         ?.get(block.id)?.width?.toInt()
@@ -1201,26 +1213,45 @@ private fun IntentTriggerEditor(
                                     textColor = cardText.toArgb()
                                 )
                                 view.startDragAndDrop(
-                                    ClipData.newPlainText("hypermodes_block", block.id),
+                                    ClipData.newPlainText("hypermodes_block", newId),
                                     shadow,
-                                    block.id,
+                                    newId,
                                     0
                                 )
-                            },
-                            onDrag = { change, _ -> change.consume() },
-                            onDragEnd = { },
-                            onDragCancel = { }
-                        )
+                            }
+                        } else {
+                            // 长按空白处：整体拖动"当"模块（包括 {} 子操作）
+                            dragController?.let { dc ->
+                                dc.draggedBlockId = block.id
+                                dc.draggedHeightPx =
+                                    dc.blockBounds[block.id]?.height ?: 0f
+                                dc.draggedSubtreeIds = collectSubtreeIds(block)
+                            }
+                            val shadowLabel = "当 $displayText 时"
+                            val shadow = BlockDragShadowBuilder(
+                                label = shadowLabel,
+                                density = density,
+                                widthPx = dragController?.blockBounds
+                                    ?.get(block.id)?.width?.toInt()
+                                    ?: (280 * density).toInt(),
+                                backgroundColor = cardBackground.toArgb(),
+                                textColor = cardText.toArgb()
+                            )
+                            view.startDragAndDrop(
+                                ClipData.newPlainText("hypermodes_block", block.id),
+                                shadow,
+                                block.id,
+                                0
+                            )
+                        }
                     },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "≡",
-                    fontSize = 16.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    onDrag = { change, _ -> change.consume() },
+                    onDragEnd = { },
+                    onDragCancel = { }
                 )
-            }
-        }
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             text = "当",
             style = MiuixTheme.textStyles.body1,
@@ -1246,48 +1277,7 @@ private fun IntentTriggerEditor(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFDBEBFC))
-                .then(
-                    // 已绑定：可长按拖出，还原为独立意图块
-                    if (bound) {
-                        Modifier.pointerInput(block.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    // 拖拽开始瞬间：解绑"当"并生成独立块作为拖拽源，
-                                    // 用自定义 DragShadowBuilder 绘制块卡片阴影。
-                                    val newId = onDetachIntent()
-                                    if (newId != null) {
-                                        dragController?.let { dc ->
-                                            dc.draggedBlockId = newId
-                                            dc.draggedHeightPx =
-                                                dc.blockBounds?.get(block.id)?.height ?: 0f
-                                            dc.draggedSubtreeIds = setOf(newId)
-                                        }
-                                        val shadow = BlockDragShadowBuilder(
-                                            label = displayText,
-                                            density = density,
-                                            widthPx = dragController?.blockBounds
-                                                ?.get(block.id)?.width?.toInt()
-                                                ?: (280 * density).toInt(),
-                                            backgroundColor = cardBackground.toArgb(),
-                                            textColor = cardText.toArgb()
-                                        )
-                                        view.startDragAndDrop(
-                                            ClipData.newPlainText("hypermodes_block", newId),
-                                            shadow,
-                                            newId,
-                                            0
-                                        )
-                                    }
-                                },
-                                onDrag = { change, _ -> change.consume() },
-                                onDragEnd = { },
-                                onDragCancel = { }
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
+                .onGloballyPositioned { capsuleBounds = it.boundsInWindow() }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1312,10 +1302,7 @@ private fun IntentTriggerEditor(
 }
 
 
-/**
- * 拖出意图时的自定义拖拽阴影：绘制一个圆角块卡片（背景 + 图标 + 文字），
- * 替代系统默认的纯文字气泡，让拖拽跟手时看起来像真正的 block。
- */
+
 private class BlockDragShadowBuilder(
     private val label: String,
     private val density: Float,
