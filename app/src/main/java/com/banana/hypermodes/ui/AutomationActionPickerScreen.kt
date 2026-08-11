@@ -39,7 +39,7 @@ fun AutomationActionPickerScreen(
 
     // 目录中的全部操作
     val allActions = remember {
-        AutomationCatalog.entries.map { entry ->
+        AutomationCatalog.visibleEntries.map { entry ->
             AutomationAction(
                 id = entry.id,
                 name = entry.name,

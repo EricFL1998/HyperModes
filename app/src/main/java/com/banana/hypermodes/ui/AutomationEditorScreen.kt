@@ -202,7 +202,7 @@ fun AutomationActionDialog(
             }
 
             // 分组操作列表（按分类，以粗体标题分组）
-            val allActions = AutomationCatalog.entries
+            val allActions = AutomationCatalog.visibleEntries
                 .filter { categories == null || it.category in categories }
                 .filter { selectedCategory == null || selectedCategory is AutomationCatalog.Category && it.category == selectedCategory }
                 .map { entry ->

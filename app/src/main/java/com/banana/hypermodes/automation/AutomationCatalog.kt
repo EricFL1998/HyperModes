@@ -22,14 +22,19 @@ object AutomationCatalog {
         CONDITION("条件判断")
     }
 
-    /** 目录条目：与 [BlockType.id] 一一对应。 */
+    /**
+     * 目录条目：与 [BlockType.id] 一一对应。
+     * @param hidden 为 true 时不在 UI 选择器中显示（仅用于动态/内部类型，
+     *             但仍需存在于目录保证 BlockType 与 catalog 的完备性一致）。
+     */
     data class Entry(
         val id: String,
         val name: String,
         val icon: String,
         val iconColor: Color,
         val description: String,
-        val category: Category
+        val category: Category,
+        val hidden: Boolean = false
     )
 
     val entries: List<Entry> = listOf(
@@ -84,6 +89,8 @@ object AutomationCatalog {
         Entry("open_app", "打开 App", "📱", Color(0xFF5E5CE6), "启动指定应用程序", Category.APP),
         Entry("suspend_apps", "暂停应用", "⏸️", Color(0xFF5856D6), "暂停（置灰）指定应用", Category.APP),
         Entry("unsuspend_apps", "恢复应用", "▶️", Color(0xFF34C759), "恢复被暂停的应用", Category.APP),
+        // 发送意图由已导入的意图动态生成；保留隐藏条目保证 BlockType 完备性
+        Entry("send_intent", "应用意图", "📨", Color(0xFF5856D6), "向已导入应用发送广播意图", Category.APP, hidden = true),
 
         // ==================== 控制流 ====================
         Entry("if_condition", "如果条件判断", "🔀", Color(0xFF34C759), "根据条件执行不同操作", Category.CONTROL_FLOW),
@@ -121,8 +128,15 @@ object AutomationCatalog {
 
     private val byIdMap: Map<String, Entry> = entries.associateBy { it.id }
 
-    fun byId(id: String): Entry? = byIdMap[id]
+    /** 非隐藏条目：用于 UI 选择器。 */
+    val visibleEntries: List<Entry> get() = entries.filter { !it.hidden }
 
-    /** 按分类分组的条目（保持目录顺序）。 */
-    fun grouped(): Map<Category, List<Entry>> = entries.groupBy { it.category }
+    /** 按分类分组的非隐藏条目（保持目录顺序）：用于 UI 选择器。 */
+    fun grouped(): Map<Category, List<Entry>> = visibleEntries.groupBy { it.category }
+
+    /** 按分类分组的全部条目（包含隐藏条目，用于测试/内部使用）。 */
+    fun allGrouped(): Map<Category, List<Entry>> = entries.groupBy { it.category }
+
+    fun byId(id: String): Entry? = byIdMap[id]
 }
+

@@ -113,6 +113,7 @@ class SystemAutomationEngine(
     private val configObserver = object : ContentObserver(mainHandler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             Log.i(TAG, "自动化配置变化，重新评估")
+            refreshIntentActions()
             evaluateAll()
         }
     }
@@ -198,6 +199,33 @@ class SystemAutomationEngine(
         }
         automations.forEach { walk(it.blocks) }
         return actions
+    }
+
+    /** 配置变化后重新收集意图 action 并更新接收器，保证新增/删除的意图触发立即生效。 */
+    private fun refreshIntentActions() {
+        val newActions = collectIntentActions()
+        val added = newActions - intentActions
+        val removed = intentActions - newActions
+        if (added.isEmpty() && removed.isEmpty()) return
+        intentActions = newActions
+        if (receiverRegistered) {
+            runCatching { context.unregisterReceiver(receiver) }
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_TIME_TICK)
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+                addAction(Intent.ACTION_POWER_CONNECTED)
+                addAction(Intent.ACTION_POWER_DISCONNECTED)
+                addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+                addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+                addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+                intentActions.forEach { addAction(it) }
+            }
+            context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
+            Log.i(TAG, "意图触发 action 已刷新：新增 ${added.size}，移除 ${removed.size}")
+        }
     }
 
     /** 收到匹配意图：设置 pendingIntentAction 并直接执行对应自动化（事件触发，不走边沿检测）。 */
