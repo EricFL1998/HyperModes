@@ -5,8 +5,10 @@ import android.content.ClipData
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -1824,6 +1826,18 @@ private fun DragCollapseHost(
         ),
         label = "sourceCollapse"
     )
+    // 松手落位时块快速淡入+轻微回弹缩放，让落位有"落下"的质感而非瞬移；
+    // 塌陷过程（isSource 变 true）则用 snap 立即隐藏，避免拖影。
+    val appearAlpha by animateFloatAsState(
+        targetValue = if (isSource) 0f else 1f,
+        animationSpec = if (isSource) snap<Float>() else tween(durationMillis = 180),
+        label = "appearAlpha"
+    )
+    val appearScale by animateFloatAsState(
+        targetValue = if (isSource) 0.97f else 1f,
+        animationSpec = if (isSource) snap<Float>() else tween(durationMillis = 180),
+        label = "appearScale"
+    )
     // 仅拖拽源块时约束高度收缩；非拖拽时完全不加约束，
     // 否则 onSizeChanged 与高度约束互相反馈会形成布局振荡（flicker）。
     val collapseModifier = if (isSource) {
@@ -1833,6 +1847,11 @@ private fun DragCollapseHost(
     }
     Box(
         modifier = modifier
+            .graphicsLayer {
+                alpha = appearAlpha
+                scaleX = appearScale
+                scaleY = appearScale
+            }
             .onSizeChanged { size ->
                 // 非拖拽时记录自然高度，供拖拽时动画到 0 用
                 if (!isSource) {
