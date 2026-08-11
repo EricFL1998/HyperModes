@@ -241,8 +241,8 @@ class SettingsHook(private val module: XposedModule) {
     }
 
     private fun modesTitle(context: Context): CharSequence {
-        val id = context.resources.getIdentifier("zen_modes_list_title", "string", Protocol.SETTINGS_PACKAGE)
-        return if (id != 0) context.resources.getString(id) else "模式"
+        // 注入到系统设置首页的入口名称：模式 + 自动化
+        return "模式与自动化"
     }
 
     private fun getLongField(target: Any, name: String): Long =
