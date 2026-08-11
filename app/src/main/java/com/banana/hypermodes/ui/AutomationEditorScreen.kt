@@ -44,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import com.banana.hypermodes.R
 import com.banana.hypermodes.automation.AutomationCatalog
 import com.banana.hypermodes.data.DefaultModes
+import com.banana.hypermodes.data.ImportedIntentStore
+import com.banana.hypermodes.data.IntentConfig
 import com.banana.hypermodes.data.Mode
 import com.banana.hypermodes.data.ModeStore
 import com.banana.hypermodes.ui.components.TimePickerDialog
@@ -83,7 +85,11 @@ data class AutomationAction(
     val name: String,
     val icon: String,
     val iconColor: Color,
-    val description: String = ""
+    val description: String = "",
+    /** 已导入意图元数据：非空时表示这是一个"发送意图"操作。 */
+    val intentPackage: String? = null,
+    val intentName: String? = null,
+    val intentAction: String? = null
 )
 
 /**
@@ -99,7 +105,7 @@ fun AutomationActionDialog(
     categories: Set<AutomationCatalog.Category>? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<AutomationCatalog.Category?>(null) }
+    var selectedCategory by remember { mutableStateOf<Any?>(null) }
     val listState = rememberLazyListState()
 
     // 切换分类（含切回"全部"）时列表回到顶部
@@ -112,6 +118,14 @@ fun AutomationActionDialog(
         if (categories == null) AutomationCatalog.Category.entries
         else categories.toList()
     }
+
+    // 已导入的意图：app 名作为类别，每个 IntentAction 作为一个操作
+    val context = LocalContext.current
+    val importedConfigs = remember(show) { ImportedIntentStore.loadAll(context) }
+
+    /** 根据 id 判断当前选中项是否为某个意图类别。 */
+    fun isIntentCategorySelected(packageName: String): Boolean =
+        selectedCategory == packageName
 
     WindowBottomSheet(
         show = show,
@@ -164,12 +178,19 @@ fun AutomationActionDialog(
                         onClick = { selectedCategory = category }
                     )
                 }
+                items(importedConfigs, key = { "intent-${it.packageName}" }) { config ->
+                    CategoryChip(
+                        label = config.appName,
+                        selected = isIntentCategorySelected(config.packageName),
+                        onClick = { selectedCategory = config.packageName }
+                    )
+                }
             }
 
             // 分组操作列表（按分类，以粗体标题分组）
             val allActions = AutomationCatalog.entries
                 .filter { categories == null || it.category in categories }
-                .filter { selectedCategory == null || it.category == selectedCategory }
+                .filter { selectedCategory == null || selectedCategory is AutomationCatalog.Category && it.category == selectedCategory }
                 .map { entry ->
                     AutomationAction(
                         id = entry.id,
@@ -178,6 +199,23 @@ fun AutomationActionDialog(
                         iconColor = entry.iconColor,
                         description = entry.description
                     )
+                }
+            // 已导入意图操作：按 app 名分组，每个 IntentAction 一个操作
+            val intentActions: List<Pair<IntentConfig, List<AutomationAction>>> = importedConfigs
+                .filter { config -> selectedCategory == null || selectedCategory == config.packageName }
+                .map { config ->
+                    config to config.intents.map { action ->
+                        AutomationAction(
+                            id = "intent_${config.packageName}_${action.name}",
+                            name = action.name,
+                            icon = "📨",
+                            iconColor = Color(0xFF5856D6),
+                            description = action.intents.joinToString(" / "),
+                            intentPackage = config.packageName,
+                            intentName = action.name,
+                            intentAction = action.intents.firstOrNull()
+                        )
+                    }
                 }
             val filteredActions = remember(searchQuery, allActions) {
                 if (searchQuery.isBlank()) {
@@ -188,6 +226,18 @@ fun AutomationActionDialog(
                                 action.description.contains(searchQuery, ignoreCase = true)
                     }
                 }
+            }
+            val filteredIntentActions = remember(searchQuery, intentActions) {
+                intentActions.map { (config, actions) ->
+                    config to if (searchQuery.isBlank()) {
+                        actions
+                    } else {
+                        actions.filter { action ->
+                            action.name.contains(searchQuery, ignoreCase = true) ||
+                                    action.description.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+                }.filter { it.second.isNotEmpty() }
             }
 
             LazyColumn(
@@ -231,16 +281,54 @@ fun AutomationActionDialog(
                                     )
                                 }
                             }
+                        // 已导入意图：按 app 分组展示
+                        filteredIntentActions.forEach { (config, actions) ->
+                            item(key = "header-intent-${config.packageName}") {
+                                Text(
+                                    text = config.appName,
+                                    style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
+                                    modifier = Modifier.padding(
+                                        start = 20.dp,
+                                        top = 20.dp,
+                                        bottom = 12.dp
+                                    )
+                                )
+                            }
+                            items(actions, key = { it.id }) { action ->
+                                ActionOptionCard(
+                                    action = action,
+                                    onClick = {
+                                        onActionSelected(action)
+                                        onDismiss()
+                                    }
+                                )
+                            }
+                        }
                     } else {
                         // 选中分类：扁平展示该分类的操作
-                        items(allActions, key = { it.id }) { action ->
-                            ActionOptionCard(
-                                action = action,
-                                onClick = {
-                                    onActionSelected(action)
-                                    onDismiss()
+                        if (selectedCategory is AutomationCatalog.Category) {
+                            items(allActions, key = { it.id }) { action ->
+                                ActionOptionCard(
+                                    action = action,
+                                    onClick = {
+                                        onActionSelected(action)
+                                        onDismiss()
+                                    }
+                                )
+                            }
+                        } else {
+                            // 选中意图类别：扁平展示该 app 的意图操作
+                            filteredIntentActions.forEach { (_, actions) ->
+                                items(actions, key = { it.id }) { action ->
+                                    ActionOptionCard(
+                                        action = action,
+                                        onClick = {
+                                            onActionSelected(action)
+                                            onDismiss()
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 } else {
@@ -252,6 +340,17 @@ fun AutomationActionDialog(
                                 onDismiss()
                             }
                         )
+                    }
+                    filteredIntentActions.forEach { (_, actions) ->
+                        items(actions, key = { it.id }) { action ->
+                            ActionOptionCard(
+                                action = action,
+                                onClick = {
+                                    onActionSelected(action)
+                                    onDismiss()
+                                }
+                            )
+                        }
                     }
                 }
             }

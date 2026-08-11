@@ -165,6 +165,7 @@ class AutomationExecutor(
             is BlockType.OpenApp -> executeOpenApp(block)
             is BlockType.SuspendApps -> executeSuspendApps(block)
             is BlockType.UnsuspendApps -> executeUnsuspendApps(block)
+            is BlockType.SendIntent -> executeSendIntent(block)
 
             // ==================== 控制流 ====================
             is BlockType.IfCondition -> executeIf(block, steps)
@@ -567,6 +568,24 @@ class AutomationExecutor(
             ExecutionResult(true, "已打开应用：${packages.joinToString()}")
         } else {
             ExecutionResult(false, "应用启动失败（未找到启动入口）")
+        }
+    }
+
+    /** 发送已导入的广播意图。 */
+    private fun executeSendIntent(block: AutomationBlock): ExecutionResult {
+        val action = block.stringParam("action")
+        val packageName = block.stringParam("packageName")
+        val intentName = block.stringParam("intentName").ifBlank { "意图" }
+        if (action.isBlank()) return ExecutionResult(false, "意图 Action 为空")
+        return try {
+            val intent = Intent(action).apply {
+                if (packageName.isNotBlank()) setPackage(packageName)
+            }
+            // 广播不限制包名时全局发送；带包名时精确发送
+            context.sendBroadcast(intent)
+            ExecutionResult(true, "已发送意图：$intentName")
+        } catch (e: Exception) {
+            ExecutionResult(false, "意图发送失败：${e.message}")
         }
     }
 

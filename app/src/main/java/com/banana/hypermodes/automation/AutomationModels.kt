@@ -60,6 +60,8 @@ sealed class BlockType(val id: String) {
     data object OpenApp : BlockType("open_app")
     data object SuspendApps : BlockType("suspend_apps")
     data object UnsuspendApps : BlockType("unsuspend_apps")
+    /** 发送已导入的广播意图（IntentAction）。 */
+    data object SendIntent : BlockType("send_intent")
 
     // ==================== 控制流 ====================
     data object IfCondition : BlockType("if_condition")
@@ -122,6 +124,7 @@ sealed class BlockType(val id: String) {
             SetMotionSicknessRelief,
             SetMode,
             OpenApp, SuspendApps, UnsuspendApps,
+            SendIntent,
             IfCondition, Repeat, RepeatCount, Wait, Comment,
             AndCondition, OrCondition,
             CheckWifiState, CheckBluetoothState,
@@ -199,14 +202,23 @@ data class AutomationBlock(
  * 将选择操作弹窗中的 [AutomationAction] 转换为带默认参数的 [AutomationBlock]。
  */
 fun AutomationAction.toAutomationBlock(): AutomationBlock {
-    val type = BlockType.fromId(id) ?: BlockType.OpenApp
+    val type = if (intentPackage != null) BlockType.SendIntent
+    else BlockType.fromId(id) ?: BlockType.OpenApp
     return AutomationBlock(
         id = UUID.randomUUID().toString(),
         type = type,
         label = name,
         icon = icon,
         iconColor = iconColor,
-        parameters = defaultParametersFor(type)
+        parameters = if (type is BlockType.SendIntent) {
+            listOf(
+                BlockParameter.StringParam("packageName", "应用包名", intentPackage ?: ""),
+                BlockParameter.StringParam("intentName", "意图名称", intentName ?: name),
+                BlockParameter.StringParam("action", "广播 Action", intentAction ?: "")
+            )
+        } else {
+            defaultParametersFor(type)
+        }
     )
 }
 
@@ -343,6 +355,12 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     is BlockType.SuspendApps,
     is BlockType.UnsuspendApps -> listOf(
         BlockParameter.StringParam("packages", "应用包名（逗号分隔）", "")
+    )
+
+    is BlockType.SendIntent -> listOf(
+        BlockParameter.StringParam("packageName", "应用包名", ""),
+        BlockParameter.StringParam("intentName", "意图名称", ""),
+        BlockParameter.StringParam("action", "广播 Action", "")
     )
 
     // ==================== 控制流 ====================
