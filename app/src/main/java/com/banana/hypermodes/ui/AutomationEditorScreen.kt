@@ -1089,6 +1089,55 @@ private fun IntentTriggerEditor(
 
 
 /**
+ * 发送意图的一行句子式编辑器：
+ * 📨 [意图名]
+ * 只显示意图名称，保持一行简洁。
+ */
+@Composable
+private fun SendIntentEditor(
+    block: AutomationBlock,
+    onUpdate: (AutomationBlock) -> Unit
+) {
+    val context = LocalContext.current
+    val packageName = block.stringParam("packageName")
+    val intentName = block.stringParam("intentName")
+        .ifBlank { "未命名意图" }
+    // 按包名解析 app 名称（来自已导入配置）；找不到时回退显示包名
+    val appName = ImportedIntentStore.loadAllCached(context)
+        .firstOrNull { it.packageName == packageName }
+        ?.appName
+        ?: packageName
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 意图图标
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF5856D6).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "📨",
+                fontSize = 13.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        // 【app 名称】【意图名称】
+        Text(
+            text = "$appName · $intentName",
+            style = MiuixTheme.textStyles.body1,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF0A84FF)
+        )
+    }
+}
+
+
+/**
  * 蓝牙触发的一行句子式编辑器：
  * 当 [🔵] [设备胶囊] [条件胶囊] 时
  * - 设备胶囊点击 → 打开蓝牙设备选择器
@@ -2413,6 +2462,12 @@ private fun BlockCard(
                     } else if (block.type is BlockType.TriggerIntent) {
                         // 意图触发：当 [📨] [意图名] 时（空槽位提示拖入意图）
                         IntentTriggerEditor(
+                            block = block,
+                            onUpdate = onUpdate
+                        )
+                    } else if (block.type is BlockType.SendIntent) {
+                        // 发送意图：一行只显示意图名
+                        SendIntentEditor(
                             block = block,
                             onUpdate = onUpdate
                         )
