@@ -5,6 +5,7 @@ import android.content.ClipData
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -543,7 +544,6 @@ fun AutomationEditorScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .animateItem()
                 ) {
                     // 缺口占位放在塌陷容器外层，独立撑开布局
                     DragGapPlaceholder(
@@ -1877,10 +1877,16 @@ private fun DragGapPlaceholder(
     }
     val height by animateDpAsState(
         targetValue = targetHeight,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        // 悬停时用 spring 平滑撑开/收拢；松手瞬间（dragging 变 false）用 snap 立即闭合，
+        // 避免缺口收缩与块落位叠加出双重高度的回弹
+        animationSpec = if (dragging) {
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        } else {
+            snap()
+        },
         label = "dragGap"
     )
     if (height > 0.dp) {
