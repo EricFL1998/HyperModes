@@ -802,6 +802,40 @@ fun AutomationEditorScreen(
                                 paramKey = param.key
                             )
                         },
+                        onDetachIntent = {
+                            // 把绑定在"当收到意图时"上的意图拖出：
+                            // 1) 用当前参数还原一个独立的"发送意图"块
+                            // 2) 清空"当"块的绑定参数
+                            val pkg = block.stringParam("packageName")
+                            val name = block.stringParam("intentName")
+                            val action = block.stringParam("action")
+                            val intentBlock = AutomationBlock(
+                                id = java.util.UUID.randomUUID().toString(),
+                                type = BlockType.SendIntent,
+                                label = name.ifBlank { "意图" },
+                                icon = "📨",
+                                iconColor = Color(0xFF5856D6),
+                                parameters = listOf(
+                                    BlockParameter.StringParam("packageName", "应用包名", pkg),
+                                    BlockParameter.StringParam("intentName", "意图名称", name),
+                                    BlockParameter.StringParam("action", "广播 Action", action)
+                                )
+                            )
+                            blocks = blocks.map { b ->
+                                if (b.id == block.id) {
+                                    b.copy(
+                                        parameters = b.parameters.map { p ->
+                                            when (p.key) {
+                                                "packageName", "intentName", "action" ->
+                                                    (p as? BlockParameter.StringParam)?.copy(value = "")
+                                                        ?: p
+                                                else -> p
+                                            }
+                                        }
+                                    )
+                                } else b
+                            } + intentBlock
+                        },
                         onRemove = {
                             blocks = blocks.filter { it.id != block.id }
                         },
@@ -1027,7 +1061,8 @@ private fun WifiTriggerEditor(
 @Composable
 private fun IntentTriggerEditor(
     block: AutomationBlock,
-    onUpdate: (AutomationBlock) -> Unit
+    onUpdate: (AutomationBlock) -> Unit,
+    onDetachIntent: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val packageName = block.stringParam("packageName")
@@ -1075,6 +1110,22 @@ private fun IntentTriggerEditor(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFDBEBFC))
+                .then(
+                    // 已绑定：可长按拖出，还原为独立意图块
+                    if (bound) {
+                        Modifier.dragAndDropSource(
+                            transferData = {
+                                onDetachIntent()
+                                DragAndDropTransferData(
+                                    clipData = ClipData.newPlainText("hypermodes_detach_intent", "detach"),
+                                    localState = "detach"
+                                )
+                            }
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -2243,6 +2294,8 @@ private fun BlockCard(
     onPickApps: (BlockParameter.StringParam) -> Unit,
     onPickWifi: (BlockParameter.StringParam) -> Unit = {},
     onPickBluetooth: (BlockParameter.StringParam) -> Unit = {},
+    /** 把"当收到意图时"上绑定的意图拖出还原为独立意图块。 */
+    onDetachIntent: () -> Unit = {},
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
     nestLevel: Int = 0
@@ -2494,7 +2547,8 @@ private fun BlockCard(
                         // 意图触发：当 [📨] [意图名] 时（空槽位提示拖入意图）
                         IntentTriggerEditor(
                             block = block,
-                            onUpdate = onUpdate
+                            onUpdate = onUpdate,
+                            onDetachIntent = onDetachIntent
                         )
                     } else if (block.type is BlockType.SendIntent) {
                         // 发送意图：一行只显示意图名
