@@ -67,6 +67,7 @@ import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.automation.isTriggerBlock
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1083,6 +1084,8 @@ private fun IntentTriggerEditor(
     onDetachIntent: () -> String? = { null }
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val density = LocalDensity.current.density
     val packageName = block.stringParam("packageName")
     val intentName = block.parameters.find { it.key == "intentName" }
         ?.let { (it as? BlockParameter.StringParam)?.value }
@@ -1131,23 +1134,36 @@ private fun IntentTriggerEditor(
                 .then(
                     // 已绑定：可长按拖出，还原为独立意图块
                     if (bound) {
-                        Modifier.dragAndDropSource(
-                            transferData = {
-                                // 拖拽开始瞬间：解绑"当"并生成独立块作为拖拽源，
-                                // 这样跟手、有挤开效果、可插到上下。
-                                val newId = onDetachIntent()
-                                if (newId != null) {
-                                    dragController?.draggedBlockId = newId
-                                    dragController?.draggedHeightPx =
-                                        dragController?.blockBounds?.get(block.id)?.height ?: 0f
-                                    dragController?.draggedSubtreeIds = setOf(newId)
-                                }
-                                DragAndDropTransferData(
-                                    clipData = ClipData.newPlainText("hypermodes_block", newId ?: ""),
-                                    localState = newId ?: ""
-                                )
-                            }
-                        )
+                        Modifier.pointerInput(block.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    // 拖拽开始瞬间：解绑"当"并生成独立块作为拖拽源，
+                                    // 用自定义 DragShadowBuilder 绘制块卡片阴影。
+                                    val newId = onDetachIntent()
+                                    if (newId != null) {
+                                        dragController?.let { dc ->
+                                            dc.draggedBlockId = newId
+                                            dc.draggedHeightPx =
+                                                dc.blockBounds?.get(block.id)?.height ?: 0f
+                                            dc.draggedSubtreeIds = setOf(newId)
+                                        }
+                                        val shadow = BlockDragShadowBuilder(
+                                            label = displayText,
+                                            density = density
+                                        )
+                                        view.startDragAndDrop(
+                                            ClipData.newPlainText("hypermodes_block", newId),
+                                            shadow,
+                                            newId,
+                                            0
+                                        )
+                                    }
+                                },
+                                onDrag = { change, _ -> change.consume() },
+                                onDragEnd = { },
+                                onDragCancel = { }
+                            )
+                        }
                     } else {
                         Modifier
                     }
@@ -1171,6 +1187,57 @@ private fun IntentTriggerEditor(
             text = "时",
             style = MiuixTheme.textStyles.body1,
             color = MiuixTheme.colorScheme.onSurface
+        )
+    }
+}
+
+
+/**
+ * 拖出意图时的自定义拖拽阴影：绘制一个圆角块卡片（背景 + 图标 + 文字），
+ * 替代系统默认的纯文字气泡，让拖拽跟手时看起来像真正的 block。
+ */
+private class BlockDragShadowBuilder(
+    private val label: String,
+    private val density: Float
+) : android.view.View.DragShadowBuilder() {
+
+    private val shadowWidth = (240 * density).toInt()
+    private val shadowHeight = (56 * density).toInt()
+
+    override fun onProvideShadowMetrics(
+        outShadowSize: android.graphics.Point,
+        outShadowTouchPoint: android.graphics.Point
+    ) {
+        outShadowSize.set(shadowWidth, shadowHeight)
+        // 触摸点放在卡片中部，跟手更自然
+        outShadowTouchPoint.set(shadowWidth / 2, shadowHeight / 2)
+    }
+
+    override fun onDrawShadow(canvas: android.graphics.Canvas) {
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        // 卡片背景
+        paint.color = 0xFF1C1C1E.toInt()
+        canvas.drawRoundRect(
+            0f, 0f, shadowWidth.toFloat(), shadowHeight.toFloat(),
+            12 * density, 12 * density,
+            paint
+        )
+        // 意图图标
+        paint.color = android.graphics.Color.WHITE
+        paint.textSize = 18 * density
+        canvas.drawText(
+            "📨",
+            12 * density,
+            shadowHeight / 2f + 6 * density,
+            paint
+        )
+        // 文字（app · intent）
+        paint.textSize = 15 * density
+        canvas.drawText(
+            label,
+            40 * density,
+            shadowHeight / 2f + 5 * density,
+            paint
         )
     }
 }
