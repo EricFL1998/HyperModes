@@ -12,8 +12,8 @@ android {
         applicationId = "com.banana.hypermodes"
         minSdk = 35
         targetSdk = 37
-        versionCode = 9
-        versionName = "2.0"
+        versionCode = 10
+        versionName = "2.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -118,14 +118,33 @@ private fun mergeSnapshotItem(snap: WallpaperItem?, prev: WallpaperItem?): Wallp
 }
 
 /**
- * 编辑会话结束后恢复真实系统壁纸/样式到编辑前状态。
- * 复用 prepareEdit 桥接（把 WallpaperItem 写回系统），
- * 模式未激活时调用，避免"在模式里编辑"改掉真实锁屏/桌面。
+ * 编辑会话结束后把真实系统恢复为编辑前的状态。
+ * prepareEdit 是跨进程广播 + ResultReceiver，原本 fire-and-forget 不等待结果，
+ * 导致 UI 在 restore 完成前就用编辑后的快照刷新预览，看起来“真实壁纸被改了”。
+ * 这里在 lock/desktop 两个子项都完成后回调，再由 UI 同步刷新预览。
  */
-private fun restoreEditSystem(context: Context, pre: WallpaperSet?) {
-    if (pre == null) return
-    pre.lock?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { } }
-    pre.desktop?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { } }
+private fun restoreEditSystem(
+    context: Context,
+    pre: WallpaperSet?,
+    onDone: () -> Unit = {}
+) {
+    if (pre == null) {
+        onDone()
+        return
+    }
+    var remaining = 0
+    val checkDone = {
+        remaining--
+        if (remaining <= 0) onDone()
+    }
+    pre.lock?.let { remaining++ }
+    pre.desktop?.let { remaining++ }
+    if (remaining == 0) {
+        onDone()
+        return
+    }
+    pre.lock?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { checkDone() } }
+    pre.desktop?.let { WallpaperSnapshotBridge.prepareEdit(context, it) { checkDone() } }
 }
 
 /** 桌面子项是否被用户实际修改（壁纸图变化）。 */
@@ -284,45 +303,57 @@ fun ModeDetailScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, mode.id) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && pendingWallpaperCapture) {
-                pendingWallpaperCapture = false
-                WallpaperSnapshotBridge.capture(context, editedMode.id) { snapshot ->
-                    // 与打开前的系统快照逐子项对比：只保存用户实际修改的那一侧，
-                    // 未修改的子项保留原配置（不误配置成系统当前值）。
-                    val before = beforeWallpaper
-                    if (snapshot != null) {
-                        // 预览底图同步为编辑后的最新系统状态（未配置/恢复默认时立即生效）
-                        systemWallpaper = snapshot
-                        val prevWallpaper = editedMode.settings.wallpaper
-                        val lockChanged = lockItemChanged(before, snapshot)
-                        val desktopChanged = desktopItemChanged(before, snapshot)
-                        val newWallpaper = WallpaperSet(
-                            lock = if (lockChanged) {
-                                mergeSnapshotItem(snapshot.lock, prevWallpaper?.lock)
-                            } else {
-                                prevWallpaper?.lock
-                            },
-                            desktop = if (desktopChanged) {
-                                mergeSnapshotItem(snapshot.desktop, prevWallpaper?.desktop)
-                            } else {
-                                prevWallpaper?.desktop
-                            }
-                        )
-                        val hasAny = newWallpaper.lock != null || newWallpaper.desktop != null
-                        editedMode = editedMode.copy(
-                            settings = editedMode.settings.copy(
-                                wallpaper = if (hasAny) newWallpaper else null
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (pendingWallpaperCapture) {
+                    pendingWallpaperCapture = false
+                    WallpaperSnapshotBridge.capture(context, editedMode.id) { snapshot ->
+                        // 与打开前的系统快照逐子项对比：只保存用户实际修改的那一侧，
+                        // 未修改的子项保留原配置（不误配置成系统当前值）。
+                        val before = beforeWallpaper
+                        if (snapshot != null) {
+                            val prevWallpaper = editedMode.settings.wallpaper
+                            val lockChanged = lockItemChanged(before, snapshot)
+                            val desktopChanged = desktopItemChanged(before, snapshot)
+                            val newWallpaper = WallpaperSet(
+                                lock = if (lockChanged) {
+                                    mergeSnapshotItem(snapshot.lock, prevWallpaper?.lock)
+                                } else {
+                                    prevWallpaper?.lock
+                                },
+                                desktop = if (desktopChanged) {
+                                    mergeSnapshotItem(snapshot.desktop, prevWallpaper?.desktop)
+                                } else {
+                                    prevWallpaper?.desktop
+                                }
                             )
-                        )
-                        onSave(editedMode)
-                        // 内容可能变化但数据相等（路径/JSON 未变）：强制预览刷新
-                        wallpaperRefreshTick++
-                        // 编辑会话结束：模式未激活时恢复真实系统状态，
-                        // 让"在模式里编辑"不改变真实锁屏/桌面（激活时模式样式本就应生效）
-                        if (!editedMode.enabled) {
-                            restoreEditSystem(context, preEditSystem)
-                            wallpaperRefreshTick++
+                            val hasAny = newWallpaper.lock != null || newWallpaper.desktop != null
+                            editedMode = editedMode.copy(
+                                settings = editedMode.settings.copy(
+                                    wallpaper = if (hasAny) newWallpaper else null
+                                )
+                            )
+                            onSave(editedMode)
+                            // 编辑会话结束：模式未激活时恢复真实系统状态，
+                            // 让"在模式里编辑"不改变真实锁屏/桌面（激活时模式样式本就应生效）
+                            if (!editedMode.enabled) {
+                                restoreEditSystem(context, preEditSystem) {
+                                    // 恢复完成后，预览底图必须切回编辑前的真实系统状态，
+                                    // 否则预览会一直显示编辑后的快照，看起来真实壁纸被改了。
+                                    systemWallpaper = preEditSystem ?: snapshot
+                                    wallpaperRefreshTick++
+                                }
+                            } else {
+                                // 模式已激活：预览底图同步为编辑后的最新系统状态
+                                systemWallpaper = snapshot
+                                wallpaperRefreshTick++
+                            }
                         }
+                    }
+                } else {
+                    // 非编辑会话返回（从系统设置/主题商店切回等）：刷新系统当前壁纸快照，
+                    // 让“初始壁纸预览图”能反映外部对真实壁纸的修改。
+                    WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                        if (snap != null) systemWallpaper = snap
                     }
                 }
             }
