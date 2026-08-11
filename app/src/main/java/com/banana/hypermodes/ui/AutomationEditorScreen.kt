@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -96,6 +97,13 @@ fun AutomationActionDialog(
     categories: Set<AutomationCatalog.Category>? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<AutomationCatalog.Category?>(null) }
+
+    // 可用分类（未限定 categories 时展示全部；被限定则只展示限定分类）
+    val availableCategories = remember(categories) {
+        if (categories == null) AutomationCatalog.Category.entries
+        else categories.toList()
+    }
 
     WindowBottomSheet(
         show = show,
@@ -126,9 +134,33 @@ fun AutomationActionDialog(
                 onExpandedChange = { }
             ) { }
 
+            // 分类按钮（横向滚动胶囊），点一下列表自动切换
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                contentPadding = PaddingValues(end = 8.dp)
+            ) {
+                item(key = "cat-all") {
+                    CategoryChip(
+                        label = "全部",
+                        selected = selectedCategory == null,
+                        onClick = { selectedCategory = null }
+                    )
+                }
+                items(availableCategories, key = { it.name }) { category ->
+                    CategoryChip(
+                        label = category.label,
+                        selected = selectedCategory == category,
+                        onClick = { selectedCategory = category }
+                    )
+                }
+            }
+
             // 分组操作列表（按分类，以粗体标题分组）
             val allActions = AutomationCatalog.entries
                 .filter { categories == null || it.category in categories }
+                .filter { selectedCategory == null || it.category == selectedCategory }
                 .map { entry ->
                     AutomationAction(
                         id = entry.id,
@@ -155,38 +187,52 @@ fun AutomationActionDialog(
                     .weight(1f)
             ) {
                 if (searchQuery.isBlank()) {
-                    AutomationCatalog.grouped()
-                        .filter { (category, _) -> categories == null || category in categories }
-                        .forEach { (category, entries) ->
-                            item(key = "header-${category.name}") {
-                                Text(
-                                    text = category.label,
-                                    style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
-                                    modifier = Modifier.padding(
-                                        start = 24.dp,
-                                        top = 20.dp,
-                                        bottom = 12.dp
+                    if (selectedCategory == null) {
+                        // 全部：按分类分组展示，带粗体标题
+                        AutomationCatalog.grouped()
+                            .filter { (category, _) -> categories == null || category in categories }
+                            .forEach { (category, entries) ->
+                                item(key = "header-${category.name}") {
+                                    Text(
+                                        text = category.label,
+                                        style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier.padding(
+                                            start = 24.dp,
+                                            top = 20.dp,
+                                            bottom = 12.dp
+                                        )
                                     )
-                                )
+                                }
+                                items(entries.map { entry ->
+                                    AutomationAction(
+                                        id = entry.id,
+                                        name = entry.name,
+                                        icon = entry.icon,
+                                        iconColor = entry.iconColor,
+                                        description = entry.description
+                                    )
+                                }, key = { it.id }) { action ->
+                                    ActionOptionCard(
+                                        action = action,
+                                        onClick = {
+                                            onActionSelected(action)
+                                            onDismiss()
+                                        }
+                                    )
+                                }
                             }
-                            items(entries.map { entry ->
-                                AutomationAction(
-                                    id = entry.id,
-                                    name = entry.name,
-                                    icon = entry.icon,
-                                    iconColor = entry.iconColor,
-                                    description = entry.description
-                                )
-                            }, key = { it.id }) { action ->
-                                ActionOptionCard(
-                                    action = action,
-                                    onClick = {
-                                        onActionSelected(action)
-                                        onDismiss()
-                                    }
-                                )
-                            }
+                    } else {
+                        // 选中分类：扁平展示该分类的操作
+                        items(allActions, key = { it.id }) { action ->
+                            ActionOptionCard(
+                                action = action,
+                                onClick = {
+                                    onActionSelected(action)
+                                    onDismiss()
+                                }
+                            )
                         }
+                    }
                 } else {
                     items(filteredActions, key = { it.id }) { action ->
                         ActionOptionCard(
@@ -246,6 +292,39 @@ private fun ActionOptionCard(
             }
 
         }
+    }
+}
+
+/** 分类胶囊按钮：选中态主题色高亮，未选中灰底。 */
+@Composable
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (selected) {
+        MiuixTheme.colorScheme.primary
+    } else {
+        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    }
+    val contentColor = if (selected) {
+        MiuixTheme.colorScheme.onPrimary
+    } else {
+        MiuixTheme.colorScheme.onSurface
+    }
+    Box(
+        modifier = Modifier
+            .padding(end = 8.dp, bottom = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.body2,
+            color = contentColor
+        )
     }
 }
 
