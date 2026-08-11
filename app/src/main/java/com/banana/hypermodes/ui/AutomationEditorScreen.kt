@@ -1153,6 +1153,9 @@ private fun IntentTriggerEditor(
                                         val shadow = BlockDragShadowBuilder(
                                             label = displayText,
                                             density = density,
+                                            widthPx = dragController?.blockBounds
+                                                ?.get(block.id)?.width?.toInt()
+                                                ?: (280 * density).toInt(),
                                             backgroundColor = cardBackground.toArgb(),
                                             textColor = cardText.toArgb()
                                         )
@@ -1204,11 +1207,12 @@ private fun IntentTriggerEditor(
 private class BlockDragShadowBuilder(
     private val label: String,
     private val density: Float,
+    private val widthPx: Int,
     private val backgroundColor: Int,
     private val textColor: Int
 ) : android.view.View.DragShadowBuilder() {
 
-    private val shadowWidth = (280 * density).toInt()
+    private val shadowWidth = widthPx
     private val shadowHeight = (48 * density).toInt()
 
     override fun onProvideShadowMetrics(
