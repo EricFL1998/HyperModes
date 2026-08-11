@@ -1484,6 +1484,14 @@ private fun ParamChip(
     var showNumberPicker by remember { mutableStateOf(false) }
     var showModePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    // 模式选择需要模式列表：默认三个内置模式做本地化，其余用保存的名称
+    val context = LocalContext.current
+    var modes by remember { mutableStateOf<List<Mode>?>(null) }
+    LaunchedEffect(Unit) {
+        if (param is BlockParameter.StringParam && param.key == "modeId") {
+            modes = ModeStore.load(context) { DefaultModes.get() }
+        }
+    }
 
     val label: String
     val onClick: () -> Unit
@@ -1507,7 +1515,13 @@ private fun ParamChip(
                     onClick = { onPickApps(param) }
                 }
                 "modeId" -> {
-                    label = if (param.value.isBlank()) "选择模式..." else param.value
+                    label = if (param.value.isBlank()) {
+                        "选择模式..."
+                    } else {
+                        modes?.find { it.id == param.value }
+                            ?.let { localizedModeName(it) }
+                            ?: param.value
+                    }
                     onClick = { showModePicker = true }
                 }
                 "start", "end" -> {
@@ -1637,11 +1651,6 @@ private fun ParamChip(
 
     // 模式选择
     if (showModePicker && param is BlockParameter.StringParam && param.key == "modeId") {
-        val context = LocalContext.current
-        var modes by remember { mutableStateOf<List<Mode>?>(null) }
-        LaunchedEffect(Unit) {
-            modes = ModeStore.load(context) { DefaultModes.get() }
-        }
         OverlayDialog(
             show = showModePicker,
             onDismissRequest = { showModePicker = false }
@@ -1674,7 +1683,7 @@ private fun ParamChip(
                             modifier = Modifier.padding(end = 12.dp)
                         )
                         Text(
-                            text = mode.name,
+                            text = localizedModeName(mode),
                             style = MiuixTheme.textStyles.body1,
                             modifier = Modifier.weight(1f)
                         )
@@ -1712,6 +1721,16 @@ private fun ParamChip(
             }
         )
     }
+}
+
+
+/** 模式显示名：默认三个内置模式（dnd/bedtime/driving）做本地化，其余用保存的名称。 */
+@Composable
+private fun localizedModeName(mode: Mode): String = when (mode.id) {
+    "dnd" -> stringResource(R.string.mode_dnd)
+    "bedtime" -> stringResource(R.string.mode_bedtime)
+    "driving" -> stringResource(R.string.mode_driving)
+    else -> mode.name
 }
 
 
