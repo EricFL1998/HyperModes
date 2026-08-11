@@ -211,7 +211,7 @@ fun AutomationActionDialog(
                         // 每个意图：发送意图操作（可拖拽进 "当" 的 {} 绑定）
                         AutomationAction(
                             id = "intent_send_${config.packageName}_${action.name}",
-                            name = "发送 ${action.name}",
+                            name = action.name,
                             icon = "📨",
                             iconColor = Color(0xFF5856D6),
                             description = "向 ${config.appName} 发送广播 ${action.name}",
