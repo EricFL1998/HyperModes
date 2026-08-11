@@ -2426,6 +2426,9 @@ private fun BlockCard(
     modifier: Modifier = Modifier,
     nestLevel: Int = 0
 ) {
+    // 顶部插入窄条高度（px）：拖到"当"模块顶部边缘此范围内视为插入上方，其余本体可绑定。
+    val density = LocalDensity.current.density
+    val topInsertBandPx = 24 * density
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -2494,14 +2497,14 @@ private fun BlockCard(
                                     val y = event.toAndroidDragEvent().y
                                     // 触发器块：落点在 {} 作用域内则移入作用域；
                                     // 意图触发（TriggerIntent）块本体可绑定意图，
-                                    // 仅顶部窄条（约 25% 高度）按重排插入上方，其余区域绑定。
+                                    // 仅顶部边缘窄条（约 24dp）按重排插入上方，其余区域绑定。
                                     val blockRect = dragController.blockBounds[block.id]
                                     val inScope = dragController.scopeBounds[block.id]?.let {
                                         y >= it.top && y <= it.bottom
                                     } == true
                                     val triggerIntentBind =
                                         block.type is BlockType.TriggerIntent &&
-                                            blockRect?.let { y >= it.top + it.height * 0.25f } == true
+                                            blockRect?.let { y >= it.top + topInsertBandPx } == true
                                     if (block.isTriggerBlock() && (inScope || triggerIntentBind)) {
                                         dragController.onDropIntoScope?.invoke(draggedId, block.id)
                                         dragController.draggedBlockId = null
@@ -2540,14 +2543,14 @@ private fun BlockCard(
                                     }
                                     if (overDescendant) return
                                     // 触发器：指针在 {} 作用域内 → 高亮作用域，不显示缺口；
-                                    // TriggerIntent 块本体也可绑定（高亮作用域），仅顶部窄条显示插入缺口。
+                                    // TriggerIntent 块本体也可绑定（高亮作用域），仅顶部边缘窄条显示插入缺口。
                                     val blockRect = dragController.blockBounds[block.id]
                                     val inScope = dragController.scopeBounds[block.id]?.let {
                                         y >= it.top && y <= it.bottom
                                     } == true
                                     val triggerIntentBind =
                                         block.type is BlockType.TriggerIntent &&
-                                            blockRect?.let { y >= it.top + it.height * 0.25f } == true
+                                            blockRect?.let { y >= it.top + topInsertBandPx } == true
                                     if (block.isTriggerBlock() && (inScope || triggerIntentBind)) {
                                         dragController.dropTargetId = block.id
                                         dragController.gapIndicator = null
