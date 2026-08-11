@@ -466,6 +466,11 @@ fun AutomationEditorScreen(
 ) {
     var blocks by remember { mutableStateOf(automation.blocks) }
     var showAddActionDialog by remember { mutableStateOf(false) }
+
+    /** 从"当"模块中临时拖出的意图块（落位前不会真正插进列表）。 */
+    var pendingIntent by remember { mutableStateOf<AutomationBlock?>(null) }
+    /** 临时意图原本所在的"当"块 id，取消/落回时用来定位。 */
+    var pendingIntentSource by remember { mutableStateOf<String?>(null) }
     val dragController = remember { DragController() }
     var appPickRequest by remember { mutableStateOf<AppPickRequest?>(null) }
     var wifiPickRequest by remember { mutableStateOf<WifiPickRequest?>(null) }
@@ -484,7 +489,18 @@ fun AutomationEditorScreen(
     //   拖入触发器 `{}` 作用域由 onDropIntoScope 单独处理
     LaunchedEffect(Unit) {
         dragController.onDrop = { draggedId, targetId, before ->
-            if (targetId != null) {
+            // 处理从"当"模块中拖出的临时意图块（Phantom）：
+            // 它不在 blocks 列表里，需要在这里直接插入到落点位置。
+            val pending = pendingIntent
+            if (pending != null && draggedId == pending.id) {
+                pendingIntent = null
+                pendingIntentSource = null
+                blocks = if (targetId != null) {
+                    insertBlockRelativeTo(blocks, pending, targetId, before)
+                } else {
+                    if (before) listOf(pending) + blocks else blocks + pending
+                }
+            } else if (targetId != null) {
                 blocks = moveBlockBeforeAfter(blocks, draggedId, targetId, before)
             } else {
                 // 拖到顶层空白区域：提取后按 before 插到顶层最前或追加末尾
@@ -496,31 +512,60 @@ fun AutomationEditorScreen(
             }
         }
         dragController.onDropIntoScope = { draggedId, targetId ->
-            // 复用 {} 作用域拖入逻辑：意图块拖进"当"（TriggerIntent）时，
-            // 把意图参数绑定到"当"块，并移除意图块；其余走原有移入 children 逻辑。
-            val targetBlock = findBlock(blocks, targetId)
-            val draggedBlock = findBlock(blocks, draggedId)
-            if (targetBlock?.type is BlockType.TriggerIntent &&
-                draggedBlock?.type is BlockType.SendIntent
-            ) {
-                val (withoutDragged, _) = extractBlockFromTree(blocks, draggedId)
-                blocks = updateBlockInTree(withoutDragged, targetId) { b ->
-                    b.copy(
-                        parameters = b.parameters.map { p ->
-                            when (p.key) {
-                                "packageName" -> (p as? BlockParameter.StringParam)
-                                    ?.copy(value = draggedBlock.stringParam("packageName"))
-                                "intentName" -> (p as? BlockParameter.StringParam)
-                                    ?.copy(value = draggedBlock.stringParam("intentName"))
-                                "action" -> (p as? BlockParameter.StringParam)
-                                    ?.copy(value = draggedBlock.stringParam("action"))
-                                else -> p
-                            } ?: p
-                        }
-                    )
+            // 处理从"当"模块中拖出的临时意图块
+            val pending = pendingIntent
+            if (pending != null && draggedId == pending.id) {
+                val targetBlock = findBlock(blocks, targetId)
+                if (targetBlock?.type is BlockType.TriggerIntent) {
+                    // 落回任意"当"块：把意图绑定回去
+                    blocks = updateBlockInTree(blocks, targetId) { b ->
+                        b.copy(
+                            parameters = b.parameters.map { p ->
+                                when (p.key) {
+                                    "packageName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = pending.stringParam("packageName"))
+                                    "intentName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = pending.stringParam("intentName"))
+                                    "action" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = pending.stringParam("action"))
+                                    else -> p
+                                } ?: p
+                            }
+                        )
+                    }
+                } else {
+                    // 落到其它触发器 {} 里：作为普通子块插入
+                    blocks = addBlockToChildren(blocks, targetId, pending)
                 }
+                pendingIntent = null
+                pendingIntentSource = null
             } else {
-                blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+                // 复用 {} 作用域拖入逻辑：意图块拖进"当"（TriggerIntent）时，
+                // 把意图参数绑定到"当"块，并移除意图块；其余走原有移入 children 逻辑。
+                val targetBlock = findBlock(blocks, targetId)
+                val draggedBlock = findBlock(blocks, draggedId)
+                if (targetBlock?.type is BlockType.TriggerIntent &&
+                    draggedBlock?.type is BlockType.SendIntent
+                ) {
+                    val (withoutDragged, _) = extractBlockFromTree(blocks, draggedId)
+                    blocks = updateBlockInTree(withoutDragged, targetId) { b ->
+                        b.copy(
+                            parameters = b.parameters.map { p ->
+                                when (p.key) {
+                                    "packageName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("packageName"))
+                                    "intentName" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("intentName"))
+                                    "action" -> (p as? BlockParameter.StringParam)
+                                        ?.copy(value = draggedBlock.stringParam("action"))
+                                    else -> p
+                                } ?: p
+                            }
+                        )
+                    }
+                } else {
+                    blocks = moveBlockIntoParent(blocks, draggedId, targetId)
+                }
             }
         }
     }
@@ -694,6 +739,28 @@ fun AutomationEditorScreen(
                     target = remember {
                         object : DragAndDropTarget {
                             override fun onEnded(event: DragAndDropEvent) {
+                                // 如果临时拖出的意图没有成功落位，取消时还原回原来的"当"块
+                                val pending = pendingIntent
+                                val sourceId = pendingIntentSource
+                                if (pending != null && sourceId != null) {
+                                    blocks = updateBlockInTree(blocks, sourceId) { b ->
+                                        b.copy(
+                                            parameters = b.parameters.map { p ->
+                                                when (p.key) {
+                                                    "packageName" -> (p as? BlockParameter.StringParam)
+                                                        ?.copy(value = pending.stringParam("packageName"))
+                                                    "intentName" -> (p as? BlockParameter.StringParam)
+                                                        ?.copy(value = pending.stringParam("intentName"))
+                                                    "action" -> (p as? BlockParameter.StringParam)
+                                                        ?.copy(value = pending.stringParam("action"))
+                                                    else -> p
+                                                } ?: p
+                                            }
+                                        )
+                                    }
+                                    pendingIntent = null
+                                    pendingIntentSource = null
+                                }
                                 dragController.draggedBlockId = null
                                 dragController.dropTargetId = null
                                 dragController.gapIndicator = null
@@ -832,8 +899,8 @@ fun AutomationEditorScreen(
                                     BlockParameter.StringParam("action", "广播 Action", action)
                                 )
                             )
-                            // 递归清空"当"块的绑定参数（支持嵌套），恢复"拖入意图"
-                            val cleared = updateBlockInTree(blocks, block.id) { b ->
+                            // 清空原"当"块的绑定参数，让它显示空槽位"拖入意图"
+                            blocks = updateBlockInTree(blocks, block.id) { b ->
                                 b.copy(
                                     parameters = b.parameters.map { p ->
                                         when (p.key) {
@@ -845,8 +912,13 @@ fun AutomationEditorScreen(
                                     }
                                 )
                             }
-                            // 插入到"当"块之后（支持嵌套，保持与原位置相邻）
-                            blocks = insertBlockAfterInTree(cleared, block.id, intentBlock)
+                            // 记录临时意图块和它来自哪个"当"块，供落点/取消时处理
+                            pendingIntent = intentBlock
+                            pendingIntentSource = block.id
+                            dragController.draggedBlockId = newId
+                            dragController.draggedHeightPx =
+                                dragController.blockBounds[block.id]?.height ?: 0f
+                            dragController.draggedSubtreeIds = emptySet()
                             newId
                         },
                         onRemove = {
@@ -2250,6 +2322,35 @@ private fun insertBlockAfterInTree(
     return walk(blocks).first
 }
 
+
+/** 把新块插入到目标块的上方/下方（支持嵌套）。用于拖出"当"的临时意图块落位。 */
+private fun insertBlockRelativeTo(
+    blocks: List<AutomationBlock>,
+    newBlock: AutomationBlock,
+    targetId: String,
+    before: Boolean
+): List<AutomationBlock> {
+    fun walk(list: List<AutomationBlock>): Pair<List<AutomationBlock>, Boolean> {
+        val idx = list.indexOfFirst { it.id == targetId }
+        if (idx >= 0) {
+            val newList = list.toMutableList()
+            val insertAt = if (before) idx else idx + 1
+            newList.add(insertAt, newBlock)
+            return newList to true
+        }
+        var changed = false
+        val mapped = list.map { block ->
+            val (newChildren, c) = walk(block.children)
+            val (newElse, e) = walk(block.elseChildren)
+            if (c || e) {
+                changed = true
+                block.copy(children = newChildren, elseChildren = newElse)
+            } else block
+        }
+        return mapped to changed
+    }
+    return walk(blocks).first
+}
 /** 在块树中按 id 查找块（含嵌套）。 */
 private fun findBlock(
     blocks: List<AutomationBlock>,
@@ -2426,9 +2527,9 @@ private fun BlockCard(
     modifier: Modifier = Modifier,
     nestLevel: Int = 0
 ) {
-    // 顶部插入窄条高度（px）：拖到"当"模块顶部边缘此范围内视为插入上方，其余本体可绑定。
+    // 顶部插入窄条高度（px）：拖到"当"模块顶部极窄边缘时视为插入上方，其余区域（包括意图胶囊）都可以绑定意图。
     val density = LocalDensity.current.density
-    val topInsertBandPx = 24 * density
+    val topInsertBandPx = 12 * density
     Card(
         modifier = modifier
             .fillMaxWidth()
