@@ -860,20 +860,17 @@ fun ModeDetailScreen(
                         !saved.lockscreenJson.isNullOrEmpty() ||
                             !saved.imagePath.isNullOrEmpty()
                         )
+                    val modeWallpaper = editedMode.settings.wallpaper
+                    val savedDesktop = modeWallpaper?.desktop
+                    val hasSavedDesktop = savedDesktop != null && !savedDesktop.imagePath.isNullOrEmpty()
                     val editSet = WallpaperSet(
                         lock = if (hasSavedLock) copyBaselineItem(context, saved) else baseline.lock,
-                        desktop = baseline.desktop
+                        desktop = if (hasSavedDesktop) copyBaselineItem(context, savedDesktop) else baseline.desktop
                     )
-                    beforeWallpaper = if (hasSavedLock) {
-                        // 已有已保存样式：基线 = 保存的锁屏（壁纸图复制到临时文件，避免被
-                        // 编辑后的捕获覆盖同一路径导致比较失效）+ 当前系统桌面。
-                        WallpaperSet(
-                            lock = copyBaselineItem(context, editedMode.settings.wallpaper?.lock),
-                            desktop = baseline.desktop
-                        )
-                    } else {
-                        baseline
-                    }
+                    beforeWallpaper = WallpaperSet(
+                        lock = if (hasSavedLock) copyBaselineItem(context, saved) else baseline.lock,
+                        desktop = if (hasSavedDesktop) copyBaselineItem(context, savedDesktop) else baseline.desktop
+                    )
                     // 预置需 setStream 重新裁剪（耗时），期间显示加载遮罩。
                     // 同时预置锁屏 + 桌面两侧，防止官方编辑器把另一侧重置为默认。
                     isPreparingWallpaper = true
@@ -910,18 +907,20 @@ fun ModeDetailScreen(
                     preEditSystem = baseline
                     val saved = editedMode.settings.wallpaper?.desktop
                     val hasSavedDesktop = saved != null && !saved.imagePath.isNullOrEmpty()
+                    val modeWallpaper = editedMode.settings.wallpaper
+                    val savedLock = modeWallpaper?.lock
+                    val hasSavedLock = savedLock != null && (
+                        !savedLock.lockscreenJson.isNullOrEmpty() ||
+                            !savedLock.imagePath.isNullOrEmpty()
+                        )
                     val editSet = WallpaperSet(
-                        lock = baseline.lock,
+                        lock = if (hasSavedLock) copyBaselineItem(context, savedLock) else baseline.lock,
                         desktop = if (hasSavedDesktop) copyBaselineItem(context, saved) else baseline.desktop
                     )
-                    beforeWallpaper = if (hasSavedDesktop) {
-                        WallpaperSet(
-                            lock = baseline.lock,
-                            desktop = copyBaselineItem(context, editedMode.settings.wallpaper?.desktop)
-                        )
-                    } else {
-                        baseline
-                    }
+                    beforeWallpaper = WallpaperSet(
+                        lock = if (hasSavedLock) copyBaselineItem(context, savedLock) else baseline.lock,
+                        desktop = if (hasSavedDesktop) copyBaselineItem(context, saved) else baseline.desktop
+                    )
                     isPreparingWallpaper = true
                     WallpaperSnapshotBridge.prepareEditSet(context, editSet, which = 1) { ok ->
                         isPreparingWallpaper = false
