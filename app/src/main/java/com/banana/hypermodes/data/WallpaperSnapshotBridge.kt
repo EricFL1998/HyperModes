@@ -36,6 +36,8 @@ object WallpaperSnapshotBridge {
         val lockJsonFile = File(dir, "lockscreen.json")
         val templateEditorFile = File(dir, "template_editor.json")
         val subjectMaskFile = File(dir, "subject_mask.png")
+        val lockEffectFile = File(dir, "effect_type_2.txt")
+        val desktopEffectFile = File(dir, "effect_type_1.txt")
         if (!lockFile.exists() && !desktopFile.exists()) return null
         // system_server 侧预览目录（captureCurrent 时会同步落盘一份）。App 无法直接 stat
         // /data/system，但预先填上该路径即可：恢复/预置编辑时 system_server 会自行校验
@@ -55,6 +57,7 @@ object WallpaperSnapshotBridge {
                         templateEditorFile.takeIf { it.exists() }?.readText()
                     }.getOrNull(),
                     subjectMaskPath = subjectMaskFile.takeIf { it.exists() }?.absolutePath,
+                    effectType = lockEffectFile.takeIf { it.exists() }?.readText()?.toIntOrNull(),
                     which = 2
                 )
             } else null,
@@ -62,6 +65,7 @@ object WallpaperSnapshotBridge {
                 WallpaperItem(
                     imagePath = desktopFile.absolutePath,
                     sysImagePath = File(sysPreviewDir, "desktop_wallpaper.jpg").absolutePath,
+                    effectType = desktopEffectFile.takeIf { it.exists() }?.readText()?.toIntOrNull(),
                     which = 1
                 )
             } else null
@@ -198,6 +202,11 @@ object WallpaperSnapshotBridge {
         if (previewOnly) {
             cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
             cacheTemplateEditorJson(context, data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON))
+            cacheEffectType(
+                context,
+                data.getInt(Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE, -1).takeIf { it != -1 },
+                data.getInt(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE, -1).takeIf { it != -1 }
+            )
         }
         val lockBytes = data.getByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES)
         val desktopBytes = data.getByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES)
@@ -258,6 +267,60 @@ object WallpaperSnapshotBridge {
                 )
             } else null
         )
+    }
+
+    /**
+     * 编辑前预置锁屏 + 桌面两侧。官方编辑器打开时会同时读取两侧壁纸；
+     * 只预置编辑侧会导致另一侧被重置为默认壁纸。
+     *
+     * @param which 用户要编辑的一侧：1 桌面 / 2 锁屏
+     * @param set 包含当前系统两侧状态 + 编辑侧已保存配置的 WallpaperSet
+     */
+    fun prepareEditSet(
+        context: Context,
+        set: WallpaperSet,
+        which: Int,
+        onDone: (Boolean) -> Unit
+    ) {
+        Log.i("WallpaperSnapshotBridge", "prepareEditSet: which=$which")
+        val editedItem = if (which == 2) set.lock else set.desktop
+        val otherItem = if (which == 2) set.desktop else set.lock
+        var remaining = 0
+        var failed = false
+        val checkDone = { ok: Boolean ->
+            if (!ok) failed = true
+            remaining--
+            if (remaining <= 0) {
+                Log.i("WallpaperSnapshotBridge", "prepareEditSet done: success=${!failed}")
+                onDone(!failed)
+            }
+        }
+        if (editedItem != null) {
+            remaining++
+            prepareEdit(context, editedItem) { ok -> checkDone(ok) }
+        }
+        // 另一侧即使未保存也要预置为当前系统值，防止编辑器把它重置为默认。
+        if (otherItem != null) {
+            remaining++
+            prepareEdit(context, otherItem) { ok -> checkDone(ok) }
+        }
+        if (remaining == 0) {
+            onDone(false)
+        }
+    }
+
+    /** preview 模式缓存壁纸特效类型，供 readCachedCurrent 立即使用。 */
+    private fun cacheEffectType(
+        context: Context,
+        lockEffectType: Int?,
+        desktopEffectType: Int?
+    ) {
+        runCatching {
+            val dir = previewDir(context)
+            dir.mkdirs()
+            lockEffectType?.let { File(dir, "effect_type_2.txt").writeText(it.toString()) }
+            desktopEffectType?.let { File(dir, "effect_type_1.txt").writeText(it.toString()) }
+        }
     }
 
     /** 优先用 system_server 返回的 JPEG 字节写入 App 自己的 files 目录；

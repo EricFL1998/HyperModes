@@ -237,9 +237,11 @@ class WallpaperController(private val context: Context) {
         // 0. 还原息屏样式设置（涂鸦样式应用后系统会切传统 AOD）
         restoreAodStyle()
 
-        // 1. 恢复锁屏样式 JSON
+        // 1. 恢复锁屏样式 JSON；把 wallpaperInfo.subject 指回恢复后的 subject_mask，
+        //    保证景深蒙版路径与恢复后的文件一致（否则系统读不到蒙版，景深丢失）。
         File(lockBackupDir, KEY_LOCKSCREEN_INFO).takeIf { it.exists() }?.let { f ->
-            putSecure(KEY_LOCKSCREEN_INFO, f.readText())
+            val restoredJson = rewriteSubjectPath(f.readText(), subjectMaskFile)
+            putSecure(KEY_LOCKSCREEN_INFO, restoredJson)
         }
         File(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO).takeIf { it.exists() }?.let { f ->
             putSecure(KEY_TEMPLATE_EDITOR_INFO, f.readText())
@@ -251,15 +253,8 @@ class WallpaperController(private val context: Context) {
             putSecureInt(KEY_LOCKSCREEN_INFO_VERSION, f.readText().toIntOrNull() ?: 3)
         }
 
-        // 2. 恢复锁屏壁纸：有备份则流式写回；只有标记则清空锁屏（跟随桌面）
-        val lockBackup = File(lockBackupDir, lockOrigFile.name)
-        if (lockBackup.exists()) {
-            setWallpaperStream(lockBackup, WallpaperManager.FLAG_LOCK)
-            log("restore lock: restored lock wallpaper via setStream")
-        } else if (File(lockBackupDir, MARKER_LOCK_FOLLOWS_HOME).exists()) {
-            wallpaperManager.clear(WallpaperManager.FLAG_LOCK)
-            log("restore lock: cleared lock wallpaper (was following home)")
-        }
+        // 2. 先恢复锁屏主体蒙版（景深）和特效类型，再 setStream，
+        //    让 WallpaperManagerService 处理壁纸时景深配置已就位。
         File(lockBackupDir, subjectMaskFile.name).takeIf { it.exists() }?.let { backup ->
             copyFile(backup, subjectMaskFile)
             log("restore lock: restored subject mask from backup")
@@ -268,7 +263,17 @@ class WallpaperController(private val context: Context) {
             putSecureInt(KEY_WALLPAPER_EFFECT_2, f.readText().toIntOrNull() ?: 0)
             log("restore lock: restored wallpaper effect type 2")
         }
-        // 3. 清理备份，保证下一次 apply 重新备份"当时"的系统状态
+
+        // 3. 恢复锁屏壁纸：有备份则流式写回；只有标记则清空锁屏（跟随桌面）
+        val lockBackup = File(lockBackupDir, lockOrigFile.name)
+        if (lockBackup.exists()) {
+            setWallpaperStream(lockBackup, WallpaperManager.FLAG_LOCK)
+            log("restore lock: restored lock wallpaper via setStream")
+        } else if (File(lockBackupDir, MARKER_LOCK_FOLLOWS_HOME).exists()) {
+            wallpaperManager.clear(WallpaperManager.FLAG_LOCK)
+            log("restore lock: cleared lock wallpaper (was following home)")
+        }
+        // 4. 清理备份，保证下一次 apply 重新备份"当时"的系统状态
         lockBackupDir.deleteRecursively()
         log("restore lock: done")
     }
