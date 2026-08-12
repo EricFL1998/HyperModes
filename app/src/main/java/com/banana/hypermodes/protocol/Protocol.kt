@@ -116,6 +116,8 @@ object Protocol {
     const val EXTRA_SUBJECT_MASK_BYTES = "subjectMaskBytes"
     const val EXTRA_DESKTOP_SCROLL_ENABLED = "desktopScrollEnabled"
     const val EXTRA_WALLPAPER_EFFECT_TYPE = "wallpaperEffectType"
+    /** 锁屏景深/壁纸特效类型（wallpaper_effect_type_2）。 */
+    const val EXTRA_LOCK_WALLPAPER_EFFECT_TYPE = "lockWallpaperEffectType"
     const val EXTRA_WALLPAPER_CHANGED = "wallpaperChanged"
     /** Capture the current system wallpaper into a shared preview dir instead of
      *  a mode-specific one, so entering the detail page never overwrites a saved

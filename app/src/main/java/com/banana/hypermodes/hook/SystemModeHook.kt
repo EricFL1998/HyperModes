@@ -245,8 +245,15 @@ class SystemModeHook(private val module: XposedModule) {
                     scrollEnabled = if (intent.hasExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED)) {
                         intent.getBooleanExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED, false)
                     } else null,
-                    effectType = if (intent.hasExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)) {
-                        intent.getIntExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE, 0)
+                    effectType = if (intent.hasExtra(
+                            if (which == 2) Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE
+                            else Protocol.EXTRA_WALLPAPER_EFFECT_TYPE
+                        )) {
+                        intent.getIntExtra(
+                            if (which == 2) Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE
+                            else Protocol.EXTRA_WALLPAPER_EFFECT_TYPE,
+                            0
+                        )
                     } else null,
                     which = which
                 )
@@ -485,6 +492,10 @@ class SystemModeHook(private val module: XposedModule) {
             bundle.putInt(
                 Protocol.EXTRA_WALLPAPER_EFFECT_TYPE,
                 Settings.Secure.getInt(resolver, "wallpaper_effect_type_1", 0)
+            )
+            bundle.putInt(
+                Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE,
+                Settings.Secure.getInt(resolver, "wallpaper_effect_type_2", 0)
             )
             bundle.putString(
                 Protocol.EXTRA_WALLPAPER_CHANGED,

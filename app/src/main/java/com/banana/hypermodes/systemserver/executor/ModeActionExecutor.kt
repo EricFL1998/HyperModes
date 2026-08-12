@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.banana.hypermodes.systemserver.StatusBarIconManager
 import com.banana.hypermodes.systemserver.config.ModeConfig
+import com.banana.hypermodes.systemserver.config.ModeType
 
 /**
  * Executor for applying and reverting mode actions.
@@ -191,7 +192,14 @@ class ModeActionExecutor(
         }
 
         try {
-            dndController.restore()
+            // Bedtime mode exits when the wake alarm is dismissed/turned off. The user expects
+            // sleep mode and DND to turn off together, so force DND off instead of restoring
+            // the pre-bedtime interruption filter (which might have left DND on).
+            if (mode.type == ModeType.BEDTIME) {
+                dndController.forceDisableAndClearOriginal()
+            } else {
+                dndController.restore()
+            }
             log("✓ DND restored")
         } catch (e: Exception) {
             val msg = "Failed to restore DND: ${e.message}"

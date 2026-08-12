@@ -150,6 +150,7 @@ class WallpaperController(private val context: Context) {
                         log("prepareForEdit lock: wrote subject mask to $subjectMaskFile")
                     }
                 }
+                item.effectType?.let { putSecureInt(KEY_WALLPAPER_EFFECT_2, it) }
                 log("prepareForEdit: staged lock item for editor")
             } else {
                 // 桌面：壁纸 + 滚动/特效键
@@ -212,6 +213,11 @@ class WallpaperController(private val context: Context) {
                 log("apply lock: wrote subject mask to $subjectMaskFile")
             }
         }
+        // 5. 备份并设置锁屏景深特效类型
+        if (!File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).exists()) {
+            getSecureInt(KEY_WALLPAPER_EFFECT_2)?.let { File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).writeText(it.toString()) }
+        }
+        item.effectType?.let { putSecureInt(KEY_WALLPAPER_EFFECT_2, it) }
         log("apply lock: done (json=${!item.lockscreenJson.isNullOrEmpty()}, image=${!item.imagePath.isNullOrEmpty()}, mask=${!item.sysSubjectMaskPath.isNullOrEmpty()})")
     }
 
@@ -257,6 +263,10 @@ class WallpaperController(private val context: Context) {
         File(lockBackupDir, subjectMaskFile.name).takeIf { it.exists() }?.let { backup ->
             copyFile(backup, subjectMaskFile)
             log("restore lock: restored subject mask from backup")
+        }
+        File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).takeIf { it.exists() }?.let { f ->
+            putSecureInt(KEY_WALLPAPER_EFFECT_2, f.readText().toIntOrNull() ?: 0)
+            log("restore lock: restored wallpaper effect type 2")
         }
         // 3. 清理备份，保证下一次 apply 重新备份"当时"的系统状态
         lockBackupDir.deleteRecursively()

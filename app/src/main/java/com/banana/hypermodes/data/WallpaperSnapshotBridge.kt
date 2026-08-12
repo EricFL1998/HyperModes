@@ -132,7 +132,11 @@ object WallpaperSnapshotBridge {
                         putExtra(Protocol.EXTRA_DESKTOP_SCROLL_ENABLED, it)
                     }
                     item.effectType?.let {
-                        putExtra(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE, it)
+                        putExtra(
+                            if (item.which == 2) Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE
+                            else Protocol.EXTRA_WALLPAPER_EFFECT_TYPE,
+                            it
+                        )
                     }
                 }
             )
@@ -234,8 +238,8 @@ object WallpaperSnapshotBridge {
                     lockscreenJson = lockJson,
                     templateEditorJson = data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON),
                     subjectMaskPath = subjectMaskPath,
-                    effectType = if (data.containsKey(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)) {
-                        data.getInt(Protocol.EXTRA_WALLPAPER_EFFECT_TYPE)
+                    effectType = if (data.containsKey(Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE)) {
+                        data.getInt(Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE)
                     } else null,
                     which = 2
                 )

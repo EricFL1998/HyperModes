@@ -325,10 +325,11 @@ fun ModeDetailScreen(
                         // 与打开前的系统快照逐子项对比：只保存用户实际修改的那一侧，
                         // 未修改的子项保留原配置（不误配置成系统当前值）。
                         val before = beforeWallpaper
-                        if (snapshot != null) {
+                        val lockChanged = snapshot != null && lockItemChanged(before, snapshot)
+                        val desktopChanged = snapshot != null && desktopItemChanged(before, snapshot)
+                        val anyChanged = lockChanged || desktopChanged
+                        if (snapshot != null && anyChanged) {
                             val prevWallpaper = editedMode.settings.wallpaper
-                            val lockChanged = lockItemChanged(before, snapshot)
-                            val desktopChanged = desktopItemChanged(before, snapshot)
                             val newWallpaper = WallpaperSet(
                                 lock = if (lockChanged) {
                                     mergeSnapshotItem(snapshot.lock, prevWallpaper?.lock)
@@ -353,15 +354,26 @@ fun ModeDetailScreen(
                                 systemWallpaper = snapshot
                                 wallpaperRefreshTick++
                             }
+                        } else if (snapshot != null && editedMode.enabled) {
+                            // 没改变壁纸：跳过保存，但激活模式下仍刷新预览
+                            systemWallpaper = snapshot
+                            wallpaperRefreshTick++
                         }
-                        // 编辑会话结束：模式未激活时必须恢复真实系统状态——无论捕获是否成功都要恢复，
-                        // 否则官方编辑器写进真实系统的壁纸会残留（之前嵌在 if(snapshot!=null) 里，
-                        // 捕获失败就跳过恢复，是"编辑后真实壁纸被改"的根因）。
+                        // 编辑会话结束：模式未激活时只有真正修改了壁纸才需要恢复真实系统；
+                        // 没修改时官方编辑器不会改写系统壁纸，跳过恢复能避免不必要的 setStream。
                         if (!editedMode.enabled) {
-                            Log.i("ModeDetailScreen", "edit done: restore real system (snapshot=${snapshot != null})")
-                            restoreEditSystem(context, preEditSystem) {
-                                // 恢复完成后重新捕获真实系统刷新预览，保证预览与真实壁纸一致，
-                                // 而不是直接信任 preEditSystem（恢复可能只成功了一半）。
+                            if (anyChanged) {
+                                Log.i("ModeDetailScreen", "edit done: restore real system (snapshot=${snapshot != null})")
+                                restoreEditSystem(context, preEditSystem) {
+                                    // 恢复完成后重新捕获真实系统刷新预览，保证预览与真实壁纸一致，
+                                    // 而不是直接信任 preEditSystem（恢复可能只成功了一半）。
+                                    WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                                        if (snap != null) systemWallpaper = snap
+                                        wallpaperRefreshTick++
+                                    }
+                                }
+                            } else {
+                                // 没修改也要刷新预览
                                 WallpaperSnapshotBridge.captureCurrent(context) { snap ->
                                     if (snap != null) systemWallpaper = snap
                                     wallpaperRefreshTick++

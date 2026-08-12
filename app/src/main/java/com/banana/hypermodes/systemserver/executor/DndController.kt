@@ -78,6 +78,25 @@ class DndController(private val context: Context) {
         }
     }
 
+    /**
+     * Force DND off and clear any captured original filter.
+     * Used when exiting bedtime mode after the wake alarm is dismissed:
+     * the user expects both sleep mode and DND to turn off together.
+     */
+    fun forceDisableAndClearOriginal() {
+        try {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            context.contentResolver.let { resolver ->
+                Settings.Global.putString(resolver, KEY_ORIG_INTERRUPTION_FILTER, null)
+            }
+            log("forceDisableAndClearOriginal: DND disabled, original filter cleared")
+        } catch (e: Exception) {
+            log("forceDisableAndClearOriginal: failed: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
     private fun saveOriginal(key: String, value: Int) {
         if (Settings.Global.getInt(context.contentResolver, key, -1) == -1) {
             Settings.Global.putInt(context.contentResolver, key, value)
