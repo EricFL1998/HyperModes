@@ -38,11 +38,8 @@
 !.github/
 !.github/**
 
-# Allow qwen-eyes tool (keep API key config ignored)
-!tools/
-!tools/qwen-eyes/
-!tools/qwen-eyes/eyes.py
-!tools/qwen-eyes/README.md
+# Ignore tools directory (qwen-eyes, etc.)
+tools/
 
 # Allow root project files
 !.gitignore
