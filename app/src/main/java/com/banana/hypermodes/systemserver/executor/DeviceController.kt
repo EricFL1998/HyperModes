@@ -84,6 +84,10 @@ class DeviceController(private val context: Context) {
 
             // Motion Sickness Relief
             device.enableMotionSicknessRelief?.let { enabled ->
+                saveOriginal(
+                    KEY_ORIG_MOTION_SICKNESS_RELIEF,
+                    Settings.System.getInt(cr, SETTINGS_CAR_SICKNESS_MODE, 0)
+                )
                 applyMotionSicknessRelief(enabled)
             }
 
@@ -267,7 +271,7 @@ class DeviceController(private val context: Context) {
             // 官方开关（settings_car_sickness_mode）：securitycenter 监听它并启停服务
             Settings.System.putInt(
                 context.contentResolver,
-                "settings_car_sickness_mode",
+                SETTINGS_CAR_SICKNESS_MODE,
                 if (enabled) 1 else 0
             )
 
@@ -431,5 +435,7 @@ class DeviceController(private val context: Context) {
         private const val KEY_ORIG_SILENT_MODE = "hypermodes_orig_silent_mode"
         private const val KEY_ORIG_AIRPLANE_MODE = "hypermodes_orig_airplane_mode"
         private const val KEY_ORIG_PREFERRED_SIM_SLOT = "hypermodes_orig_preferred_sim_slot"
+        private const val SETTINGS_CAR_SICKNESS_MODE = "settings_car_sickness_mode"
+        private const val KEY_ORIG_MOTION_SICKNESS_RELIEF = "hypermodes_orig_motion_sickness_relief"
     }
 }

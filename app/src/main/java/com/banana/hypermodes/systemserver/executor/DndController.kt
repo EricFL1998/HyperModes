@@ -32,10 +32,13 @@ class DndController(private val context: Context) {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // If DND is disabled, just set to ALL and don't save/restore anything
+            // If DND is disabled, force ALL and clear any stale captured original.
+            // The original key may still hold the pre-mode value from an earlier active
+            // mode; if left uncleared, a later restore() would read it and re-enable DND.
             if (level == DndLevel.DISABLED) {
                 nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-                log("setDndLevel: DND disabled, set to INTERRUPTION_FILTER_ALL (no save/restore)")
+                Settings.Global.putString(context.contentResolver, KEY_ORIG_INTERRUPTION_FILTER, null)
+                log("setDndLevel: DND disabled, set to INTERRUPTION_FILTER_ALL, original cleared")
                 return
             }
 
