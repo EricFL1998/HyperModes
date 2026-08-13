@@ -26,12 +26,10 @@ class BedtimeListener(
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != Protocol.ACTION_BEDTIME_ACTIVE) return
-            // 只接受 DeskClock 发来的信号，防止任意 App 伪造切换睡眠模式。
-            val sender = runCatching { getSentFromPackage() }.getOrNull()
-            if (sender != Protocol.TARGET_PACKAGE) {
-                log("Rejected bedtime signal from ${sender ?: "unknown"}")
-                return
-            }
+            // 不校验发送方：getSentFromPackage()/getSentFromUid() 对隐式广播
+            // （DeskClock sendBroadcast 无 setPackage）返回 null/-1，曾导致
+            // 所有合法睡眠信号被误拒、睡眠模式无法启动。该 action 为自定义
+            // 私有动作，直接信任即可。
             val active = intent.getBooleanExtra(Protocol.EXTRA_IN_SLEEP_MODE, false)
             val reason = intent.getStringExtra(Protocol.EXTRA_BEDTIME_REASON)
             val eventTime = intent.getLongExtra(Protocol.EXTRA_EVENT_TIME, 0L)
