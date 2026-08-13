@@ -397,18 +397,6 @@ class SystemModeHook(private val module: XposedModule) {
         val userId = Process.myUid() / 100000
         val systemDir = File(Environment.getDataDirectory(), "system/users/$userId")
 
-        // App external files dir: /sdcard/Android/data/com.banana.hypermodes/files/wallpapers/
-        val appWallpaperRoot = File(
-            File(Environment.getExternalStorageDirectory(), "Android/data"),
-            Protocol.MODULE_PACKAGE + "/files/wallpapers"
-        )
-        val targetDir = if (previewOnly) {
-            File(appWallpaperRoot, "preview")
-        } else {
-            File(appWallpaperRoot, modeId)
-        }
-        targetDir.mkdirs()
-
         val bundle = Bundle()
         try {
             // 1. 锁屏样式 JSON（Settings.Secure）。
@@ -439,10 +427,10 @@ class SystemModeHook(private val module: XposedModule) {
                 Settings.Secure.getInt(resolver, "lockscreen_info_version", 3)
             )
 
-            // 2/3. 壁纸：scoped storage 会拦截 system_server 写 App 外部目录，
-            //      所以把源图解码后压缩成 JPEG 字节返回，App 端自己落盘。
-            //      同时落盘一份到 system 可读目录（/data/system/hypermodes_backup/modes/），
-            //      模式应用/复原时 WallpaperController 从该路径复制，避免读 App 私有目录失败。
+            // 2/3. 壁纸：预览走降采样 JPEG 返回 App 显示；恢复源则原样拷贝系统
+            //      源图（全分辨率、保持原格式）到 system 可读目录
+            //      （/data/system/hypermodes_backup/modes/），模式应用/复原时
+            //      WallpaperController 从该路径 setStream，避免二次有损压缩。
             val sysModeDir = File("/data/system/hypermodes_backup/modes", modeId)
             sysModeDir.mkdirs()
             // 锁屏源图：无独立锁屏壁纸（跟随桌面）时回退到桌面源图，
@@ -450,23 +438,17 @@ class SystemModeHook(private val module: XposedModule) {
             val lockOrig = File(systemDir, "wallpaper_lock_orig")
                 .takeIf { it.exists() } ?: File(systemDir, "wallpaper_orig")
             if (lockOrig.exists()) {
-                val bytes = encodePreview(lockOrig)
-                bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, bytes)
-                if (bytes != null) {
-                    val sysFile = File(sysModeDir, "lock_wallpaper.jpg")
-                    writeIfChanged(sysFile, bytes)
-                    bundle.putString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH, sysFile.absolutePath)
-                }
+                bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, encodePreview(lockOrig))
+                val sysFile = File(sysModeDir, "lock_wallpaper.jpg")
+                copyFileIfChanged(lockOrig, sysFile)
+                bundle.putString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH, sysFile.absolutePath)
             }
             val desktopOrig = File(systemDir, "wallpaper_orig")
             if (desktopOrig.exists()) {
-                val bytes = encodePreview(desktopOrig)
-                bundle.putByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES, bytes)
-                if (bytes != null) {
-                    val sysFile = File(sysModeDir, "desktop_wallpaper.jpg")
-                    writeIfChanged(sysFile, bytes)
-                    bundle.putString(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH, sysFile.absolutePath)
-                }
+                bundle.putByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES, encodePreview(desktopOrig))
+                val sysFile = File(sysModeDir, "desktop_wallpaper.jpg")
+                copyFileIfChanged(desktopOrig, sysFile)
+                bundle.putString(Protocol.EXTRA_DESKTOP_SYS_IMAGE_PATH, sysFile.absolutePath)
             }
 
             // 2b. 锁屏壁纸主体蒙版（景深效果）。路径在 lockscreenInfo.wallpaperInfo.subject，
@@ -501,7 +483,7 @@ class SystemModeHook(private val module: XposedModule) {
                 Protocol.EXTRA_WALLPAPER_CHANGED,
                 Settings.Secure.getString(resolver, "wallpaper_changed_2")
             )
-            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId preview=$previewOnly dir=${targetDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
+            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId preview=$previewOnly dir=${sysModeDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
         } catch (t: Throwable) {
             log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
         }
@@ -578,6 +560,18 @@ class SystemModeHook(private val module: XposedModule) {
         }.getOrDefault(false)
         if (!same) {
             file.writeBytes(bytes)
+        }
+    }
+
+    /** 原样拷贝系统源图到恢复源（保持原格式/原分辨率），内容一致则跳过写入。 */
+    private fun copyFileIfChanged(src: File, dst: File) {
+        val same = dst.exists() && runCatching {
+            src.length() == dst.length() && src.readBytes().contentEquals(dst.readBytes())
+        }.getOrDefault(false)
+        if (same) return
+        dst.parentFile?.mkdirs()
+        src.inputStream().use { input ->
+            dst.outputStream().use { output -> input.copyTo(output) }
         }
     }
 

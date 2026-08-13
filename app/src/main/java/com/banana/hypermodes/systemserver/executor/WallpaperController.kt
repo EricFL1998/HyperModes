@@ -92,24 +92,34 @@ class WallpaperController(private val context: Context) {
             log("apply: wallpaper config is null, skip")
             return
         }
-        try {
-            wallpaper.lock?.let { applyLock(it) }
-            wallpaper.desktop?.let { applyDesktop(it) }
-        } catch (e: Exception) {
-            log("apply: failed: ${e.message}")
-        }
+        // 不吞异常：让 ModeActionExecutor 捕获并触发整体回滚，避免半应用状态。
+        wallpaper.lock?.let { applyLock(it) }
+        wallpaper.desktop?.let { applyDesktop(it) }
     }
 
     /**
      * 恢复原始锁屏/桌面。仅回写有备份的子项（备份只在本控制器 apply 时创建）。
      */
     fun restore() {
-        try {
-            if (lockBackupDir.exists()) restoreLock()
-            if (desktopBackupDir.exists()) restoreDesktop()
-        } catch (e: Exception) {
-            log("restore: failed: ${e.message}")
+        // 依次尝试两侧，最后抛出首个失败，避免静默吞异常。
+        var failure: Exception? = null
+        if (lockBackupDir.exists()) {
+            try {
+                restoreLock()
+            } catch (e: Exception) {
+                failure = e
+                logError("restore lock failed", e)
+            }
         }
+        if (desktopBackupDir.exists()) {
+            try {
+                restoreDesktop()
+            } catch (e: Exception) {
+                if (failure == null) failure = e
+                logError("restore desktop failed", e)
+            }
+        }
+        failure?.let { throw it }
     }
 
     /** 是否有任何子项被应用过（用于退出模式时判断是否需要 restore）。 */
@@ -215,9 +225,7 @@ class WallpaperController(private val context: Context) {
             }
         }
         // 5. 备份并设置锁屏景深特效类型
-        if (!File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).exists()) {
-            getSecureInt(KEY_WALLPAPER_EFFECT_2)?.let { File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).writeText(it.toString()) }
-        }
+        backupSecureIntOnce(lockBackupDir, KEY_WALLPAPER_EFFECT_2)
         item.effectType?.let { putSecureInt(KEY_WALLPAPER_EFFECT_2, it) }
         log("apply lock: done (json=${!item.lockscreenJson.isNullOrEmpty()}, image=${!item.imagePath.isNullOrEmpty()}, mask=${!item.sysSubjectMaskPath.isNullOrEmpty()})")
     }
@@ -240,19 +248,10 @@ class WallpaperController(private val context: Context) {
 
         // 1. 恢复锁屏样式 JSON；把 wallpaperInfo.subject 指回恢复后的 subject_mask，
         //    保证景深蒙版路径与恢复后的文件一致（否则系统读不到蒙版，景深丢失）。
-        File(lockBackupDir, KEY_LOCKSCREEN_INFO).takeIf { it.exists() }?.let { f ->
-            val restoredJson = rewriteSubjectPath(f.readText(), subjectMaskFile)
-            putSecure(KEY_LOCKSCREEN_INFO, restoredJson)
-        }
-        File(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO).takeIf { it.exists() }?.let { f ->
-            putSecure(KEY_TEMPLATE_EDITOR_INFO, f.readText())
-        }
-        File(lockBackupDir, KEY_DEFAULT_LOCKSCREEN_INFO).takeIf { it.exists() }?.let { f ->
-            putSecure(KEY_DEFAULT_LOCKSCREEN_INFO, f.readText())
-        }
-        File(lockBackupDir, KEY_LOCKSCREEN_INFO_VERSION).takeIf { it.exists() }?.let { f ->
-            putSecureInt(KEY_LOCKSCREEN_INFO_VERSION, f.readText().toIntOrNull() ?: 3)
-        }
+        restoreLockscreenJsonKey(KEY_LOCKSCREEN_INFO)
+        restoreSecureOnce(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO)
+        restoreSecureOnce(lockBackupDir, KEY_DEFAULT_LOCKSCREEN_INFO)
+        restoreSecureIntOnce(lockBackupDir, KEY_LOCKSCREEN_INFO_VERSION)
 
         // 2. 先恢复锁屏主体蒙版（景深）和特效类型，再 setStream，
         //    让 WallpaperManagerService 处理壁纸时景深配置已就位。
@@ -260,10 +259,7 @@ class WallpaperController(private val context: Context) {
             copyFile(backup, subjectMaskFile)
             log("restore lock: restored subject mask from backup")
         }
-        File(lockBackupDir, KEY_WALLPAPER_EFFECT_2).takeIf { it.exists() }?.let { f ->
-            putSecureInt(KEY_WALLPAPER_EFFECT_2, f.readText().toIntOrNull() ?: 0)
-            log("restore lock: restored wallpaper effect type 2")
-        }
+        restoreSecureIntOnce(lockBackupDir, KEY_WALLPAPER_EFFECT_2)
 
         // 3. 恢复锁屏壁纸：有备份则流式写回；只有标记则清空锁屏（跟随桌面）
         val lockBackup = File(lockBackupDir, lockOrigFile.name)
@@ -281,12 +277,10 @@ class WallpaperController(private val context: Context) {
 
     private fun backupLockJsonOnce() {
         lockBackupDir.mkdirs()
-        if (!File(lockBackupDir, KEY_LOCKSCREEN_INFO).exists()) {
-            getSecure(KEY_LOCKSCREEN_INFO)?.let { File(lockBackupDir, KEY_LOCKSCREEN_INFO).writeText(it) }
-            getSecure(KEY_TEMPLATE_EDITOR_INFO)?.let { File(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO).writeText(it) }
-            getSecure(KEY_DEFAULT_LOCKSCREEN_INFO)?.let { File(lockBackupDir, KEY_DEFAULT_LOCKSCREEN_INFO).writeText(it) }
-            getSecureInt(KEY_LOCKSCREEN_INFO_VERSION)?.let { File(lockBackupDir, KEY_LOCKSCREEN_INFO_VERSION).writeText(it.toString()) }
-        }
+        backupSecureOnce(lockBackupDir, KEY_LOCKSCREEN_INFO)
+        backupSecureOnce(lockBackupDir, KEY_TEMPLATE_EDITOR_INFO)
+        backupSecureOnce(lockBackupDir, KEY_DEFAULT_LOCKSCREEN_INFO)
+        backupSecureIntOnce(lockBackupDir, KEY_LOCKSCREEN_INFO_VERSION)
     }
 
     /** 备份息屏样式设置键当前值（仅首次），key 存为文件名。 */
@@ -320,19 +314,18 @@ class WallpaperController(private val context: Context) {
     // ---- 桌面子项 ----
 
     private fun applyDesktop(item: WallpaperItemConfig) {
-        // 1. 备份桌面壁纸源图 + 滚动/特效键（仅首次）
+        // 1. 备份桌面壁纸源图 + 滚动/特效/来源键（仅首次；原值不存在也记录 null 标记）
         desktopBackupDir.mkdirs()
         if (!File(desktopBackupDir, desktopOrigFile.name).exists() && desktopOrigFile.exists()) {
             copyFile(desktopOrigFile, File(desktopBackupDir, desktopOrigFile.name))
         }
-        if (!File(desktopBackupDir, KEY_DESKTOP_SCROLL).exists()) {
-            getSecureInt(KEY_DESKTOP_SCROLL)?.let { File(desktopBackupDir, KEY_DESKTOP_SCROLL).writeText(it.toString()) }
-        }
-        if (!File(desktopBackupDir, KEY_WALLPAPER_EFFECT_1).exists()) {
-            getSecureInt(KEY_WALLPAPER_EFFECT_1)?.let { File(desktopBackupDir, KEY_WALLPAPER_EFFECT_1).writeText(it.toString()) }
-        }
-        if (!File(desktopBackupDir, KEY_WALLPAPER_CHANGED).exists()) {
-            getSecure(KEY_WALLPAPER_CHANGED)?.let { File(desktopBackupDir, KEY_WALLPAPER_CHANGED).writeText(it) }
+        backupSecureIntOnce(desktopBackupDir, KEY_DESKTOP_SCROLL)
+        backupSecureIntOnce(desktopBackupDir, KEY_WALLPAPER_EFFECT_1)
+        backupSecureOnce(desktopBackupDir, KEY_WALLPAPER_CHANGED)
+        // 桌面-only 应用会触发 MIUI 把"跟随桌面"的锁屏迁移成独立锁屏，记录该状态，
+        // 退出时 clear(FLAG_LOCK) 恢复"跟随桌面"，避免锁屏残留被迁移后的壁纸。
+        if (!lockOrigFile.exists() && !File(desktopBackupDir, MARKER_LOCK_FOLLOWS_HOME).exists()) {
+            File(desktopBackupDir, MARKER_LOCK_FOLLOWS_HOME).writeText("1")
         }
 
         // 2. 设置桌面壁纸（官方 setStream，每次都能触发裁剪重建 + 组件重绑）
@@ -359,15 +352,14 @@ class WallpaperController(private val context: Context) {
             setWallpaperStream(backup, WallpaperManager.FLAG_SYSTEM)
             log("restore desktop: restored desktop wallpaper via setStream")
         }
-        File(desktopBackupDir, KEY_DESKTOP_SCROLL).takeIf { it.exists() }?.let { f ->
-            putSecureInt(KEY_DESKTOP_SCROLL, f.readText().toIntOrNull() ?: 0)
+        // 原始锁屏跟随桌面：桌面-only 应用把它迁移成了独立锁屏，这里清掉恢复"跟随桌面"。
+        if (File(desktopBackupDir, MARKER_LOCK_FOLLOWS_HOME).exists()) {
+            wallpaperManager.clear(WallpaperManager.FLAG_LOCK)
+            log("restore desktop: cleared migrated lock wallpaper (was following home)")
         }
-        File(desktopBackupDir, KEY_WALLPAPER_EFFECT_1).takeIf { it.exists() }?.let { f ->
-            putSecureInt(KEY_WALLPAPER_EFFECT_1, f.readText().toIntOrNull() ?: 0)
-        }
-        File(desktopBackupDir, KEY_WALLPAPER_CHANGED).takeIf { it.exists() }?.let { f ->
-            putSecure(KEY_WALLPAPER_CHANGED, f.readText())
-        }
+        restoreSecureIntOnce(desktopBackupDir, KEY_DESKTOP_SCROLL)
+        restoreSecureIntOnce(desktopBackupDir, KEY_WALLPAPER_EFFECT_1)
+        restoreSecureOnce(desktopBackupDir, KEY_WALLPAPER_CHANGED)
         desktopBackupDir.deleteRecursively()
         log("restore desktop: done")
     }
@@ -472,11 +464,61 @@ class WallpaperController(private val context: Context) {
         return null
     }
 
+    /** 备份 Settings.Secure 字符串键（仅首次）；原值不存在时写入 null 标记，恢复时删除该键。 */
+    private fun backupSecureOnce(dir: File, key: String) {
+        dir.mkdirs()
+        val backup = File(dir, key)
+        if (backup.exists()) return
+        backup.writeText(getSecure(key) ?: VALUE_NULL)
+    }
+
+    /** 备份 Settings.Secure 整型键（仅首次）；原值不存在时写入 null 标记。 */
+    private fun backupSecureIntOnce(dir: File, key: String) {
+        dir.mkdirs()
+        val backup = File(dir, key)
+        if (backup.exists()) return
+        backup.writeText(getSecureInt(key)?.toString() ?: VALUE_NULL)
+    }
+
+    /** 恢复 Settings.Secure 字符串键；null 标记表示删除，否则回写原值。 */
+    private fun restoreSecureOnce(dir: File, key: String) {
+        val backup = File(dir, key)
+        if (!backup.exists()) return
+        val value = backup.readText()
+        if (value == VALUE_NULL) deleteSecure(key) else putSecure(key, value)
+    }
+
+    /** 恢复 Settings.Secure 整型键；null 标记表示删除，否则回写原值。 */
+    private fun restoreSecureIntOnce(dir: File, key: String) {
+        val backup = File(dir, key)
+        if (!backup.exists()) return
+        val value = backup.readText()
+        if (value == VALUE_NULL) deleteSecure(key) else putSecureInt(key, value.toIntOrNull() ?: 0)
+    }
+
+    /** 恢复锁屏样式 JSON 键（额外把 subject 路径重写回模板目录）。 */
+    private fun restoreLockscreenJsonKey(key: String) {
+        val backup = File(lockBackupDir, key)
+        if (!backup.exists()) return
+        val value = backup.readText()
+        if (value == VALUE_NULL) {
+            deleteSecure(key)
+        } else {
+            putSecure(key, rewriteSubjectPath(value, subjectMaskFile))
+        }
+    }
+
+    private fun deleteSecure(key: String) {
+        runCatching {
+            context.contentResolver.delete(Settings.Secure.getUriFor(key), null, null)
+        }.onFailure { t -> logError("delete $key failed", t) }
+    }
+
     private fun getSecure(key: String): String? =
         Settings.Secure.getString(context.contentResolver, key)
 
     private fun getSecureInt(key: String): Int? =
-        Settings.Secure.getInt(context.contentResolver, key, -1).takeIf { it != -1 }
+        runCatching { Settings.Secure.getInt(context.contentResolver, key) }.getOrNull()
 
     private fun putSecure(key: String, value: String) {
         Settings.Secure.putString(context.contentResolver, key, value)
@@ -487,6 +529,10 @@ class WallpaperController(private val context: Context) {
     }
 
     private fun log(msg: String) = HyperLog.i(TAG, msg)
+
+    private fun logError(msg: String, t: Throwable? = null) {
+        if (t != null) HyperLog.e(TAG, msg, t) else HyperLog.e(TAG, msg)
+    }
 
     companion object {
         private const val TAG = "WallpaperController"

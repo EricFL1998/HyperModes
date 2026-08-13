@@ -84,27 +84,46 @@ private fun sameLockscreenJson(j1: String?, j2: String?): Boolean {
     return runCatching {
         val o1 = org.json.JSONObject(j1)
         val o2 = org.json.JSONObject(j2)
-        val c1 = o1.optJSONObject("clockInfo")
-        val c2 = o2.optJSONObject("clockInfo")
-        if (c1 == null || c2 == null) return@runCatching false
-        val keys = listOf(
-            "templateId", "primaryColor", "secondaryColor", "blendColor",
-            "secondaryBlendColor", "infoAreaColor", "isAutoPrimaryColor",
-            "isAutoSecondaryColor", "isDiffHourMinuteColor", "enableDiffusion",
-            "style", "clockWeight", "clockEffect", "extraFlag",
-            "classicLine1", "classicLine2", "classicLine3", "classicLine4", "classicLine5"
-        )
-        keys.all { key ->
-            val v1 = c1.opt(key)
-            val v2 = c2.opt(key)
-            when {
-                v1 == JSONObject.NULL && v2 == JSONObject.NULL -> true
-                v1 == JSONObject.NULL || v2 == JSONObject.NULL -> false
-                else -> v1 == v2
-            }
-        }
+        sameSubFields(o1, o2, "clockInfo", CLOCK_INFO_FIELDS) &&
+            sameSubFields(o1, o2, "doodle", DOODLE_FIELDS) &&
+            sameSubFields(o1, o2, "smartFrame", SMART_FRAME_FIELDS) &&
+            sameSubFields(o1, o2, "wallpaperInfo", WALLPAPER_INFO_FIELDS)
     }.getOrDefault(j1 == j2)
 }
+
+/** 比较两个 JSON 的某个子对象在给定关键字段上是否一致（忽略键顺序，容忍新增/补默认字段）。 */
+private fun sameSubFields(
+    o1: org.json.JSONObject,
+    o2: org.json.JSONObject,
+    sub: String,
+    fields: List<String>
+): Boolean {
+    val s1 = o1.optJSONObject(sub)
+    val s2 = o2.optJSONObject(sub)
+    if (s1 == null || s2 == null) return s1 == null && s2 == null
+    return fields.all { key -> optEquals(s1.opt(key), s2.opt(key)) }
+}
+
+/** 将 JSONObject.NULL 归一化为 null 后比较。 */
+private fun optEquals(a: Any?, b: Any?): Boolean {
+    val na = if (a === org.json.JSONObject.NULL) null else a
+    val nb = if (b === org.json.JSONObject.NULL) null else b
+    return na == nb
+}
+
+private val CLOCK_INFO_FIELDS = listOf(
+    "templateId", "primaryColor", "secondaryColor", "blendColor",
+    "secondaryBlendColor", "infoAreaColor", "isAutoPrimaryColor",
+    "isAutoSecondaryColor", "isDiffHourMinuteColor", "enableDiffusion",
+    "style", "clockWeight", "clockEffect", "extraFlag",
+    "classicLine1", "classicLine2", "classicLine3", "classicLine4", "classicLine5"
+)
+
+private val DOODLE_FIELDS = listOf("solidColor", "ribbonColor1", "ribbonColor2", "isAutoSolidColor")
+
+private val SMART_FRAME_FIELDS = listOf("solidColor", "isAutoSolidColor", "shape")
+
+private val WALLPAPER_INFO_FIELDS = listOf("supportSubject", "magicType", "largeScreenHierarchyEnable")
 
 /**
  * 合并编辑后的快照与模式已有配置：快照缺失的字段（如系统锁屏无独立源图时

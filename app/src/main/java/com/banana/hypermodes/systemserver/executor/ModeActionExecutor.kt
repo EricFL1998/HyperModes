@@ -6,6 +6,7 @@ import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.StatusBarIconManager
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ModeType
+import java.util.concurrent.Executors
 
 /**
  * Executor for applying and reverting mode actions.
@@ -34,6 +35,12 @@ class ModeActionExecutor(
     private val statusBarIconManager = StatusBarIconManager(context, classLoader)
     private val wallpaperController = WallpaperController(context)
 
+    // 模式动作里 setStream 等是阻塞 Binder 调用（内部最长 30s），必须脱离
+    // system_server 主线程执行，避免 watchdog/ANR。
+    private val executor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "HyperModes-ModeExecutor").apply { isDaemon = true }
+    }
+
     // Track what was applied for rollback
     private data class AppliedState(
         var deviceApplied: Boolean = false,
@@ -53,7 +60,12 @@ class ModeActionExecutor(
      * @param mode Mode configuration to apply
      * @throws Exception if mode application fails (after rollback)
      */
+    /** 异步应用模式（脱离主线程）；失败在内部回滚并记录日志，不再向调用方抛出。 */
     fun applyMode(mode: ModeConfig) {
+        executor.execute { applyModeInternal(mode) }
+    }
+
+    private fun applyModeInternal(mode: ModeConfig) {
         log("applyMode: ${mode.name} (id=${mode.id})")
         
         val applied = AppliedState()
@@ -90,8 +102,8 @@ class ModeActionExecutor(
 
             // Step 6: Apply wallpaper set (lock screen style + wallpaper)
             if (mode.wallpaper != null) {
-                wallpaperController.apply(mode.wallpaper)
                 applied.wallpaperApplied = true
+                wallpaperController.apply(mode.wallpaper)
                 log("✓ Wallpaper set applied")
             } else {
                 log("No wallpaper set to apply")
@@ -135,8 +147,7 @@ class ModeActionExecutor(
                 // Log but don't throw - we're already handling an exception
             }
 
-            // Re-throw original exception
-            throw ModeApplicationException("Failed to apply mode ${mode.name}", e)
+            logError("Failed to apply mode ${mode.name}", e)
         }
     }
 
@@ -148,7 +159,12 @@ class ModeActionExecutor(
      *
      * @param mode Mode configuration to revert
      */
+    /** 异步复原模式（脱离主线程）；错误记录日志，不向调用方抛出。 */
     fun revertMode(mode: ModeConfig) {
+        executor.execute { revertModeInternal(mode) }
+    }
+
+    private fun revertModeInternal(mode: ModeConfig) {
         log("revertMode: ${mode.name} (id=${mode.id})")
 
         val errors = mutableListOf<String>()
@@ -229,16 +245,11 @@ class ModeActionExecutor(
         HyperLog.i(TAG, msg)
     }
 
+    private fun logError(msg: String, t: Throwable? = null) {
+        if (t != null) HyperLog.e(TAG, msg, t) else HyperLog.e(TAG, msg)
+    }
+
     companion object {
         private const val TAG = "ModeActionExecutor"
     }
 }
-
-/**
- * Exception thrown when mode application fails.
- * Indicates that rollback has been attempted.
- */
-class ModeApplicationException(
-    message: String,
-    cause: Throwable? = null
-) : Exception(message, cause)
