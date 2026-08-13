@@ -4,6 +4,8 @@ import android.content.Context
 import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
 import android.provider.Settings
+import android.bluetooth.BluetoothManager
+import android.net.wifi.WifiManager
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.DeviceConfig
@@ -54,15 +56,17 @@ class DeviceController(private val context: Context) {
 
             // WiFi
             device.enableWifi?.let { enabled ->
-                saveOriginal(KEY_ORIG_WIFI_ON, Settings.Global.getInt(cr, Settings.Global.WIFI_ON, 1))
-                Settings.Global.putInt(cr, Settings.Global.WIFI_ON, if (enabled) 1 else 0)
+                // WIFI_ON 是只读设置键，直接写不会真正开关；改用系统 API。
+                saveOriginal(KEY_ORIG_WIFI_ON, if (isWifiEnabled()) 1 else 0)
+                setWifiEnabled(enabled)
                 log("apply: set WiFi to $enabled")
             }
 
             // Bluetooth
             device.enableBluetooth?.let { enabled ->
-                saveOriginal(KEY_ORIG_BLUETOOTH_ON, Settings.Global.getInt(cr, Settings.Global.BLUETOOTH_ON, 1))
-                Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, if (enabled) 1 else 0)
+                // BLUETOOTH_ON 是只读设置键；改用系统 API。
+                saveOriginal(KEY_ORIG_BLUETOOTH_ON, if (isBluetoothEnabled()) 1 else 0)
+                setBluetoothEnabled(enabled)
                 log("apply: set Bluetooth to $enabled")
             }
 
@@ -114,11 +118,11 @@ class DeviceController(private val context: Context) {
             }
 
             takeOriginal(KEY_ORIG_WIFI_ON)?.let { original ->
-                Settings.Global.putInt(cr, Settings.Global.WIFI_ON, original)
+                setWifiEnabled(original == 1)
             }
 
             takeOriginal(KEY_ORIG_BLUETOOTH_ON)?.let { original ->
-                Settings.Global.putInt(cr, Settings.Global.BLUETOOTH_ON, original)
+                setBluetoothEnabled(original == 1)
             }
 
             takeOriginal(KEY_ORIG_HOTSPOT_ON)?.let { original ->
@@ -220,6 +224,24 @@ class DeviceController(private val context: Context) {
         if (!invoked) {
             log("callSetDefaultDataSubId: setDefaultDataSubId unavailable on this build")
         }
+    }
+
+    private fun isWifiEnabled(): Boolean =
+        (context.getSystemService(Context.WIFI_SERVICE) as WifiManager).isWifiEnabled
+
+    private fun setWifiEnabled(enabled: Boolean) {
+        val wm = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        @Suppress("DEPRECATION")
+        wm.setWifiEnabled(enabled)
+    }
+
+    private fun isBluetoothEnabled(): Boolean =
+        context.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled ?: false
+
+    private fun setBluetoothEnabled(enabled: Boolean) {
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return
+        @Suppress("DEPRECATION")
+        if (enabled) adapter.enable() else adapter.disable()
     }
 
     /**
