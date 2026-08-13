@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.provider.Settings
 import android.util.Log
 import com.banana.hypermodes.protocol.PackageLifecyclePolicy
 import com.banana.hypermodes.protocol.Protocol
@@ -215,8 +216,56 @@ class DeskClockHook(private val module: XposedModule) {
         }
         log("ZenModeUtil enter/exit hooked")
 
+        // 自动睡眠进入走 AlarmHelper.setZenMode（time-aware），而非 ZenModeUtil.enterZenMode；
+        // 不 hook 这里，到睡眠时间 DeskClock 自动进入勿扰时 HyperModes 收不到 ON 信号。
+        hookAlarmHelperSetZenMode(classLoader)
+
         hookAlarmSkip(classLoader)
     }
+
+    /**
+     * AlarmHelper.setZenMode is the time-aware entry used by the scheduled sleep
+     * start/stop sequence. After it runs, read MIUI's actual 勿扰 (silence_mode)
+     * state and push the result so bedtime mode follows the scheduled transition.
+     */
+    private fun hookAlarmHelperSetZenMode(classLoader: ClassLoader) {
+        val alarmHelper = try {
+            classLoader.loadClass(CLS_ALARM_HELPER)
+        } catch (t: Throwable) {
+            log("AlarmHelper not found for setZenMode: ${t.message}")
+            return
+        }
+        val setZenMode = try {
+            alarmHelper.getDeclaredMethod("setZenMode", Context::class.java)
+        } catch (t: Throwable) {
+            log("setZenMode not found: ${t.message}")
+            return
+        }
+        module.hook(setZenMode)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        val context = chain.getArg(0) as? Context ?: return result
+                        val active = readMiuiZenMode(context)
+                        sendBedtimeState(context, active, if (active) "ZEN_ENTERED" else "ZEN_EXITED")
+                    } catch (t: Throwable) {
+                        log("setZenMode broadcast failed: $t")
+                    }
+                    return result
+                }
+            })
+        log("AlarmHelper.setZenMode hooked")
+    }
+
+    /** MIUI 勿扰状态：silence_mode == 4 表示勿扰开启（与 DeviceController 一致）。 */
+    private fun readMiuiZenMode(context: Context): Boolean =
+        try {
+            Settings.System.getInt(context.contentResolver, "silence_mode", 0) == 4
+        } catch (_: Throwable) {
+            false
+        }
 
     private fun hookAlarmSkip(classLoader: ClassLoader) {
         val alarmHelper = try {

@@ -192,9 +192,18 @@ class ModeActionExecutor(
         }
 
         try {
+            deviceController.restore()
+            log("✓ Device settings restored")
+        } catch (e: Exception) {
+            val msg = "Failed to restore device settings: ${e.message}"
+            log("✗ $msg")
+            errors.add(msg)
+        }
+
+        try {
             // Bedtime mode exits when the wake alarm is dismissed/turned off. The user expects
-            // sleep mode and DND to turn off together, so force DND off instead of restoring
-            // the pre-bedtime interruption filter (which might have left DND on).
+            // sleep mode and DND to turn off together. DND runs AFTER device restore so it wins
+            // and clears both the interruption filter and MIUI silence_mode (勿扰).
             if (mode.type == ModeType.BEDTIME) {
                 dndController.forceDisableAndClearOriginal()
             } else {
@@ -203,15 +212,6 @@ class ModeActionExecutor(
             log("✓ DND restored")
         } catch (e: Exception) {
             val msg = "Failed to restore DND: ${e.message}"
-            log("✗ $msg")
-            errors.add(msg)
-        }
-
-        try {
-            deviceController.restore()
-            log("✓ Device settings restored")
-        } catch (e: Exception) {
-            val msg = "Failed to restore device settings: ${e.message}"
             log("✗ $msg")
             errors.add(msg)
         }

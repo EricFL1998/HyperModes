@@ -90,10 +90,13 @@ class DndController(private val context: Context) {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            // 同时关闭 MIUI 勿扰（silence_mode == 4 为勿扰），
+            // 否则 DeviceController.restore 恢复完 silence_mode 后勿扰仍会残留。
+            Settings.System.putInt(context.contentResolver, "silence_mode", 0)
             context.contentResolver.let { resolver ->
                 Settings.Global.putString(resolver, KEY_ORIG_INTERRUPTION_FILTER, null)
             }
-            log("forceDisableAndClearOriginal: DND disabled, original filter cleared")
+            log("forceDisableAndClearOriginal: DND + MIUI silence mode disabled, original filter cleared")
         } catch (e: Exception) {
             log("forceDisableAndClearOriginal: failed: ${e.message}")
             e.printStackTrace()
