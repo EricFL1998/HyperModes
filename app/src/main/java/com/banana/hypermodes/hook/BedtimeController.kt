@@ -49,7 +49,7 @@ class BedtimeController(
         private const val KEY_IS_IN_SLEEP = "isInSleep"
 
         // Android ZenMode integration
-        private const val BEDTIME_RULE_NAME = "HyperModes Bedtime"
+        const val BEDTIME_RULE_NAME = "HyperModes Bedtime"
         private const val BEDTIME_RULE_ID = "hypermodes_bedtime"
     }
 
@@ -132,17 +132,23 @@ class BedtimeController(
             null
         }
 
+        var sleepSaved = false
         if (sleepAlarm != null) {
             runStep(results, "saveSleepAlarm") {
                 Reflect.callStatic(bedtimeUtil, "saveSleepAlarm", context, sleepAlarm)
             }
+            sleepSaved = succeeded(results, "saveSleepAlarm")
         }
 
-        // 2. Update sleep schedule in Mi Health
-        runStep(results, "updateSleepSchedule") {
-            Reflect.callStatic(
-                healthDataUtil, "updateSleepSchedule", context, sleepHour, sleepMin
-            )
+        // 2. Update sleep schedule in Mi Health（仅在睡眠闹钟成功写入后，避免推不一致时间）
+        if (sleepSaved) {
+            runStep(results, "updateSleepSchedule") {
+                Reflect.callStatic(
+                    healthDataUtil, "updateSleepSchedule", context, sleepHour, sleepMin
+                )
+            }
+        } else {
+            results += StepResult.fail("updateSleepSchedule", "skipped: sleep alarm not saved")
         }
 
         // 3. Fetch the wake alarm from ContentProvider (id = Integer.MIN_VALUE)
@@ -162,22 +168,28 @@ class BedtimeController(
         }
 
         // 4. Mutate and persist wake alarm
+        var wakeSaved = false
         if (wakeAlarm != null) {
             if (mutateAlarm(wakeAlarm, wakeHour, wakeMin, repeatDays, results)) {
                 runStep(results, "setWakeAlarm") {
                     // AlarmHelper.setWakeAlarm(context, alarm) persists to sleep_alarms table
                     Reflect.callStatic(alarmHelper, "setWakeAlarm", context, wakeAlarm)
                 }
+                wakeSaved = succeeded(results, "setWakeAlarm")
             } else {
                 results += StepResult.fail("setWakeAlarm", "skipped: alarm mutation failed")
             }
         }
 
-        // 5. Update wake schedule in Mi Health
-        runStep(results, "updateWakeSchedule") {
-            Reflect.callStatic(
-                healthDataUtil, "updateWakeSchedule", context, wakeHour, wakeMin
-            )
+        // 5. Update wake schedule in Mi Health（仅在起床闹钟成功写入后）
+        if (wakeSaved) {
+            runStep(results, "updateWakeSchedule") {
+                Reflect.callStatic(
+                    healthDataUtil, "updateWakeSchedule", context, wakeHour, wakeMin
+                )
+            }
+        } else {
+            results += StepResult.fail("updateWakeSchedule", "skipped: wake alarm not saved")
         }
 
         // 6. Reschedule the bedtime reminder notification.
@@ -415,6 +427,11 @@ class BedtimeController(
         runStep(results, "registerWakeAlarm") {
             Reflect.callStatic(alarmHelper, "registerWakeAlarm", context)
         }
+        // 显式结束正在进行的睡眠会话。这里不再依赖 hook 对 skipAlarmForOnce 的
+        // 拦截来补 exitActiveBedtime：若该 hook 因签名变化而未装上，in-window
+        // 手动关闭仍能退出睡眠，而不是只 skip 闹钟却留在勿扰里。
+        // exitActiveBedtime 幂等，即便 hook 已经拦截退出过一次，重复退出无害。
+        exitActiveBedtime().forEach { results += it }
         return results
     }
 
@@ -500,6 +517,10 @@ class BedtimeController(
         }
     }
 
+    /** 步骤是否已成功执行（供后续步骤判断是否继续）。 */
+    private fun succeeded(results: List<StepResult>, name: String): Boolean =
+        results.lastOrNull { it.name == name }?.success == true
+
     /**
      * finding.md does not document Alarm's member names, so try AOSP DeskClock
      * names first (public int fields hour/minutes, daysOfWeek wrapper), then
@@ -507,20 +528,20 @@ class BedtimeController(
      * diagnosis without recompiling.
      */
     private fun mutateAlarm(
-        alarm: Any, sleepHour: Int, sleepMin: Int, repeatDays: Int,
+        alarm: Any, hour: Int, minute: Int, repeatDays: Int,
         results: MutableList<StepResult>
     ): Boolean {
         val tried = mutableListOf<String>()
 
         // Time: fields first, setters as fallback.
         try {
-            Reflect.setIntField(alarm, "hour", sleepHour)
-            Reflect.setIntField(alarm, "minutes", sleepMin)
+            Reflect.setIntField(alarm, "hour", hour)
+            Reflect.setIntField(alarm, "minutes", minute)
             tried += "fields hour/minutes"
         } catch (t: Throwable) {
             try {
-                Reflect.call(alarm, "setHour", sleepHour)
-                Reflect.call(alarm, "setMinutes", sleepMin)
+                Reflect.call(alarm, "setHour", hour)
+                Reflect.call(alarm, "setMinutes", minute)
                 tried += "setters setHour/setMinutes"
             } catch (t2: Throwable) {
                 results += StepResult.fail("mutateAlarm", "time: ${t2.message}")

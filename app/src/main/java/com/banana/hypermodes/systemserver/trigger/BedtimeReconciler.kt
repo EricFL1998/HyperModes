@@ -35,8 +35,10 @@ object BedtimeReconciler {
     enum class Command { START_BEDTIME, SKIP_WAKE_ALARM_ONCE, EXIT_BEDTIME, ENABLE_WAKE_ALARM }
 
     sealed interface Event {
-        /** A state signal from DeskClock. [receivedAt] is stamped in
-         * system_server on receipt — sender clocks are never trusted. */
+        /** A state signal from DeskClock. [receivedAt] is the event's original
+         * timestamp: DeskClock's wall time when available (single device, shared
+         * clock), falling back to system_server receipt time. Used for the
+         * anti-flap stale-signal comparisons. */
         data class DeskClockSignal(val active: Boolean, val reason: Reason, val receivedAt: Long) : Event
         /** Bedtime mode activated via config (manual UI toggle / config restore). */
         data class ModeActivatedViaConfig(val receivedAt: Long) : Event

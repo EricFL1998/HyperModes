@@ -397,7 +397,7 @@ class DeskClockHook(private val module: XposedModule) {
                         sleepHour = intent.getIntExtra(Protocol.EXTRA_SLEEP_HOUR, 22),
                         sleepMin = intent.getIntExtra(Protocol.EXTRA_SLEEP_MIN, 30),
                         wakeHour = intent.getIntExtra(Protocol.EXTRA_WAKE_HOUR, 7),
-                        wakeMin = intent.getIntExtra(Protocol.EXTRA_WAKE_MIN, 30),
+                        wakeMin = intent.getIntExtra(Protocol.EXTRA_WAKE_MIN, 0),
                         repeatDays = intent.getIntExtra(Protocol.EXTRA_REPEAT_DAYS, Protocol.EVERY_DAY)
                     )
                     Protocol.ACTION_START_BEDTIME -> controller.startBedtime()
@@ -475,6 +475,15 @@ class DeskClockHook(private val module: XposedModule) {
         //  2. Require the rule's condition to actually be STATE_TRUE (firing),
         //     not merely enabled.
         val rules = notificationManager.automaticZenRules ?: return emptyList()
+        // 自触发 guard（关键）：若自己的 "HyperModes Bedtime" 规则正在 firing，
+        // 说明本次过滤器变化来自我们自己 start/stop bedtime（enable/disableAndroidBedtimeMode
+        // 会改变中断过滤器并触发本回调）。此时绝不能据此再 start/stop，否则 start 会
+        // 刚启动就被 stopBedtime 打断、stop 会重复触发。
+        val ownRuleFiring = rules.values.any { rule ->
+            rule.name == BedtimeController.BEDTIME_RULE_NAME && isRuleFiring(rule)
+        }
+        if (ownRuleFiring) return emptyList()
+
         val bedtimeActive = rules.values.any { rule ->
             rule.isEnabled &&
                     rule.name.contains("bedtime", ignoreCase = true) &&

@@ -567,11 +567,15 @@ class RoutineCoreEngine private constructor() {
      * All policy lives in BedtimeReconciler; this only builds the snapshot and
      * executes the resulting decisions.
      */
-    fun onBedtimeSignal(active: Boolean, reasonName: String?) {
+    fun onBedtimeSignal(active: Boolean, reasonName: String?, eventTime: Long = 0L) {
         if (lifecycleState == LifecycleState.REMOVED) return
         val reason = BedtimeReconciler.Reason.fromString(reasonName, active)
+        // 优先用 DeskClock 侧的事件时间（单设备共享时钟），避免广播投递延迟导致
+        // 反抖 guard 用"接收时间"判不出 stale 信号；缺失或异常(未来过大)时回退接收时间。
+        val now = System.currentTimeMillis()
+        val stamp = if (eventTime in 1..now + 60_000) eventTime else now
         val decisions = BedtimeReconciler.decide(
-            BedtimeReconciler.Event.DeskClockSignal(active, reason, System.currentTimeMillis()),
+            BedtimeReconciler.Event.DeskClockSignal(active, reason, stamp),
             bedtimeSnapshot()
         )
         log("Bedtime signal active=$active reason=$reason -> ${decisions.joinToString()}")
