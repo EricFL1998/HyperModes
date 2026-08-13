@@ -90,23 +90,8 @@ class ScheduledModeManager(
 
         // Bedtime's window is owned by the bedtime listener/reconciler.
         if (mode.type == ModeType.BEDTIME) return false
-
-        for (group in mode.triggerGroups) {
-            val triggers = when (group) {
-                is TriggerGroup.Single -> listOf(group.trigger)
-                is TriggerGroup.Compound -> group.triggers
-            }
-            for (trigger in triggers) {
-                if (trigger !is ComplexTrigger.Time) continue
-                val repeatDays = normalizedDays(trigger.repeatDays)
-                if (isCurrentlyInSchedule(trigger.startTime, trigger.endTime, repeatDays)) {
-                    val periodStart = getCurrentPeriodStart(trigger.startTime, repeatDays)
-                    if (!engine.isDismissedInCurrentPeriod(mode.id, periodStart)) {
-                        return true
-                    }
-                }
-            }
-        }
+        // 触发器组内的 Time 触发由 TriggerGroupManager 按组(AND)评估，这里不再
+        // 单独按 OR 判断，避免"时间+WiFi"等复合组退化成"到点就激活"。
         return false
     }
 
@@ -193,7 +178,7 @@ class ScheduledModeManager(
             } else {
                 log("Within time trigger window, activating immediately: ${mode.name}")
                 engine.clearDismissRecord(mode.id)
-                engine.activateMode(mode.id)
+                engine.onTimeTriggerFired(mode.id)
             }
         }
 
@@ -227,6 +212,9 @@ class ScheduledModeManager(
 
         try {
             val tag = "${alarmKey}_${if (isStart) "start" else "end"}"
+            // 时间触发（复合组内的 Time）通过 TriggerGroupManager 重算整组，而不是直接激活；
+            // 否则"时间+WiFi"这类 AND 组会退化成"到点就激活"。
+            val isTimeTrigger = alarmKey != modeId
 
             // Create listener that runs in system_server
             val listener = AlarmManager.OnAlarmListener {
@@ -260,11 +248,19 @@ class ScheduledModeManager(
                         } else {
                             // Clear any old dismiss record since this is a new period
                             engine.clearDismissRecord(modeId)
-                            engine.activateMode(modeId)
+                            if (isTimeTrigger) {
+                                engine.onTimeTriggerFired(modeId)
+                            } else {
+                                engine.activateMode(modeId)
+                            }
                         }
                     } else {
                         // End alarm: automatic deactivation, not user dismiss
-                        engine.deactivateMode(modeId, isManualDismiss = false)
+                        if (isTimeTrigger) {
+                            engine.onTimeTriggerFired(modeId)
+                        } else {
+                            engine.deactivateMode(modeId, isManualDismiss = false)
+                        }
                     }
                 } catch (e: Exception) {
                     log("Failed to ${if (isStart) "activate" else "deactivate"} mode $modeId: ${e.message}")

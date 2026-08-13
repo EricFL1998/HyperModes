@@ -8,6 +8,7 @@ import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.TriggerGroup
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
 import com.banana.hypermodes.systemserver.config.ModeType
+import java.util.Calendar
 
 /**
  * Manages TriggerGroup v2.0 logic.
@@ -40,20 +41,27 @@ class TriggerGroupManager(
     private val groupStates = mutableMapOf<String, MutableMap<Int, Boolean>>()
 
     fun init(modes: List<ModeConfig>) {
-                allModes = modes
+        allModes = modes
         updateSubManagers()
         checkAllConditions()
+        recheckAll()
     }
 
     fun updateModes(modes: List<ModeConfig>) {
-                allModes = modes
+        allModes = modes
         updateSubManagers()
         checkAllConditions()
+        recheckAll()
     }
 
     fun isModeActiveByTrigger(modeId: String): Boolean {
         // A mode is active if ANY of its trigger groups is satisfied
         return groupStates[modeId]?.values?.any { it } ?: false
+    }
+
+    /** 重新评估某个模式的触发器组满足度（Time 触发由 ScheduledModeManager 的时间窗变化触发）。 */
+    fun recheck(modeId: String) {
+        recomputeGroups(modeId)
     }
 
     private fun updateSubManagers() {
@@ -139,57 +147,106 @@ class TriggerGroupManager(
     }
 
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
-                // Parse triggerKey to get modeId and groupIndex
+        // Parse triggerKey to get modeId
         // Format: "modeId_groupN_triggerKey"
         // modeId itself may contain underscores, so anchor on "_group"
         val groupMarker = "_group"
         val groupIdx = triggerKey.indexOf(groupMarker)
         if (groupIdx < 0) return
-        val modeId: String
-        val groupIndex: Int?
-        modeId = triggerKey.substring(0, groupIdx)
-        val afterGroup = triggerKey.substring(groupIdx + groupMarker.length)
-        groupIndex = afterGroup.substringBefore("_").toIntOrNull()
+        val modeId = triggerKey.substring(0, groupIdx)
 
         // Update trigger state
         val modeStates = triggerStates.getOrPut(modeId) { mutableMapOf() }
         modeStates[triggerKey] = isActive
 
-        // Check if this mode uses trigger groups
+        recomputeGroups(modeId)
+    }
+
+    /** 重新评估一个模式的触发器组满足度，并在上升/下降沿激活/停用模式。 */
+    private fun recomputeGroups(modeId: String) {
         val mode = allModes.find { it.id == modeId } ?: return
-        
-        if (mode.triggerGroups.isNotEmpty()) {
-                        // v2.0 logic: check group satisfaction
-            val groups = groupStates.getOrPut(modeId) { mutableMapOf() }
-            val wasAnyGroupActive = groups.values.any { it }
+        if (mode.triggerGroups.isEmpty()) return
 
-            mode.triggerGroups.forEachIndexed { idx, group ->
-                val triggers = when (group) {
-                    is TriggerGroup.Single -> listOf(group.trigger)
-                    is TriggerGroup.Compound -> group.triggers
-                }
-                
-                                // Check if ALL triggers in this group are active (AND logic)
-                val allActive = triggers.all { trigger ->
-                    val key = "${modeId}_group${idx}_${getTriggerKey(trigger)}"
-                    val state = modeStates[key]
-                                        modeStates[key] == true
-                }
-                
-                groups[idx] = allActive
+        val groups = groupStates.getOrPut(modeId) { mutableMapOf() }
+        val wasAnyGroupActive = groups.values.any { it }
+
+        mode.triggerGroups.forEachIndexed { idx, group ->
+            val triggers = when (group) {
+                is TriggerGroup.Single -> listOf(group.trigger)
+                is TriggerGroup.Compound -> group.triggers
             }
 
-            val isAnyGroupActive = groups.values.any { it }
-
-            // Activate/deactivate based on group states
-            if (isAnyGroupActive && !wasAnyGroupActive) {
-                log("Mode $modeId activated (trigger group satisfied)")
-                engine.activateMode(modeId)
-            } else if (!isAnyGroupActive && wasAnyGroupActive) {
-                log("Mode $modeId deactivated (no trigger groups satisfied)")
-                engine.deactivateMode(modeId, isManualDismiss = false)
+            // Check if ALL triggers in this group are active (AND logic)。
+            // Time 触发直接按当前时间窗判断，不依赖子管理器上报。
+            val allActive = triggers.all { trigger ->
+                when (trigger) {
+                    is ComplexTrigger.Time -> isTimeActive(trigger)
+                    else -> triggerStates[modeId]
+                        ?.get("${modeId}_group${idx}_${getTriggerKey(trigger)}") == true
+                }
             }
+            groups[idx] = allActive
         }
+
+        // 清理已删除组的残留状态，避免陈旧的 true 把模式钉在激活态。
+        groups.keys.filter { it >= mode.triggerGroups.size }.forEach { groups.remove(it) }
+
+        val isAnyGroupActive = groups.values.any { it }
+
+        // Activate/deactivate based on group states
+        if (isAnyGroupActive && !wasAnyGroupActive) {
+            log("Mode $modeId activated (trigger group satisfied)")
+            engine.activateMode(modeId)
+        } else if (!isAnyGroupActive && wasAnyGroupActive) {
+            log("Mode $modeId deactivated (no trigger groups satisfied)")
+            engine.deactivateMode(modeId, isManualDismiss = false)
+        }
+    }
+
+    /** 对所有模式重算触发器组（用于配置加载后补上 Time 触发的状态）。 */
+    private fun recheckAll() {
+        allModes.forEach { recomputeGroups(it.id) }
+    }
+
+    /** 判断 Time 触发当前是否处于时间窗内（跨天支持，1=周一 .. 7=周日）。 */
+    private fun isTimeActive(trigger: ComplexTrigger.Time): Boolean {
+        val start = parseTime(trigger.startTime) ?: return false
+        val end = parseTime(trigger.endTime) ?: return false
+        val startMin = start.first * 60 + start.second
+        val endMin = end.first * 60 + end.second
+        if (startMin == endMin) return true
+
+        val now = Calendar.getInstance()
+        val curMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val repeatDays = trigger.repeatDays
+            .filter { it in 1..7 }
+            .takeIf { it.isNotEmpty() }
+            ?: ALL_DAYS
+
+        val inWindow = if (endMin < startMin) {
+            curMin >= startMin || curMin < endMin
+        } else {
+            curMin >= startMin && curMin < endMin
+        }
+        if (!inWindow) return false
+
+        val dayOfWeek = now.get(Calendar.DAY_OF_WEEK)
+        val curDay = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
+        val effectiveDay = if (endMin < startMin && curMin < endMin) {
+            if (curDay == 1) 7 else curDay - 1
+        } else {
+            curDay
+        }
+        return repeatDays.contains(effectiveDay)
+    }
+
+    private fun parseTime(time: String): Pair<Int, Int>? {
+        val parts = time.split(":")
+        if (parts.size != 2) return null
+        val hour = parts[0].toIntOrNull() ?: return null
+        val minute = parts[1].toIntOrNull() ?: return null
+        if (hour !in 0..23 || minute !in 0..59) return null
+        return hour to minute
     }
 
     fun release() {
@@ -206,6 +263,7 @@ class TriggerGroupManager(
 
     companion object {
         private const val TAG = "TriggerGroupManager"
+        private val ALL_DAYS = listOf(1, 2, 3, 4, 5, 6, 7)
     }
 }
 

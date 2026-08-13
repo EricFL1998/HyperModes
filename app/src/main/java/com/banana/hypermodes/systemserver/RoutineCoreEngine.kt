@@ -675,6 +675,11 @@ class RoutineCoreEngine private constructor() {
         }
     }
 
+    /** 时间触发器的窗口开/关变化，交给 TriggerGroupManager 重算整组（含复合组的 AND）。 */
+    fun onTimeTriggerFired(modeId: String) {
+        triggerGroupManager?.recheck(modeId)
+    }
+
     private fun isPackageInstalled(context: Context, packageName: String): Boolean {
         return try {
             context.packageManager.getPackageInfo(packageName, 0)

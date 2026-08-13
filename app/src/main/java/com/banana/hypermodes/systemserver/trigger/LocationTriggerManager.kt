@@ -31,6 +31,7 @@ class LocationTriggerManager(
     
     // Synchronized state
     private val lock = Any()
+    // key = 完整 triggerKey（"modeId_groupN_location_<id>"），不是单纯的 modeId。
     private var configs: Map<String, List<Pair<String, ComplexTrigger.Location>>> = emptyMap()
     private val triggerStates = mutableMapOf<String, Boolean?>()
     private var retryCount = 0
@@ -110,7 +111,7 @@ class LocationTriggerManager(
 
         // Register for geofence events from app process
         val geofenceFilter = IntentFilter(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
-        context.registerReceiver(geofenceEventReceiver, geofenceFilter)
+        context.registerReceiver(geofenceEventReceiver, geofenceFilter, Context.RECEIVER_EXPORTED)
         HyperLog.i(TAG, "Registered receiver for ${Protocol.ACTION_POLARIS_GEOFENCE_EVENT}")
     }
 
@@ -205,11 +206,11 @@ class LocationTriggerManager(
         }
     }
 
-    private fun onGeofenceEvent(modeId: String, triggerId: String, event: GeofenceEvent) {
-        val key = "$modeId:$triggerId"
+    private fun onGeofenceEvent(triggerKey: String, triggerId: String, event: GeofenceEvent) {
+        val key = "$triggerKey:$triggerId"
         
         val (trigger, wasInside) = synchronized(lock) {
-            val t = configs[modeId]?.find { it.first == triggerId }?.second
+            val t = configs[triggerKey]?.find { it.first == triggerId }?.second
             val was = triggerStates[key]
             t to was
         }
@@ -235,12 +236,12 @@ class LocationTriggerManager(
             else -> false
         }
 
-        HyperLog.i(TAG, "Geofence event: mode=$modeId, trigger=$triggerId, event=$event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
+        HyperLog.i(TAG, "Geofence event: key=$triggerKey, trigger=$triggerId, event=$event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
 
         // Only fire callback if state actually changed (or was unknown)
         if (wasInside == null || wasInside != isInside) {
             HyperLog.i(TAG, "  State changed from $wasInside -> $isInside, firing callback")
-            callback(modeId, "location:$triggerId", shouldActivate)
+            callback(triggerKey, "location:$triggerId", shouldActivate)
         } else {
             HyperLog.d(TAG, "  State unchanged ($isInside), skipping callback")
         }

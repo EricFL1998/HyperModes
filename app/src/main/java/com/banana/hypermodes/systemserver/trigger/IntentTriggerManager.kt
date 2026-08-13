@@ -100,7 +100,7 @@ class IntentTriggerManager(
             }
             
             if (actionCount > 0) {
-                context.registerReceiver(receiver, filter, null, handler)
+                context.registerReceiver(receiver, filter, null, handler, Context.RECEIVER_EXPORTED)
                 receivers[modeId] = receiver
                 HyperLog.i(TAG, "Registered receiver for mode: $modeId with $actionCount actions")
             }

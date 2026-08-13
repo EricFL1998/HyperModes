@@ -6,6 +6,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 class MusicTriggerManager(
     private val context: Context,
@@ -42,13 +43,13 @@ class MusicTriggerManager(
                 val controllers = mediaSessionManager.getActiveSessions(null)
                 updateControllers(controllers)
             } catch (e: Exception) {
-                // Ignore
+                Log.w(TAG, "Failed to register music session listener; music trigger won't fire", e)
             }
         } else if (modeIds.isEmpty() && isListening) {
             try {
                 mediaSessionManager.removeOnActiveSessionsChangedListener(sessionListener)
             } catch (e: Exception) {
-                // Ignore
+                Log.w(TAG, "Failed to remove music session listener", e)
             }
             isListening = false
             updateControllers(emptyList())
@@ -67,5 +68,9 @@ class MusicTriggerManager(
             it.playbackState?.state == PlaybackState.STATE_PLAYING 
         }
         modeIds.forEach { callback(it, "music", isMusicPlaying) }
+    }
+
+    companion object {
+        private const val TAG = "MusicTriggerManager"
     }
 }

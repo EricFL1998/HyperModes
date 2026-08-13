@@ -165,8 +165,12 @@ class BluetoothTriggerManager(
 
     private fun isDeviceConnected(device: BluetoothDevice): Boolean {
         return try {
-            // Try reflection first (hidden API)
-            val method = device.javaClass.getMethod("isConnected")
+            // Try public method first, then hidden/declared with accessible fallback.
+            val method = try {
+                device.javaClass.getMethod("isConnected")
+            } catch (e: NoSuchMethodException) {
+                device.javaClass.getDeclaredMethod("isConnected").apply { isAccessible = true }
+            }
             method.invoke(device) as? Boolean == true
         } catch (e: NoSuchMethodException) {
             // Method not available on this Android version

@@ -85,8 +85,8 @@ class BatteryTriggerManager(
         currentConfigs.forEach { (triggerKey, config) ->
             val (threshold, operator) = config
             val isActive = when (operator) {
-                "above" -> level >= threshold
-                "below" -> level <= threshold
+                "above" -> level > threshold
+                "below" -> level < threshold
                 "equal" -> level == threshold
                 else -> false
             }
