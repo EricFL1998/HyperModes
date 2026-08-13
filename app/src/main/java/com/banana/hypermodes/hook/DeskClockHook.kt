@@ -47,6 +47,7 @@ class DeskClockHook(private val module: XposedModule) {
         hookWakeAlarmDismissal(classLoader)
         hookAlarmSkip(classLoader)
         hookAlarmEnable(classLoader)
+        hookAlarmRinging(classLoader)
     }
 
     /**
@@ -361,6 +362,54 @@ class DeskClockHook(private val module: XposedModule) {
                 }
             })
         log("enableAlarm hooked")
+    }
+
+    /**
+     * 普通闹钟响铃检测：AlarmService 响铃时以 ALARM_ALERT 类 action 启动，
+     * hook onStartCommand 后广播 ACTION_ALARM_RINGING 给 system_server 的自动化引擎。
+     */
+    private fun hookAlarmRinging(classLoader: ClassLoader) {
+        val alarmService = try {
+            classLoader.loadClass("com.android.deskclock.alarm.AlarmService")
+        } catch (t: Throwable) {
+            log("AlarmService not found: ${t.message}")
+            return
+        }
+        val onStartCommand = try {
+            alarmService.getDeclaredMethod(
+                "onStartCommand",
+                Intent::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType
+            )
+        } catch (t: Throwable) {
+            log("AlarmService.onStartCommand not found: ${t.message}")
+            return
+        }
+        module.hook(onStartCommand)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(object : XposedInterface.Hooker {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val result = chain.proceed()
+                    try {
+                        val intent = chain.getArg(0) as? Intent
+                        val action = intent?.action ?: ""
+                        val isAlert = action == "com.android.deskclock.ALARM_ALERT" ||
+                            action.contains("ALARM_ALERT", ignoreCase = true) ||
+                            action.contains("ALARM_FIRE", ignoreCase = true)
+                        if (isAlert) {
+                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                            val service = getThisObjectMethod.invoke(chain) as? Context
+                            service?.sendBroadcast(Intent(Protocol.ACTION_ALARM_RINGING))
+                            log("alarm ringing detected: $action")
+                        }
+                    } catch (t: Throwable) {
+                        log("alarm ringing broadcast failed: $t")
+                    }
+                    return result
+                }
+            })
+        log("AlarmService.onStartCommand hooked")
     }
 
     /** BedtimeAlarm/inZenMode is what enter/exitZenMode persist on SDK 30+;

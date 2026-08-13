@@ -21,6 +21,18 @@ sealed class BlockType(val id: String) {
     data object TriggerDayOfWeek : BlockType("trigger_day_of_week")
     /** 意图触发：当收到指定广播意图时触发。 */
     data object TriggerIntent : BlockType("trigger_intent")
+    /** 位置触发：进入/离开指定地理围栏时触发。 */
+    data object TriggerLocation : BlockType("trigger_location")
+    /** 闹钟触发：普通闹钟响铃时触发。 */
+    data object TriggerAlarm : BlockType("trigger_alarm")
+    /** 屏幕触发：解锁/锁定/亮屏/灭屏时触发。 */
+    data object TriggerScreen : BlockType("trigger_screen")
+    /** 日出日落触发：到达日出/日落时间（±偏移）时触发。 */
+    data object TriggerSun : BlockType("trigger_sun")
+    /** 节假日触发：工作日/节假日当天触发。 */
+    data object TriggerHoliday : BlockType("trigger_holiday")
+    /** NFC 标签触发：扫描到指定（或任意）NFC 标签时触发。 */
+    data object TriggerNfc : BlockType("trigger_nfc")
 
     // ==================== 系统控制 ====================
     data object ToggleWifi : BlockType("toggle_wifi")
@@ -64,6 +76,8 @@ sealed class BlockType(val id: String) {
     data object UnsuspendApps : BlockType("unsuspend_apps")
     /** 发送已导入的广播意图（IntentAction）。 */
     data object SendIntent : BlockType("send_intent")
+    /** TTS 朗读：用系统语音引擎朗读文本。 */
+    data object Speak : BlockType("speak")
 
     // ==================== 控制流 ====================
     data object IfCondition : BlockType("if_condition")
@@ -107,6 +121,9 @@ sealed class BlockType(val id: String) {
             TriggerNetwork, TriggerMusic,
             TriggerApp, TriggerDayOfWeek,
             TriggerIntent,
+            TriggerLocation, TriggerAlarm,
+            TriggerScreen, TriggerSun,
+            TriggerHoliday, TriggerNfc,
             ToggleWifi, ToggleBluetooth,
             ToggleMobileData, ToggleAirplane,
             ToggleHotspot, ToggleNfc,
@@ -127,6 +144,7 @@ sealed class BlockType(val id: String) {
             SetMode,
             OpenApp, SuspendApps, UnsuspendApps,
             SendIntent,
+            Speak,
             IfCondition, RepeatCount, Wait, Comment,
             AndCondition, OrCondition,
             CheckWifiState, CheckBluetoothState,
@@ -257,7 +275,7 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
     is BlockType.TriggerCharging -> listOf(
         BlockParameter.ChoiceParam(
             "state", "充电状态", "开始充电",
-            listOf("开始充电", "停止充电")
+            listOf("开始充电", "停止充电", "充满电")
         )
     )
     is BlockType.TriggerNetwork -> listOf(
@@ -285,6 +303,42 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
         BlockParameter.StringParam("packageName", "应用包名", ""),
         BlockParameter.StringParam("intentName", "意图名称", ""),
         BlockParameter.StringParam("action", "广播 Action", "")
+    )
+    is BlockType.TriggerLocation -> listOf(
+        BlockParameter.StringParam("latitude", "纬度", ""),
+        BlockParameter.StringParam("longitude", "经度", ""),
+        BlockParameter.IntParam("radius", "半径（米）", 500, 50, 10000),
+        BlockParameter.ChoiceParam(
+            "transition", "触发条件", "进入",
+            listOf("进入", "离开")
+        )
+    )
+    is BlockType.TriggerAlarm -> listOf(
+        BlockParameter.StringParam("label", "闹钟标签（可选）", "")
+    )
+    is BlockType.TriggerScreen -> listOf(
+        BlockParameter.ChoiceParam(
+            "state", "屏幕状态", "解锁",
+            listOf("解锁", "锁定", "亮屏", "灭屏")
+        )
+    )
+    is BlockType.TriggerSun -> listOf(
+        BlockParameter.ChoiceParam(
+            "event", "事件", "日出",
+            listOf("日出", "日落")
+        ),
+        BlockParameter.IntParam("offset", "偏移（分钟）", 0, -120, 120),
+        BlockParameter.StringParam("latitude", "纬度（可选）", ""),
+        BlockParameter.StringParam("longitude", "经度（可选）", "")
+    )
+    is BlockType.TriggerHoliday -> listOf(
+        BlockParameter.ChoiceParam(
+            "kind", "类型", "工作日",
+            listOf("工作日", "节假日")
+        )
+    )
+    is BlockType.TriggerNfc -> listOf(
+        BlockParameter.StringParam("tagId", "标签 ID（十六进制，留空匹配任意）", "")
     )
 
     // ==================== 系统控制 ====================
@@ -371,6 +425,9 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
         BlockParameter.StringParam("packageName", "应用包名", ""),
         BlockParameter.StringParam("intentName", "意图名称", ""),
         BlockParameter.StringParam("action", "广播 Action", "")
+    )
+    is BlockType.Speak -> listOf(
+        BlockParameter.StringParam("text", "朗读文本", "")
     )
 
     // ==================== 控制流 ====================

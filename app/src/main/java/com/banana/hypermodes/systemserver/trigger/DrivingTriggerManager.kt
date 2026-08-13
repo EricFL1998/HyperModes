@@ -8,6 +8,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
@@ -31,9 +34,14 @@ class DrivingTriggerManager(
     private val engine: RoutineCoreEngine
 ) {
     private val bluetoothAdapter: BluetoothAdapter? = context.getSystemService(BluetoothManager::class.java)?.adapter
+    private val locationManager: LocationManager? = context.getSystemService(LocationManager::class.java)
     private var currentDrivingModeId: String? = null
     private var drivingModes: List<ModeConfig> = emptyList()
     private var isReceiverRegistered = false
+    private var motionListenerRegistered = false
+    /** 最近一次 GPS 速度（km/h）。运动触发用。 */
+    @Volatile
+    private var currentSpeedKmH: Float = 0f
     private val lock = Any()
     private var isInitialized = false
 
@@ -60,6 +68,7 @@ class DrivingTriggerManager(
 
         // Register bluetooth receiver
         registerBluetoothReceiver()
+        refreshMotionListener()
 
         // Check initial state
         checkDrivingConditions()
@@ -84,6 +93,7 @@ class DrivingTriggerManager(
         }
 
         drivingModes = newDrivingModes
+        refreshMotionListener()
 
         // Recheck conditions with new config
         checkDrivingConditions()
@@ -114,6 +124,57 @@ class DrivingTriggerManager(
             log("Bluetooth receiver unregistered")
         } catch (e: Exception) {
             log("Failed to unregister bluetooth receiver: ${e.message}")
+        }
+    }
+
+    /** 根据当前驾驶模式的运动触发开关，注册/注销 GPS 速度监听。 */
+    private fun refreshMotionListener() {
+        val needMotion = drivingModes.any { it.triggers?.motion?.enabled == true }
+        if (needMotion) registerMotionListener() else unregisterMotionListener()
+    }
+
+    private fun registerMotionListener() {
+        if (motionListenerRegistered) return
+        val lm = locationManager ?: return
+        try {
+            lm.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                1000L, // 1s
+                0f,
+                motionListener
+            )
+            motionListenerRegistered = true
+            // 立即读一次已有定位的速度，避免刚进入时速度恒为 0
+            runCatching {
+                @Suppress("MissingPermission")
+                val last = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                if (last != null && last.hasSpeed()) currentSpeedKmH = last.speed * 3.6f
+            }
+            log("Motion (GPS speed) listener registered")
+        } catch (e: Exception) {
+            log("Failed to register motion listener: ${e.message}")
+        }
+    }
+
+    private fun unregisterMotionListener() {
+        if (!motionListenerRegistered) return
+        try {
+            locationManager?.removeUpdates(motionListener)
+        } catch (_: Exception) {
+        }
+        motionListenerRegistered = false
+        currentSpeedKmH = 0f
+        log("Motion (GPS speed) listener unregistered")
+    }
+
+    private val motionListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            currentSpeedKmH = if (location.hasSpeed()) location.speed * 3.6f else 0f
+            checkDrivingConditions()
+        }
+
+        override fun onProviderDisabled(provider: String) {
+            if (provider == LocationManager.GPS_PROVIDER) currentSpeedKmH = 0f
         }
     }
 
@@ -167,14 +228,15 @@ class DrivingTriggerManager(
                 }
             }
 
-            // Priority 2: Motion (not implemented yet)
-            // TODO: Implement ActivityRecognition API for speed detection
-            // if (triggers.motion?.enabled == true) {
-            //     if (currentSpeed > triggers.motion.speedThresholdKmH) {
-            //         activateDrivingMode(mode.id)
-            //         return
-            //     }
-            // }
+            // Priority 2: Motion (GPS speed-based)
+            if (triggers.motion?.enabled == true) {
+                val threshold = triggers.motion.speedThresholdKmH
+                if (currentSpeedKmH > threshold) {
+                    log("Motion trigger matched for mode ${mode.name}: ${currentSpeedKmH} km/h > $threshold km/h")
+                    activateDrivingMode(mode.id)
+                    return
+                }
+            }
         }
 
         // No conditions met - deactivate
@@ -307,6 +369,7 @@ class DrivingTriggerManager(
      */
     fun cleanup() {
         unregisterBluetoothReceiver()
+        unregisterMotionListener()
         deactivateDrivingMode()
     }
 
@@ -317,6 +380,7 @@ class DrivingTriggerManager(
      */
     fun cleanupForPackageRemoval() {
         unregisterBluetoothReceiver()
+        unregisterMotionListener()
         drivingModes = emptyList()
         currentDrivingModeId = null
         isInitialized = false

@@ -131,6 +131,12 @@ object Protocol {
     /** Unsolicited push: official bedtime activated/deactivated inside DeskClock
      * (scheduled sleep/wake alarms or the Clock app's own toggle). */
     const val ACTION_BEDTIME_ACTIVE = "com.banana.hypermodes.BEDTIME_ACTIVE"
+    /** DeskClock 普通闹钟响铃时广播，供自动化「闹钟触发」监听。 */
+    const val ACTION_ALARM_RINGING = "com.banana.hypermodes.ALARM_RINGING"
+    /** App 进程扫到 NFC 标签后广播，供自动化「NFC 标签触发」监听。 */
+    const val ACTION_NFC_TAG = "com.banana.hypermodes.NFC_TAG"
+    /** ACTION_NFC_TAG 上携带的标签 ID（十六进制字符串；未知/无 NDEF 时可为空）。 */
+    const val EXTRA_NFC_TAG_ID = "nfcTagId"
 
     // Extras
     const val EXTRA_SLEEP_HOUR = "sleepHour"

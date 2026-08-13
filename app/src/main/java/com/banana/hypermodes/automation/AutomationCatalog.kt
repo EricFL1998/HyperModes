@@ -48,6 +48,12 @@ object AutomationCatalog {
         Entry("trigger_music", "音乐触发", "🎵", Color(0xFFFF2D55), "当音乐播放状态变化时触发", Category.TRIGGER),
         Entry("trigger_app", "应用触发", "📱", Color(0xFF5E5CE6), "当指定应用打开时触发", Category.TRIGGER),
         Entry("trigger_day_of_week", "星期触发", "📅", Color(0xFFFF9500), "当到达指定星期时触发", Category.TRIGGER),
+        Entry("trigger_location", "位置触发", "📍", Color(0xFF34C759), "进入或离开指定位置时触发", Category.TRIGGER),
+        Entry("trigger_alarm", "闹钟触发", "⏰", Color(0xFFFF9500), "普通闹钟响铃时触发", Category.TRIGGER),
+        Entry("trigger_screen", "屏幕触发", "🖥️", Color(0xFF30B0C7), "解锁、锁定、亮屏或灭屏时触发", Category.TRIGGER),
+        Entry("trigger_sun", "日出日落触发", "🌅", Color(0xFFFF9500), "到达日出或日落时间时触发", Category.TRIGGER),
+        Entry("trigger_holiday", "节假日触发", "🎉", Color(0xFFFF3B30), "工作日或节假日当天触发", Category.TRIGGER),
+        Entry("trigger_nfc", "NFC 标签触发", "📇", Color(0xFF30B0C7), "扫描到 NFC 标签时触发", Category.TRIGGER),
 
         // ==================== 系统控制 ====================
         Entry("toggle_wifi", "WiFi", "📶", Color(0xFF007AFF), "开启或关闭 WiFi", Category.SYSTEM_CONTROL),
@@ -65,6 +71,7 @@ object AutomationCatalog {
         Entry("adjust_volume", "调节音量", "🔊", Color(0xFFFF9500), "调整设备音量", Category.SYSTEM_CONTROL),
         Entry("adjust_brightness", "调节亮度", "💡", Color(0xFFFFCC00), "调整屏幕亮度", Category.SYSTEM_CONTROL),
         Entry("set_auto_brightness", "自动亮度", "☀️", Color(0xFFFFCC00), "开启或关闭自动亮度", Category.SYSTEM_CONTROL),
+        Entry("speak", "朗读文本", "🗣️", Color(0xFF5856D6), "用系统语音引擎朗读文本", Category.SYSTEM_CONTROL),
 
         // ==================== 显示 ====================
         Entry("set_dark_mode", "深色模式", "🌙", Color(0xFF5E5CE6), "切换浅色/深色模式", Category.DISPLAY),

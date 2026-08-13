@@ -17,6 +17,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- NFC 标签触发：读取标签 ID -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <!-- WiFi trigger picker: reading the current SSID needs WiFi state +
          fine location (Android 8.1+); requested at runtime in the picker -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -65,8 +68,13 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:configChanges="uiMode|fontScale|locale|layoutDirection|density|assetsPaths"
             android:theme="@style/Theme.HyperModes">
+            <intent-filter>
+                <action android:name="android.nfc.action.TAG_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <activity-alias
@@ -94,6 +102,7 @@
             android:exported="true"
             android:directBootAware="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS" />
+
     </application>
 
 </manifest>

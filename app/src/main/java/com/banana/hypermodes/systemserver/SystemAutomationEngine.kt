@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.automation.AutomationBlock
@@ -130,6 +131,14 @@ class SystemAutomationEngine(
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, intent: Intent) {
             when (intent.action) {
+                Intent.ACTION_SCREEN_ON -> handleScreenEvent("亮屏")
+                // 灭屏即锁定（Android 默认灭屏即上锁），锁定触发复用灭屏事件
+                Intent.ACTION_SCREEN_OFF -> handleScreenEvent("灭屏")
+                Intent.ACTION_USER_PRESENT -> handleScreenEvent("解锁")
+                Protocol.ACTION_ALARM_RINGING -> handleAlarmEvent()
+                Protocol.ACTION_NFC_TAG -> handleNfcEvent(
+                    intent.getStringExtra(Protocol.EXTRA_NFC_TAG_ID)
+                )
                 Intent.ACTION_TIME_TICK,
                 Intent.ACTION_TIME_CHANGED,
                 Intent.ACTION_TIMEZONE_CHANGED,
@@ -181,6 +190,11 @@ class SystemAutomationEngine(
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
                 addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Protocol.ACTION_ALARM_RINGING)
+                addAction(Protocol.ACTION_NFC_TAG)
                 intentActions.forEach { addAction(it) }
             }
             context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
@@ -230,6 +244,11 @@ class SystemAutomationEngine(
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
                 addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Protocol.ACTION_ALARM_RINGING)
+                addAction(Protocol.ACTION_NFC_TAG)
                 intentActions.forEach { addAction(it) }
             }
             context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
@@ -264,6 +283,92 @@ class SystemAutomationEngine(
             }
             if (hasIntentTrigger(block.children, action)) return true
             if (hasIntentTrigger(block.elseChildren, action)) return true
+        }
+        return false
+    }
+
+    /** 屏幕事件：设置 pendingScreenEvent 并直接执行匹配的自动化。 */
+    private fun handleScreenEvent(state: String) {
+        val automations = runCatching {
+            AutomationStore.load(context).filter { it.enabled }
+        }.getOrDefault(emptyList())
+        for (automation in automations) {
+            if (!hasScreenTrigger(automation.blocks, state)) continue
+            scope.launch {
+                executor.pendingScreenEvent = state
+                val result = runCatching { executor.execute(automation.blocks) }.getOrNull()
+                executor.pendingScreenEvent = null
+                HyperLog.i(TAG, "屏幕触发($state)执行结果：${result?.success} ${result?.message}")
+            }
+        }
+    }
+
+    /** 闹钟响铃事件。 */
+    private fun handleAlarmEvent() {
+        val automations = runCatching {
+            AutomationStore.load(context).filter { it.enabled }
+        }.getOrDefault(emptyList())
+        for (automation in automations) {
+            if (!hasAlarmTrigger(automation.blocks)) continue
+            scope.launch {
+                executor.pendingAlarmEvent = true
+                val result = runCatching { executor.execute(automation.blocks) }.getOrNull()
+                executor.pendingAlarmEvent = false
+                HyperLog.i(TAG, "闹钟触发执行结果：${result?.success} ${result?.message}")
+            }
+        }
+    }
+
+    /** NFC 标签事件。 */
+    private fun handleNfcEvent(tagId: String?) {
+        val automations = runCatching {
+            AutomationStore.load(context).filter { it.enabled }
+        }.getOrDefault(emptyList())
+        val scanned = tagId ?: ""
+        for (automation in automations) {
+            if (!hasNfcTrigger(automation.blocks, scanned)) continue
+            scope.launch {
+                executor.pendingNfcTag = scanned
+                val result = runCatching { executor.execute(automation.blocks) }.getOrNull()
+                executor.pendingNfcTag = null
+                HyperLog.i(TAG, "NFC 触发执行结果：${result?.success} ${result?.message}")
+            }
+        }
+    }
+
+    private fun hasScreenTrigger(blocks: List<AutomationBlock>, state: String): Boolean {
+        for (block in blocks) {
+            if (block.type is BlockType.TriggerScreen) {
+                val expected = block.choiceParam("state", "解锁")
+                val matches = when (expected) {
+                    "锁定" -> state == "灭屏" || state == "锁定"
+                    else -> state == expected
+                }
+                if (matches) return true
+            }
+            if (hasScreenTrigger(block.children, state)) return true
+            if (hasScreenTrigger(block.elseChildren, state)) return true
+        }
+        return false
+    }
+
+    private fun hasAlarmTrigger(blocks: List<AutomationBlock>): Boolean {
+        for (block in blocks) {
+            if (block.type is BlockType.TriggerAlarm) return true
+            if (hasAlarmTrigger(block.children)) return true
+            if (hasAlarmTrigger(block.elseChildren)) return true
+        }
+        return false
+    }
+
+    private fun hasNfcTrigger(blocks: List<AutomationBlock>, tagId: String): Boolean {
+        for (block in blocks) {
+            if (block.type is BlockType.TriggerNfc) {
+                val configured = block.stringParam("tagId").trim()
+                if (configured.isBlank() || configured.equals(tagId, ignoreCase = true)) return true
+            }
+            if (hasNfcTrigger(block.children, tagId)) return true
+            if (hasNfcTrigger(block.elseChildren, tagId)) return true
         }
         return false
     }
@@ -327,4 +432,10 @@ class SystemAutomationEngine(
 private fun AutomationBlock.stringParam(key: String, default: String = ""): String =
     parameters.find { it.key == key }
         ?.let { (it as? BlockParameter.StringParam)?.value }
+        ?: default
+
+/** 读取块 choice 参数（system_server 触发引擎本地辅助，与 AutomationExecutor 一致）。 */
+private fun AutomationBlock.choiceParam(key: String, default: String = ""): String =
+    parameters.find { it.key == key }
+        ?.let { (it as? BlockParameter.ChoiceParam)?.value }
         ?: default

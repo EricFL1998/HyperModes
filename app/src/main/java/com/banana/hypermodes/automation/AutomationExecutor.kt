@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
+import android.location.Location
+import android.location.LocationManager
 import android.media.AudioManager
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
@@ -12,13 +14,23 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
+import com.banana.hypermodes.utils.SunTimes
+import com.banana.hypermodes.utils.HolidayCalendar
 import com.banana.hypermodes.bridge.ModeControlBridge
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
+import java.util.TimeZone
 import java.util.Calendar
+import kotlin.coroutines.resume
 
 /**
  * 自动化执行引擎，负责解释和执行自动化块。
@@ -68,6 +80,14 @@ class AutomationExecutor(
     @Volatile
     var pendingIntentAction: String? = null
 
+    /** 事件驱动触发的挂起状态（与 pendingIntentAction 同生命周期）。 */
+    @Volatile
+    var pendingScreenEvent: String? = null
+    @Volatile
+    var pendingAlarmEvent: Boolean = false
+    @Volatile
+    var pendingNfcTag: String? = null
+
     /**
      * 特权操作入口：system_server 内注入 SystemAutomationEngine 的实现；
      * 应用进程为 null 时默认走 BridgeSystemOps（广播到 system_server）。
@@ -110,9 +130,13 @@ class AutomationExecutor(
         val steps = StepBudget(DEFAULT_MAX_STEPS)
         for (trigger in triggers) {
             if (!steps.consume()) return false
-            // 意图触发是事件驱动，不走周期边沿检测（由 handleIntentTrigger 单独处理），
-            // 否则 TIME_TICK 轮询会与意图事件并发竞态、导致重复执行。
-            if (trigger.type is BlockType.TriggerIntent) return false
+        // 意图/闹钟/屏幕/NFC 触发是事件驱动，不走周期边沿检测（由对应 handler 单独处理），
+        // 否则 TIME_TICK 轮询会与意图事件并发竞态、导致重复执行。
+        if (trigger.type is BlockType.TriggerIntent ||
+            trigger.type is BlockType.TriggerAlarm ||
+            trigger.type is BlockType.TriggerScreen ||
+            trigger.type is BlockType.TriggerNfc
+        ) return false
             val result = triggerCondition(trigger)
             if (!result.success || result.conditionMet != true) return false
         }
@@ -136,7 +160,13 @@ class AutomationExecutor(
             is BlockType.TriggerMusic,
             is BlockType.TriggerApp,
             is BlockType.TriggerDayOfWeek,
-            is BlockType.TriggerIntent -> executeTrigger(block, steps)
+            is BlockType.TriggerIntent,
+            is BlockType.TriggerLocation,
+            is BlockType.TriggerAlarm,
+            is BlockType.TriggerScreen,
+            is BlockType.TriggerSun,
+            is BlockType.TriggerHoliday,
+            is BlockType.TriggerNfc -> executeTrigger(block, steps)
 
             // ==================== 系统控制 ====================
             is BlockType.ToggleWifi -> executeToggleWifi(block, block.stateExpected())
@@ -179,6 +209,7 @@ class AutomationExecutor(
             is BlockType.SuspendApps -> executeSuspendApps(block)
             is BlockType.UnsuspendApps -> executeUnsuspendApps(block)
             is BlockType.SendIntent -> executeSendIntent(block)
+            is BlockType.Speak -> executeSpeak(block)
 
             // ==================== 控制流 ====================
             is BlockType.IfCondition -> executeIf(block, steps)
@@ -222,11 +253,21 @@ class AutomationExecutor(
         is BlockType.TriggerWifi -> checkWifiSsid(block)
         is BlockType.TriggerBluetooth -> checkBluetoothDevice(block)
         is BlockType.TriggerBattery -> checkBatteryLevel(block, "触发")
-        is BlockType.TriggerCharging -> checkChargingState(
-            block,
-            expected = block.choiceParam("state", "开始充电") == "开始充电",
-            "触发"
-        )
+        is BlockType.TriggerCharging -> {
+            val state = block.choiceParam("state", "开始充电")
+            when (state) {
+                "充满电" -> {
+                    val full = currentBatteryStatus() == BatteryManager.BATTERY_STATUS_FULL
+                    ExecutionResult(
+                        true,
+                        "充电状态：${if (full) "已充满" else "未充满"}",
+                        conditionMet = full
+                    )
+                }
+                "停止充电" -> checkChargingState(block, expected = false, label = "触发")
+                else -> checkChargingState(block, expected = true, label = "触发")
+            }
+        }
         is BlockType.TriggerNetwork -> checkNetworkType(block)
         is BlockType.TriggerMusic -> checkMusicPlaying(
             block,
@@ -244,6 +285,40 @@ class AutomationExecutor(
             ExecutionResult(
                 success = true,
                 message = if (matched) "收到意图：$action" else "等待意图：$action",
+                conditionMet = matched
+            )
+        }
+        is BlockType.TriggerLocation -> checkLocation(block)
+        is BlockType.TriggerAlarm -> {
+            val matched = pendingAlarmEvent
+            ExecutionResult(
+                true,
+                if (matched) "闹钟正在响铃" else "等待闹钟响铃",
+                conditionMet = matched
+            )
+        }
+        is BlockType.TriggerScreen -> {
+            val expected = block.choiceParam("state", "解锁")
+            // 锁定与灭屏在 Android 上是同一物理事件（灭屏即上锁），统一匹配
+            val matched = when (expected) {
+                "锁定" -> pendingScreenEvent == "灭屏" || pendingScreenEvent == "锁定"
+                else -> pendingScreenEvent == expected
+            }
+            ExecutionResult(
+                true,
+                if (matched) "屏幕事件：$expected" else "等待屏幕事件：$expected",
+                conditionMet = matched
+            )
+        }
+        is BlockType.TriggerSun -> checkSun(block)
+        is BlockType.TriggerHoliday -> checkHoliday(block)
+        is BlockType.TriggerNfc -> {
+            val tagId = block.stringParam("tagId").trim()
+            val matched = pendingNfcTag != null &&
+                (tagId.isBlank() || pendingNfcTag.equals(tagId, ignoreCase = true))
+            ExecutionResult(
+                true,
+                if (matched) "扫描到 NFC 标签：${pendingNfcTag}" else "等待 NFC 标签",
                 conditionMet = matched
             )
         }
@@ -1020,6 +1095,147 @@ class AutomationExecutor(
         )
     }
 
+    /** 位置触发：当前已知位置是否在目标围栏内（按 transition 判断进入/离开）。 */
+    private fun checkLocation(block: AutomationBlock): ExecutionResult {
+        val lat = block.stringParam("latitude").toDoubleOrNull()
+        val lng = block.stringParam("longitude").toDoubleOrNull()
+        if (lat == null || lng == null) {
+            return ExecutionResult(false, "位置触发未设置有效的经纬度")
+        }
+        val radius = block.intParam("radius", 500)
+        val transition = block.choiceParam("transition", "进入")
+        val current = lastKnownLocation() ?: return ExecutionResult(
+            true,
+            "位置未知，等待定位",
+            conditionMet = false
+        )
+        val results = FloatArray(1)
+        Location.distanceBetween(current.latitude, current.longitude, lat, lng, results)
+        val inside = results[0] <= radius
+        val met = if (transition == "离开") !inside else inside
+        return ExecutionResult(
+            true,
+            "距目标约 ${results[0].toInt()} 米（${if (inside) "围栏内" else "围栏外"}），$transition 触发${if (met) "满足" else "不满足"}",
+            conditionMet = met
+        )
+    }
+
+    /** 日出/日落触发：当前时间是否到达指定事件时间（±偏移）。 */
+    private fun checkSun(block: AutomationBlock): ExecutionResult {
+        val event = block.choiceParam("event", "日出")
+        val offset = block.intParam("offset", 0)
+        val lat = block.stringParam("latitude").toDoubleOrNull()
+            ?: lastKnownLocation()?.latitude ?: return ExecutionResult(
+                true,
+                "位置未知，无法计算${event}时间",
+                conditionMet = false
+            )
+        val lng = block.stringParam("longitude").toDoubleOrNull()
+            ?: lastKnownLocation()?.longitude ?: return ExecutionResult(
+                true,
+                "位置未知，无法计算${event}时间",
+                conditionMet = false
+            )
+
+        val now = Calendar.getInstance()
+        val tzOffset = TimeZone.getDefault().getOffset(now.timeInMillis) / 60_000
+        val result = SunTimes.compute(
+            now.get(Calendar.YEAR),
+            now.get(Calendar.MONTH) + 1,
+            now.get(Calendar.DAY_OF_MONTH),
+            lat,
+            lng,
+            tzOffset
+        )
+        val eventMinutes = when (event) {
+            "日落" -> result.sunsetMinutes
+            else -> result.sunriseMinutes
+        } ?: return ExecutionResult(
+            true,
+            "今日无${event}（极昼/极夜）",
+            conditionMet = false
+        )
+
+        val target = (eventMinutes + offset + 1440) % 1440
+        val nowMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val met = nowMin >= target
+        val targetH = (target.toInt() / 60) % 24
+        val targetM = target.toInt() % 60
+        return ExecutionResult(
+            true,
+            "${event} ${pad(targetH)}:${pad(targetM)}（偏移 ${if (offset >= 0) "+" else ""}$offset 分钟），" +
+                "当前 ${pad(now.get(Calendar.HOUR_OF_DAY))}:${pad(now.get(Calendar.MINUTE))}，${if (met) "已到达" else "未到达"}",
+            conditionMet = met
+        )
+    }
+
+    /** 节假日/工作日触发。 */
+    private fun checkHoliday(block: AutomationBlock): ExecutionResult {
+        val kind = block.choiceParam("kind", "工作日")
+        // 与小米闹钟同源：每日一次从官方接口刷新节假日/调休表（内置表兜底）
+        HolidayCalendar.refreshIfStale(context)
+        val now = Calendar.getInstance()
+        val isWorkday = HolidayCalendar.isWorkday(now)
+        val met = if (kind == "节假日") !isWorkday else isWorkday
+        return ExecutionResult(
+            true,
+            "今天是${if (isWorkday) "工作日" else "节假日"}，${if (met) "满足" else "不满足"}「$kind」",
+            conditionMet = met
+        )
+    }
+
+    /** 最近一次已知位置（GPS → 网络 → 被动）。 */
+    private fun lastKnownLocation(): Location? {
+        return try {
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                ?: return null
+            listOf(
+                LocationManager.GPS_PROVIDER,
+                LocationManager.NETWORK_PROVIDER,
+                LocationManager.PASSIVE_PROVIDER
+            ).firstNotNullOfOrNull { provider ->
+                @Suppress("MissingPermission")
+                lm.getLastKnownLocation(provider)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "lastKnownLocation failed: ${e.message}")
+            null
+        }
+    }
+
+    /** TTS 朗读：等待语音引擎初始化后朗读文本，读完释放引擎。 */
+    private suspend fun executeSpeak(block: AutomationBlock): ExecutionResult {
+        val text = block.stringParam("text").trim()
+        if (text.isBlank()) return ExecutionResult(false, "朗读文本为空")
+
+        var tts: TextToSpeech? = null
+        return try {
+            val initResult = withTimeoutOrNull(4000L) {
+                suspendCancellableCoroutine<Int> { cont ->
+                    tts = TextToSpeech(context) { status ->
+                        if (cont.isActive) cont.resume(status)
+                    }
+                    cont.invokeOnCancellation { runCatching { tts?.shutdown() } }
+                }
+            }
+            val engine = tts
+            if (initResult == null) return ExecutionResult(false, "语音引擎初始化超时")
+            if (initResult != TextToSpeech.SUCCESS || engine == null) {
+                return ExecutionResult(false, "语音引擎初始化失败")
+            }
+            engine.language = Locale.getDefault()
+            val result = engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hypermodes_speak")
+            ExecutionResult(
+                result == TextToSpeech.SUCCESS,
+                if (result == TextToSpeech.SUCCESS) "已朗读：$text" else "朗读失败"
+            )
+        } catch (e: Exception) {
+            ExecutionResult(false, "朗读失败：${e.message}")
+        } finally {
+            runCatching { tts?.shutdown() }
+        }
+    }
+
     // ==================== 内部工具 ====================
 
     private fun conditionResult(label: String, actual: Boolean, expected: Boolean): ExecutionResult {
@@ -1121,6 +1337,12 @@ fun AutomationBlock.isTriggerBlock(): Boolean = when (type) {
     is BlockType.TriggerMusic,
     is BlockType.TriggerApp,
     is BlockType.TriggerDayOfWeek,
-    is BlockType.TriggerIntent -> true
+    is BlockType.TriggerIntent,
+    is BlockType.TriggerLocation,
+    is BlockType.TriggerAlarm,
+    is BlockType.TriggerScreen,
+    is BlockType.TriggerSun,
+    is BlockType.TriggerHoliday,
+    is BlockType.TriggerNfc -> true
     else -> false
 }
