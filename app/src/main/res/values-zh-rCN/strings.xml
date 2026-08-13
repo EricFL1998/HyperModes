@@ -322,6 +322,21 @@
     <!-- Intent trigger -->
     <string name="trigger_intent">意图触发</string>
     <string name="trigger_intent_desc">当接收到指定的广播意图时开启或关闭此模式</string>
+    <string name="trigger_holiday">节假日</string>
+    <string name="trigger_holiday_desc">节假日或工作日当天</string>
+    <string name="trigger_nfc">NFC 标签</string>
+    <string name="trigger_nfc_desc">扫描到 NFC 标签时</string>
+    <string name="trigger_on_holiday">节假日当天</string>
+    <string name="trigger_on_workday">工作日当天</string>
+    <string name="trigger_on_nfc">扫描到 NFC 标签 %1$s 时</string>
+    <string name="trigger_on_nfc_any">扫描到任意 NFC 标签时</string>
+    <string name="nfc_tag_id">标签 ID</string>
+    <string name="nfc_tag_id_hint">十六进制；留空匹配任意标签</string>
+    <string name="nfc_scan_capture">扫描学习</string>
+    <string name="nfc_scan_waiting">请将 NFC 标签靠近手机…</string>
+    <string name="holiday_kind_holiday">节假日</string>
+    <string name="holiday_kind_workday">工作日</string>
+    <string name="holiday_trigger_desc">按官方调休表判定（与闹钟一致）</string>
     <string name="intent_activate">开启意图</string>
     <string name="intent_deactivate">关闭意图</string>
     <string name="intent_package">应用包名</string>

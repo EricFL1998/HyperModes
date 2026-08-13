@@ -109,6 +109,8 @@ private fun getTriggerTypeIcon(trigger: ModeTrigger): String {
         is ModeTrigger.Location -> "📍"
         is ModeTrigger.Intent -> "⚡"
         is ModeTrigger.Battery -> "🔋"
+        is ModeTrigger.Nfc -> "📇"
+        is ModeTrigger.Holiday -> "🎉"
     }
 }
 
@@ -123,6 +125,8 @@ private fun getTriggerTitle(trigger: ModeTrigger): String {
         is ModeTrigger.Location -> stringResource(R.string.trigger_location)
         is ModeTrigger.Intent -> stringResource(R.string.trigger_intent)
         is ModeTrigger.Battery -> stringResource(R.string.trigger_battery)
+        is ModeTrigger.Nfc -> stringResource(R.string.trigger_nfc)
+        is ModeTrigger.Holiday -> stringResource(R.string.trigger_holiday)
     }
 }
 
@@ -173,5 +177,17 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
             "below" -> stringResource(R.string.trigger_on_battery_below, trigger.threshold)
             else -> stringResource(R.string.trigger_on_battery_equal, trigger.threshold)
         }
+        is ModeTrigger.Nfc ->
+            if (trigger.tagId.isBlank()) {
+                stringResource(R.string.trigger_on_nfc_any)
+            } else {
+                stringResource(R.string.trigger_on_nfc, trigger.tagId)
+            }
+        is ModeTrigger.Holiday ->
+            if (trigger.kind == "工作日") {
+                stringResource(R.string.trigger_on_workday)
+            } else {
+                stringResource(R.string.trigger_on_holiday)
+            }
     }
 }

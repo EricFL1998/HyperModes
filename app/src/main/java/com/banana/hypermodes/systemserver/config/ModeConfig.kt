@@ -127,6 +127,18 @@ sealed class ComplexTrigger {
         val threshold: Int = 20,
         val operator: String = "below"
     ) : ComplexTrigger()
+
+    @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Nfc")
+    data class Nfc(
+        val tagId: String = ""
+    ) : ComplexTrigger()
+
+    @Serializable
+    @SerialName("com.banana.hypermodes.systemserver.config.ComplexTrigger.Holiday")
+    data class Holiday(
+        val kind: String = "节假日"
+    ) : ComplexTrigger()
 }
 
 

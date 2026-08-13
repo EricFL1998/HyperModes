@@ -157,6 +157,22 @@ sealed class ModeTrigger {
         val threshold: Int = 20,
         val operator: String = "below"
     ) : ModeTrigger()
+
+    /**
+     * NFC 标签触发：扫描到匹配的标签时激活（再次扫描同一标签切换关闭）。
+     * @param tagId 标签 ID（十六进制小写）；留空匹配任意标签。
+     */
+    data class Nfc(
+        val tagId: String = ""
+    ) : ModeTrigger()
+
+    /**
+     * 节假日/工作日触发：当天是节假日或工作日时激活。
+     * @param kind "节假日" 或 "工作日"。
+     */
+    data class Holiday(
+        val kind: String = "节假日"
+    ) : ModeTrigger()
 }
 
 /**
@@ -262,6 +278,8 @@ fun ModeTrigger.toComplexTrigger(): ComplexTrigger = when (this) {
     )
     is ModeTrigger.Intent -> ComplexTrigger.Intent(activateAction, deactivateAction, packageName)
     is ModeTrigger.Battery -> ComplexTrigger.Battery(threshold, operator)
+    is ModeTrigger.Nfc -> ComplexTrigger.Nfc(tagId)
+    is ModeTrigger.Holiday -> ComplexTrigger.Holiday(kind)
 }
 
 fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
@@ -297,6 +315,8 @@ fun ComplexTrigger.toModeTrigger(): ModeTrigger = when (this) {
     )
     is ComplexTrigger.Intent -> ModeTrigger.Intent(activateAction, deactivateAction, packageName)
     is ComplexTrigger.Battery -> ModeTrigger.Battery(threshold, operator)
+    is ComplexTrigger.Nfc -> ModeTrigger.Nfc(tagId)
+    is ComplexTrigger.Holiday -> ModeTrigger.Holiday(kind)
 }
 
 /**

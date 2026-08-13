@@ -188,5 +188,17 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
             "below" -> stringResource(R.string.trigger_on_battery_below, trigger.threshold)
             else -> stringResource(R.string.trigger_on_battery_equal, trigger.threshold)
         }
+        is ModeTrigger.Nfc ->
+            if (trigger.tagId.isBlank()) {
+                stringResource(R.string.trigger_on_nfc_any)
+            } else {
+                stringResource(R.string.trigger_on_nfc, trigger.tagId)
+            }
+        is ModeTrigger.Holiday ->
+            if (trigger.kind == "工作日") {
+                stringResource(R.string.trigger_on_workday)
+            } else {
+                stringResource(R.string.trigger_on_holiday)
+            }
     }
 }

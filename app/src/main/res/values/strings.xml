@@ -322,6 +322,21 @@
     <!-- Intent trigger -->
     <string name="trigger_intent">Intent Trigger</string>
     <string name="trigger_intent_desc">Turn this mode on or off when receiving specific broadcast intents</string>
+    <string name="trigger_holiday">Holiday</string>
+    <string name="trigger_holiday_desc">On official holidays or workdays</string>
+    <string name="trigger_nfc">NFC tag</string>
+    <string name="trigger_nfc_desc">When a matching NFC tag is scanned</string>
+    <string name="trigger_on_holiday">On holidays</string>
+    <string name="trigger_on_workday">On workdays</string>
+    <string name="trigger_on_nfc">When scanning NFC tag %1$s</string>
+    <string name="trigger_on_nfc_any">When scanning any NFC tag</string>
+    <string name="nfc_tag_id">Tag ID</string>
+    <string name="nfc_tag_id_hint">Hex ID; leave empty to match any tag</string>
+    <string name="nfc_scan_capture">Scan to capture</string>
+    <string name="nfc_scan_waiting">Place an NFC tag near the phone…</string>
+    <string name="holiday_kind_holiday">Holiday</string>
+    <string name="holiday_kind_workday">Workday</string>
+    <string name="holiday_trigger_desc">Uses the official adjusted-workday calendar (same as Clock)</string>
     <string name="intent_activate">Activate Intent</string>
     <string name="intent_deactivate">Deactivate Intent</string>
     <string name="intent_package">Package Name</string>

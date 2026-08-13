@@ -51,6 +51,8 @@ import com.banana.hypermodes.ui.components.TriggerTypeSelectionDialog
 import com.banana.hypermodes.ui.components.CompoundTriggerEditDialog
 import com.banana.hypermodes.ui.components.TriggerGroupCard
 import com.banana.hypermodes.ui.components.BatteryTriggerPickerDialog
+import com.banana.hypermodes.ui.components.HolidayTriggerPickerDialog
+import com.banana.hypermodes.ui.components.NfcTriggerPickerDialog
 import com.banana.hypermodes.ui.components.WallpaperOverviewCard
 import java.io.File
 import org.json.JSONObject
@@ -422,6 +424,8 @@ fun ModeDetailScreen(
     var showTimePicker by remember(mode.id) { mutableStateOf(false) }
     var showEndTimePicker by remember(mode.id) { mutableStateOf(false) }
     var showBatteryPicker by remember(mode.id) { mutableStateOf(false) }
+    var showNfcPicker by remember(mode.id) { mutableStateOf(false) }
+    var showHolidayPicker by remember(mode.id) { mutableStateOf(false) }
     var pendingStartTime by remember(mode.id) { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // v2.0 Complex Trigger State
@@ -1173,6 +1177,8 @@ TriggerSelectionDialog(
                         onOpenIntentTriggerPicker(editedMode)
                     }
                     "battery" -> showBatteryPicker = true
+                    "holiday" -> showHolidayPicker = true
+                    "nfc" -> showNfcPicker = true
                     "music" -> {
                         val trigger = ModeTrigger.Music
                         if (isAddingToCompound) {
@@ -1373,6 +1379,80 @@ TriggerSelectionDialog(
                     onSave(editedMode)
                 }
                 showBatteryPicker = false
+            }
+        )
+
+        // 节假日/工作日触发器选择器
+        HolidayTriggerPickerDialog(
+            show = showHolidayPicker,
+            onDismissRequest = {
+                showHolidayPicker = false
+                if (isAddingToCompound) {
+                    onShowCompoundTriggerDialogChange(true)
+                }
+            },
+            onConfirm = { kind ->
+                val newTrigger = ModeTrigger.Holiday(kind)
+                if (isAddingToCompound) {
+                    // Adding to compound trigger
+                    onEditingCompoundTriggersChange(editingCompoundTriggers + newTrigger)
+                    onShowCompoundTriggerDialogChange(true)
+                } else if (editingGroupIndex != null) {
+                    // Editing single trigger group
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                            if (i == editingGroupIndex) newGroup else g
+                        }
+                    ))
+                    onSave(editedMode)
+                    editingGroupIndex = null
+                } else {
+                    // Adding new single trigger group (v2.0)
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups + newGroup
+                    ))
+                    onSave(editedMode)
+                }
+                showHolidayPicker = false
+            }
+        )
+
+        // NFC 标签触发器选择器
+        NfcTriggerPickerDialog(
+            show = showNfcPicker,
+            onDismissRequest = {
+                showNfcPicker = false
+                if (isAddingToCompound) {
+                    onShowCompoundTriggerDialogChange(true)
+                }
+            },
+            onConfirm = { tagId ->
+                val newTrigger = ModeTrigger.Nfc(tagId)
+                if (isAddingToCompound) {
+                    // Adding to compound trigger
+                    onEditingCompoundTriggersChange(editingCompoundTriggers + newTrigger)
+                    onShowCompoundTriggerDialogChange(true)
+                } else if (editingGroupIndex != null) {
+                    // Editing single trigger group
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups.mapIndexed { i, g ->
+                            if (i == editingGroupIndex) newGroup else g
+                        }
+                    ))
+                    onSave(editedMode)
+                    editingGroupIndex = null
+                } else {
+                    // Adding new single trigger group (v2.0)
+                    val newGroup = ModeTriggerGroup.Single(newTrigger)
+                    editedMode = editedMode.copy(settings = editedMode.settings.copy(
+                        triggerGroups = editedMode.settings.triggerGroups + newGroup
+                    ))
+                    onSave(editedMode)
+                }
+                showNfcPicker = false
             }
         )
 

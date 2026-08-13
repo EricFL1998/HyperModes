@@ -83,6 +83,16 @@ fun TriggerSelectionDialog(
                     subtitle = stringResource(R.string.trigger_battery_desc),
                     onClick = { onSelect("battery") }
                 )
+                TriggerOptionItem(
+                    title = stringResource(R.string.trigger_holiday),
+                    subtitle = stringResource(R.string.trigger_holiday_desc),
+                    onClick = { onSelect("holiday") }
+                )
+                TriggerOptionItem(
+                    title = stringResource(R.string.trigger_nfc),
+                    subtitle = stringResource(R.string.trigger_nfc_desc),
+                    onClick = { onSelect("nfc") }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

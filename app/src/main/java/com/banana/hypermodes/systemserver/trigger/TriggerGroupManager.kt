@@ -31,6 +31,8 @@ class TriggerGroupManager(
     private val locationManager = LocationTriggerManager(context, ::onTriggerChanged)
     private val intentManager = IntentTriggerManager(context, ::onTriggerChanged)
     private val batteryManager = BatteryTriggerManager(context, ::onTriggerChanged)
+    private val holidayManager = HolidayTriggerManager(context, ::onTriggerChanged)
+    private val nfcManager = NfcTriggerManager(context, ::onTriggerChanged)
 
     // Track individual trigger states per mode
     // modeId -> triggerKey -> isActive
@@ -72,6 +74,8 @@ class TriggerGroupManager(
         val intentConfigs = mutableMapOf<String, Triple<String?, String?, String?>>()
         val locationConfigs = mutableMapOf<String, List<Pair<String, ComplexTrigger.Location>>>()
         val batteryConfigs = mutableMapOf<String, Pair<Int, String>>()
+        val holidayConfigs = mutableMapOf<String, String>()
+        val nfcConfigs = mutableMapOf<String, String>()
 
         allModes.forEach { mode ->
             if (mode.type == ModeType.DYNAMIC_TRIGGER) return@forEach
@@ -109,6 +113,12 @@ class TriggerGroupManager(
                         is ComplexTrigger.Battery -> {
                             batteryConfigs[triggerKey] = trigger.threshold to trigger.operator
                         }
+                        is ComplexTrigger.Holiday -> {
+                            holidayConfigs[triggerKey] = trigger.kind
+                        }
+                        is ComplexTrigger.Nfc -> {
+                            nfcConfigs[triggerKey] = trigger.tagId
+                        }
                         is ComplexTrigger.Time -> { /* Handled by ScheduledModeManager */ }
                     }
                 }
@@ -123,6 +133,8 @@ class TriggerGroupManager(
         locationManager.updateConfigs(locationConfigs)
         intentManager.updateConfigs(intentConfigs)
         batteryManager.updateConfigs(batteryConfigs)
+        holidayManager.updateConfigs(holidayConfigs)
+        nfcManager.updateConfigs(nfcConfigs)
     }
 
     private fun getTriggerKey(trigger: ComplexTrigger): String {
@@ -135,6 +147,8 @@ class TriggerGroupManager(
             is ComplexTrigger.Intent -> "intent_" + (trigger.activateAction ?: "")
             is ComplexTrigger.Location -> "location_${trigger.id}"
             is ComplexTrigger.Battery -> "battery_${trigger.threshold}_${trigger.operator}"
+            is ComplexTrigger.Holiday -> "holiday_${trigger.kind}"
+            is ComplexTrigger.Nfc -> "nfc_${trigger.tagId}"
         }
     }
 
@@ -144,6 +158,8 @@ class TriggerGroupManager(
         bluetoothManager.check()
         musicManager.check()
         batteryManager.check()
+        holidayManager.check()
+        nfcManager.check()
     }
 
     private fun onTriggerChanged(triggerKey: String, triggerType: String, isActive: Boolean) {
@@ -255,6 +271,8 @@ class TriggerGroupManager(
         intentManager.release()
         locationManager.release()
         batteryManager.release()
+        holidayManager.release()
+        nfcManager.release()
     }
 
     private fun log(msg: String) {
