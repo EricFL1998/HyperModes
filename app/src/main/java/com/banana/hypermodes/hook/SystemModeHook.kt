@@ -339,6 +339,10 @@ class SystemModeHook(private val module: XposedModule) {
                     executor.setPreferredSimSlot(intent.getIntExtra(Protocol.EXTRA_SLOT, 0))
                 Protocol.OP_SET_MOTION_SICKNESS_RELIEF ->
                     executor.setMotionSicknessReliefEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                Protocol.OP_SET_WIFI_ENABLED ->
+                    executor.setWifiEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
+                Protocol.OP_SET_BLUETOOTH_ENABLED ->
+                    executor.setBluetoothEnabled(intent.getBooleanExtra(Protocol.EXTRA_ENABLED, false))
                 else -> {
                     log("SYSTEM_OP unknown op: ${intent.getStringExtra(Protocol.EXTRA_OP)}")
                     false

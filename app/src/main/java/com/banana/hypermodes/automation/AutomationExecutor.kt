@@ -51,6 +51,10 @@ interface AutomationSystemOps {
     fun setPreferredSimSlot(slot: Int): Boolean
     /** 开关防晕车。返回是否成功。 */
     fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean
+    /** 开关 WiFi。返回是否成功。 */
+    fun setWifiEnabled(enabled: Boolean): Boolean
+    /** 开关蓝牙。返回是否成功。 */
+    fun setBluetoothEnabled(enabled: Boolean): Boolean
 }
 
 class AutomationExecutor(
@@ -106,6 +110,9 @@ class AutomationExecutor(
         val steps = StepBudget(DEFAULT_MAX_STEPS)
         for (trigger in triggers) {
             if (!steps.consume()) return false
+            // 意图触发是事件驱动，不走周期边沿检测（由 handleIntentTrigger 单独处理），
+            // 否则 TIME_TICK 轮询会与意图事件并发竞态、导致重复执行。
+            if (trigger.type is BlockType.TriggerIntent) return false
             val result = triggerCondition(trigger)
             if (!result.success || result.conditionMet != true) return false
         }
@@ -175,7 +182,6 @@ class AutomationExecutor(
 
             // ==================== 控制流 ====================
             is BlockType.IfCondition -> executeIf(block, steps)
-            is BlockType.Repeat -> executeRepeat(block, steps)
             is BlockType.RepeatCount -> executeRepeatCount(block, steps)
             is BlockType.Wait -> executeWait(block)
             is BlockType.Comment -> ExecutionResult(success = true, message = "注释已跳过")
@@ -232,7 +238,9 @@ class AutomationExecutor(
         is BlockType.TriggerIntent -> {
             val action = block.stringParam("action")
             val matched = action.isNotBlank() && pendingIntentAction == action
-            if (matched) pendingIntentAction = null // 一次性事件，消费后清除
+            // 不在这里消费：pendingIntentAction 由 handleIntentTrigger 在 execute 后统一清除；
+            // 若这里消费，evaluateTrigger（TIME_TICK 边沿检测）会抢在 execute 前清掉它，
+            // 导致意图触发偶发失效。
             ExecutionResult(
                 success = true,
                 message = if (matched) "收到意图：$action" else "等待意图：$action",
@@ -282,7 +290,7 @@ class AutomationExecutor(
 
     private fun executeToggleWifi(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         return systemResult(
-            ops.writeSetting("global", Settings.Global.WIFI_ON, if (enabled) "1" else "0"),
+            ops.setWifiEnabled(enabled),
             "WiFi 已${if (enabled) "开启" else "关闭"}",
             "WiFi 控制失败"
         )
@@ -290,7 +298,7 @@ class AutomationExecutor(
 
     private fun executeToggleBluetooth(block: AutomationBlock, enabled: Boolean): ExecutionResult {
         return systemResult(
-            ops.writeSetting("global", Settings.Global.BLUETOOTH_ON, if (enabled) "1" else "0"),
+            ops.setBluetoothEnabled(enabled),
             "蓝牙已${if (enabled) "开启" else "关闭"}",
             "蓝牙控制失败"
         )
@@ -531,7 +539,7 @@ class AutomationExecutor(
 
     private fun executeSetPreferredSim(block: AutomationBlock): ExecutionResult {
         val slotName = block.choiceParam("slot", "SIM 1")
-        val slot = if (slotName.contains("2")) 1 else 0
+        val slot = if (slotName == "SIM 2") 1 else 0
         return systemResult(
             ops.setPreferredSimSlot(slot),
             "默认数据卡已切换为 ${if (slot == 0) "SIM 1" else "SIM 2"}",
@@ -646,11 +654,6 @@ class AutomationExecutor(
         }
     }
 
-    private suspend fun executeRepeat(block: AutomationBlock, steps: StepBudget): ExecutionResult {
-        val count = block.intParam("count", 1)
-        return repeatLoop(block, count, steps)
-    }
-
     private suspend fun executeRepeatCount(block: AutomationBlock, steps: StepBudget): ExecutionResult {
         val count = block.intParam("count", 1)
         return repeatLoop(block, count, steps)
@@ -761,7 +764,15 @@ class AutomationExecutor(
 
     private fun checkBatteryLevel(block: AutomationBlock, label: String = "电量"): ExecutionResult {
         val operator = block.choiceParam("operator", "大于")
-            .let { if (it == "低于" && label == "触发") "小于" else it }
+            .let {
+                // TriggerBattery 用「高于/低于」，CheckBatteryLevel 用「大于/小于/等于」，
+                // 统一归一化到 compareInt 认识的三种运算符，否则「高于」会恒为 false。
+                when (it) {
+                    "高于" -> "大于"
+                    "低于" -> "小于"
+                    else -> it
+                }
+            }
         val level = block.intParam("level", 50)
         val actual = currentBatteryLevel()
         val met = compareInt(actual, level, operator)
@@ -817,7 +828,7 @@ class AutomationExecutor(
         val expectedSsid = block.stringParam("ssid").trim().removePrefix("\"").removeSuffix("\"")
         val connect = block.choiceParam("connect", "已加入")
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val currentSsid = wifiManager.connectionInfo?.ssid?.removePrefix("\"")?.removeSuffix("\"")
+        val currentSsid = currentWifiSsid(wifiManager)
         // 未指定 SSID 时默认"全部 WiFi"：只要连接了任意 WiFi 即视为已加入
         val hasAnyWifi = !currentSsid.isNullOrBlank()
         val connected = if (expectedSsid.isBlank()) {
@@ -835,6 +846,26 @@ class AutomationExecutor(
             "WiFi 触发：当前${currentSsid ?: "未连接"}${if (met) "满足" else "不满足"}",
             conditionMet = met
         )
+    }
+
+    /** 当前 WiFi SSID（脱敏时回退 configuredNetworks 按 networkId 解析）。 */
+    private fun currentWifiSsid(wifiManager: WifiManager): String? {
+        return try {
+            @Suppress("DEPRECATION")
+            val info = wifiManager.connectionInfo
+            if (info == null || info.networkId == -1) return null
+            @Suppress("DEPRECATION")
+            val ssid = info.ssid
+                ?.removePrefix("\"")?.removeSuffix("\"")
+                ?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+                ?: wifiManager.configuredNetworks
+                    ?.firstOrNull { it.networkId == info.networkId }
+                    ?.SSID
+                    ?.removePrefix("\"")?.removeSuffix("\"")
+            ssid?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun checkDayOfWeek(block: AutomationBlock): ExecutionResult {
@@ -1037,13 +1068,17 @@ class AutomationExecutor(
     }
 
     private fun foregroundPackage(): String? {
-        // 尝试 ActivityManager.getRunningTasks（需 GET_TASKS 权限，应用已声明）
         try {
             val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-            val tasks = am.getRunningTasks(1)
-            tasks?.firstOrNull()?.topActivity?.packageName?.let { return it }
+            @Suppress("DEPRECATION")
+            return am.runningAppProcesses
+                ?.asSequence()
+                ?.filter { it.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE }
+                ?.minByOrNull { it.importance }
+                ?.processName
+                ?.substringBefore(':')
         } catch (e: Exception) {
-            Log.w(TAG, "getRunningTasks failed: ${e.message}")
+            Log.w(TAG, "foregroundPackage failed: ${e.message}")
         }
         return null
     }

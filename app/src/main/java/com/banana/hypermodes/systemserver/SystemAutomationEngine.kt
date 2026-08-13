@@ -98,6 +98,14 @@ class SystemAutomationEngine(
         override fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean {
             return systemOpsExecutor.setMotionSicknessReliefEnabled(enabled)
         }
+
+        override fun setWifiEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setWifiEnabled(enabled)
+        }
+
+        override fun setBluetoothEnabled(enabled: Boolean): Boolean {
+            return systemOpsExecutor.setBluetoothEnabled(enabled)
+        }
     }
 
     private val executor = AutomationExecutor(context, systemOps)
@@ -235,10 +243,7 @@ class SystemAutomationEngine(
             AutomationStore.load(context).filter { it.enabled }
         }.getOrDefault(emptyList())
         for (automation in automations) {
-            val hasMatching = automation.blocks.any { block ->
-                block.type is BlockType.TriggerIntent &&
-                    block.stringParam("action") == action
-            }
+            val hasMatching = hasIntentTrigger(automation.blocks, action)
             if (!hasMatching) continue
             scope.launch {
                 executor.pendingIntentAction = action
@@ -249,6 +254,18 @@ class SystemAutomationEngine(
                 HyperLog.i(TAG, "意图触发执行结果：${result?.success} ${result?.message}")
             }
         }
+    }
+
+    /** 递归检查块树中是否存在匹配 action 的 TriggerIntent（与 collectIntentActions 一致）。 */
+    private fun hasIntentTrigger(blocks: List<AutomationBlock>, action: String): Boolean {
+        for (block in blocks) {
+            if (block.type is BlockType.TriggerIntent && block.stringParam("action") == action) {
+                return true
+            }
+            if (hasIntentTrigger(block.children, action)) return true
+            if (hasIntentTrigger(block.elseChildren, action)) return true
+        }
+        return false
     }
 
     fun shutdown() {

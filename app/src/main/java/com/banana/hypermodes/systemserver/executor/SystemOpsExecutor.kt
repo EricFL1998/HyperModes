@@ -4,7 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.wifi.WifiManager
 import android.provider.Settings
+import android.bluetooth.BluetoothManager
 import android.telephony.SubscriptionManager
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
@@ -153,6 +155,35 @@ class SystemOpsExecutor(private val context: Context) {
             true
         } catch (t: Throwable) {
             log("setMotionSicknessReliefEnabled failed: ${t.message}")
+            false
+        }
+    }
+
+    /** WiFi 开关：system_server 有 CHANGE_WIFI_STATE 特权，直接调 WifiManager。 */
+    fun setWifiEnabled(enabled: Boolean): Boolean {
+        return try {
+            val wm = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            @Suppress("DEPRECATION")
+            wm.setWifiEnabled(enabled)
+            log("setWifiEnabled($enabled)")
+            true
+        } catch (t: Throwable) {
+            log("setWifiEnabled failed: ${t.message}")
+            false
+        }
+    }
+
+    /** 蓝牙开关：system_server 有 BLUETOOTH_ADMIN 特权。 */
+    fun setBluetoothEnabled(enabled: Boolean): Boolean {
+        return try {
+            val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+                ?: return false
+            @Suppress("DEPRECATION")
+            if (enabled) adapter.enable() else adapter.disable()
+            log("setBluetoothEnabled($enabled)")
+            true
+        } catch (t: Throwable) {
+            log("setBluetoothEnabled failed: ${t.message}")
             false
         }
     }

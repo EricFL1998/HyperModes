@@ -20,7 +20,10 @@ class BridgeSystemOps(private val context: Context) : AutomationSystemOps {
         return try {
             val intent = Intent(action).apply(configure)
                 .setPackage(Protocol.FRAMEWORK_PACKAGE)
-            context.sendBroadcast(intent, Protocol.PERMISSION_CONTROL)
+            // 不再传 receiverPermission：接收方（system_server）不可能持有本 App 的
+            // signature 权限 PERMISSION_CONTROL，之前这里会导致广播被 AMS 静默丢弃。
+            // 发送方鉴权已由 receiver 注册时的 broadcastPermission=PERMISSION_CONTROL 保证。
+            context.sendBroadcast(intent)
             true
         } catch (e: Exception) {
             Log.w(TAG, "bridge broadcast $action failed: ${e.message}")
@@ -81,6 +84,20 @@ class BridgeSystemOps(private val context: Context) : AutomationSystemOps {
     override fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean {
         return send(Protocol.ACTION_SYSTEM_OP) {
             putExtra(Protocol.EXTRA_OP, Protocol.OP_SET_MOTION_SICKNESS_RELIEF)
+            putExtra(Protocol.EXTRA_ENABLED, enabled)
+        }
+    }
+
+    override fun setWifiEnabled(enabled: Boolean): Boolean {
+        return send(Protocol.ACTION_SYSTEM_OP) {
+            putExtra(Protocol.EXTRA_OP, Protocol.OP_SET_WIFI_ENABLED)
+            putExtra(Protocol.EXTRA_ENABLED, enabled)
+        }
+    }
+
+    override fun setBluetoothEnabled(enabled: Boolean): Boolean {
+        return send(Protocol.ACTION_SYSTEM_OP) {
+            putExtra(Protocol.EXTRA_OP, Protocol.OP_SET_BLUETOOTH_ENABLED)
             putExtra(Protocol.EXTRA_ENABLED, enabled)
         }
     }

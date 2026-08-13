@@ -2563,8 +2563,7 @@ private fun BlockCard(
                             onPickApps = { param -> onPickApps(param) },
                             mainKeys = listOf("packages")
                         )
-                    } else if (block.type is BlockType.Repeat ||
-                        block.type is BlockType.RepeatCount
+                    } else if (block.type is BlockType.RepeatCount
                     ) {
                         // 重复：一行句子式编辑器（[🔁] [重复次数]）
                         SentenceChipEditor(

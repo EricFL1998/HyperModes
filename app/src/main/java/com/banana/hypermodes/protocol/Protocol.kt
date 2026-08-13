@@ -56,6 +56,8 @@ object Protocol {
     const val OP_SET_FLASHLIGHT_ENABLED = "set_flashlight_enabled"
     const val OP_SET_PREFERRED_SIM_SLOT = "set_preferred_sim_slot"
     const val OP_SET_MOTION_SICKNESS_RELIEF = "set_motion_sickness_relief"
+    const val OP_SET_WIFI_ENABLED = "set_wifi_enabled"
+    const val OP_SET_BLUETOOTH_ENABLED = "set_bluetooth_enabled"
     const val EXTRA_NAMESPACE = "namespace"
     const val EXTRA_KEY = "key"
     const val EXTRA_VALUE = "value"

@@ -67,7 +67,6 @@ sealed class BlockType(val id: String) {
 
     // ==================== 控制流 ====================
     data object IfCondition : BlockType("if_condition")
-    data object Repeat : BlockType("repeat")
     data object RepeatCount : BlockType("repeat_count")
     data object Wait : BlockType("wait")
     data object Comment : BlockType("comment")
@@ -128,7 +127,7 @@ sealed class BlockType(val id: String) {
             SetMode,
             OpenApp, SuspendApps, UnsuspendApps,
             SendIntent,
-            IfCondition, Repeat, RepeatCount, Wait, Comment,
+            IfCondition, RepeatCount, Wait, Comment,
             AndCondition, OrCondition,
             CheckWifiState, CheckBluetoothState,
             CheckBatteryLevel, CheckChargingState,
@@ -376,9 +375,6 @@ private fun defaultParametersFor(type: BlockType): List<BlockParameter> = when (
 
     // ==================== 控制流 ====================
     is BlockType.IfCondition -> emptyList() // 条件由子块决定
-    is BlockType.Repeat -> listOf(
-        BlockParameter.IntParam("count", "重复次数", 3, 1, 100)
-    )
     is BlockType.RepeatCount -> listOf(
         BlockParameter.IntParam("count", "重复次数", 3, 1, 100)
     )
