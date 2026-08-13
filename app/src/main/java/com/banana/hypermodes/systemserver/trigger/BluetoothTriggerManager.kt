@@ -165,24 +165,35 @@ class BluetoothTriggerManager(
 
     private fun isDeviceConnected(device: BluetoothDevice): Boolean {
         return try {
-            // Try public method first, then hidden/declared with accessible fallback.
+            // 优先 public 方法（避免隐藏 API 反射）；失败再沿继承链找 declared 方法，
+            // 兼容 isConnected() 在部分 ROM 上被 @hide 的情况。
             val method = try {
                 device.javaClass.getMethod("isConnected")
             } catch (e: NoSuchMethodException) {
-                device.javaClass.getDeclaredMethod("isConnected").apply { isAccessible = true }
+                findDeclaredMethod(device.javaClass, "isConnected")
+            }
+            if (method == null) {
+                if (lastCheckTime == 0L) Log.w(TAG, "isConnected() method not found")
+                return false
             }
             method.invoke(device) as? Boolean == true
-        } catch (e: NoSuchMethodException) {
-            // Method not available on this Android version
-            // Log only once to avoid spam
-            if (lastCheckTime == 0L) {
-                Log.w(TAG, "isConnected() method not available, using fallback")
-            }
-            false
         } catch (e: Exception) {
             HyperLog.d(TAG, "Error checking device connection: ${e.message}")
             false
         }
+    }
+
+    /** 沿继承链查找方法（含非 public 隐藏 API），并 setAccessible。 */
+    private fun findDeclaredMethod(cls: Class<*>?, name: String): java.lang.reflect.Method? {
+        var c: Class<*>? = cls
+        while (c != null) {
+            try {
+                return c.getDeclaredMethod(name).apply { isAccessible = true }
+            } catch (e: NoSuchMethodException) {
+                c = c.superclass
+            }
+        }
+        return null
     }
 
     private fun isCarAudioDevice(device: BluetoothDevice): Boolean {

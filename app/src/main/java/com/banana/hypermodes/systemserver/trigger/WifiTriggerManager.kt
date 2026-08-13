@@ -105,6 +105,14 @@ class WifiTriggerManager(
             if (info == null || info.networkId == -1) return null
             
             var ssid = info.ssid
+            // 部分 ROM/Android 版本上 connectionInfo.ssid 会被脱敏或置空，回退到
+            // configuredNetworks 按 networkId 解析真实 SSID。
+            if (ssid == null || ssid == "<unknown ssid>" || ssid.isEmpty()) {
+                @Suppress("DEPRECATION")
+                ssid = manager.configuredNetworks
+                    ?.firstOrNull { it.networkId == info.networkId }
+                    ?.SSID
+            }
             if (ssid == null || ssid == "<unknown ssid>") return null
             
             // Remove quotes if present

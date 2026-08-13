@@ -63,9 +63,19 @@ class AppTriggerManager(
     }
 
     private fun getForegroundPackage(): String? {
-        @Suppress("DEPRECATION")
-        val tasks = activityManager.getRunningTasks(1)
-        return tasks?.getOrNull(0)?.topActivity?.packageName
+        // getRunningTasks 在 Android 11+ 对非系统应用只返回自身任务；改用
+        // runningAppProcesses 按 importance 取前台进程（importance 越小越靠前）。
+        return try {
+            @Suppress("DEPRECATION")
+            activityManager.runningAppProcesses
+                ?.asSequence()
+                ?.filter { it.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE }
+                ?.minByOrNull { it.importance }
+                ?.processName
+                ?.substringBefore(':')
+        } catch (e: Exception) {
+            null
+        }
     }
 
     companion object {
