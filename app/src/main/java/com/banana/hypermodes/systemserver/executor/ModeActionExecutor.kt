@@ -2,6 +2,7 @@ package com.banana.hypermodes.systemserver.executor
 
 import android.content.Context
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.StatusBarIconManager
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.ModeType
@@ -225,7 +226,7 @@ class ModeActionExecutor(
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

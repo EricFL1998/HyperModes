@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import android.view.View
 import com.banana.hypermodes.controlcenter.FocusCardDetailFactory
 import com.banana.hypermodes.controlcenter.FocusCardStateRepository
@@ -845,12 +846,12 @@ class ControlCenterCardHook(private val module: XposedModule) {
                     ?: return false
 
                 // Diagnostic: log panel structure
-                Log.d("ControlCenterCardHook", "rightPanelContent structure (${rightPanelContent.size} items):")
+                HyperLog.d("ControlCenterCardHook", "rightPanelContent structure (${rightPanelContent.size} items):")
                 rightPanelContent.forEachIndexed { index, item ->
                     val isFooter = item === rightFooterSpace
                     val className = item?.javaClass?.simpleName ?: "null"
                     val priority = item?.let { runCatching { Reflect.call(it, "getPriority") }.getOrNull() }
-                    Log.d("ControlCenterCardHook", "  [$index] $className (priority=$priority)${if (isFooter) " <- FOOTER" else ""}")
+                    HyperLog.d("ControlCenterCardHook", "  [$index] $className (priority=$priority)${if (isFooter) " <- FOOTER" else ""}")
                 }
 
                 val cardsControllerClass = Reflect.findClass(QS_CARDS_CONTROLLER_CLASS, classLoader)

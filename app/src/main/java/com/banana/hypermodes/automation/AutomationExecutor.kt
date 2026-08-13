@@ -15,6 +15,7 @@ import android.os.BatteryManager
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.bridge.ModeControlBridge
 import kotlinx.coroutines.delay
 import java.util.Calendar
@@ -115,7 +116,7 @@ class AutomationExecutor(
      * 执行单个块。
      */
     private suspend fun executeBlock(block: AutomationBlock, steps: StepBudget): ExecutionResult {
-        Log.d(TAG, "Executing block: ${block.label} (${block.type.id})")
+        HyperLog.d(TAG, "Executing block: ${block.label} (${block.type.id})")
 
         return when (block.type) {
             // ==================== 触发条件 ====================

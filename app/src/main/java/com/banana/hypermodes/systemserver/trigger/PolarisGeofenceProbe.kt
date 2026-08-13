@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * This is a gate: location triggers are NOT implemented unless on-device probe
  * confirms Polaris registration is allowed.
  */
-class PolarisGeofenceAdapter(private val context: Context) {
+class PolarisGeofenceProbe(private val context: Context) {
 
     /**
      * Capability detection result.
@@ -309,7 +309,7 @@ class PolarisGeofenceAdapter(private val context: Context) {
     }
 
     companion object {
-        private const val TAG = "PolarisGeofenceAdapter"
+    private const val TAG = "PolarisGeofenceProbe"
         private const val BINDING_TIMEOUT_MS = 5000L
 
         /**

@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.automation.AutomationExecutor
 import com.banana.hypermodes.automation.AutomationBlock
 import com.banana.hypermodes.automation.AutomationStore
@@ -112,7 +113,7 @@ class SystemAutomationEngine(
 
     private val configObserver = object : ContentObserver(mainHandler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
-            Log.i(TAG, "自动化配置变化，重新评估")
+            HyperLog.i(TAG, "自动化配置变化，重新评估")
             refreshIntentActions()
             evaluateAll()
         }
@@ -131,14 +132,14 @@ class SystemAutomationEngine(
                 BluetoothDevice.ACTION_ACL_CONNECTED,
                 BluetoothDevice.ACTION_ACL_DISCONNECTED,
                 ConnectivityManager.CONNECTIVITY_ACTION -> {
-                    Log.i(TAG, "事件 ${intent.action}，重新评估触发条件")
+                    HyperLog.i(TAG, "事件 ${intent.action}，重新评估触发条件")
                     evaluateAll()
                 }
                 else -> {
                     // 意图触发：匹配到 TriggerIntent 的 action 时执行对应自动化
                     val action = intent.action
                     if (action != null && intentActions.contains(action)) {
-                        Log.i(TAG, "收到意图广播 $action，触发匹配的自动化")
+                        HyperLog.i(TAG, "收到意图广播 $action，触发匹配的自动化")
                         handleIntentTrigger(action)
                     }
                 }
@@ -177,7 +178,7 @@ class SystemAutomationEngine(
             context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
             receiverRegistered = true
         }
-        Log.i(TAG, "SystemAutomationEngine 已初始化")
+        HyperLog.i(TAG, "SystemAutomationEngine 已初始化")
         // 启动时评估一次
         evaluateAll()
     }
@@ -224,7 +225,7 @@ class SystemAutomationEngine(
                 intentActions.forEach { addAction(it) }
             }
             context.registerReceiver(receiver, filter, null, mainHandler, Context.RECEIVER_EXPORTED)
-            Log.i(TAG, "意图触发 action 已刷新：新增 ${added.size}，移除 ${removed.size}")
+            HyperLog.i(TAG, "意图触发 action 已刷新：新增 ${added.size}，移除 ${removed.size}")
         }
     }
 
@@ -245,7 +246,7 @@ class SystemAutomationEngine(
                     executor.execute(automation.blocks)
                 }.getOrNull()
                 executor.pendingIntentAction = null
-                Log.i(TAG, "意图触发执行结果：${result?.success} ${result?.message}")
+                HyperLog.i(TAG, "意图触发执行结果：${result?.success} ${result?.message}")
             }
         }
     }
@@ -260,7 +261,7 @@ class SystemAutomationEngine(
             receiverRegistered = false
         }
         synchronized(lock) { triggerStates.clear() }
-        Log.i(TAG, "SystemAutomationEngine 已关闭")
+        HyperLog.i(TAG, "SystemAutomationEngine 已关闭")
     }
 
     /**
@@ -290,11 +291,11 @@ class SystemAutomationEngine(
                 }
 
                 if (risingEdge) {
-                    Log.i(TAG, "触发条件满足：${automation.name}，开始执行")
+                    HyperLog.i(TAG, "触发条件满足：${automation.name}，开始执行")
                     val result = runCatching {
                         executor.execute(automation.blocks)
                     }.getOrNull()
-                    Log.i(TAG, "自动化执行结果：${result?.success} ${result?.message}")
+                    HyperLog.i(TAG, "自动化执行结果：${result?.success} ${result?.message}")
                 }
             }
         }

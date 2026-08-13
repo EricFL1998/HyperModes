@@ -7,12 +7,13 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 
 /**
  * On-device test utility for Polaris geofencing probe.
  *
- * This utility invokes the system_server bridge to run the PolarisGeofenceAdapter
+ * This utility invokes the system_server bridge to run the PolarisGeofenceProbe
  * capability probe and captures diagnostic results. Use this to validate whether
  * Xiaomi Polaris geofencing is available on the target device before implementing
  * location trigger UI/persistence.
@@ -20,7 +21,7 @@ import com.banana.hypermodes.protocol.Protocol
  * Usage:
  * ```
  * PolarisProbeTestUtil.runProbe(context) { result ->
- *     Log.d(TAG, "Probe result: $result")
+ *     HyperLog.d(TAG, "Probe result: $result")
  *     // Display result to user or save to log file
  * }
  * ```
@@ -38,7 +39,7 @@ object PolarisProbeTestUtil {
      * @param onResult Callback invoked with probe result (on main thread)
      */
     fun runProbe(context: Context, onResult: (ProbeResult) -> Unit) {
-        Log.d(TAG, "Initiating Polaris capability probe")
+        HyperLog.d(TAG, "Initiating Polaris capability probe")
 
         val resultReceiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
@@ -49,7 +50,7 @@ object PolarisProbeTestUtil {
                 }
 
                 val result = parseProbeResult(resultData)
-                Log.d(TAG, "Probe completed: $result")
+                HyperLog.d(TAG, "Probe completed: $result")
                 onResult(result)
             }
         }
@@ -60,7 +61,7 @@ object PolarisProbeTestUtil {
             }
 
             context.sendBroadcast(intent, Protocol.PERMISSION_CONTROL)
-            Log.d(TAG, "Probe request sent to system_server")
+            HyperLog.d(TAG, "Probe request sent to system_server")
 
             // Timeout handler
             Handler(Looper.getMainLooper()).postDelayed({
@@ -75,7 +76,7 @@ object PolarisProbeTestUtil {
     }
 
     /**
-     * Parse Bundle result from PolarisGeofenceAdapter.getCapabilityReport()
+ * Parse Bundle result from PolarisGeofenceProbe.getCapabilityReport()
      */
     private fun parseProbeResult(bundle: Bundle): ProbeResult {
         val resultType = bundle.getString("result_type", "Unknown")

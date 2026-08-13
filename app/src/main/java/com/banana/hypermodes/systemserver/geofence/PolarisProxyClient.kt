@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.proxy.PolarisProxyContract
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
 import com.banana.hypermodes.systemserver.trigger.GeofenceEvent
@@ -54,7 +55,7 @@ class PolarisProxyClient(
     }
 
     fun init() {
-        Log.i(TAG, "Initializing Polaris via ContentProvider (system_server -> app process)")
+        HyperLog.i(TAG, "Initializing Polaris via ContentProvider (system_server -> app process)")
         
         synchronized(lock) {
             connectionCheckCount++
@@ -80,9 +81,9 @@ class PolarisProxyClient(
         val errorMsg = result?.getString(PolarisProxyContract.RESULT_ERROR_MSG)
 
         if (success) {
-            Log.i(TAG, "✓ Polaris initialized successfully")
+            HyperLog.i(TAG, "✓ Polaris initialized successfully")
             if (errorMsg != null) {
-                Log.i(TAG, "  Details: $errorMsg")
+                HyperLog.i(TAG, "  Details: $errorMsg")
             }
             synchronized(lock) {
                 cachedConnectionState = true
@@ -103,7 +104,7 @@ class PolarisProxyClient(
     }
 
     fun updateTriggers(triggers: List<Triple<String, String, ComplexTrigger.Location>>) {
-        Log.i(TAG, "updateTriggers called with ${triggers.size} trigger(s)")
+        HyperLog.i(TAG, "updateTriggers called with ${triggers.size} trigger(s)")
 
         // Build desired state
         val newDesired = triggers.associate { (modeId, triggerId, config) ->
@@ -142,12 +143,12 @@ class PolarisProxyClient(
             desiredById to liveById
         }
         
-        Log.i(TAG, "Reconciling geofences: desired=${desired.size}, live=${live.size}")
+        HyperLog.i(TAG, "Reconciling geofences: desired=${desired.size}, live=${live.size}")
 
         // Fences to remove (in live but not in desired)
         val toRemove = live.keys - desired.keys
         toRemove.forEach { fenceId ->
-            Log.i(TAG, "  Removing fence: $fenceId")
+            HyperLog.i(TAG, "  Removing fence: $fenceId")
             removeGeofence(fenceId)
         }
 
@@ -155,7 +156,7 @@ class PolarisProxyClient(
         val toAdd = desired.keys - live.keys
         toAdd.forEach { fenceId ->
             val spec = desired[fenceId]!!
-            Log.i(TAG, "  Adding fence: $fenceId")
+            HyperLog.i(TAG, "  Adding fence: $fenceId")
             addGeofence(spec)
         }
 
@@ -165,7 +166,7 @@ class PolarisProxyClient(
             val desiredSpec = desired[fenceId]!!
             val liveSpec = live[fenceId]!!
             if (desiredSpec != liveSpec) {
-                Log.i(TAG, "  Updating fence (remove+add): $fenceId")
+                HyperLog.i(TAG, "  Updating fence (remove+add): $fenceId")
                 removeGeofence(fenceId)
                 addGeofence(desiredSpec)
             }
@@ -200,7 +201,7 @@ class PolarisProxyClient(
             synchronized(lock) {
                 liveById = liveById + (spec.fenceId to spec)
             }
-            Log.i(TAG, "✓ Added geofence: ${spec.fenceId}")
+            HyperLog.i(TAG, "✓ Added geofence: ${spec.fenceId}")
         } else {
             val error = result?.getString(PolarisProxyContract.RESULT_ERROR_MSG) ?: "Unknown error"
             Log.e(TAG, "✗ Failed to add geofence ${spec.fenceId}: $error")
@@ -228,7 +229,7 @@ class PolarisProxyClient(
             synchronized(lock) {
                 liveById = liveById - fenceId
             }
-            Log.i(TAG, "✓ Removed geofence: $fenceId")
+            HyperLog.i(TAG, "✓ Removed geofence: $fenceId")
         } else {
             val error = result?.getString(PolarisProxyContract.RESULT_ERROR_MSG) ?: "Unknown error"
             Log.e(TAG, "✗ Failed to remove geofence $fenceId: $error")
@@ -237,7 +238,7 @@ class PolarisProxyClient(
 
     fun cleanup() {
         val currentLive = synchronized(lock) { liveById.size }
-        Log.i(TAG, "Cleaning up: removing all $currentLive geofence(s)")
+        HyperLog.i(TAG, "Cleaning up: removing all $currentLive geofence(s)")
 
         val result = try {
             context.contentResolver.call(
@@ -255,7 +256,7 @@ class PolarisProxyClient(
             synchronized(lock) {
                 liveById = emptyMap()
             }
-            Log.i(TAG, "✓ Cleared all geofences")
+            HyperLog.i(TAG, "✓ Cleared all geofences")
         } else {
             val error = result?.getString(PolarisProxyContract.RESULT_ERROR_MSG) ?: "Unknown error"
             Log.e(TAG, "✗ Failed to clear all geofences: $error")
@@ -302,7 +303,7 @@ class PolarisProxyClient(
             if (!connected && connectionCheckCount <= 5) {
                 val error = result?.getString(PolarisProxyContract.RESULT_ERROR_MSG)
                 if (error != null) {
-                    Log.d(TAG, "Polaris not connected: $error")
+                    HyperLog.d(TAG, "Polaris not connected: $error")
                 }
             }
         }
@@ -312,7 +313,7 @@ class PolarisProxyClient(
 
     // Public method for PolarisCallbackReceiver to call when event arrives
     fun onGeofenceEvent(modeId: String, triggerId: String, event: GeofenceEvent) {
-        Log.i(TAG, "Geofence event received from Polaris: mode=$modeId, trigger=$triggerId, event=$event")
+        HyperLog.i(TAG, "Geofence event received from Polaris: mode=$modeId, trigger=$triggerId, event=$event")
         callback(modeId, triggerId, event)
     }
     

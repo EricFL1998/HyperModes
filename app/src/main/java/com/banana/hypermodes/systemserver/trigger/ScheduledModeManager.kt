@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.PackagePresencePolicy
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
@@ -459,6 +460,6 @@ class ScheduledModeManager(
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 }

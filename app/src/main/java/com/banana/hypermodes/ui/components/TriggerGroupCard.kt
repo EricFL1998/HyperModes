@@ -145,7 +145,7 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         }
         is ModeTrigger.Wifi -> trigger.ssids.joinToString(", ")
         is ModeTrigger.Bluetooth -> {
-            if (trigger.matchAnyCarAudio) "任意车载蓝牙"
+            if (trigger.matchAnyCarAudio) stringResource(R.string.any_car_bluetooth)
             else {
                 val bluetoothAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 trigger.deviceAddresses.joinToString(", ") { address ->
@@ -158,7 +158,7 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
             }
         }
         is ModeTrigger.Music -> stringResource(R.string.trigger_on_music)
-        is ModeTrigger.Location -> trigger.target.addressName ?: "位置触发"
+        is ModeTrigger.Location -> trigger.target.addressName ?: stringResource(R.string.location_trigger)
         is ModeTrigger.Intent -> {
             importedConfigs.firstNotNullOfOrNull { config ->
                 if (config.packageName == trigger.packageName) {
@@ -166,7 +166,7 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
                         action.intents.any { it == trigger.activateAction || it == trigger.deactivateAction }
                     }?.name
                 } else null
-            } ?: (trigger.activateAction ?: "Intent 触发")
+            } ?: (trigger.activateAction ?: stringResource(R.string.intent_trigger))
         }
         is ModeTrigger.Battery -> when (trigger.operator) {
             "above" -> stringResource(R.string.trigger_on_battery_above, trigger.threshold)
@@ -175,4 +175,3 @@ private fun getTriggerDescription(trigger: ModeTrigger): String {
         }
     }
 }
-

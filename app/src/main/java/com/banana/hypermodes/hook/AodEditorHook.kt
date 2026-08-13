@@ -2,6 +2,7 @@ package com.banana.hypermodes.hook
 
 import android.content.Intent
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
@@ -67,7 +68,7 @@ class AodEditorHook(private val module: XposedModule) {
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
         module.log(android.util.Log.WARN, TAG, msg)
     }
 

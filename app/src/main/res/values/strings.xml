@@ -348,4 +348,35 @@
     <string name="icon">Icon</string>
 
     <string name="delete_automation">删除自动化</string>
+
+    <!-- Automation editor / picker UI -->
+    <string name="search_operations_hint">搜索操作...</string>
+    <string name="search_all_actions_hint">搜索全部操作...</string>
+    <string name="add_action">添加操作</string>
+    <string name="select_action">选择操作</string>
+    <string name="category_all">全部</string>
+    <string name="automations_empty_title">还没有自动化任务</string>
+    <string name="automations_empty_subtitle">点击右下角 + 创建第一个自动化</string>
+    <string name="automations_empty_desc">根据时间、地点或条件自动执行操作</string>
+    <string name="delete_automation_confirm">确定要删除「%1$s」吗？</string>
+    <string name="action_run">运行</string>
+    <string name="new_automation">新建自动化</string>
+    <string name="automation_title">自动化</string>
+    <string name="execution_error">执行错误: %1$s</string>
+    <string name="action_test">测试</string>
+    <string name="add_first_action_hint">点击下方 + 添加第一个操作</string>
+    <string name="actions_added_count">已添加 %1$d 个操作</string>
+    <string name="select_app">选择应用</string>
+    <string name="select_app_multi">选择应用（可多选）</string>
+    <string name="set_start_time">设置开始时间</string>
+    <string name="set_end_time">设置结束时间</string>
+    <string name="execute_on_trigger">触发时执行</string>
+    <string name="execute_actions">执行操作</string>
+    <string name="execute_otherwise">否则执行</string>
+    <string name="start">开始</string>
+    <string name="repeat_label">重复</string>
+    <string name="no_modes_create_first">暂无模式，请先在「模式」页创建</string>
+    <string name="any_car_bluetooth">任意车载蓝牙</string>
+    <string name="location_trigger">位置触发</string>
+    <string name="intent_trigger">Intent 触发</string>
 </resources>

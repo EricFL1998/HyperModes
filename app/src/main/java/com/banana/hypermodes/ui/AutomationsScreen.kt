@@ -248,13 +248,13 @@ fun AutomationsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "还没有自动化任务",
+                        text = stringResource(R.string.automations_empty_title),
                         style = MiuixTheme.textStyles.headline1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "点击右下角 + 创建第一个自动化",
+                        text = stringResource(R.string.automations_empty_subtitle),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
@@ -268,7 +268,7 @@ fun AutomationsScreen(
             ) {
                 // Description text - 和模式列表一样
                 Text(
-                    text = "根据时间、地点或条件自动执行操作",
+                    text = stringResource(R.string.automations_empty_desc),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp)
@@ -346,7 +346,7 @@ fun AutomationsScreen(
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                     )
                     Text(
-                        text = "确定要删除「${automation.name}」吗?",
+                        text = stringResource(R.string.delete_automation_confirm, automation.name),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -745,7 +745,7 @@ private fun AutomationCard(
             ) {
                 Icon(
                     imageVector = MiuixIcons.Play,
-                    contentDescription = "运行",
+                    contentDescription = stringResource(R.string.action_run),
                     tint = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -829,7 +829,7 @@ fun CreateAutomationDialog(
                             .fillMaxWidth()
                             .padding(horizontal = 5.dp)
                             .padding(bottom = 24.dp),
-                        label = "新建自动化",
+                        label = stringResource(R.string.new_automation),
                         useLabelAsPlaceholder = true,
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(

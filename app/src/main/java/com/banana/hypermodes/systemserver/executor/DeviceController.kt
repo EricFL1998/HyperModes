@@ -5,6 +5,7 @@ import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.DeviceConfig
 
 /**
@@ -420,7 +421,7 @@ class DeviceController(private val context: Context) {
         }
     }
 
-    private fun log(msg: String) = Log.i(TAG, msg)
+    private fun log(msg: String) = HyperLog.i(TAG, msg)
 
     companion object {
         private const val TAG = "DeviceController"

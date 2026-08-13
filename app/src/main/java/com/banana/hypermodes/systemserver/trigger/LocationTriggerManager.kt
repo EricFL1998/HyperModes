@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.UserManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.config.ComplexTrigger
 import com.banana.hypermodes.systemserver.geofence.PolarisProxyClient
@@ -42,8 +43,8 @@ class LocationTriggerManager(
     private val userUnlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_USER_UNLOCKED) {
-                Log.i(TAG, "=== User Unlocked Event Received ===")
-                Log.i(TAG, "Resetting retry mechanism and attempting immediate Polaris init")
+                HyperLog.i(TAG, "=== User Unlocked Event Received ===")
+                HyperLog.i(TAG, "Resetting retry mechanism and attempting immediate Polaris init")
                 
                 synchronized(lock) {
                     if (isReleased) return
@@ -64,7 +65,7 @@ class LocationTriggerManager(
             val fenceId = intent.getStringExtra(Protocol.EXTRA_POLARIS_FENCE_ID) ?: return
             val eventCode = intent.getIntExtra(Protocol.EXTRA_POLARIS_EVENT, -1)
 
-            Log.i(TAG, "Received geofence event broadcast: fenceId=$fenceId, eventCode=$eventCode")
+            HyperLog.i(TAG, "Received geofence event broadcast: fenceId=$fenceId, eventCode=$eventCode")
 
             // Parse fence ID using the proper parser
             val parsed = PolarisProxyClient.parseFenceId(fenceId)
@@ -85,18 +86,18 @@ class LocationTriggerManager(
                 }
             }
 
-            Log.i(TAG, "Parsed geofence event: mode=$modeId, trigger=$triggerId, event=$event")
+            HyperLog.i(TAG, "Parsed geofence event: mode=$modeId, trigger=$triggerId, event=$event")
             onGeofenceEvent(modeId, triggerId, event)
         }
     }
 
     init {
-        Log.i(TAG, "LocationTriggerManager initialized in process ${android.os.Process.myPid()}")
+        HyperLog.i(TAG, "LocationTriggerManager initialized in process ${android.os.Process.myPid()}")
         
         // Check if Polaris package is installed
         isPolarisPackageInstalled = try {
             context.packageManager.getPackageInfo(POLARIS_PACKAGE, 0)
-            Log.i(TAG, "Polaris package detected: $POLARIS_PACKAGE")
+            HyperLog.i(TAG, "Polaris package detected: $POLARIS_PACKAGE")
             true
         } catch (e: PackageManager.NameNotFoundException) {
             Log.w(TAG, "Polaris package not found: $POLARIS_PACKAGE")
@@ -110,11 +111,11 @@ class LocationTriggerManager(
         // Register for geofence events from app process
         val geofenceFilter = IntentFilter(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         context.registerReceiver(geofenceEventReceiver, geofenceFilter)
-        Log.i(TAG, "Registered receiver for ${Protocol.ACTION_POLARIS_GEOFENCE_EVENT}")
+        HyperLog.i(TAG, "Registered receiver for ${Protocol.ACTION_POLARIS_GEOFENCE_EVENT}")
     }
 
     fun updateConfigs(newConfigs: Map<String, List<Pair<String, ComplexTrigger.Location>>>) {
-        Log.i(TAG, "=== updateConfigs called ===")
+        HyperLog.i(TAG, "=== updateConfigs called ===")
         
         val oldConfigs = synchronized(lock) {
             if (isReleased) {
@@ -126,7 +127,7 @@ class LocationTriggerManager(
             old
         }
         
-        Log.i(TAG, "Previous configs: ${oldConfigs.size} modes, New configs: ${newConfigs.size} modes")
+        HyperLog.i(TAG, "Previous configs: ${oldConfigs.size} modes, New configs: ${newConfigs.size} modes")
 
         // Report modes that dropped out as inactive
         val oldKeys = oldConfigs.keys
@@ -138,21 +139,21 @@ class LocationTriggerManager(
                     triggerStates.remove(key)
                 }
                 callback(modeId, "location:$triggerId", false)
-                Log.i(TAG, "Removed trigger: $key")
+                HyperLog.i(TAG, "Removed trigger: $key")
             }
         }
 
         if (newConfigs.isEmpty()) {
-            Log.i(TAG, "No location triggers configured, canceling retry mechanism")
+            HyperLog.i(TAG, "No location triggers configured, canceling retry mechanism")
             handler.removeCallbacks(retryRunnable)
             return
         }
 
-        Log.i(TAG, "Location triggers configured: ${newConfigs.size} mode(s)")
+        HyperLog.i(TAG, "Location triggers configured: ${newConfigs.size} mode(s)")
         newConfigs.forEach { (modeId, triggers) ->
-            Log.i(TAG, "  Mode $modeId: ${triggers.size} trigger(s)")
+            HyperLog.i(TAG, "  Mode $modeId: ${triggers.size} trigger(s)")
             triggers.forEach { (triggerId, location) ->
-                Log.d(TAG, "    - $triggerId: lat=${location.latitude}, lng=${location.longitude}, r=${location.radius}m, trans=${location.transition}")
+                HyperLog.d(TAG, "    - $triggerId: lat=${location.latitude}, lng=${location.longitude}, r=${location.radius}m, trans=${location.transition}")
             }
         }
 
@@ -170,10 +171,10 @@ class LocationTriggerManager(
 
         // If we have location triggers but Polaris isn't connected, start/continue retry mechanism
         if (!polarisClient.isConnected()) {
-            Log.i(TAG, "Polaris not connected, initiating retry mechanism")
+            HyperLog.i(TAG, "Polaris not connected, initiating retry mechanism")
             scheduleRetry(immediate = true)
         } else {
-            Log.i(TAG, "Polaris already connected, updating triggers immediately")
+            HyperLog.i(TAG, "Polaris already connected, updating triggers immediately")
             updatePolarisGeofences()
         }
     }
@@ -190,7 +191,7 @@ class LocationTriggerManager(
             }
         }
 
-        Log.i(TAG, "Pushing ${allTriggers.size} trigger(s) to Polaris")
+        HyperLog.i(TAG, "Pushing ${allTriggers.size} trigger(s) to Polaris")
         polarisClient.updateTriggers(allTriggers)
 
         // Initialize state for new triggers as unknown
@@ -234,14 +235,14 @@ class LocationTriggerManager(
             else -> false
         }
 
-        Log.i(TAG, "Geofence event: mode=$modeId, trigger=$triggerId, event=$event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
+        HyperLog.i(TAG, "Geofence event: mode=$modeId, trigger=$triggerId, event=$event, inside=$isInside, transition=${trigger.transition}, activate=$shouldActivate")
 
         // Only fire callback if state actually changed (or was unknown)
         if (wasInside == null || wasInside != isInside) {
-            Log.i(TAG, "  State changed from $wasInside -> $isInside, firing callback")
+            HyperLog.i(TAG, "  State changed from $wasInside -> $isInside, firing callback")
             callback(modeId, "location:$triggerId", shouldActivate)
         } else {
-            Log.d(TAG, "  State unchanged ($isInside), skipping callback")
+            HyperLog.d(TAG, "  State unchanged ($isInside), skipping callback")
         }
     }
 
@@ -250,7 +251,7 @@ class LocationTriggerManager(
      * Clears all trigger states and releases the Polaris adapter.
      */
     fun release() {
-        Log.i(TAG, "Releasing LocationTriggerManager")
+        HyperLog.i(TAG, "Releasing LocationTriggerManager")
         
         synchronized(lock) {
             isReleased = true
@@ -262,12 +263,12 @@ class LocationTriggerManager(
         try {
             context.unregisterReceiver(userUnlockReceiver)
         } catch (e: Exception) {
-            Log.d(TAG, "userUnlockReceiver already unregistered")
+            HyperLog.d(TAG, "userUnlockReceiver already unregistered")
         }
         try {
             context.unregisterReceiver(geofenceEventReceiver)
         } catch (e: Exception) {
-            Log.d(TAG, "geofenceEventReceiver already unregistered")
+            HyperLog.d(TAG, "geofenceEventReceiver already unregistered")
         }
         
         updateConfigs(emptyMap())
@@ -285,7 +286,7 @@ class LocationTriggerManager(
         // Check if user is unlocked
         val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager
         if (userManager?.isUserUnlocked != true) {
-            Log.i(TAG, "User is locked. Polaris init will be deferred until unlock broadcast")
+            HyperLog.i(TAG, "User is locked. Polaris init will be deferred until unlock broadcast")
             return
         }
 
@@ -310,7 +311,7 @@ class LocationTriggerManager(
             }
         }
 
-        Log.i(TAG, "Scheduling Polaris init retry in ${delay/1000}s (attempt ${currentRetryCount + 1}/$maxRetries)")
+        HyperLog.i(TAG, "Scheduling Polaris init retry in ${delay/1000}s (attempt ${currentRetryCount + 1}/$maxRetries)")
         
         if (delay == 0L) {
             handler.post(retryRunnable)
@@ -323,7 +324,7 @@ class LocationTriggerManager(
         override fun run() {
             synchronized(lock) {
                 if (isReleased) {
-                    Log.i(TAG, "Retry triggered but manager is released, aborting")
+                    HyperLog.i(TAG, "Retry triggered but manager is released, aborting")
                     return
                 }
             }
@@ -333,19 +334,19 @@ class LocationTriggerManager(
             // Only retry if we have location triggers
             val hasConfigs = synchronized(lock) { configs.isNotEmpty() }
             if (!hasConfigs) {
-                Log.i(TAG, "Retry triggered but no location triggers configured, aborting")
+                HyperLog.i(TAG, "Retry triggered but no location triggers configured, aborting")
                 return
             }
 
             // If already connected, apply triggers and exit
             if (polarisClient.isConnected()) {
-                Log.i(TAG, "=== Polaris Connected Successfully! ===")
+                HyperLog.i(TAG, "=== Polaris Connected Successfully! ===")
                 val attempts = synchronized(lock) {
                     val count = retryCount
                     retryCount = 0
                     count
                 }
-                Log.i(TAG, "Connection established after $attempts retry attempt(s)")
+                HyperLog.i(TAG, "Connection established after $attempts retry attempt(s)")
                 updatePolarisGeofences()
                 return
             }
@@ -356,10 +357,10 @@ class LocationTriggerManager(
                 retryCount
             }
             
-            Log.i(TAG, "=== Polaris Init Retry Attempt $attemptNumber/$maxRetries ===")
+            HyperLog.i(TAG, "=== Polaris Init Retry Attempt $attemptNumber/$maxRetries ===")
             
             synchronized(lock) {
-                Log.i(TAG, "Time since last retry: ${now - lastRetryTime}ms")
+                HyperLog.i(TAG, "Time since last retry: ${now - lastRetryTime}ms")
                 lastRetryTime = now
             }
 
@@ -368,7 +369,7 @@ class LocationTriggerManager(
 
             // Check if connection succeeded
             if (polarisClient.isConnected()) {
-                Log.i(TAG, "=== Polaris Connected on Attempt $attemptNumber! ===")
+                HyperLog.i(TAG, "=== Polaris Connected on Attempt $attemptNumber! ===")
                 synchronized(lock) {
                     retryCount = 0
                 }

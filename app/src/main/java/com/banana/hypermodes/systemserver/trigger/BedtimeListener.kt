@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 
@@ -61,7 +62,7 @@ class BedtimeListener(
     fun cleanupForPackageRemoval() = cleanup()
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

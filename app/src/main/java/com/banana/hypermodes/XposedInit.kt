@@ -2,6 +2,7 @@ package com.banana.hypermodes
 
 import android.content.Context
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.hook.ControlCenterCardHook
 import com.banana.hypermodes.hook.AodEditorHook
 import com.banana.hypermodes.hook.DeskClockHook
@@ -24,7 +25,6 @@ class XposedInit : XposedModule() {
     private val modeDisplayCoordinator by lazy {
         ModeDisplayCoordinator { message ->
             log(Log.WARN, "HyperModes.ModeDisplay", message)
-            Log.w("HyperModes.ModeDisplay", message)
         }
     }
     private val lockscreenHook by lazy { LockscreenHook(this, modeDisplayCoordinator) }
@@ -32,11 +32,11 @@ class XposedInit : XposedModule() {
 
     override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
         this.processName = param.processName
-        Log.e(TAG, "!!! onModuleLoaded: processName=${this.processName}")
+        HyperLog.d(TAG, "onModuleLoaded: processName=${this.processName}")
     }
 
     override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {
-        Log.e(TAG, "!!! onSystemServerStarting called")
+        HyperLog.d(TAG, "onSystemServerStarting called")
         try {
             SystemModeHook(this).install(param.classLoader)
             SystemKeepAliveHook(this).install(param.classLoader, deferHeavyHooks = true)
@@ -48,7 +48,7 @@ class XposedInit : XposedModule() {
 
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         val pkg = param.packageName
-        Log.e(TAG, "!!! onPackageReady: pkg=$pkg, proc=$processName")
+        HyperLog.d(TAG, "onPackageReady: pkg=$pkg, proc=$processName")
 
         try {
             when (pkg) {
@@ -59,14 +59,14 @@ class XposedInit : XposedModule() {
                     SettingsHook(this).install(param.classLoader)
                 }
                 "com.android.systemui" -> {
-                    Log.e(TAG, "!!! com.android.systemui ready - hooking plugin loading")
+                    HyperLog.d(TAG, "com.android.systemui ready - hooking plugin loading")
                     hookPluginLoading(param.classLoader)
                     SystemUIHook(this).install(param.classLoader)
                     lockscreenHook.install(param.classLoader)
                     fullAodHook.install(param.classLoader)
                 }
                 "com.miui.aod" -> {
-                    Log.e(TAG, "!!! com.miui.aod ready - hooking keyguard editor")
+                    HyperLog.d(TAG, "com.miui.aod ready - hooking keyguard editor")
                     AodEditorHook(this).install(param.classLoader)
                 }
             }
@@ -89,13 +89,13 @@ class XposedInit : XposedModule() {
                             val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
                             val pluginInstance = getThisObjectMethod.invoke(chain) ?: return result
                             val pkg = Reflect.call(pluginInstance, "getPackage") as? String
-                            Log.e(TAG, "!!! Plugin package: $pkg")
+                            HyperLog.d(TAG, "Plugin package: $pkg")
                             
                             if (pkg == "miui.systemui.plugin") {
                                 val pluginContext = Reflect.call(pluginInstance, "getPluginContext") as? Context
                                 val pluginClassLoader = pluginContext?.classLoader
                                 if (pluginClassLoader != null) {
-                                    Log.e(TAG, "!!! miui.systemui.plugin loaded, installing control center card hook")
+                                    HyperLog.d(TAG, "miui.systemui.plugin loaded, installing control center card hook")
                                     ControlCenterCardHook(this@XposedInit).install(
                                         pluginClassLoader = pluginClassLoader,
                                         systemUiClassLoader = systemUIClassLoader

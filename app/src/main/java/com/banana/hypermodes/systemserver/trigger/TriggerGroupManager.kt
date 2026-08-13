@@ -2,6 +2,7 @@ package com.banana.hypermodes.systemserver.trigger
 
 import android.content.Context
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import com.banana.hypermodes.systemserver.config.TriggerGroup
@@ -200,7 +201,7 @@ class TriggerGroupManager(
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

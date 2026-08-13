@@ -3,6 +3,7 @@ package com.banana.hypermodes.systemserver.executor
 import android.content.Context
 import android.os.IBinder
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * Controller for suspending and unsuspending app packages using PackageManagerService.
@@ -163,7 +164,7 @@ class AppSuspendController(
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

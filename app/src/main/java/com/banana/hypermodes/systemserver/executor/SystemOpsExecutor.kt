@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.provider.Settings
 import android.telephony.SubscriptionManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * system_server 内的统一特权操作执行器。自动化里所有需要系统级权限的
@@ -156,7 +157,7 @@ class SystemOpsExecutor(private val context: Context) {
         }
     }
 
-    private fun log(msg: String) = Log.i(TAG, msg)
+    private fun log(msg: String) = HyperLog.i(TAG, msg)
 
     companion object {
         private const val TAG = "SystemOpsExecutor"

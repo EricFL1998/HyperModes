@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * Manages battery-level triggers.
@@ -59,7 +60,7 @@ class BatteryTriggerManager(
                         IntentFilter(Intent.ACTION_BATTERY_CHANGED)
                     )
                     isReceiverRegistered = true
-                    Log.d(TAG, "Battery receiver registered")
+                    HyperLog.d(TAG, "Battery receiver registered")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to register battery receiver: ${e.message}")
                 }
@@ -122,9 +123,9 @@ class BatteryTriggerManager(
         if (isReceiverRegistered) {
             try {
                 context.unregisterReceiver(receiver)
-                Log.d(TAG, "Battery receiver unregistered")
+                HyperLog.d(TAG, "Battery receiver unregistered")
             } catch (e: IllegalArgumentException) {
-                Log.d(TAG, "Battery receiver already unregistered")
+                HyperLog.d(TAG, "Battery receiver already unregistered")
             } catch (e: Exception) {
                 Log.e(TAG, "Error unregistering battery receiver: ${e.message}")
             }

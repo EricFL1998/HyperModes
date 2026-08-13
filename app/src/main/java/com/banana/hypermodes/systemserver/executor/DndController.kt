@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.DndLevel
 
 /**
@@ -117,7 +118,7 @@ class DndController(private val context: Context) {
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

@@ -3,6 +3,7 @@ package com.banana.hypermodes.systemserver.executor
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * 在 system_server 内开关个人热点，直接用系统 API flip switch，
@@ -61,7 +62,7 @@ class HotspotController(private val context: Context) {
         return result
     }
 
-    private fun log(msg: String) = Log.i(TAG, msg)
+    private fun log(msg: String) = HyperLog.i(TAG, msg)
 
     companion object {
         private const val TAG = "HyperModes.Hotspot"

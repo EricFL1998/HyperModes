@@ -3,6 +3,7 @@ package com.banana.hypermodes.bridge
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.ConfigParser
 
 /**
@@ -26,7 +27,7 @@ object ModeControlBridge {
                 ?: """{"activeModeId":null,"modes":[]}"""
             val updated = ConfigParser.updateActiveModeId(json, modeId)
             Settings.Global.putString(context.contentResolver, CONFIG_KEY, updated)
-            Log.i(TAG, "Activated mode: $modeId via Settings.Global")
+            HyperLog.i(TAG, "Activated mode: $modeId via Settings.Global")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to activate mode: $modeId", e)
         }
@@ -42,7 +43,7 @@ object ModeControlBridge {
                 ?: """{"activeModeId":null,"modes":[]}"""
             val updated = ConfigParser.updateActiveModeId(json, null)
             Settings.Global.putString(context.contentResolver, CONFIG_KEY, updated)
-            Log.i(TAG, "Deactivated mode: $modeId via Settings.Global")
+            HyperLog.i(TAG, "Deactivated mode: $modeId via Settings.Global")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to deactivate mode: $modeId", e)
         }

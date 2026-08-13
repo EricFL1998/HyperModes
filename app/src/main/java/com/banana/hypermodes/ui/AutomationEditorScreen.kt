@@ -83,378 +83,6 @@ import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.window.WindowListPopup
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
-/**
- * 自动化操作项数据类
- */
-data class AutomationAction(
-    val id: String,
-    val name: String,
-    val icon: String,
-    val iconColor: Color,
-    val description: String = "",
-    /** 已导入意图元数据：非空时表示这是一个"发送意图"操作。 */
-    val intentPackage: String? = null,
-    val intentName: String? = null,
-    val intentAction: String? = null,
-    /** true 时创建"当"（意图触发）块，监听意图广播；false 为发送意图操作。 */
-    val intentTrigger: Boolean = false
-)
-
-/**
- * 自动化操作选择对话框（底部弹出，图一样式）。
- * iOS 分组卡片列表：无搜索框，按分类以粗体分组标题引领，
- * 每行为独立大圆角卡片——左彩色图标 + 双行文字 + 右侧圆形 i 信息按钮。
- */
-@Composable
-fun AutomationActionDialog(
-    show: Boolean,
-    onDismiss: () -> Unit,
-    onActionSelected: (AutomationAction) -> Unit = {},
-    categories: Set<AutomationCatalog.Category>? = null
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<Any?>(null) }
-    val listState = rememberLazyListState()
-
-    // 每次打开弹窗都重置分类到"全部"、清空搜索
-    LaunchedEffect(show) {
-        if (show) {
-            selectedCategory = null
-            searchQuery = ""
-            listState.scrollToItem(0)
-        }
-    }
-
-    // 切换分类（含切回"全部"）时列表回到顶部
-    LaunchedEffect(selectedCategory) {
-        listState.scrollToItem(0)
-    }
-
-    // 可用分类（未限定 categories 时展示全部；被限定则只展示限定分类）
-    val availableCategories = remember(categories) {
-        if (categories == null) AutomationCatalog.Category.entries
-        else categories.toList()
-    }
-
-    // 已导入的意图：app 名作为类别，每个 IntentAction 作为一个操作。
-    // 用进程级缓存，避免每次弹窗/重组都重新读 SharedPreferences。
-    val context = LocalContext.current
-    val importedConfigs = remember { ImportedIntentStore.loadAllCached(context) }
-
-    /** 根据 id 判断当前选中项是否为某个意图类别。 */
-    fun isIntentCategorySelected(packageName: String): Boolean =
-        selectedCategory == packageName
-
-    WindowBottomSheet(
-        show = show,
-        onDismissRequest = onDismiss,
-        title = "选择操作",
-        insideMargin = DpSize(0.dp, 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-        ) {
-            // 搜索框（最顶部，可搜索全部操作）
-            SearchBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                inputField = {
-                    InputField(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = { },
-                        expanded = false,
-                        onExpandedChange = { },
-                        label = "搜索全部操作..."
-                    )
-                },
-                expanded = false,
-                onExpandedChange = { }
-            ) { }
-
-            // 分类按钮（横向滚动胶囊），点一下列表自动切换
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(end = 8.dp)
-            ) {
-                item(key = "cat-all") {
-                    CategoryChip(
-                        label = "全部",
-                        selected = selectedCategory == null,
-                        onClick = { selectedCategory = null }
-                    )
-                }
-                items(availableCategories, key = { it.name }) { category ->
-                    CategoryChip(
-                        label = category.label,
-                        selected = selectedCategory == category,
-                        onClick = { selectedCategory = category }
-                    )
-                }
-                items(importedConfigs, key = { "intent-${it.packageName}" }) { config ->
-                    CategoryChip(
-                        label = config.appName,
-                        selected = isIntentCategorySelected(config.packageName),
-                        onClick = { selectedCategory = config.packageName }
-                    )
-                }
-            }
-
-            // 分组操作列表（按分类，以粗体标题分组）
-            val allActions = AutomationCatalog.visibleEntries
-                .filter { categories == null || it.category in categories }
-                .filter { selectedCategory == null || selectedCategory is AutomationCatalog.Category && it.category == selectedCategory }
-                .map { entry ->
-                    AutomationAction(
-                        id = entry.id,
-                        name = entry.name,
-                        icon = entry.icon,
-                        iconColor = entry.iconColor,
-                        description = entry.description
-                    )
-                }
-            // 已导入意图操作：按 app 名分组，每个 IntentAction 一个操作
-            val intentActions: List<Pair<IntentConfig, List<AutomationAction>>> = importedConfigs
-                .filter { config -> selectedCategory == null || selectedCategory == config.packageName }
-                .map { config ->
-                    config to config.intents.map { action ->
-                        // 每个意图：发送意图操作（可拖拽进 "当" 的 {} 绑定）
-                        AutomationAction(
-                            id = "intent_send_${config.packageName}_${action.name}",
-                            name = action.name,
-                            icon = "📨",
-                            iconColor = Color(0xFF5856D6),
-                            description = "向 ${config.appName} 发送广播 ${action.name}",
-                            intentPackage = config.packageName,
-                            intentName = action.name,
-                            intentAction = action.intents.firstOrNull()
-                        )
-                    }
-                }
-            val filteredActions = remember(searchQuery, allActions) {
-                if (searchQuery.isBlank()) {
-                    allActions
-                } else {
-                    allActions.filter { action ->
-                        action.name.contains(searchQuery, ignoreCase = true) ||
-                                action.description.contains(searchQuery, ignoreCase = true)
-                    }
-                }
-            }
-            val filteredIntentActions = remember(searchQuery, intentActions) {
-                intentActions.map { (config, actions) ->
-                    config to if (searchQuery.isBlank()) {
-                        actions
-                    } else {
-                        actions.filter { action ->
-                            action.name.contains(searchQuery, ignoreCase = true) ||
-                                    action.description.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
-                }.filter { it.second.isNotEmpty() }
-            }
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                state = listState
-            ) {
-                if (searchQuery.isBlank()) {
-                    if (selectedCategory == null) {
-                        // 全部：按分类分组展示，带粗体标题
-                        AutomationCatalog.grouped()
-                            .filter { (category, _) -> categories == null || category in categories }
-                            .forEach { (category, entries) ->
-                                item(key = "header-${category.name}") {
-                                    Text(
-                                        text = category.label,
-                                        style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
-                                        modifier = Modifier.padding(
-                                            start = 20.dp,
-                                            top = 20.dp,
-                                            bottom = 12.dp
-                                        )
-                                    )
-                                }
-                                items(entries.map { entry ->
-                                    AutomationAction(
-                                        id = entry.id,
-                                        name = entry.name,
-                                        icon = entry.icon,
-                                        iconColor = entry.iconColor,
-                                        description = entry.description
-                                    )
-                                }, key = { it.id }) { action ->
-                                    ActionOptionCard(
-                                        action = action,
-                                        onClick = {
-                                            onActionSelected(action)
-                                            onDismiss()
-                                        }
-                                    )
-                                }
-                            }
-                        // 已导入意图：按 app 分组展示
-                        filteredIntentActions.forEach { (config, actions) ->
-                            item(key = "header-intent-${config.packageName}") {
-                                Text(
-                                    text = config.appName,
-                                    style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
-                                    modifier = Modifier.padding(
-                                        start = 20.dp,
-                                        top = 20.dp,
-                                        bottom = 12.dp
-                                    )
-                                )
-                            }
-                            items(actions, key = { it.id }) { action ->
-                                ActionOptionCard(
-                                    action = action,
-                                    onClick = {
-                                        onActionSelected(action)
-                                        onDismiss()
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        // 选中分类：扁平展示该分类的操作
-                        if (selectedCategory is AutomationCatalog.Category) {
-                            items(allActions, key = { it.id }) { action ->
-                                ActionOptionCard(
-                                    action = action,
-                                    onClick = {
-                                        onActionSelected(action)
-                                        onDismiss()
-                                    }
-                                )
-                            }
-                        } else {
-                            // 选中意图类别：扁平展示该 app 的意图操作
-                            filteredIntentActions.forEach { (_, actions) ->
-                                items(actions, key = { it.id }) { action ->
-                                    ActionOptionCard(
-                                        action = action,
-                                        onClick = {
-                                            onActionSelected(action)
-                                            onDismiss()
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    items(filteredActions, key = { it.id }) { action ->
-                        ActionOptionCard(
-                            action = action,
-                            onClick = {
-                                onActionSelected(action)
-                                onDismiss()
-                            }
-                        )
-                    }
-                    filteredIntentActions.forEach { (_, actions) ->
-                        items(actions, key = { it.id }) { action ->
-                            ActionOptionCard(
-                                action = action,
-                                onClick = {
-                                    onActionSelected(action)
-                                    onDismiss()
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 图一样式的操作选项卡片：左图标 + 双行文字 + 右侧圆形 i 按钮。 */
-@Composable
-private fun ActionOptionCard(
-    action: AutomationAction,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 10.dp),
-        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        cornerRadius = 20.dp,
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 左侧彩色图标（无底色容器，直接放置）
-            Text(
-                text = action.icon,
-                fontSize = 30.sp,
-                modifier = Modifier.padding(end = 14.dp)
-            )
-
-            // 双行文字
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = action.name,
-                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold)
-                )
-                if (action.description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "“${action.description}”",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    )
-                }
-            }
-
-        }
-    }
-}
-
-/** 分类胶囊按钮：选中态主题色高亮，未选中灰底。 */
-@Composable
-private fun CategoryChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val backgroundColor = if (selected) {
-        MiuixTheme.colorScheme.primary
-    } else {
-        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f)
-    }
-    val contentColor = if (selected) {
-        MiuixTheme.colorScheme.onPrimary
-    } else {
-        MiuixTheme.colorScheme.onSurface
-    }
-    Box(
-        modifier = Modifier
-            .padding(end = 8.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(backgroundColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 17.dp, vertical = 7.dp)
-    ) {
-        Text(
-            text = label,
-            style = MiuixTheme.textStyles.body2,
-            color = contentColor
-        )
-    }
-}
 
 /**
  * 全屏自动化编辑界面。初始 block 列表由外部传入，
@@ -599,7 +227,7 @@ fun AutomationEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = "自动化",
+                title = stringResource(R.string.automation_title),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = {
@@ -629,7 +257,7 @@ fun AutomationEditorScreen(
                                     } catch (e: Exception) {
                                         Toast.makeText(
                                             context,
-                                            "执行错误: ${e.message}",
+                                            context.getString(R.string.execution_error, e.message),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     } finally {
@@ -642,7 +270,7 @@ fun AutomationEditorScreen(
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Basic.ArrowRight,
-                            contentDescription = "测试"
+                            contentDescription = stringResource(R.string.action_test)
                         )
                     }
                     IconButton(onClick = { showOverflowMenu = true }) {
@@ -730,7 +358,7 @@ fun AutomationEditorScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 Text(
-                    text = "确定要删除「${automation.name}」吗？",
+                    text = stringResource(R.string.delete_automation_confirm, automation.name),
                     style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     textAlign = TextAlign.Center,
@@ -857,9 +485,9 @@ fun AutomationEditorScreen(
             item {
                 Text(
                     text = if (blocks.isEmpty()) {
-                        "点击下方 + 添加第一个操作"
+                        stringResource(R.string.add_first_action_hint)
                     } else {
-                        "已添加 ${blocks.size} 个操作"
+                        stringResource(R.string.actions_added_count, blocks.size)
                     },
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -983,7 +611,7 @@ fun AutomationEditorScreen(
     // 应用选择器（全屏覆盖）
     appPickRequest?.let { req ->
         AppPickerScreen(
-            title = if (req.single) "选择应用" else "选择应用（可多选）",
+            title = if (req.single) stringResource(R.string.select_app) else stringResource(R.string.select_app_multi),
             initialSelection = req.initial,
             singleSelection = req.single,
             onBack = { appPickRequest = null },
@@ -2246,7 +1874,7 @@ private fun ParamChip(
     ) {
         val parts = param.value.split(":")
         TimePickerDialog(
-            title = if (param.key == "start") "设置开始时间" else "设置结束时间",
+            title = if (param.key == "start") stringResource(R.string.set_start_time) else stringResource(R.string.set_end_time),
             initialHour = parts.getOrNull(0)?.toIntOrNull() ?: 0,
             initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0,
             show = true,
@@ -3046,7 +2674,7 @@ private fun BlockCard(
                             modifier = Modifier.padding(end = 8.dp)
                         )
                         Text(
-                            text = "触发时执行",
+                            text = stringResource(R.string.execute_on_trigger),
                             style = MiuixTheme.textStyles.body2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             modifier = Modifier.weight(1f)
@@ -3125,7 +2753,7 @@ private fun BlockCard(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "执行操作",
+                        text = stringResource(R.string.execute_actions),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -3194,7 +2822,7 @@ private fun BlockCard(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "否则执行",
+                        text = stringResource(R.string.execute_otherwise),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -3553,7 +3181,7 @@ private fun ParameterEditor(
                                 }
                                 if (modes.isNullOrEmpty()) {
                                     Text(
-                                        text = "暂无模式，请先在「模式」页创建",
+                                        text = stringResource(R.string.no_modes_create_first),
                                         style = MiuixTheme.textStyles.body2,
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                         modifier = Modifier.padding(12.dp)
@@ -3656,7 +3284,7 @@ private fun TimeTriggerEditor(
             }
             Spacer(modifier = Modifier.width(10.dp))
             TimeChip(
-                label = "开始",
+                label = stringResource(R.string.start),
                 value = start?.value ?: "",
                 onPick = { showTimePicker = true }
             )
@@ -3676,7 +3304,7 @@ private fun TimeTriggerEditor(
             Spacer(modifier = Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "重复",
+                    text = stringResource(R.string.repeat_label),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(end = 12.dp)
@@ -3711,7 +3339,7 @@ private fun TimeTriggerEditor(
     if (showTimePicker) {
         val (initialHour, initialMinute) = parseTime(start?.value ?: "")
         TimePickerDialog(
-            title = "设置开始时间",
+            title = stringResource(R.string.set_start_time),
             initialHour = initialHour,
             initialMinute = initialMinute,
             show = true,

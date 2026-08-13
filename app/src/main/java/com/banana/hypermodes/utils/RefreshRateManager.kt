@@ -3,6 +3,7 @@ package com.banana.hypermodes.utils
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import android.view.WindowManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,7 +30,7 @@ object RefreshRateManager {
                     CACHE_KEY,
                     Json.encodeToString(rates)
                 )
-                Log.i(TAG, "Cached refresh rates: $rates")
+                HyperLog.i(TAG, "Cached refresh rates: $rates")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to cache refresh rates", e)
             }
@@ -59,11 +60,11 @@ object RefreshRateManager {
             val getIntArrayMethod = featureParserClass.getMethod("getIntArray", String::class.java)
             val fpsList = getIntArrayMethod.invoke(null, "fpsList") as? IntArray
             if (fpsList != null && fpsList.isNotEmpty()) {
-                Log.i(TAG, "Using curated fpsList from FeatureParser")
+                HyperLog.i(TAG, "Using curated fpsList from FeatureParser")
                 return fpsList.toList().sorted()
             }
         } catch (e: Exception) {
-            Log.d(TAG, "FeatureParser check failed: ${e.message}")
+            HyperLog.d(TAG, "FeatureParser check failed: ${e.message}")
         }
 
         // Method 2: Android Display API - Includes intermediate rates, so we filter
@@ -80,12 +81,12 @@ object RefreshRateManager {
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Display API check failed: ${e.message}")
+            HyperLog.d(TAG, "Display API check failed: ${e.message}")
         }
 
         // Final fallback if no standard rates found or Display API failed
         if (rates.isEmpty()) {
-            Log.i(TAG, "Falling back to default 60/120Hz")
+            HyperLog.i(TAG, "Falling back to default 60/120Hz")
             return listOf(60, 120)
         }
 

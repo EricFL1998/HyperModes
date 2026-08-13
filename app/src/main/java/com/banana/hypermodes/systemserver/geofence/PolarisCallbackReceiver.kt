@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 
 /**
@@ -74,7 +75,7 @@ class PolarisCallbackReceiver : BroadcastReceiver() {
             return
         }
 
-        Log.i(TAG, "Forwarding validated geofence event: ${callback.fenceId}, event=${callback.event}")
+        HyperLog.i(TAG, "Forwarding validated geofence event: ${callback.fenceId}, event=${callback.event}")
 
         // Forward via internal broadcast to system_server
         context.sendBroadcast(

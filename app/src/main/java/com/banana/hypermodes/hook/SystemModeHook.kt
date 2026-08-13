@@ -26,7 +26,7 @@ import com.banana.hypermodes.systemserver.executor.HotspotController
 import com.banana.hypermodes.systemserver.executor.SystemOpsExecutor
 import com.banana.hypermodes.systemserver.executor.WallpaperController
 import com.banana.hypermodes.systemserver.hooks.UniversalPermissionHook
-import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceAdapter
+import com.banana.hypermodes.systemserver.trigger.PolarisGeofenceProbe
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
@@ -152,8 +152,8 @@ class SystemModeHook(private val module: XposedModule) {
                 // Actions without EXTRA_PACKAGES — handle before the extraction below.
                 when (intent.action) {
                     Protocol.ACTION_POLARIS_GEOFENCE_EVENT -> {
-                        // Polaris geofence events are now handled by PolarisManagerAdapter
-                        // via the SDK callback mechanism, not through this broadcast path.
+                        // Polaris geofence events are now handled via the PolarisProxyProvider
+                        // ContentProvider + PolarisManager SDK, not through this broadcast path.
                         // This case is kept for backward compatibility but should not be used.
                         log("Received legacy Polaris geofence broadcast - ignoring (handled by SDK)")
                         return
@@ -365,7 +365,7 @@ class SystemModeHook(private val module: XposedModule) {
         }
 
         log("PROBE_POLARIS: starting capability detection")
-        val adapter = PolarisGeofenceAdapter(context)
+        val adapter = PolarisGeofenceProbe(context)
         val report = adapter.getCapabilityReport()
 
         val supported = report.getBoolean("supported", false)

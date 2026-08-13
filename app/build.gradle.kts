@@ -32,6 +32,7 @@ android {
     buildFeatures {
         compose = true
         aidl = true
+        buildConfig = true
     }
     testOptions {
         unitTests {
@@ -53,7 +54,6 @@ dependencies {
     implementation(libs.libsu.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
-    implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation(libs.miuix.core)
     implementation(libs.miuix.ui)
     implementation(libs.miuix.icons)
@@ -62,10 +62,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

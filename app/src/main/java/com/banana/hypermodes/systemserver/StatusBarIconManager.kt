@@ -3,6 +3,7 @@ package com.banana.hypermodes.systemserver
 import android.content.Context
 import android.os.IBinder
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 
 /**
@@ -99,7 +100,7 @@ class StatusBarIconManager(private val context: Context, private val classLoader
     }
 
     private fun log(msg: String) {
-        Log.i(TAG, msg)
+        HyperLog.i(TAG, msg)
     }
 
     companion object {

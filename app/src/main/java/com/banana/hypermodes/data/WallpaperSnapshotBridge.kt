@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 import java.io.File
 
@@ -96,14 +97,14 @@ object WallpaperSnapshotBridge {
      * @param onDone 预置完成后回调（主线程）；true=成功（含超时失败）
      */
     fun prepareEdit(context: Context, item: WallpaperItem, onDone: (Boolean) -> Unit) {
-        Log.i("WallpaperSnapshotBridge", "prepareEdit: which=${item.which} imagePath=${item.imagePath} sysImagePath=${item.sysImagePath}")
+        HyperLog.i("WallpaperSnapshotBridge", "prepareEdit: which=${item.which} imagePath=${item.imagePath} sysImagePath=${item.sysImagePath}")
         val handler = Handler(Looper.getMainLooper())
         var delivered = false
         val receiver = object : ResultReceiver(handler) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 if (delivered) return
                 delivered = true
-                Log.i("WallpaperSnapshotBridge", "prepareEdit result: which=${item.which} resultCode=$resultCode")
+                HyperLog.i("WallpaperSnapshotBridge", "prepareEdit result: which=${item.which} resultCode=$resultCode")
                 onDone(resultCode == 0)
             }
         }
@@ -159,7 +160,7 @@ object WallpaperSnapshotBridge {
         previewOnly: Boolean,
         onResult: (WallpaperSet?) -> Unit
     ) {
-        Log.i("WallpaperSnapshotBridge", "captureInternal: modeId=$modeId previewOnly=$previewOnly")
+        HyperLog.i("WallpaperSnapshotBridge", "captureInternal: modeId=$modeId previewOnly=$previewOnly")
         val handler = Handler(Looper.getMainLooper())
         var delivered = false
         fun deliver(result: WallpaperSet?) {
@@ -282,7 +283,7 @@ object WallpaperSnapshotBridge {
         which: Int,
         onDone: (Boolean) -> Unit
     ) {
-        Log.i("WallpaperSnapshotBridge", "prepareEditSet: which=$which")
+        HyperLog.i("WallpaperSnapshotBridge", "prepareEditSet: which=$which")
         val editedItem = if (which == 2) set.lock else set.desktop
         val otherItem = if (which == 2) set.desktop else set.lock
         var remaining = 0
@@ -291,7 +292,7 @@ object WallpaperSnapshotBridge {
             if (!ok) failed = true
             remaining--
             if (remaining <= 0) {
-                Log.i("WallpaperSnapshotBridge", "prepareEditSet done: success=${!failed}")
+                HyperLog.i("WallpaperSnapshotBridge", "prepareEditSet done: success=${!failed}")
                 onDone(!failed)
             }
         }

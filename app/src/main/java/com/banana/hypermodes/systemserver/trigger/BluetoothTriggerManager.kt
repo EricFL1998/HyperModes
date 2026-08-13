@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * Manages Bluetooth-based triggers.
@@ -69,7 +70,7 @@ class BluetoothTriggerManager(
                     }
                     context.registerReceiver(receiver, filter)
                     isReceiverRegistered = true
-                    Log.d(TAG, "Bluetooth receiver registered")
+                    HyperLog.d(TAG, "Bluetooth receiver registered")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to register Bluetooth receiver: ${e.message}")
                     // Don't set isReceiverRegistered = true
@@ -175,7 +176,7 @@ class BluetoothTriggerManager(
             }
             false
         } catch (e: Exception) {
-            Log.d(TAG, "Error checking device connection: ${e.message}")
+            HyperLog.d(TAG, "Error checking device connection: ${e.message}")
             false
         }
     }
@@ -185,7 +186,7 @@ class BluetoothTriggerManager(
             val bluetoothClass = device.bluetoothClass
             bluetoothClass?.deviceClass == android.bluetooth.BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO
         } catch (e: Exception) {
-            Log.d(TAG, "Error checking car audio device: ${e.message}")
+            HyperLog.d(TAG, "Error checking car audio device: ${e.message}")
             false
         }
     }
@@ -204,9 +205,9 @@ class BluetoothTriggerManager(
         if (isReceiverRegistered) {
             try {
                 context.unregisterReceiver(receiver)
-                Log.d(TAG, "Bluetooth receiver unregistered")
+                HyperLog.d(TAG, "Bluetooth receiver unregistered")
             } catch (e: IllegalArgumentException) {
-                Log.d(TAG, "Bluetooth receiver already unregistered")
+                HyperLog.d(TAG, "Bluetooth receiver already unregistered")
             } catch (e: Exception) {
                 Log.e(TAG, "Error unregistering Bluetooth receiver: ${e.message}")
             }

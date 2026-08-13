@@ -91,7 +91,7 @@ fun AutomationActionPickerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = "添加操作",
+                title = stringResource(R.string.add_action),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -127,7 +127,7 @@ fun AutomationActionPickerScreen(
                             onSearch = { },
                             expanded = false,
                             onExpandedChange = { },
-                            label = "搜索操作..."
+                            label = stringResource(R.string.search_operations_hint)
                         )
                     },
                     expanded = false,

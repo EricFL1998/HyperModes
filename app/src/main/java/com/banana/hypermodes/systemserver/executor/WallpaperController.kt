@@ -6,6 +6,7 @@ import android.os.Environment
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.WallpaperConfig
 import com.banana.hypermodes.systemserver.config.WallpaperItemConfig
 import java.io.File
@@ -485,7 +486,7 @@ class WallpaperController(private val context: Context) {
         Settings.Secure.putInt(context.contentResolver, key, value)
     }
 
-    private fun log(msg: String) = Log.i(TAG, msg)
+    private fun log(msg: String) = HyperLog.i(TAG, msg)
 
     companion object {
         private const val TAG = "WallpaperController"

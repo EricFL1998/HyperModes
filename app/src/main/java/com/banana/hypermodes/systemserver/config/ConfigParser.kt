@@ -1,6 +1,7 @@
 package com.banana.hypermodes.systemserver.config
 
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -102,7 +103,7 @@ object ConfigParser {
         }
         fields["triggerGroups"] = JsonArray(groups)
         fields.remove("complexTriggers")
-        Log.i(TAG, "Migrated ${groups.size} legacy complexTriggers to triggerGroups")
+        HyperLog.i(TAG, "Migrated ${groups.size} legacy complexTriggers to triggerGroups")
     }
 
     /**

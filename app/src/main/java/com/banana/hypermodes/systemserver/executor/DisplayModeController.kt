@@ -4,6 +4,7 @@ import android.app.UiModeManager
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.systemserver.config.DisplayConfig
 
 /**
@@ -170,7 +171,7 @@ class DisplayModeController(private val context: Context) {
         } catch (_: Exception) { false }
     }
 
-    private fun log(msg: String) = Log.i(TAG, msg)
+    private fun log(msg: String) = HyperLog.i(TAG, msg)
 
     companion object {
         private const val TAG = "DisplayModeController"

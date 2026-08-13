@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * Manages intent/broadcast-based triggers for modes.
@@ -23,7 +24,7 @@ class IntentTriggerManager(
     private var configs: Map<String, Triple<String?, String?, String?>> = emptyMap()
 
     fun updateConfigs(newConfigs: Map<String, Triple<String?, String?, String?>>) {
-        Log.i(TAG, "updateConfigs: ${newConfigs.size} modes with intent triggers")
+        HyperLog.i(TAG, "updateConfigs: ${newConfigs.size} modes with intent triggers")
         
         // Report modes that dropped out of the config as inactive
         (configs.keys - newConfigs.keys).forEach { 
@@ -53,7 +54,7 @@ class IntentTriggerManager(
         
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                Log.i(TAG, "Received intent: ${intent.action} for mode: $modeId")
+                HyperLog.i(TAG, "Received intent: ${intent.action} for mode: $modeId")
                 
                 // Check package match if specified
                 val packageMatches = packageName == null || 
@@ -61,22 +62,22 @@ class IntentTriggerManager(
                     intent.component?.packageName == packageName
                 
                 if (!packageMatches) {
-                    Log.d(TAG, "Package mismatch for mode: $modeId")
+                    HyperLog.d(TAG, "Package mismatch for mode: $modeId")
                     return
                 }
                 
                 // Check if this is an activate or deactivate action
                 when (intent.action) {
                     activateAction -> {
-                        Log.i(TAG, "Activate intent matched for mode: $modeId")
+                        HyperLog.i(TAG, "Activate intent matched for mode: $modeId")
                         callback(modeId, "intent", true)
                     }
                     deactivateAction -> {
-                        Log.i(TAG, "Deactivate intent matched for mode: $modeId")
+                        HyperLog.i(TAG, "Deactivate intent matched for mode: $modeId")
                         callback(modeId, "intent", false)
                     }
                     else -> {
-                        Log.d(TAG, "Unknown action for mode: $modeId, action: ${intent.action}")
+                        HyperLog.d(TAG, "Unknown action for mode: $modeId, action: ${intent.action}")
                     }
                 }
             }
@@ -89,19 +90,19 @@ class IntentTriggerManager(
             activateAction?.let { 
                 filter.addAction(it)
                 actionCount++
-                Log.i(TAG, "Registered activate action: $it for mode: $modeId")
+                HyperLog.i(TAG, "Registered activate action: $it for mode: $modeId")
             }
             
             deactivateAction?.let { 
                 filter.addAction(it)
                 actionCount++
-                Log.i(TAG, "Registered deactivate action: $it for mode: $modeId")
+                HyperLog.i(TAG, "Registered deactivate action: $it for mode: $modeId")
             }
             
             if (actionCount > 0) {
                 context.registerReceiver(receiver, filter, null, handler)
                 receivers[modeId] = receiver
-                Log.i(TAG, "Registered receiver for mode: $modeId with $actionCount actions")
+                HyperLog.i(TAG, "Registered receiver for mode: $modeId with $actionCount actions")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to register receiver for mode: $modeId", e)
@@ -112,7 +113,7 @@ class IntentTriggerManager(
         receivers.remove(modeId)?.let { receiver ->
             try {
                 context.unregisterReceiver(receiver)
-                Log.i(TAG, "Unregistered receiver for mode: $modeId")
+                HyperLog.i(TAG, "Unregistered receiver for mode: $modeId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to unregister receiver for mode: $modeId", e)
             }

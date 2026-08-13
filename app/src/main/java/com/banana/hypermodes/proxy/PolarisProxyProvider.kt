@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.UserManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.geofence.PolarisFenceSpec
 import com.xiaomi.gnss.polaris.geofence.MiGeofence
@@ -56,12 +57,12 @@ class PolarisProxyProvider : ContentProvider() {
     }
 
     override fun onCreate(): Boolean {
-        Log.i(TAG, "PolarisProxyProvider created in process ${android.os.Process.myPid()}")
+        HyperLog.i(TAG, "PolarisProxyProvider created in process ${android.os.Process.myPid()}")
         return true
     }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
-        Log.d(TAG, "call: method=$method, arg=$arg, connected=$isConnected")
+        HyperLog.d(TAG, "call: method=$method, arg=$arg, connected=$isConnected")
 
         return when (method) {
             PolarisProxyContract.METHOD_INIT -> handleInit()
@@ -83,7 +84,7 @@ class PolarisProxyProvider : ContentProvider() {
         synchronized(lock) {
             // If already connected, return success immediately
             if (isConnected) {
-                Log.i(TAG, "Already connected, skipping re-initialization")
+                HyperLog.i(TAG, "Already connected, skipping re-initialization")
                 return Bundle().apply {
                     putBoolean(PolarisProxyContract.RESULT_SUCCESS, true)
                     putString(PolarisProxyContract.RESULT_ERROR_MSG, "Already connected (attempt #$initAttemptCount)")
@@ -101,7 +102,7 @@ class PolarisProxyProvider : ContentProvider() {
             initAttemptCount++
         }
 
-        Log.i(TAG, "===== Polaris Init Attempt #$initAttemptCount =====")
+        HyperLog.i(TAG, "===== Polaris Init Attempt #$initAttemptCount =====")
 
         return try {
             val appContext = context?.applicationContext ?: context
@@ -122,7 +123,7 @@ class PolarisProxyProvider : ContentProvider() {
                 Log.e(TAG, "Polaris package ($POLARIS_PACKAGE) is not installed!")
                 return errorBundle("Polaris package not installed")
             }
-            Log.i(TAG, "✓ Polaris package is installed")
+            HyperLog.i(TAG, "✓ Polaris package is installed")
 
             // 2. Check if user is unlocked
             val userManager = appContext.getSystemService(Context.USER_SERVICE) as? UserManager
@@ -135,10 +136,10 @@ class PolarisProxyProvider : ContentProvider() {
                 Log.w(TAG, "✗ User is locked, cannot connect to Polaris")
                 return errorBundle("User is locked")
             }
-            Log.i(TAG, "✓ User is unlocked")
+            HyperLog.i(TAG, "✓ User is unlocked")
 
             // 3. Connect to Polaris
-            Log.i(TAG, "Connecting to Polaris service...")
+            HyperLog.i(TAG, "Connecting to Polaris service...")
             
             val manager = try {
                 PolarisManager.getInstance(appContext)
@@ -171,7 +172,7 @@ class PolarisProxyProvider : ContentProvider() {
             val component = ComponentName(appContext, PolarisProxyProvider::class.java)
             try {
                 geoService.registerComponent(component)
-                Log.i(TAG, "✓ Registered component with Polaris: $component")
+                HyperLog.i(TAG, "✓ Registered component with Polaris: $component")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to register component", e)
                 return errorBundle("Failed to register component: ${e.message}")
@@ -187,7 +188,7 @@ class PolarisProxyProvider : ContentProvider() {
                 isConnected = true
             }
 
-            Log.i(TAG, "===== Polaris Connected Successfully! (Attempt #$initAttemptCount) =====")
+            HyperLog.i(TAG, "===== Polaris Connected Successfully! (Attempt #$initAttemptCount) =====")
 
             Bundle().apply {
                 putBoolean(PolarisProxyContract.RESULT_SUCCESS, true)
@@ -205,7 +206,7 @@ class PolarisProxyProvider : ContentProvider() {
             try {
                 context.unregisterReceiver(it)
             } catch (e: Exception) {
-                Log.d(TAG, "Old receiver already unregistered")
+                HyperLog.d(TAG, "Old receiver already unregistered")
             }
         }
 
@@ -214,10 +215,10 @@ class PolarisProxyProvider : ContentProvider() {
                 // Polaris sends geofence events through broadcasts
                 // The action and extras depend on how Polaris SDK works
                 
-                Log.i(TAG, "===== Broadcast Received: ${intent.action} =====")
+                HyperLog.i(TAG, "===== Broadcast Received: ${intent.action} =====")
                 intent.extras?.let { extras ->
                     for (key in extras.keySet()) {
-                        Log.d(TAG, "  Extra: $key = ${extras.get(key)}")
+                        HyperLog.d(TAG, "  Extra: $key = ${extras.get(key)}")
                     }
                 }
 
@@ -233,7 +234,7 @@ class PolarisProxyProvider : ContentProvider() {
                     ?: intent.getIntExtra("transition", -1)
 
                 if (geofenceId != null && transitionType != -1) {
-                    Log.i(TAG, "Geofence Event: id=$geofenceId, transition=$transitionType")
+                    HyperLog.i(TAG, "Geofence Event: id=$geofenceId, transition=$transitionType")
 
                     // Forward to system_server via broadcast
                     val forwardIntent = Intent(Protocol.ACTION_POLARIS_GEOFENCE_EVENT).apply {
@@ -244,7 +245,7 @@ class PolarisProxyProvider : ContentProvider() {
 
                     try {
                         ctx.sendBroadcast(forwardIntent)
-                        Log.i(TAG, "✓ Forwarded geofence event to system_server")
+                        HyperLog.i(TAG, "✓ Forwarded geofence event to system_server")
                     } catch (e: Exception) {
                         Log.e(TAG, "✗ Failed to forward geofence event", e)
                     }
@@ -263,7 +264,7 @@ class PolarisProxyProvider : ContentProvider() {
         
         try {
             context.registerReceiver(geofenceReceiver, filter)
-            Log.i(TAG, "✓ Registered geofence event receiver")
+            HyperLog.i(TAG, "✓ Registered geofence event receiver")
         } catch (e: Exception) {
             Log.e(TAG, "✗ Failed to register geofence receiver", e)
         }
@@ -320,7 +321,7 @@ class PolarisProxyProvider : ContentProvider() {
                 )
             }
 
-            Log.i(TAG, "✓ Added geofence: $fenceId (lat=$latitude, lng=$longitude, r=${radius}m)")
+            HyperLog.i(TAG, "✓ Added geofence: $fenceId (lat=$latitude, lng=$longitude, r=${radius}m)")
 
             Bundle().apply {
                 putBoolean(PolarisProxyContract.RESULT_SUCCESS, true)
@@ -356,7 +357,7 @@ class PolarisProxyProvider : ContentProvider() {
                 liveById.remove(fenceId)
             }
 
-            Log.i(TAG, "✓ Removed geofence: $fenceId")
+            HyperLog.i(TAG, "✓ Removed geofence: $fenceId")
 
             Bundle().apply {
                 putBoolean(PolarisProxyContract.RESULT_SUCCESS, true)
@@ -396,7 +397,7 @@ class PolarisProxyProvider : ContentProvider() {
                 liveById.clear()
             }
 
-            Log.i(TAG, "✓ Cleared all geofences")
+            HyperLog.i(TAG, "✓ Cleared all geofences")
 
             Bundle().apply {
                 putBoolean(PolarisProxyContract.RESULT_SUCCESS, true)
@@ -435,7 +436,7 @@ class PolarisProxyProvider : ContentProvider() {
             if (isConnected) {
                 try {
                     geofenceService?.unregisterComponent()
-                    Log.i(TAG, "✓ Unregistered component from Polaris")
+                    HyperLog.i(TAG, "✓ Unregistered component from Polaris")
                 } catch (e: Exception) {
                     Log.e(TAG, "✗ Failed to unregister component", e)
                 }
@@ -447,7 +448,7 @@ class PolarisProxyProvider : ContentProvider() {
             try {
                 context?.unregisterReceiver(it)
             } catch (e: Exception) {
-                Log.d(TAG, "Receiver already unregistered")
+                HyperLog.d(TAG, "Receiver already unregistered")
             }
         }
         geofenceReceiver = null

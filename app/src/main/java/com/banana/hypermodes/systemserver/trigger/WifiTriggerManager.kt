@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.util.Log
+import com.banana.hypermodes.utils.HyperLog
 
 /**
  * Manages WiFi-based triggers.
@@ -56,7 +57,7 @@ class WifiTriggerManager(
                 try {
                     context.registerReceiver(receiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
                     isReceiverRegistered = true
-                    Log.d(TAG, "WiFi receiver registered")
+                    HyperLog.d(TAG, "WiFi receiver registered")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to register WiFi receiver: ${e.message}")
                     // Don't set isReceiverRegistered = true
@@ -131,9 +132,9 @@ class WifiTriggerManager(
         if (isReceiverRegistered) {
             try {
                 context.unregisterReceiver(receiver)
-                Log.d(TAG, "WiFi receiver unregistered")
+                HyperLog.d(TAG, "WiFi receiver unregistered")
             } catch (e: IllegalArgumentException) {
-                Log.d(TAG, "WiFi receiver already unregistered")
+                HyperLog.d(TAG, "WiFi receiver already unregistered")
             } catch (e: Exception) {
                 Log.e(TAG, "Error unregistering WiFi receiver: ${e.message}")
             }
