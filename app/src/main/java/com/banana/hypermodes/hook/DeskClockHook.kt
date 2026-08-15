@@ -109,6 +109,7 @@ class DeskClockHook(private val module: XposedModule) {
                         try {
                             val dismissed = chain.getArg(1) ?: return result
                             val id = (dismissed as Any).javaClass.getField("id").getInt(dismissed)
+                            log("dismissAlarm called with id=$id")
                             if (id == Int.MIN_VALUE) {
                                 val context = chain.getArg(0) as Context
                                 classLoader.loadClass(CLS_ZEN_MODE_UTIL)
@@ -365,12 +366,16 @@ class DeskClockHook(private val module: XposedModule) {
     }
 
     /**
-     * 普通闹钟响铃检测：AlarmService 响铃时以 ALARM_ALERT 类 action 启动，
-     * hook onStartCommand 后广播 ACTION_ALARM_RINGING 给 system_server 的自动化引擎。
+     * AlarmService 响铃/关闭检测：HyperOS DeskClock 的闹钟服务实际类名是
+     * com.android.deskclock.alarm.alert.AlarmService（注意 alarm.alert 子包）。
+     *  - 响铃（ALARM_ALERT 类 action）：广播 ACTION_ALARM_RINGING 给自动化引擎；
+     *  - 关闭（DISMISS 类 action）：若当前处于睡眠（MIUI silence_mode==4），
+     *    兜底调用 exitZenMode 并上报 ALARM_DISMISSED，确保「关闭起床闹钟即退出
+     *    睡眠模式+DND」即使 dismissAlarm hook 未命中也能生效。
      */
     private fun hookAlarmRinging(classLoader: ClassLoader) {
         val alarmService = try {
-            classLoader.loadClass("com.android.deskclock.alarm.AlarmService")
+            classLoader.loadClass("com.android.deskclock.alarm.alert.AlarmService")
         } catch (t: Throwable) {
             log("AlarmService not found: ${t.message}")
             return
@@ -403,8 +408,31 @@ class DeskClockHook(private val module: XposedModule) {
                             service?.sendBroadcast(Intent(Protocol.ACTION_ALARM_RINGING))
                             log("alarm ringing detected: $action")
                         }
+                        // 关闭起床闹钟兜底：DISMISS 类 action 且当前在睡眠 → 退出睡眠+DND。
+                        // 起床闹钟 id 是 Integer.MIN_VALUE；取不到 id 时按「睡眠中 dismiss 闹钟」
+                        // 处理（幂等，重复退出无害）。
+                        val isDismiss = action.contains("DISMISS", ignoreCase = true)
+                        if (isDismiss) {
+                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
+                            val service = getThisObjectMethod.invoke(chain) as? Context
+                            if (service != null) {
+                                val alarmId = runCatching {
+                                    intent?.let { it.getIntExtra("alarm_id", it.getIntExtra("ALARM_ALERT_ID", 0)) } ?: 0
+                                }.getOrDefault(0)
+                                val inSleep = readMiuiZenMode(service)
+                                if (inSleep || alarmId == Int.MIN_VALUE) {
+                                    if (inSleep) {
+                                        classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                            .getDeclaredMethod("exitZenMode", Context::class.java)
+                                            .invoke(null, service)
+                                        log("alarm dismissed during bedtime -> exitZenMode (alarmId=$alarmId, action=$action)")
+                                    }
+                                    sendBedtimeState(service, false, "ALARM_DISMISSED")
+                                }
+                            }
+                        }
                     } catch (t: Throwable) {
-                        log("alarm ringing broadcast failed: $t")
+                        log("alarm ringing/dismiss hook failed: $t")
                     }
                     return result
                 }
