@@ -92,9 +92,10 @@ class ControlCenterCardHook(private val module: XposedModule) {
                 )
             }
             val tileSpecClass = load(classLoader, TILE_SPEC_CLASS)
-            val companion = tileSpecClass.getDeclaredField("Companion").apply { isAccessible = true }.get(null)
-                ?: throw NoSuchFieldException("$TILE_SPEC_CLASS.Companion")
-            val tileSpec = Reflect.call(companion, "create", FOCUS_CARD_SPEC)
+            val companionClass = load(classLoader, "$TILE_SPEC_CLASS\$Companion")
+            val createMethod = companionClass.getDeclaredMethod("create", String::class.java)
+                .apply { isAccessible = true }
+            val tileSpec = createMethod.invoke(null, FOCUS_CARD_SPEC)
                 ?: throw IllegalStateException("TileSpec.Companion.create returned null")
             val addTile = resolveAddTileMethod(interactor.javaClass, tileSpec)
             addTile.invoke(interactor, tileSpec, userId)
