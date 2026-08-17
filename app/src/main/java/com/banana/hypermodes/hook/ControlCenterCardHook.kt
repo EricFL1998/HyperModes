@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.content.res.Resources
 import android.view.View
 import com.banana.hypermodes.controlcenter.FocusCardDetailFactory
 import com.banana.hypermodes.controlcenter.FocusCardStateRepository
@@ -31,6 +32,7 @@ class ControlCenterCardHook(private val module: XposedModule) {
 
     fun install(systemUiClassLoader: ClassLoader) {
         if (!markInstalling(systemUiClassLoader)) return
+        ensureFocusTileLarge(systemUiClassLoader)
         try {
             val factoryClass = load(systemUiClassLoader, MIUI_QS_FACTORY)
             val createTile = resolveCreateTileMethod(factoryClass)
@@ -44,6 +46,75 @@ class ControlCenterCardHook(private val module: XposedModule) {
             unmarkInstalling(systemUiClassLoader)
             logMsg("OS4 Control Center hook installation failed", t)
         }
+    }
+
+    private fun ensureFocusTileLarge(classLoader: ClassLoader) {
+        try {
+            val repoClass = load(classLoader, DEFAULT_LARGE_TILES_REPO)
+            val constructor = repoClass.getDeclaredConstructor(Resources::class.java).apply { isAccessible = true }
+            module.hook(constructor).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val result = chain.proceed()
+                        runCatching { injectFocusTileIntoLargeRepository(chain.thisObject, classLoader) }
+                            .onFailure { logMsg("Failed to inject focus large tile", it) }
+                        return result
+                    }
+                })
+            runCatching { patchExistingLargeTileRepository(classLoader) }
+        } catch (t: Throwable) {
+            logMsg("Failed to ensure focus large tile", t)
+        }
+    }
+
+    private fun patchExistingLargeTileRepository(classLoader: ClassLoader) {
+        try {
+            val prefsRepoClass = load(classLoader, QS_PREFERENCES_REPO)
+            for (constructor in prefsRepoClass.declaredConstructors) {
+                constructor.isAccessible = true
+                module.hook(constructor).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                    .intercept(object : XposedInterface.Hooker {
+                        override fun intercept(chain: XposedInterface.Chain): Any? {
+                            val result = chain.proceed()
+                            runCatching {
+                                val repoField = findField(chain.thisObject.javaClass, "defaultLargeTilesRepository")
+                                    ?: throw NoSuchFieldException("defaultLargeTilesRepository")
+                                repoField.isAccessible = true
+                                val repo = repoField.get(chain.thisObject)
+                                if (repo != null) injectFocusTileIntoLargeRepository(repo, classLoader)
+                            }.onFailure { logMsg("Failed to patch existing large tile repository", it) }
+                            return result
+                        }
+                    })
+            }
+        } catch (t: Throwable) {
+            logMsg("Failed to hook QSPreferencesRepository", t)
+        }
+    }
+
+    private fun injectFocusTileIntoLargeRepository(repository: Any, classLoader: ClassLoader) {
+        val field = findField(repository.javaClass, "defaultLargeTiles")
+            ?: throw NoSuchFieldException("${repository.javaClass.name}.defaultLargeTiles")
+        field.isAccessible = true
+        val current = field.get(repository) as? Set<*>
+        if (current == null) {
+            logMsg("defaultLargeTiles is null")
+            return
+        }
+        val spec = createTileSpec(classLoader, FOCUS_CARD_SPEC) ?: return
+        if (current.contains(spec)) return
+        @Suppress("UNCHECKED_CAST")
+        val currentSet = current as Set<Any>
+        val newSet = LinkedHashSet<Any>(currentSet)
+        newSet.add(spec)
+        field.set(repository, Collections.unmodifiableSet(newSet))
+        logMsg("Injected $FOCUS_CARD_SPEC into defaultLargeTiles")
+    }
+
+    private fun createTileSpec(classLoader: ClassLoader, spec: String): Any? {
+        val companionClass = load(classLoader, "$TILE_SPEC_CLASS\$Companion")
+        val method = companionClass.getDeclaredMethod("create", String::class.java).apply { isAccessible = true }
+        return method.invoke(null, spec)
     }
 
     private fun hookCreateTile(method: Method, classLoader: ClassLoader, classes: FocusCardTileClasses) {
@@ -329,6 +400,8 @@ class ControlCenterCardHook(private val module: XposedModule) {
         private const val MIUI_QS_HOST_ADAPTER = "com.android.systemui.qs.pipeline.domain.adapter.MiuiQSHostAdapter"
         private const val CURRENT_TILES_INTERACTOR = "com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractorImpl"
         private const val TILE_SPEC_CLASS = "com.android.systemui.qs.pipeline.shared.TileSpec"
+        private const val DEFAULT_LARGE_TILES_REPO = "com.android.systemui.qs.panels.data.repository.DefaultLargeTilesRepositoryImpl"
+        private const val QS_PREFERENCES_REPO = "com.android.systemui.qs.panels.data.repository.QSPreferencesRepository"
         private const val QS_DETAIL_CONTENT_CLASS = "com.android.systemui.qs.QSDetailContent"
         private const val MIUI_QS_DETAIL_CLOSE_LAMBDA = "com.android.systemui.qs.MiuiQSDetail\$2\$\$ExternalSyntheticLambda1"
         private const val CREATE_TILE = "createTile"
