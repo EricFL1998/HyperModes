@@ -25,7 +25,11 @@ class SettingsHook(private val module: XposedModule) {
         private const val MIUI_SETTINGS = "com.android.settings.MiuiSettings"
         private const val MIUI_HEADER = "com.android.settingslib.miuisettings.preference.PreferenceActivity\$Header"
         private const val MAIN_ACTIVITY = "com.banana.hypermodes.ui.MainActivity"
-        private const val OUR_HEADER_ID = 0x7F0B0E1DL // Arbitrary unique ID
+        // Custom header id outside the resource-ID space: 0x7f0b0e1d is taken by
+        // Settings' sud_glif_progress_bar on OS4, so using an in-range value would
+        // collide with native header-id comparisons. 'mode' = 0x6d6f6465 avoids the
+        // 0x7f000000-0x7fffffff resource range entirely and fits in an int cast.
+        private const val OUR_HEADER_ID = 0x6D6F6465L
     }
 
     fun install(classLoader: ClassLoader) {
@@ -198,44 +202,14 @@ class SettingsHook(private val module: XposedModule) {
 
     /** Position of the launcher/home header (we insert after it). */
     private fun findLauncherHeaderPosition(context: Context, headers: List<Any>): Int {
-        // Match by resource id first, then by localized title text.
-        val launcherIds = listOf("launcher_settings", "home_settings")
-            .mapNotNull { name ->
-                context.resources.getIdentifier(name, "id", Protocol.SETTINGS_PACKAGE)
-                    .takeIf { it != 0 }?.toLong()
-            }
-        val launcherTitles = listOf("home_title", "launcher_settings")
-            .mapNotNull { name ->
-                val id = context.resources.getIdentifier(name, "string", Protocol.SETTINGS_PACKAGE)
-                if (id != 0) context.resources.getString(id) else null
-            }
+        val launcherId = context.resources
+            .getIdentifier("launcher_settings", "id", Protocol.SETTINGS_PACKAGE)
+            .takeIf { it != 0 }
+            ?.toLong()
+            ?: return -1
 
         for (i in headers.indices) {
-            val head = headers[i]
-            if (launcherIds.contains(getLongField(head, "id"))) return i
-            val title = Reflect.getField(head, "title")?.toString()
-            if (title != null && launcherTitles.contains(title)) return i
-        }
-        return -1
-    }
-
-    private fun findDisplayHeaderPosition(context: Context, headers: List<Any>): Int {
-        val displayIds = listOf("display_settings", "display", "display_and_touch")
-            .mapNotNull { name ->
-                context.resources.getIdentifier(name, "id", Protocol.SETTINGS_PACKAGE)
-                    .takeIf { it != 0 }?.toLong()
-            }
-        val displayTitles = listOf("display_settings", "display", "display_and_touch")
-            .mapNotNull { name ->
-                val id = context.resources.getIdentifier(name, "string", Protocol.SETTINGS_PACKAGE)
-                if (id != 0) context.resources.getString(id) else null
-            }
-
-        for (i in headers.indices) {
-            val head = headers[i]
-            if (displayIds.contains(getLongField(head, "id"))) return i
-            val title = Reflect.getField(head, "title")?.toString()
-            if (title != null && displayTitles.contains(title)) return i
+            if (getLongField(headers[i], "id") == launcherId) return i
         }
         return -1
     }

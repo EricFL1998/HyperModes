@@ -36,10 +36,7 @@ class FocusModeIconResolverTest {
                 MAPPED_ICON_ID to mappedDrawable
             )
         )
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext("plugin.package"),
-            moduleContext = moduleContext
-        )
+        val resolver = FocusModeIconResolver(moduleContext)
 
         val drawable = resolver.resolve(mode(icon = "🎮", statusIcon = "ic_stat_work"))
 
@@ -54,10 +51,7 @@ class FocusModeIconResolverTest {
             identifiers = mapOf("ic_stat_game" to MAPPED_ICON_ID),
             drawables = mapOf(MAPPED_ICON_ID to mappedDrawable)
         )
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext("plugin.package"),
-            moduleContext = moduleContext
-        )
+        val resolver = FocusModeIconResolver(moduleContext)
 
         val drawable = resolver.resolve(mode(icon = "🎮", statusIcon = "   "))
 
@@ -75,10 +69,7 @@ class FocusModeIconResolverTest {
             ),
             drawables = mapOf(MAPPED_ICON_ID to mappedDrawable)
         )
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext("plugin.package"),
-            moduleContext = moduleContext
-        )
+        val resolver = FocusModeIconResolver(moduleContext)
 
         val drawable = resolver.resolve(mode(icon = "🎮", statusIcon = "ic_stat_missing"))
 
@@ -93,10 +84,7 @@ class FocusModeIconResolverTest {
             identifiers = mapOf("ic_stat_work" to MAPPED_ICON_ID),
             drawables = mapOf(R.drawable.ic_stat_zen to zenDrawable)
         )
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext("plugin.package"),
-            moduleContext = moduleContext
-        )
+        val resolver = FocusModeIconResolver(moduleContext)
 
         val drawable = resolver.resolve(mode(icon = "💼", statusIcon = null))
 
@@ -104,32 +92,8 @@ class FocusModeIconResolverTest {
     }
 
     @Test
-    fun `missing module drawable uses plugin compatibility fallback for same resource id`() {
-        val pluginDrawable = ColorDrawable(0x66)
-        val moduleContext = DrawableContext(
-            packageNameValue = "module.package",
-            identifiers = mapOf("ic_stat_work" to MAPPED_ICON_ID),
-            drawables = emptyMap()
-        )
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext(
-                packageNameValue = "plugin.package",
-                drawables = mapOf(MAPPED_ICON_ID to pluginDrawable)
-            ),
-            moduleContext = moduleContext
-        )
-
-        val drawable = resolver.resolve(mode(icon = "💼", statusIcon = null))
-
-        assertSame(pluginDrawable, drawable)
-    }
-
-    @Test
     fun `unknown resources return non null transparent drawable fallback`() {
-        val resolver = FocusModeIconResolver(
-            pluginContext = DrawableContext("plugin.package"),
-            moduleContext = DrawableContext("module.package")
-        )
+        val resolver = FocusModeIconResolver(DrawableContext("module.package"))
 
         val drawable = resolver.resolve(mode(icon = "💼", statusIcon = "missing_status_icon"))
 

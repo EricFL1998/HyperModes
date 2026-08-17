@@ -1,6 +1,5 @@
 package com.banana.hypermodes.hook
 
-import android.content.Intent
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.protocol.Protocol
@@ -28,7 +27,7 @@ class AodEditorHook(private val module: XposedModule) {
             return
         }
         val method = try {
-            editorClass.declaredMethods.firstOrNull { it.name == "isMiuiCall" && it.parameterCount == 0 }
+            editorClass.getDeclaredMethod("isMiuiCall").apply { isAccessible = true }
         } catch (t: Throwable) {
             null
         }
@@ -53,17 +52,13 @@ class AodEditorHook(private val module: XposedModule) {
 
     private fun callingPackage(chain: XposedInterface.Chain): String? {
         val self = HookUtils.getThisObject(chain) ?: return null
-        // 1) 系统记录的真实启动方（权威）：Activity.getLaunchedFromPackage()
+        // OS4 EditorActivity.isMiuiCall() only trusts the system-recorded
+        // Activity.getLaunchedFromPackage(). Do not accept an Intent extra.
         return try {
             self.javaClass.getMethod("getLaunchedFromPackage").invoke(self) as? String
         } catch (t: Throwable) {
-            // 2) 兜底：Intent extra（仅当反射失败时使用）
-            try {
-                val getIntent = self.javaClass.getMethod("getIntent")
-                (getIntent.invoke(self) as? Intent)?.getStringExtra("launched_from_package")
-            } catch (t2: Throwable) {
-                null
-            }
+            log("getLaunchedFromPackage failed: ${t.message}")
+            null
         }
     }
 

@@ -59,31 +59,19 @@ class AppSuspendController(
             // Get IPackageManager via ServiceManager
             val ipm = getPackageManagerService()
 
-            // Find setPackagesSuspendedAsUser method
-            val method = ipm.javaClass.methods.firstOrNull {
-                it.name == "setPackagesSuspendedAsUser"
-            }
-
-            if (method == null) {
-                log("suspendApps: setPackagesSuspendedAsUser method not found")
-                return
-            }
-
-            // Build method arguments based on parameter types
-            // Signature: (String[], boolean, PersistableBundle, PersistableBundle,
-            //            SuspendDialogInfo, String callingPackage, int userId)
-            val args = method.parameterTypes.map { paramType ->
-                when {
-                    paramType == Array<String>::class.java -> packageNames.toTypedArray()
-                    paramType == Boolean::class.javaPrimitiveType -> true  // suspended = true
-                    paramType == Int::class.javaPrimitiveType -> 0  // userId = 0 (system user)
-                    paramType == String::class.java -> "com.banana.hypermodes"  // callingPackage
-                    else -> null  // PersistableBundle and SuspendDialogInfo remain null
-                }
-            }.toTypedArray()
-
-            // Invoke the method
-            method.invoke(ipm, *args)
+            val method = resolveSetPackagesSuspendedAsUser(ipm)
+            method.invoke(
+                ipm,
+                packageNames.toTypedArray(),
+                true,
+                null,
+                null,
+                null,
+                0,
+                MODULE_PACKAGE,
+                0,
+                0
+            )
 
             currentSuspendedApps = packageNames.toList()
             log("suspendApps: successfully suspended ${packageNames.size} packages: ${packageNames.joinToString()}")
@@ -110,29 +98,19 @@ class AppSuspendController(
             // Get IPackageManager via ServiceManager
             val ipm = getPackageManagerService()
 
-            // Find setPackagesSuspendedAsUser method
-            val method = ipm.javaClass.methods.firstOrNull {
-                it.name == "setPackagesSuspendedAsUser"
-            }
-
-            if (method == null) {
-                log("unsuspendApps: setPackagesSuspendedAsUser method not found")
-                return
-            }
-
-            // Build method arguments with suspended = false
-            val args = method.parameterTypes.map { paramType ->
-                when {
-                    paramType == Array<String>::class.java -> currentSuspendedApps.toTypedArray()
-                    paramType == Boolean::class.javaPrimitiveType -> false  // suspended = false
-                    paramType == Int::class.javaPrimitiveType -> 0  // userId = 0 (system user)
-                    paramType == String::class.java -> "com.banana.hypermodes"  // callingPackage
-                    else -> null
-                }
-            }.toTypedArray()
-
-            // Invoke the method
-            method.invoke(ipm, *args)
+            val method = resolveSetPackagesSuspendedAsUser(ipm)
+            method.invoke(
+                ipm,
+                currentSuspendedApps.toTypedArray(),
+                false,
+                null,
+                null,
+                null,
+                0,
+                MODULE_PACKAGE,
+                0,
+                0
+            )
 
             log("unsuspendApps: successfully unsuspended ${currentSuspendedApps.size} packages: ${currentSuspendedApps.joinToString()}")
             currentSuspendedApps = emptyList()
@@ -163,11 +141,26 @@ class AppSuspendController(
             ?: throw IllegalStateException("IPackageManager.Stub.asInterface returned null")
     }
 
+    /** Android 17 / OS4 IPackageManager signature. */
+    private fun resolveSetPackagesSuspendedAsUser(ipm: Any) = ipm.javaClass.getMethod(
+        "setPackagesSuspendedAsUser",
+        arrayOf<String>().javaClass,
+        Boolean::class.javaPrimitiveType!!,
+        android.os.PersistableBundle::class.java,
+        android.os.PersistableBundle::class.java,
+        Class.forName("android.content.pm.SuspendDialogInfo", false, classLoader),
+        Int::class.javaPrimitiveType!!,
+        String::class.java,
+        Int::class.javaPrimitiveType!!,
+        Int::class.javaPrimitiveType!!
+    )
+
     private fun log(msg: String) {
         HyperLog.i(TAG, msg)
     }
 
     companion object {
         private const val TAG = "AppSuspendController"
+        private const val MODULE_PACKAGE = "com.banana.hypermodes"
     }
 }

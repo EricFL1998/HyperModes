@@ -3,48 +3,55 @@ package com.banana.hypermodes.systemserver.hooks
 import android.util.Log
 import com.banana.hypermodes.systemserver.RoutineCoreEngine
 import com.banana.hypermodes.systemserver.config.DndLevel
+import com.banana.hypermodes.systemserver.config.NotificationConfig
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
 /**
  * Notification filtering hook running INSIDE system_server.
  *
- * Intercepts NotificationManagerService.shouldMuteNotificationLocked to filter
+ * Intercepts NotificationAttentionHelper.shouldMuteNotificationLocked to filter
  * notifications based on the active mode's configuration.
  *
+ * In the decompiled OS4 services, the AOSP 1-arg boolean
+ * NotificationManagerService.shouldMuteNotificationLocked is not present;
+ * the mute decision lives on NotificationAttentionHelper as
+ * int shouldMuteNotificationLocked(NotificationRecord, Signals, boolean)
+ * where 0 = don't mute and each non-zero value is a concrete mute-reason bit.
+ *
  * Logic:
- * - If no mode is active → proceed normally
- * - If DND level is ALARMS → proceed normally (system DND handles it)
+ * - If no mode is active -> proceed normally
+ * - If DND level is ALARMS -> proceed normally (system DND handles it)
  * - If DND level is NONE or PRIORITY:
  *   - Check if notification's package is in allowedApps whitelist
- *   - If allowed → return false (don't mute)
- *   - If not allowed → return true (mute)
+ *   - If allowed -> preserve the native OS4 decision
+ *   - If not allowed -> return OS4's intercepted/Zen mute reason
  */
 class NotificationFilterHook(private val module: XposedModule) {
 
     fun install(classLoader: ClassLoader) {
         log("NotificationFilterHook.install starting")
 
-        val nms = try {
-            classLoader.loadClass(NOTIFICATION_MANAGER_SERVICE)
+        val helper = try {
+            classLoader.loadClass(NOTIFICATION_ATTENTION_HELPER)
         } catch (t: Throwable) {
-            log("NotificationManagerService not found: ${t.message}")
+            log("NotificationAttentionHelper not found: ${t.message}")
             return
         }
 
-        log("NotificationManagerService found, installing hook")
-        hookShouldMuteNotification(nms, classLoader)
+        log("NotificationAttentionHelper found, installing hook")
+        hookShouldMuteNotification(helper, classLoader)
         log("NotificationFilterHook.install complete")
     }
 
     /**
-     * Hook NotificationManagerService.shouldMuteNotificationLocked to filter
+     * Hook NotificationAttentionHelper.shouldMuteNotificationLocked to filter
      * notifications based on active mode configuration.
      *
-     * Method signature (AOSP):
-     * boolean shouldMuteNotificationLocked(NotificationRecord record)
+     * Method signature (decompiled HyperOS services):
+     * int shouldMuteNotificationLocked(NotificationRecord, Signals, boolean)
      */
-    private fun hookShouldMuteNotification(nms: Class<*>, classLoader: ClassLoader) {
+    private fun hookShouldMuteNotification(helper: Class<*>, classLoader: ClassLoader) {
         val notificationRecordClass = try {
             classLoader.loadClass(NOTIFICATION_RECORD)
         } catch (t: Throwable) {
@@ -52,13 +59,22 @@ class NotificationFilterHook(private val module: XposedModule) {
             return
         }
 
+        val signalsClass = try {
+            classLoader.loadClass(NOTIFICATION_SIGNALS)
+        } catch (t: Throwable) {
+            log("NotificationAttentionHelper.Signals class not found: ${t.message}")
+            return
+        }
+
         val method = try {
-            nms.getDeclaredMethod(
+            helper.getDeclaredMethod(
                 "shouldMuteNotificationLocked",
-                notificationRecordClass
+                notificationRecordClass,
+                signalsClass,
+                Boolean::class.javaPrimitiveType
             ).apply { isAccessible = true }
         } catch (t: Throwable) {
-            log("shouldMuteNotificationLocked method not found: ${t.message}")
+            log("shouldMuteNotificationLocked (3-arg int) not found: ${t.message}")
             return
         }
 
@@ -97,16 +113,18 @@ class NotificationFilterHook(private val module: XposedModule) {
                         }
 
                         // Check if package is in the allowed apps whitelist
-                        val isAllowed = notificationConfig.allowedApps.contains(packageName)
+                        val muteOverride = notificationMuteOverride(notificationConfig, packageName)
 
-                        if (isAllowed) {
-                            // Don't mute - allow the notification
+                        if (muteOverride == null) {
+                            // Whitelisting only bypasses HyperModes filtering. Preserve
+                            // OS4's own silent/group/rate-limit/DND decisions.
                             log("Allowing notification from $packageName (mode=${activeMode.name})")
-                            return false
+                            return chain.proceed()
                         } else {
-                            // Mute the notification
+                            // OS4 uses 512 for the native "record is intercepted"
+                            // branch. Use that defined reason instead of an unknown bit.
                             log("Muting notification from $packageName (mode=${activeMode.name})")
-                            return true
+                            return muteOverride
                         }
                     } catch (t: Throwable) {
                         log("Error in notification filter hook: ${t.message}")
@@ -144,7 +162,25 @@ class NotificationFilterHook(private val module: XposedModule) {
 
     companion object {
         private const val TAG = "HyperModes"
-        private const val NOTIFICATION_MANAGER_SERVICE = "com.android.server.notification.NotificationManagerService"
+        private const val NOTIFICATION_ATTENTION_HELPER = "com.android.server.notification.NotificationAttentionHelper"
+        private const val NOTIFICATION_SIGNALS = "com.android.server.notification.NotificationAttentionHelper\$Signals"
         private const val NOTIFICATION_RECORD = "com.android.server.notification.NotificationRecord"
+        internal const val MUTE_REASON_INTERCEPTED = 512
+
+        internal fun notificationMuteOverride(
+            notificationConfig: NotificationConfig?,
+            packageName: String
+        ): Int? {
+            if (notificationConfig == null) return null
+            if (notificationConfig.dndLevel == DndLevel.ALARMS) return null
+            if (notificationConfig.dndLevel == DndLevel.DISABLED &&
+                notificationConfig.allowedApps.isEmpty()
+            ) return null
+            return if (packageName in notificationConfig.allowedApps) {
+                null
+            } else {
+                MUTE_REASON_INTERCEPTED
+            }
+        }
     }
 }

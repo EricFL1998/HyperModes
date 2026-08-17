@@ -108,7 +108,7 @@ class DeskClockHook(private val module: XposedModule) {
                         val result = chain.proceed()
                         try {
                             val dismissed = chain.getArg(1) ?: return result
-                            val id = (dismissed as Any).javaClass.getField("id").getInt(dismissed)
+                            val id = dismissed.javaClass.getField("id").getInt(dismissed)
                             log("dismissAlarm called with id=$id")
                             if (id == Int.MIN_VALUE) {
                                 val context = chain.getArg(0) as Context
@@ -129,40 +129,6 @@ class DeskClockHook(private val module: XposedModule) {
             log("dismissAlarm not found: ${t.message}")
         }
 
-        // 3) End bedtime when the wake alarm is disabled.
-        try {
-            val alarm = classLoader.loadClass(CLS_ALARM)
-            val setEnabled = alarm.getDeclaredMethod("setEnabled", Context::class.java, Boolean::class.javaPrimitiveType)
-            module.hook(setEnabled)
-                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                .intercept(object : XposedInterface.Hooker {
-                    override fun intercept(chain: XposedInterface.Chain): Any? {
-                        val result = chain.proceed()
-                        try {
-                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
-                            val alarmObj = getThisObjectMethod.invoke(chain)
-                            val id = alarmObj.javaClass.getField("id").getInt(alarmObj)
-                            val enabled = chain.getArg(1) as Boolean
-                            
-                            // When the wake alarm (id = Integer.MIN_VALUE) is disabled, exit bedtime
-                            if (id == Int.MIN_VALUE && !enabled) {
-                                val context = chain.getArg(0) as Context
-                                classLoader.loadClass(CLS_ZEN_MODE_UTIL)
-                                    .getDeclaredMethod("exitZenMode", Context::class.java)
-                                    .invoke(null, context)
-                                log("wake alarm disabled -> exitZenMode")
-                                sendBedtimeState(context, false, "ALARM_DISABLED")
-                            }
-                        } catch (t: Throwable) {
-                            log("alarm-disabled bedtime exit failed: $t")
-                        }
-                        return result
-                    }
-                })
-            log("Alarm.setEnabled hooked")
-        } catch (t: Throwable) {
-            log("Alarm.setEnabled not found: ${t.message}")
-        }
     }
 
     /** Wake alarm lives in the sleep_alarms provider with id Integer.MIN_VALUE. */
@@ -222,7 +188,6 @@ class DeskClockHook(private val module: XposedModule) {
         // 不 hook 这里，到睡眠时间 DeskClock 自动进入勿扰时 HyperModes 收不到 ON 信号。
         hookAlarmHelperSetZenMode(classLoader)
 
-        hookAlarmSkip(classLoader)
     }
 
     /**
@@ -317,7 +282,6 @@ class DeskClockHook(private val module: XposedModule) {
             })
         log("skipAlarmForOnce hooked")
 
-        hookAlarmEnable(classLoader)
     }
 
     private fun hookAlarmEnable(classLoader: ClassLoader) {
@@ -347,7 +311,7 @@ class DeskClockHook(private val module: XposedModule) {
                         if (alarmId == Int.MIN_VALUE && !enabled) {
                             log("Bedtime wake alarm disabled permanently via AlarmHelper.enableAlarm")
                             
-                            // Exit zen mode first (same as Alarm.setEnabled hook)
+                            // OS4 routes permanent alarm disable through this helper.
                             classLoader.loadClass(CLS_ZEN_MODE_UTIL)
                                 .getDeclaredMethod("exitZenMode", Context::class.java)
                                 .invoke(null, context)
@@ -366,12 +330,9 @@ class DeskClockHook(private val module: XposedModule) {
     }
 
     /**
-     * AlarmService 响铃/关闭检测：HyperOS DeskClock 的闹钟服务实际类名是
-     * com.android.deskclock.alarm.alert.AlarmService（注意 alarm.alert 子包）。
-     *  - 响铃（ALARM_ALERT 类 action）：广播 ACTION_ALARM_RINGING 给自动化引擎；
-     *  - 关闭（DISMISS 类 action）：若当前处于睡眠（MIUI silence_mode==4），
-     *    兜底调用 exitZenMode 并上报 ALARM_DISMISSED，确保「关闭起床闹钟即退出
-     *    睡眠模式+DND」即使 dismissAlarm hook 未命中也能生效。
+     * OS4 AlarmService only accepts AlarmHelper.ALARM_ALERT_ACTION and the timer
+     * alert action in onStartCommand. The actual dismiss flow is handled by the
+     * OS4 AlarmHelper.dismissAlarm(Context, Alarm) hook above.
      */
     private fun hookAlarmRinging(classLoader: ClassLoader) {
         val alarmService = try {
@@ -399,40 +360,14 @@ class DeskClockHook(private val module: XposedModule) {
                     try {
                         val intent = chain.getArg(0) as? Intent
                         val action = intent?.action ?: ""
-                        val isAlert = action == "com.android.deskclock.ALARM_ALERT" ||
-                            action.contains("ALARM_ALERT", ignoreCase = true) ||
-                            action.contains("ALARM_FIRE", ignoreCase = true)
-                        if (isAlert) {
+                        if (action == ACTION_DESKCLOCK_ALARM_ALERT) {
                             val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
                             val service = getThisObjectMethod.invoke(chain) as? Context
                             service?.sendBroadcast(Intent(Protocol.ACTION_ALARM_RINGING))
                             log("alarm ringing detected: $action")
                         }
-                        // 关闭起床闹钟兜底：DISMISS 类 action 且当前在睡眠 → 退出睡眠+DND。
-                        // 起床闹钟 id 是 Integer.MIN_VALUE；取不到 id 时按「睡眠中 dismiss 闹钟」
-                        // 处理（幂等，重复退出无害）。
-                        val isDismiss = action.contains("DISMISS", ignoreCase = true)
-                        if (isDismiss) {
-                            val getThisObjectMethod = (chain as Any).javaClass.getMethod("getThisObject")
-                            val service = getThisObjectMethod.invoke(chain) as? Context
-                            if (service != null) {
-                                val alarmId = runCatching {
-                                    intent?.let { it.getIntExtra("alarm_id", it.getIntExtra("ALARM_ALERT_ID", 0)) } ?: 0
-                                }.getOrDefault(0)
-                                val inSleep = readMiuiZenMode(service)
-                                if (inSleep || alarmId == Int.MIN_VALUE) {
-                                    if (inSleep) {
-                                        classLoader.loadClass(CLS_ZEN_MODE_UTIL)
-                                            .getDeclaredMethod("exitZenMode", Context::class.java)
-                                            .invoke(null, service)
-                                        log("alarm dismissed during bedtime -> exitZenMode (alarmId=$alarmId, action=$action)")
-                                    }
-                                    sendBedtimeState(service, false, "ALARM_DISMISSED")
-                                }
-                            }
-                        }
                     } catch (t: Throwable) {
-                        log("alarm ringing/dismiss hook failed: $t")
+                        log("alarm ringing hook failed: $t")
                     }
                     return result
                 }
@@ -440,8 +375,7 @@ class DeskClockHook(private val module: XposedModule) {
         log("AlarmService.onStartCommand hooked")
     }
 
-    /** BedtimeAlarm/inZenMode is what enter/exitZenMode persist on SDK 30+;
-     * fall back to which method ran on older paths or reflection failure. */
+    /** OS4 ZenModeUtil persists its state in BedtimeAlarm/inZenMode. */
     private fun readInZenMode(context: Context, classLoader: ClassLoader, fallback: Boolean): Boolean =
         try {
             val fbe = classLoader.loadClass(CLS_FBE_UTIL)
@@ -656,5 +590,6 @@ class DeskClockHook(private val module: XposedModule) {
         private const val CLS_ALARM = "com.android.deskclock.Alarm"
         private const val CLS_FBE_UTIL = "com.android.deskclock.util.FBEUtil"
         private const val KEY_IN_ZENMODE = "inZenMode"
+        private const val ACTION_DESKCLOCK_ALARM_ALERT = "com.android.deskclock.ALARM_ALERT"
     }
 }

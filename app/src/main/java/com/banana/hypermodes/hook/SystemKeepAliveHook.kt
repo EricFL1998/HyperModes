@@ -23,13 +23,12 @@ import io.github.libxposed.api.XposedModule
  */
 class SystemKeepAliveHook(private val module: XposedModule) {
 
-    /**
-     * Install keep-alive hooks in system_server.
-     * @param classLoader system_server ClassLoader
-     * @param deferHeavyHooks if true, defer expensive reflection operations to systemReady callback
-     */
-    fun install(classLoader: ClassLoader, deferHeavyHooks: Boolean = false) {
-        log("SystemKeepAliveHook.install starting (deferHeavyHooks=$deferHeavyHooks)")
+    @Volatile
+    private var deferredHooksInstalled = false
+
+    /** Install OS4 keep-alive hooks in system_server. */
+    fun install(classLoader: ClassLoader) {
+        log("SystemKeepAliveHook.install starting")
         val ams = try {
             classLoader.loadClass(AMS)
         } catch (t: Throwable) {
@@ -43,26 +42,12 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         skipForOurPackage(ams, "killBackgroundProcesses")
         alwaysAllowExactAlarm(classLoader)
 
-        if (deferHeavyHooks) {
-            // Defer heavy reflection operations to systemReady callback
-            log("Deferring heavy hooks to systemReady")
-            installDeferredHooksOnSystemReady(classLoader, ams)
-        } else {
-            // Install all hooks immediately (legacy behavior)
-            installAllHooksNow(classLoader)
-        }
+        // OS4 system_server startup is sensitive to heavy reflection during
+        // onSystemServerStarting, so the remaining hooks are installed only
+        // after ActivityManagerService.systemReady completes.
+        installDeferredHooksOnSystemReady(classLoader, ams)
 
         log("SystemKeepAliveHook.install complete")
-    }
-
-    /**
-     * Install all hooks immediately (used when deferHeavyHooks=false)
-     */
-    private fun installAllHooksNow(classLoader: ClassLoader) {
-        allowAutoStart(classLoader)
-        alwaysAllowExactAlarm(classLoader)
-        log("About to call forceIncludeStoppedPackages")
-        forceIncludeStoppedPackages(classLoader)
     }
 
     /**
@@ -70,11 +55,14 @@ class SystemKeepAliveHook(private val module: XposedModule) {
      * This avoids lspd Binder timeout during onSystemServerStarting.
      */
     private fun installDeferredHooksOnSystemReady(classLoader: ClassLoader, ams: Class<*>) {
-        val systemReady = ams.declaredMethods.firstOrNull { it.name == "systemReady" }
-        if (systemReady == null) {
-            log("systemReady not found, cannot defer hooks")
-            // Fallback: install immediately
-            installAllHooksNow(classLoader)
+        val systemReady = try {
+            ams.getDeclaredMethod(
+                "systemReady",
+                Runnable::class.java,
+                classLoader.loadClass(TIMINGS_TRACE_AND_SLOG)
+            ).apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("OS4 ActivityManagerService.systemReady signature not found: ${t.message}")
             return
         }
 
@@ -83,13 +71,15 @@ class SystemKeepAliveHook(private val module: XposedModule) {
             .intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     val result = chain.proceed()
+                    if (deferredHooksInstalled) return result
+                    deferredHooksInstalled = true
                     try {
                         log("systemReady called, installing deferred hooks")
                         allowAutoStart(classLoader)
-                        alwaysAllowExactAlarm(classLoader)
                         forceIncludeStoppedPackages(classLoader)
                         log("Deferred hooks installed successfully")
                     } catch (t: Throwable) {
+                        deferredHooksInstalled = false
                         log("Failed to install deferred hooks: ${t.message}")
                         t.printStackTrace()
                     }
@@ -113,58 +103,18 @@ class SystemKeepAliveHook(private val module: XposedModule) {
         try {
             log("forceIncludeStoppedPackages: starting")
 
-            // Try BroadcastController first (MIUI)
-            val broadcastController = try {
-                classLoader.loadClass("com.android.server.am.BroadcastController")
-            } catch (t: Throwable) {
-                log("BroadcastController not found: ${t.message}")
-                null
-            }
-
-            if (broadcastController != null) {
-                log("BroadcastController found, searching for broadcastIntentLocked method")
-
-                // Find the method - Intent is at parameter index 3, not 1!
-                // Signature: broadcastIntentLocked(ProcessRecord, String, String, Intent, ...)
-                val method = broadcastController.declaredMethods.firstOrNull {
-                    it.name == "broadcastIntentLocked" &&
-                    it.parameterTypes.size > 3 &&
-                    it.parameterTypes[3] == android.content.Intent::class.java
-                }
-
-                if (method != null) {
-                    log("Found broadcastIntentLocked with Intent at index 3")
-                    hookBroadcastMethod(method, 3) // Pass the Intent parameter index
-                    log("BroadcastController.broadcastIntentLocked hooked successfully")
-                    return
-                } else {
-                    log("broadcastIntentLocked method not found with correct signature")
-                }
-            }
-
-            // Fallback to AMS (unlikely on MIUI but try anyway)
-            log("Trying AMS.broadcastIntentLocked as fallback")
-            val ams = try {
-                classLoader.loadClass(AMS)
-            } catch (t: Throwable) {
-                log("AMS not found for broadcast hook: ${t.message}")
-                return
-            }
-
-            val method = ams.declaredMethods.firstOrNull {
+            val broadcastController = classLoader.loadClass(BROADCAST_CONTROLLER)
+            val method = broadcastController.declaredMethods.firstOrNull {
                 it.name == "broadcastIntentLocked" &&
-                it.parameterTypes.any { param -> param == android.content.Intent::class.java }
+                    it.parameterTypes.map(Class<*>::getName) ==
+                    OS4_BROADCAST_INTENT_LOCKED_PARAMETER_TYPES
             }
-
             if (method == null) {
-                log("broadcastIntentLocked not found in AMS")
+                log("OS4 BroadcastController.broadcastIntentLocked signature not found")
                 return
             }
-
-            // Find Intent parameter index in AMS method
-            val intentIndex = method.parameterTypes.indexOfFirst { it == android.content.Intent::class.java }
-            hookBroadcastMethod(method, intentIndex)
-            log("AMS.broadcastIntentLocked hooked")
+            hookBroadcastMethod(method, 3)
+            log("OS4 BroadcastController.broadcastIntentLocked hooked")
         } catch (t: Throwable) {
             log("forceIncludeStoppedPackages failed with exception: ${t.message}")
             t.printStackTrace()
@@ -243,10 +193,10 @@ class SystemKeepAliveHook(private val module: XposedModule) {
      */
     private fun allowAutoStart(classLoader: ClassLoader) {
         val method = try {
-            val stub = classLoader.loadClass(BROADCAST_STUB)
             val queue = classLoader.loadClass(BROADCAST_QUEUE)
             val record = classLoader.loadClass(BROADCAST_RECORD)
-            stub.getDeclaredMethod(
+            val targetClass = classLoader.loadClass(BROADCAST_STUB)
+            targetClass.getDeclaredMethod(
                 "checkApplicationAutoStart", queue, record,
                 android.content.pm.ResolveInfo::class.java
             ).apply { isAccessible = true }
@@ -304,9 +254,40 @@ class SystemKeepAliveHook(private val module: XposedModule) {
     companion object {
         private const val TAG = "HyperModes"
         private const val AMS = "com.android.server.am.ActivityManagerService"
+        private const val TIMINGS_TRACE_AND_SLOG =
+            "com.android.server.utils.TimingsTraceAndSlog"
+        private const val BROADCAST_CONTROLLER = "com.android.server.am.BroadcastController"
         private const val BROADCAST_STUB = "com.android.server.am.BroadcastQueueModernStubImpl"
         private const val BROADCAST_QUEUE = "com.android.server.am.BroadcastQueue"
         private const val BROADCAST_RECORD = "com.android.server.am.BroadcastRecord"
         private const val ALARM_MANAGER_SERVICE = "com.android.server.alarm.AlarmManagerService"
+
+        private val OS4_BROADCAST_INTENT_LOCKED_PARAMETER_TYPES = listOf(
+            "com.android.server.am.ProcessRecord",
+            "java.lang.String",
+            "java.lang.String",
+            "android.content.Intent",
+            "java.lang.String",
+            "com.android.server.am.ProcessRecord",
+            "android.content.IIntentReceiver",
+            "int",
+            "java.lang.String",
+            "android.os.Bundle",
+            "[Ljava.lang.String;",
+            "[Ljava.lang.String;",
+            "[Ljava.lang.String;",
+            "int",
+            "android.os.Bundle",
+            "boolean",
+            "boolean",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "android.app.BackgroundStartPrivileges",
+            "[I",
+            "java.util.function.BiFunction"
+        )
     }
 }

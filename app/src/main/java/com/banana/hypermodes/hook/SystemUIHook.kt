@@ -17,24 +17,6 @@ class SystemUIHook(private val module: XposedModule) {
         private const val TAG = "HyperModes.SystemUIHook"
         private const val SYSTEMUI_PACKAGE = "com.android.systemui"
 
-        /**
-         * Candidate signatures for the light/dark tint method. HyperOS uses the
-         * 4-arg form; AOSP uses the 3-arg onDarkChanged. Try each in order so a
-         * signature mismatch on any ROM doesn't silently disable tinting.
-         */
-        private val TINT_SIGNATURES = listOf(
-            listOf(
-                ArrayList::class.java,
-                Float::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType
-            ),
-            listOf(
-                ArrayList::class.java,
-                Float::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
-            )
-        )
     }
 
     fun install(classLoader: ClassLoader) {
@@ -45,43 +27,20 @@ class SystemUIHook(private val module: XposedModule) {
             return
         }
 
-        var installed = false
-        for (signature in TINT_SIGNATURES) {
-            val method = try {
-                statusBarIconViewClass.getDeclaredMethod("updateLightDarkTint", *signature.toTypedArray())
-            } catch (_: NoSuchMethodException) {
-                null
-            }
-            if (method != null) {
-                installTintHook(method)
-                installed = true
-                log("Installed updateLightDarkTint hook (${signature.size} args)")
-                break
-            }
+        val method = try {
+            statusBarIconViewClass.getDeclaredMethod(
+                "updateLightDarkTint",
+                ArrayList::class.java,
+                Float::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType
+            )
+        } catch (t: NoSuchMethodException) {
+            log("OS4 StatusBarIconView.updateLightDarkTint signature not found: ${t.message}")
+            return
         }
-
-        if (!installed) {
-            // Fallback: hook onDarkChanged (AOSP signature) as a second chance.
-            val onDarkChanged = try {
-                statusBarIconViewClass.getMethod(
-                    "onDarkChanged",
-                    ArrayList::class.java,
-                    Float::class.javaPrimitiveType,
-                    Int::class.javaPrimitiveType
-                )
-            } catch (_: NoSuchMethodException) {
-                null
-            }
-            if (onDarkChanged != null) {
-                installTintHook(onDarkChanged)
-                installed = true
-                log("Installed onDarkChanged fallback hook")
-            }
-        }
-
-        if (!installed) {
-            log("No tint hook signature matched on this ROM")
-        }
+        installTintHook(method)
+        log("Installed OS4 StatusBarIconView.updateLightDarkTint hook")
     }
 
     private fun installTintHook(method: java.lang.reflect.Method) {

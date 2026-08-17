@@ -414,14 +414,12 @@ class DeviceController(private val context: Context) {
         val intent = android.content.Intent(android.content.Intent.ACTION_AIRPLANE_MODE_CHANGED)
         intent.putExtra("state", enabled)
 
-        try {
-            // Try to get ALL field via reflection for compatibility
-            val allUser = android.os.UserHandle::class.java.getField("ALL").get(null) as android.os.UserHandle
-            context.sendBroadcastAsUser(intent, allUser)
-        } catch (e: Exception) {
-            // Fallback: send as current user
-            context.sendBroadcast(intent)
-        }
+        // UserHandle.ALL is @hide in the public SDK; read it reflectively. System
+        // server holds the privileged broadcast permission, so every profile on OS4
+        // observes the radio-state change.
+        val allUser = android.os.UserHandle::class.java.getField("ALL").get(null)
+            as android.os.UserHandle
+        context.sendBroadcastAsUser(intent, allUser)
 
         log("applyAirplaneMode: set via Settings.Global and broadcast")
     }

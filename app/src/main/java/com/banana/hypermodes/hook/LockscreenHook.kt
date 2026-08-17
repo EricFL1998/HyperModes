@@ -23,7 +23,8 @@ class LockscreenHook(
     fun install(classLoader: ClassLoader) {
         if (isInstalled) return
         try {
-            // 1. Hook KeyguardBottomAreaSection.bindData (primary point)
+            // OS4 binds the indication area from this blueprint section after
+            // KeyguardBottomAreaInjector.setView has populated mIndicationArea.
             val sectionClass = classLoader.loadClass("com.android.keyguard.blueprint.KeyguardBottomAreaSection")
             val bindDataMethod = sectionClass.getDeclaredMethod("bindData", classLoader.loadClass("androidx.constraintlayout.widget.ConstraintLayout"))
 
@@ -43,26 +44,8 @@ class LockscreenHook(
                     }
                 })
 
-            // 2. Hook KeyguardBottomAreaInjector.updateIndicationTextLayoutParams (secondary point)
-            val injectorClass = classLoader.loadClass("com.android.keyguard.injector.KeyguardBottomAreaInjector")
-            val updateMethod = injectorClass.getDeclaredMethod("updateIndicationTextLayoutParams")
-            module.hook(updateMethod)
-                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                .intercept(object : XposedInterface.Hooker {
-                    override fun intercept(chain: XposedInterface.Chain): Any? {
-                        val result = chain.proceed()
-                        try {
-                            val injector = HookUtils.getThisObject(chain) ?: return result
-                            injectModeDisplay(injector)
-                        } catch (t: Throwable) {
-                            log("Injection failed in updateIndicationTextLayoutParams: ${t.message}")
-                        }
-                        return result
-                    }
-                })
-
             isInstalled = true
-            log("Lockscreen hooks installed successfully")
+            log("OS4 lockscreen hook installed successfully")
         } catch (t: Throwable) {
             log("Failed to install Lockscreen hook: ${t.message}")
         }

@@ -19,7 +19,7 @@ class FocusModeDetailSessionTest {
     }
 
     @Test
-    fun `native API unavailable returns a non null fallback view and records the stage`() {
+    fun `native API unavailable fails instead of building a compatibility view`() {
         val diagnostic = RecordingDetailDiagnostic()
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
@@ -28,18 +28,20 @@ class FocusModeDetailSessionTest {
             diagnostic = diagnostic
         )
 
-        val view = session.bindDetailView(
-            context = android.app.Application(),
-            convertView = null,
-            parent = null
-        )
+        val failure = assertThrows(IllegalStateException::class.java) {
+            session.bindDetailView(
+                context = android.app.Application(),
+                convertView = null,
+                parent = null
+            )
+        }
 
-        assertNotNull(view)
+        assertTrue(failure.message.orEmpty().contains("OS4 native detail failed"))
         assertEquals(listOf(FocusDetailFallbackStage.NATIVE_API_UNAVAILABLE), diagnostic.stages)
     }
 
     @Test
-    fun `native conversion failure returns a non null fallback view and records the stage`() {
+    fun `native conversion failure does not fall back to a legacy detail view`() {
         val diagnostic = RecordingDetailDiagnostic()
         val session = FocusModeDetailSession(
             repository = createFakeRepository(),
@@ -48,13 +50,15 @@ class FocusModeDetailSessionTest {
             diagnostic = diagnostic
         )
 
-        val view = session.bindDetailView(
-            context = android.app.Application(),
-            convertView = null,
-            parent = null
-        )
+        val failure = assertThrows(IllegalStateException::class.java) {
+            session.bindDetailView(
+                context = android.app.Application(),
+                convertView = null,
+                parent = null
+            )
+        }
 
-        assertNotNull(view)
+        assertTrue(failure.message.orEmpty().contains("OS4 native detail failed"))
         assertEquals(listOf(FocusDetailFallbackStage.NATIVE_CONVERT), diagnostic.stages)
     }
 
@@ -354,6 +358,19 @@ class FocusModeDetailSessionTest {
         assertEquals(118, category)
     }
 
+    @Test
+    fun `adapter proxy executes OS4 interface defaults`() {
+        val session = FocusModeDetailSession(
+            repository = createFakeRepository(),
+            onDismiss = {},
+            nativeDetailContentApi = createFakeNativeApi(),
+            diagnostic = FakeDiagnostic(),
+            detailAdapterInterface = createFakeDetailAdapterInterface()
+        )
+
+        assertEquals("os4-default", callMethod(session.adapter, "os4DefaultEvent"))
+    }
+
     private fun createFakeDetailAdapterInterface(): Class<*> {
         // Return a simple interface that has the methods we need
         return FakeDetailAdapter::class.java
@@ -508,4 +525,5 @@ interface FakeDetailAdapter {
     fun getTitle(): CharSequence?
     fun createDetailView(context: android.content.Context, convertView: android.view.View?, parent: android.view.ViewGroup?): android.view.View?
     fun getSettingsIntent(): android.content.Intent?
+    fun os4DefaultEvent(): String = "os4-default"
 }

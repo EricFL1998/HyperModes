@@ -385,13 +385,28 @@ class FocusCardTileProviderTest {
         assertTrue(tile.isTileReady())
         assertFalse(tile.isConnected())
         assertEquals(0, tile.getCurrentTileUser())
-        assertEquals(0, tile.getMetricsCategory())
+        assertEquals(FocusNativeDetailRegistry.METRICS_CATEGORY, tile.getMetricsCategory())
         assertEquals(0L, tile.unknownLong())
         assertEquals(0.toByte(), tile.unknownByte())
         assertEquals(0.toShort(), tile.unknownShort())
         assertEquals(0f, tile.unknownFloat())
         assertEquals(0.0, tile.unknownDouble(), 0.0)
         assertEquals(' ', tile.unknownChar())
+    }
+
+    @Test
+    fun `OS4 user switch updates current tile user`() {
+        val tile = fixture(configJson(activeModeId = null, lastModeId = "work")).createTile()
+
+        tile.userSwitch(12)
+
+        assertEquals(12, tile.getCurrentTileUser())
+    }
+
+    @Test
+    fun `OS4 QSTile v5 interface defaults remain callable`() {
+        val tile = fixture(configJson(activeModeId = null, lastModeId = "work")).createTile()
+        assertEquals("v5-default", tile.os4DefaultBehavior())
     }
 
     @Test
@@ -433,7 +448,8 @@ class FocusCardTileProviderTest {
             tileInterface = FakeTile::class.java,
             booleanStateClass = FakeBooleanState::class.java,
             drawableIconClass = FakeDrawableIcon::class.java,
-            detailAdapterInterface = FakeDetailAdapterInterface::class.java
+            detailAdapterInterface = FakeDetailAdapterInterface::class.java,
+            nativeDetailContentApi = createFakeNativeApi()
         )
         return Fixture(
             provider = FocusCardTileProvider(
@@ -619,6 +635,7 @@ class FocusCardTileProviderTest {
         fun unknownFloat(): Float
         fun unknownDouble(): Double
         fun unknownChar(): Char
+        fun os4DefaultBehavior(): String = "v5-default"
     }
 
     private interface FakeDetailAdapterInterface

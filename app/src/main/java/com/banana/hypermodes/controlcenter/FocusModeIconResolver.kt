@@ -9,7 +9,6 @@ import com.banana.hypermodes.data.ModeIconMapper
 import com.banana.hypermodes.systemserver.config.ModeConfig
 
 internal class FocusModeIconResolver(
-    private val pluginContext: Context,
     private val moduleContext: Context
 ) {
     fun resolve(mode: ModeConfig): Drawable {
@@ -22,8 +21,7 @@ internal class FocusModeIconResolver(
             ?.takeIf { it.isNotEmpty() }
             ?.let(::drawableByName)
             ?: drawableByName(mappedIconName(icon))
-            ?: drawableFromContexts(R.drawable.ic_stat_zen)
-            ?: drawableFromContexts(android.R.drawable.ic_dialog_info)
+            ?: drawableFromModule(R.drawable.ic_stat_zen)
             ?: ColorDrawable(Color.TRANSPARENT)
     }
 
@@ -37,26 +35,21 @@ internal class FocusModeIconResolver(
 
     private fun drawableByName(name: String): Drawable? {
         val resId = drawableId(name)
-        return drawableFromContexts(resId)
+        return drawableFromModule(resId)
     }
 
     private fun drawableId(name: String): Int {
         return try {
-            val packageName = moduleContext.packageName ?: pluginContext.packageName
-            moduleContext.resources?.getIdentifier(name, "drawable", packageName) ?: 0
+            moduleContext.resources?.getIdentifier(name, "drawable", moduleContext.packageName) ?: 0
         } catch (_: Throwable) {
             0
         }
     }
 
-    private fun drawableFromContexts(resId: Int): Drawable? {
+    private fun drawableFromModule(resId: Int): Drawable? {
         if (resId == 0) return null
-        return drawableFromContext(moduleContext, resId) ?: drawableFromContext(pluginContext, resId)
-    }
-
-    private fun drawableFromContext(context: Context, resId: Int): Drawable? {
         return try {
-            context.resources?.getDrawable(resId, null)
+            moduleContext.resources?.getDrawable(resId, null)
         } catch (_: Throwable) {
             null
         }

@@ -65,9 +65,14 @@ class SystemModeHook(private val module: XposedModule) {
             log("ActivityManagerService not found: ${t.message}")
             return
         }
-        val systemReady = ams.declaredMethods.firstOrNull { it.name == "systemReady" }
-        if (systemReady == null) {
-            log("systemReady not found")
+        val systemReady = try {
+            ams.getDeclaredMethod(
+                "systemReady",
+                Runnable::class.java,
+                classLoader.loadClass(TIMINGS_TRACE_AND_SLOG)
+            ).apply { isAccessible = true }
+        } catch (t: Throwable) {
+            log("OS4 ActivityManagerService.systemReady signature not found: ${t.message}")
             return
         }
         module.hook(systemReady)
@@ -151,13 +156,6 @@ class SystemModeHook(private val module: XposedModule) {
             override fun onReceive(c: Context, intent: Intent) {
                 // Actions without EXTRA_PACKAGES — handle before the extraction below.
                 when (intent.action) {
-                    Protocol.ACTION_POLARIS_GEOFENCE_EVENT -> {
-                        // Polaris geofence events are now handled via the PolarisProxyProvider
-                        // ContentProvider + PolarisManager SDK, not through this broadcast path.
-                        // This case is kept for backward compatibility but should not be used.
-                        log("Received legacy Polaris geofence broadcast - ignoring (handled by SDK)")
-                        return
-                    }
                     Protocol.ACTION_GET_CONFIGURED_WIFI -> {
                         sendConfiguredWifi(c, intent)
                         return
@@ -208,7 +206,6 @@ class SystemModeHook(private val module: XposedModule) {
             addAction(Protocol.ACTION_PROBE_POLARIS)
             addAction(Protocol.ACTION_CAPTURE_WALLPAPER_SNAPSHOT)
             addAction(Protocol.ACTION_PREPARE_WALLPAPER_EDIT)
-            addAction(Protocol.ACTION_POLARIS_GEOFENCE_EVENT)
         }
         context.registerReceiver(
             receiver, filter,
@@ -225,7 +222,7 @@ class SystemModeHook(private val module: XposedModule) {
      */
     private fun prepareWallpaperForEdit(context: Context, intent: Intent) {
         val resultReceiver =
-            intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+            intent.getParcelableExtra(Protocol.EXTRA_RESULT_RECEIVER, ResultReceiver::class.java)
         val which = intent.getIntExtra(Protocol.EXTRA_WHICH, 2)
         log("PREPARE_WALLPAPER_EDIT received: which=$which")
         Thread {
@@ -274,8 +271,8 @@ class SystemModeHook(private val module: XposedModule) {
      * but system_server still qualifies.
      */
     private fun sendConfiguredWifi(context: Context, intent: Intent) {
-        @Suppress("DEPRECATION")
-        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        val resultReceiver =
+            intent.getParcelableExtra(Protocol.EXTRA_RESULT_RECEIVER, ResultReceiver::class.java)
         if (resultReceiver == null) {
             log("GET_CONFIGURED_WIFI without ResultReceiver")
             return
@@ -361,8 +358,8 @@ class SystemModeHook(private val module: XposedModule) {
      * the probe confirms Polaris is available and allows non-SecurityCenter callers.
      */
     private fun probePolaris(context: Context, intent: Intent) {
-        @Suppress("DEPRECATION")
-        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        val resultReceiver =
+            intent.getParcelableExtra(Protocol.EXTRA_RESULT_RECEIVER, ResultReceiver::class.java)
         if (resultReceiver == null) {
             log("PROBE_POLARIS without ResultReceiver")
             return
@@ -389,8 +386,8 @@ class SystemModeHook(private val module: XposedModule) {
      * can re-apply them later via WallpaperController.
      */
     private fun captureWallpaperSnapshot(context: Context, intent: Intent) {
-        @Suppress("DEPRECATION")
-        val resultReceiver = intent.getParcelableExtra<ResultReceiver>(Protocol.EXTRA_RESULT_RECEIVER)
+        val resultReceiver =
+            intent.getParcelableExtra(Protocol.EXTRA_RESULT_RECEIVER, ResultReceiver::class.java)
         if (resultReceiver == null) {
             log("CAPTURE_WALLPAPER_SNAPSHOT without ResultReceiver")
             return
@@ -591,22 +588,25 @@ class SystemModeHook(private val module: XposedModule) {
                 return
             }
 
-            val method = ipm.javaClass.methods.first {
-                it.name == "setPackagesSuspendedAsUser"
-            }
+            val method = ipm.javaClass.getMethod(
+                "setPackagesSuspendedAsUser",
+                arrayOf<String>().javaClass,
+                Boolean::class.javaPrimitiveType!!,
+                android.os.PersistableBundle::class.java,
+                android.os.PersistableBundle::class.java,
+                Class.forName(SUSPEND_DIALOG_INFO, false, ipm.javaClass.classLoader),
+                Int::class.javaPrimitiveType!!,
+                String::class.java,
+                Int::class.javaPrimitiveType!!,
+                Int::class.javaPrimitiveType!!
+            )
 
-            // Android 16 signature (verified):
+            // Android 17 signature (verified from the OS4 framework):
             // setPackagesSuspendedAsUser(String[] packageNames, boolean suspended,
             //     PersistableBundle appExtras, PersistableBundle launcherExtras,
             //     SuspendDialogInfo dialogInfo, int flags, String suspendingPackage,
             //     int suspendingUserId, int targetUserId)
-            val params = method.parameterTypes
-            if (params.size < 9) {
-                log("setPackagesSuspendedAsUser signature mismatch: expected >=9 params, got ${params.size}")
-                return
-            }
-
-            val args = arrayOfNulls<Any>(params.size)
+            val args = arrayOfNulls<Any>(9)
             args[0] = packages.toTypedArray()  // String[] packageNames
             args[1] = suspended                 // boolean suspended
             args[2] = null                      // PersistableBundle appExtras
@@ -637,14 +637,23 @@ class SystemModeHook(private val module: XposedModule) {
             return
         }
 
-        val getChannels = inm.javaClass.methods.firstOrNull {
-            it.name == "getNotificationChannelsForPackage"
-        }
-        val updateChannel = inm.javaClass.methods.firstOrNull {
-            it.name == "updateNotificationChannelForPackage"
-        }
-        if (getChannels == null || updateChannel == null) {
-            log("channel methods not found on INotificationManager")
+        val getChannels: java.lang.reflect.Method
+        val updateChannel: java.lang.reflect.Method
+        try {
+            getChannels = inm.javaClass.getMethod(
+                "getNotificationChannelsForPackage",
+                String::class.java,
+                Int::class.javaPrimitiveType!!,
+                Boolean::class.javaPrimitiveType!!
+            )
+            updateChannel = inm.javaClass.getMethod(
+                "updateNotificationChannelForPackage",
+                String::class.java,
+                Int::class.javaPrimitiveType!!,
+                NotificationChannel::class.java
+            )
+        } catch (t: Throwable) {
+            log("OS4 notification channel signatures not found: $t")
             return
         }
         for (pkg in packages) {
@@ -754,5 +763,9 @@ class SystemModeHook(private val module: XposedModule) {
     companion object {
         private const val TAG = "HyperModes"
         private const val AMS = "com.android.server.am.ActivityManagerService"
+        private const val TIMINGS_TRACE_AND_SLOG =
+            "com.android.server.utils.TimingsTraceAndSlog"
+        private const val SUSPEND_DIALOG_INFO =
+            "android.content.pm.SuspendDialogInfo"
     }
 }

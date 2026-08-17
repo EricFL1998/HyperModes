@@ -18,7 +18,7 @@ class FocusModeDetailAdapter(
     modeIconProvider: ((ModeConfig) -> Drawable)? = null,
     modeDisplayNameProvider: ((ModeConfig) -> String)? = null
 ) {
-    private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
+    private val iconResolver = FocusModeIconResolver(moduleContext)
     private val displayNameResolver = runCatching {
         FocusModeDisplayNameResolver(
             moduleContext.resources,
@@ -36,7 +36,7 @@ class FocusModeDetailAdapter(
         nativeDetailContentApi = nativeDetailContentApi,
         diagnostic = object : FocusDetailDiagnostic {
             override fun failed(stage: FocusDetailFallbackStage, throwable: Throwable?) {
-                Log.w(TAG, "Detail fallback: $stage", throwable)
+                Log.w(TAG, "OS4 detail failure: $stage", throwable)
             }
         },
         detailAdapterInterface = detailAdapterInterface,

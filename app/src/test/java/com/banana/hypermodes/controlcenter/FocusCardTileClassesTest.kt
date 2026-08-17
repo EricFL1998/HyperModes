@@ -14,26 +14,22 @@ class FocusCardTileClassesTest {
 
     @Test
     fun `resolve loads native detail content from the SystemUI class loader`() {
-        val pluginLoader = RecordingClassLoader(
+        val systemUiLoader = RecordingClassLoader(
             mapOf(
                 QSTILE_CLASS to FakeTile::class.java,
                 BOOLEAN_STATE_CLASS to FakeBooleanState::class.java,
-                DRAWABLE_ICON_CLASS to FakeDrawableIcon::class.java,
-                DETAIL_ADAPTER_CLASS to FakeDetailAdapter::class.java
+                DETAIL_ADAPTER_CLASS to FakeDetailAdapter::class.java,
+                QS_DETAIL_CONTENT_CLASS to FakeQsDetailContent::class.java,
+                DRAWABLE_ICON_CLASS to FakeDrawableIcon::class.java
             )
         )
-        val systemUiLoader = RecordingClassLoader(
-            mapOf(QS_DETAIL_CONTENT_CLASS to FakeQsDetailContent::class.java)
-        )
 
-        val classes = FocusCardTileClasses.resolve(
-            pluginClassLoader = pluginLoader,
-            systemUiClassLoader = systemUiLoader
-        )
+        val classes = FocusCardTileClasses.resolve(systemUiLoader)
 
         assertSame(FakeQsDetailContent::class.java, classes.nativeDetailContentApi?.contentClass)
         assertTrue(systemUiLoader.requests.contains(QS_DETAIL_CONTENT_CLASS))
-        assertTrue(!pluginLoader.requests.contains(QS_DETAIL_CONTENT_CLASS))
+        assertTrue(systemUiLoader.requests.contains(QSTILE_CLASS))
+        assertTrue(systemUiLoader.requests.contains(DETAIL_ADAPTER_CLASS))
     }
 
     @Test
@@ -162,7 +158,7 @@ class FocusCardTileClassesTest {
     companion object {
         private const val QSTILE_CLASS = "com.android.systemui.plugins.qs.QSTile"
         private const val BOOLEAN_STATE_CLASS = "com.android.systemui.plugins.qs.QSTile\$BooleanState"
-        private const val DRAWABLE_ICON_CLASS = "miui.systemui.controlcenter.qs.DrawableIcon"
+        private const val DRAWABLE_ICON_CLASS = "com.android.systemui.qs.tileimpl.QSTileImpl\$DrawableIcon"
         private const val DETAIL_ADAPTER_CLASS = "com.android.systemui.plugins.qs.DetailAdapter"
         private const val QS_DETAIL_CONTENT_CLASS = "com.android.systemui.qs.QSDetailContent"
     }

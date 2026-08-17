@@ -5,11 +5,9 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import com.banana.hypermodes.systemserver.config.ModeConfig
 import java.lang.ref.WeakReference
+import java.lang.invoke.MethodHandles
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -85,7 +83,14 @@ class FocusModeDetailSession(
                 "equals" -> proxy === (args?.firstOrNull())
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "FocusModeDetailSessionAdapter@${Integer.toHexString(System.identityHashCode(proxy))}"
-                else -> defaultReturnValue(method.returnType)
+                else -> if (method.isDefault) {
+                    MethodHandles.privateLookupIn(method.declaringClass, MethodHandles.lookup())
+                        .unreflectSpecial(method, method.declaringClass)
+                        .bindTo(proxy)
+                        .invokeWithArguments(*(args ?: emptyArray()))
+                } else {
+                    defaultReturnValue(method.returnType)
+                }
             }
         }
     }
@@ -157,19 +162,22 @@ class FocusModeDetailSession(
     ): View {
         val api = nativeDetailContentApi
         if (api == null) {
-            diagnostic.failed(FocusDetailFallbackStage.NATIVE_API_UNAVAILABLE, null)
-            return createFallbackView(context)
+            failNativeDetail(
+                FocusDetailFallbackStage.NATIVE_API_UNAVAILABLE,
+                IllegalStateException("OS4 QSDetailContent API is unavailable")
+            )
         }
 
         val content = try {
             api.convertOrInflate.invoke(context, convertView, parent)
         } catch (throwable: Throwable) {
-            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CONVERT, unwrapReflectionFailure(throwable))
-            return createFallbackView(context)
+            failNativeDetail(FocusDetailFallbackStage.NATIVE_CONVERT, unwrapReflectionFailure(throwable))
         }
         if (content == null || !api.contentClass.isInstance(content) || content !is View) {
-            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CONVERT, null)
-            return createFallbackView(context)
+            failNativeDetail(
+                FocusDetailFallbackStage.NATIVE_CONVERT,
+                IllegalStateException("OS4 QSDetailContent.convertOrInflate returned an incompatible value")
+            )
         }
 
         FocusNativeDetailViewDecorator.decorate(content)
@@ -181,35 +189,22 @@ class FocusModeDetailSession(
             submitItems(content, api)
         } catch (throwable: Throwable) {
             releaseCurrentContentIfSame(content)
-            diagnostic.failed(FocusDetailFallbackStage.NATIVE_ITEMS, unwrapReflectionFailure(throwable))
-            return createFallbackView(context)
+            failNativeDetail(FocusDetailFallbackStage.NATIVE_ITEMS, unwrapReflectionFailure(throwable))
         }
 
         try {
             api.setCallback.invoke(content, createNativeCallback(api))
         } catch (throwable: Throwable) {
             releaseCurrentContentIfSame(content)
-            diagnostic.failed(FocusDetailFallbackStage.NATIVE_CALLBACK, unwrapReflectionFailure(throwable))
-            return createFallbackView(context)
+            failNativeDetail(FocusDetailFallbackStage.NATIVE_CALLBACK, unwrapReflectionFailure(throwable))
         }
 
         return content
     }
 
-    private fun createFallbackView(context: Context): View {
-        return ScrollView(context).apply {
-            addView(
-                LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(48, 48, 48, 48)
-                    addView(
-                        TextView(context).apply {
-                            text = "Focus detail is unavailable"
-                        }
-                    )
-                }
-            )
-        }
+    private fun failNativeDetail(stage: FocusDetailFallbackStage, throwable: Throwable): Nothing {
+        diagnostic.failed(stage, throwable)
+        throw IllegalStateException("OS4 native detail failed at $stage", throwable)
     }
 
     private fun unwrapReflectionFailure(throwable: Throwable): Throwable {

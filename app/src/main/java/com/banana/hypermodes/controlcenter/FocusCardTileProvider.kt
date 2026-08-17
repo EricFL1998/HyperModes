@@ -7,6 +7,7 @@ import com.banana.hypermodes.R
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import java.lang.invoke.MethodHandles
 import java.util.IdentityHashMap
 
 private const val TILE_SPEC = "hypermodes_focus"
@@ -64,10 +65,11 @@ private class TileInvocationHandler(
     private var observerRegistration: AutoCloseable? = null
     private var destroyed = false
     private var tileSpec = TILE_SPEC
+    private var currentUserId = 0
     private var currentState: Any? = null
     private var detailAdapter: Any? = null
     private var detailSession: FocusModeDetailSession? = null
-    private val iconResolver = FocusModeIconResolver(pluginContext, moduleContext)
+    private val iconResolver = FocusModeIconResolver(moduleContext)
     private val displayNameResolver = runCatching {
         FocusModeDisplayNameResolver(
             moduleContext.resources,
@@ -135,8 +137,8 @@ private class TileInvocationHandler(
                 if (!destroyed) notifyShowDetail(arguments.firstOrNull() as? Boolean ?: false)
                 null
             }
-            "getCurrentTileUser" -> 0
-            "getMetricsCategory" -> 0
+            "getCurrentTileUser" -> currentUserId
+            "getMetricsCategory" -> FocusNativeDetailRegistry.METRICS_CATEGORY
             "getMetricsSpec" -> tileSpec
             "getInstanceId" -> null
             "populate" -> arguments.firstOrNull()
@@ -144,6 +146,7 @@ private class TileInvocationHandler(
             "isConnected" -> false
             "isTileReady" -> true
             "userSwitch" -> {
+                currentUserId = arguments.firstOrNull() as? Int ?: currentUserId
                 refreshState()
                 null
             }
@@ -151,7 +154,14 @@ private class TileInvocationHandler(
                 handleDetailPanelHidden()
                 null
             }
-            else -> defaultValue(method.returnType)
+            else -> if (method.isDefault) {
+                MethodHandles.privateLookupIn(method.declaringClass, MethodHandles.lookup())
+                    .unreflectSpecial(method, method.declaringClass)
+                    .bindTo(proxy)
+                    .invokeWithArguments(*arguments)
+            } else {
+                defaultValue(method.returnType)
+            }
         }
     }
 
