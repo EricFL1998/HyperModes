@@ -194,3 +194,73 @@ Gotchas:
 These flags vary per wallpaper/settings, so never assume a single transition
 path — anchor on lifecycle hooks (`onDreamingStarted`/`stopDozing`) and measure
 live view geometry instead.
+
+## 8. OS4 Native Lockscreen Status Row ("勿扰 | n 条通知")
+
+HyperOS 4 adds a native status row on the lockscreen — the num-state view
+("勿扰 | 3 条通知") — which sits visually close to our injected mode display.
+Decompiled chain (sources: `os4_android17_apks/miuisystemui_decompiler`):
+
+- Layout: `res/layout/num_state_view.xml` — `zen_view` (LinearLayout:
+  `zen_icon` ImageView + `zen_text` TextView) | `dividing_line` |
+  `notification_count_view`.
+- View: `com.miui.systemui.notification.view.NotificationNumStateView`
+  (public fields `zenView`, `zenText`, `zenIcon`, `isZenModeEnabled`).
+- Text source: string `keyguard_num_state_zen_mode_text` ("勿扰" in zh-rCN),
+  applied by `updateZenViewText()` — but only when `isZenModeEnabled == true`.
+- Visibility driver: `NotificationNumStateViewBinder` collects
+  `NotificationNumStateViewModel.isZenModeEnabled` (a StateFlow mapped from
+  `ZenModeControllerImpl` = system DND state), sets the field, calls
+  `updateZenViewText()`, then posts a Folme animation runnable.
+  `updateZenViewText()` is re-invoked on config/locale changes too.
+
+HyperModes rewrites this text in place via `ZenTextHook` (hooked in
+`onPackageReady` for `com.android.systemui`): after `chain.proceed()` it
+reads the active mode (`Settings.Global pixel_routines_full_config`) and, when
+a mode is active while the row would show "勿扰", replaces `zenText` (and
+`zenView.contentDescription`) with the mode name. A ContentObserver on the
+config key re-applies on mode switches that do not toggle DND (no flow edge),
+and restores the native string when the last mode exits while DND stays on.
+
+### 8.1 Showing the segment without DND
+
+The zen segment must also show while DND is OFF (mode active but the mode's
+DND action disabled). Native pieces involved:
+
+- Binder emission (case 0): sets `view.isZenModeEnabled`, calls
+  `updateZenViewText()`, `requestLayout()`, then posts
+  `NotificationNumStateView$updateZenMode$1(0)` with the CAPTURED DND value.
+- The runnable (fields `this$0`, `$isZenModeEnabled`, `$r8$classId`):
+  classId 0 = zen, 1 = notification count. The zen variant fades
+  `zenView` + `dividingLine` in/out via
+  `NumStateViewAnimateExt.animateUpdateViewVisibility` and applies the
+  half-width translate compensations — all keyed off the captured flag, NOT
+  the view field.
+- Layout math (`onMeasure`/`getRealWidth`) reads the view FIELD; text is
+  applied by `updateZenViewText()` only when the field is true.
+
+`ZenTextHook` therefore: forces `isZenModeEnabled = realZen || modeActive`
+after every `updateZenViewText()` (real DND read from
+`Settings.Global zen_mode`), writes mode name + mode icon (`zenIcon`,
+re-applied after `updateColor()` resets it to the native moon), and drives
+show/hide by instantiating the NATIVE runnable via reflection
+(`newInstance(cls, 0)` + set `this$0`/`$isZenModeEnabled` + `view.post`),
+so fades/divider/translations stay pixel-native. Hooking the runnable's
+`run()` flips the captured flag back to true whenever a mode is active,
+neutralizing DND-off emissions; classId 1 passes untouched. Mode exit:
+effectiveZen false → native fade-out; DND still on → native "勿扰" restored.
+
+### 8.2 Why the old injected display path was removed
+
+The row lives at the TOP of the keyguard root ConstraintLayout
+(`NotificationNumStateSection`: top/start/end constrained to parent), NOT in
+the bottom indication area. In steady Full-AOD,
+`KeyguardPanelViewController` pushes `scaleAndAlpha = (1.0, 1.0)` (when
+`fullAodEnable() && !startedWakeupAnimation && !keyguardBouncerShowing`),
+which the binder applies to the row — so the native row (and the mode text
+riding in it) stays visible through Full-AOD without any injection.
+
+Consequently the whole injected path was deleted: `LockscreenHook.kt`,
+`FullAodHook.kt`, `ModeDisplayCoordinator.kt`, `ModeDisplayViewFactory.kt`,
+`ModeDisplayPositioner.kt` (+ their tests). `ModeDisplayState.kt`
+(state parsing) remains — `ZenTextHook` consumes it.

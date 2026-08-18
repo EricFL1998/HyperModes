@@ -5,13 +5,11 @@ import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.hook.ControlCenterCardHook
 import com.banana.hypermodes.hook.AodEditorHook
 import com.banana.hypermodes.hook.DeskClockHook
-import com.banana.hypermodes.hook.FullAodHook
-import com.banana.hypermodes.hook.LockscreenHook
 import com.banana.hypermodes.hook.SettingsHook
 import com.banana.hypermodes.hook.SystemKeepAliveHook
 import com.banana.hypermodes.hook.SystemModeHook
 import com.banana.hypermodes.hook.SystemUIHook
-import com.banana.hypermodes.hook.modedisplay.ModeDisplayCoordinator
+import com.banana.hypermodes.hook.ZenTextHook
 import com.banana.hypermodes.protocol.Protocol
 import com.banana.hypermodes.systemserver.hooks.NotificationFilterHook
 import io.github.libxposed.api.XposedModule
@@ -19,13 +17,6 @@ import io.github.libxposed.api.XposedModuleInterface
 
 class XposedInit : XposedModule() {
     private var processName: String? = null
-    private val modeDisplayCoordinator by lazy {
-        ModeDisplayCoordinator { message ->
-            log(Log.WARN, "HyperModes.ModeDisplay", message)
-        }
-    }
-    private val lockscreenHook by lazy { LockscreenHook(this, modeDisplayCoordinator) }
-    private val fullAodHook by lazy { FullAodHook(this, modeDisplayCoordinator) }
 
     override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
         this.processName = param.processName
@@ -59,8 +50,7 @@ class XposedInit : XposedModule() {
                     HyperLog.d(TAG, "com.android.systemui ready - installing OS4 native QS hook")
                     ControlCenterCardHook(this).install(param.classLoader)
                     SystemUIHook(this).install(param.classLoader)
-                    lockscreenHook.install(param.classLoader)
-                    fullAodHook.install(param.classLoader)
+                    ZenTextHook(this).install(param.classLoader)
                 }
                 "com.miui.aod" -> {
                     HyperLog.d(TAG, "com.miui.aod ready - hooking keyguard editor")
