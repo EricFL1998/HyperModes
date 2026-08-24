@@ -58,6 +58,7 @@ class WallpaperController(private val context: Context) {
     private val KEY_TEMPLATE_EDITOR_INFO = "constant_template_editor_info"
     private val KEY_DEFAULT_LOCKSCREEN_INFO = "miui_15_default_lockscreen_info"
     private val KEY_LOCKSCREEN_INFO_VERSION = "lockscreen_info_version"
+    private val LOCKSCREEN_INFO_VERSION_OS4 = 4
     private val KEY_DESKTOP_SCROLL = "pref_key_wallpaper_screen_scrolled_span"
     private val KEY_WALLPAPER_EFFECT_1 = "wallpaper_effect_type_1"
     private val KEY_WALLPAPER_EFFECT_2 = "wallpaper_effect_type_2"
@@ -138,13 +139,8 @@ class WallpaperController(private val context: Context) {
                 if (!item.lockscreenJson.isNullOrEmpty()) {
                     // 预置后编辑器从"保存的样式"开始，必须把景深蒙版路径
                     // 指到模板目录，否则编辑器/系统读不到 subject_mask 而丢失景深。
-                    val json = rewriteSubjectPath(item.lockscreenJson, subjectMaskFile)
-                    putSecure(KEY_LOCKSCREEN_INFO, json)
-                    putSecure(
-                        KEY_TEMPLATE_EDITOR_INFO,
-                        item.templateEditorJson
-                            ?: "{\"lockscreenInfo\":$json}"
-                    )
+                   val json = rewriteSubjectPath(item.lockscreenJson, subjectMaskFile)
+                    stageLockscreenStyle(json, item.templateEditorJson)
                 }
                 if (!item.imagePath.isNullOrEmpty()) {
                     val src = resolveReadableSource(item.sysImagePath, item.imagePath)
@@ -195,12 +191,7 @@ class WallpaperController(private val context: Context) {
         //    同步把 wallpaperInfo.subject 指向模板目录，保证景深蒙版可读。
         if (!item.lockscreenJson.isNullOrEmpty()) {
             val json = rewriteSubjectPath(item.lockscreenJson, subjectMaskFile)
-            putSecure(KEY_LOCKSCREEN_INFO, json)
-            putSecure(
-                KEY_TEMPLATE_EDITOR_INFO,
-                item.templateEditorJson
-                    ?: "{\"lockscreenInfo\":$json}"
-            )
+            stageLockscreenStyle(json, item.templateEditorJson)
         }
 
         // 3. 设置锁屏壁纸（官方 setStream，每次都能触发裁剪重建 + 组件重绑）
@@ -312,6 +303,22 @@ class WallpaperController(private val context: Context) {
     }
 
     // ---- 桌面子项 ----
+
+    /**
+     * Stage the lockscreen style JSON into the OS4 keys required by SystemUI:
+     * raw input, fallback default, schema version, and wrapped editor info.
+     * Writing the fallback default prevents OS4 from resetting the style to
+     * stock when the templateId is "smart_frame".
+     */
+    private fun stageLockscreenStyle(json: String, editorJson: String?) {
+        putSecure(KEY_LOCKSCREEN_INFO, json)
+        putSecure(KEY_DEFAULT_LOCKSCREEN_INFO, json)
+        putSecureInt(KEY_LOCKSCREEN_INFO_VERSION, LOCKSCREEN_INFO_VERSION_OS4)
+        putSecure(
+            KEY_TEMPLATE_EDITOR_INFO,
+            editorJson ?: "{\"lockscreenInfo\":$json}"
+        )
+    }
 
     private fun applyDesktop(item: WallpaperItemConfig) {
         // 1. 备份桌面壁纸源图 + 滚动/特效/来源键（仅首次；原值不存在也记录 null 标记）

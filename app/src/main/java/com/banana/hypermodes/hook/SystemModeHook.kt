@@ -425,7 +425,7 @@ class SystemModeHook(private val module: XposedModule) {
             )
             bundle.putInt(
                 Protocol.EXTRA_LOCKSCREEN_VERSION,
-                Settings.Secure.getInt(resolver, "lockscreen_info_version", 3)
+                Settings.Secure.getInt(resolver, "lockscreen_info_version", 4)
             )
 
             // 2/3. 壁纸：预览走降采样 JPEG 返回 App 显示；恢复源则原样拷贝系统
