@@ -129,6 +129,55 @@ class DeskClockHook(private val module: XposedModule) {
             log("dismissAlarm not found: ${t.message}")
         }
 
+        // 2b) OS4 alert UI dismiss no longer funnels through dismissAlarm.
+        hookAlertUiDismiss(classLoader)
+
+    }
+
+    /**
+     * OS4's AlarmAlertFullScreenActivity.dismiss() inlines the dismiss logic
+     * (clearNotification/stopKlaxon/tryDeleteOneshot) and then nulls mAlarm,
+     * so the alert-UI swipe path never reaches AlarmHelper.dismissAlarm.
+     * Hook the dismiss overloads on the activity itself; the alarm must be
+     * read BEFORE chain.proceed() because the original sets mAlarm=null.
+     */
+    private fun hookAlertUiDismiss(classLoader: ClassLoader) {
+        try {
+            val activityCls = classLoader.loadClass(CLS_ALERT_ACTIVITY)
+            for (method in activityCls.declaredMethods.filter { it.name == "dismiss" }) {
+                val params = method.parameterTypes
+                if (params.size !in 2..3) continue
+                if (!params.all { it == Boolean::class.javaPrimitiveType }) continue
+                module.hook(method)
+                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                    .intercept(object : XposedInterface.Hooker {
+                        override fun intercept(chain: XposedInterface.Chain): Any? {
+                            try {
+                                val self = HookUtils.getThisObject(chain) ?: return chain.proceed()
+                                val alarm = self.javaClass.getField("mAlarm").get(self)
+                                val killed = chain.getArg(0) as? Boolean ?: false
+                                if (alarm != null && !killed) {
+                                    val id = alarm.javaClass.getField("id").getInt(alarm)
+                                    if (id == Int.MIN_VALUE) {
+                                        val context = self as Context
+                                        classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                            .getDeclaredMethod("exitZenMode", Context::class.java)
+                                            .invoke(null, context)
+                                        log("wake alarm dismissed via alert UI -> exitZenMode")
+                                        sendBedtimeState(context, false, "ALARM_DISMISSED")
+                                    }
+                                }
+                            } catch (t: Throwable) {
+                                log("alert-UI dismiss hook failed: " + t.message)
+                            }
+                            return chain.proceed()
+                        }
+                    })
+                log("AlarmAlertFullScreenActivity.dismiss(" + params.size + " args) hooked")
+            }
+        } catch (t: Throwable) {
+            log("alert activity dismiss hook not installed: " + t.message)
+        }
     }
 
     /** Wake alarm lives in the sleep_alarms provider with id Integer.MIN_VALUE. */
@@ -591,5 +640,6 @@ class DeskClockHook(private val module: XposedModule) {
         private const val CLS_FBE_UTIL = "com.android.deskclock.util.FBEUtil"
         private const val KEY_IN_ZENMODE = "inZenMode"
         private const val ACTION_DESKCLOCK_ALARM_ALERT = "com.android.deskclock.ALARM_ALERT"
+        private const val CLS_ALERT_ACTIVITY = "com.android.deskclock.alarm.alert.AlarmAlertFullScreenActivity"
     }
 }

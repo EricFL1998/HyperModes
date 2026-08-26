@@ -139,6 +139,12 @@ class DeviceController(private val context: Context) {
                 restoreSilentMode(original)
             }
 
+            // Restore motion sickness relief to its original state
+            takeOriginal(KEY_ORIG_MOTION_SICKNESS_RELIEF)?.let { original ->
+                applyMotionSicknessRelief(original == 1)
+                log("restore: set MotionSicknessRelief to ${original == 1}")
+            }
+
         } catch (e: Exception) {
             log("restore: failed: ${e.message}")
         }
