@@ -55,7 +55,11 @@ object OfficialTemplatePreview {
         "classic" to "classic_signature",
         "classic_max" to "classic_max_minute",
         "classic_plus" to "classic_plus_signature",
-        "depth_pets" to "depth_pets_secondary"
+        "depth_pets" to "depth_pets_secondary",
+        // OS4 all-in-one: templateId "all_in_one" renders the hour layer and
+        // "all_in_one_minute" renders the minute layer on top of it. Without
+        // this entry only the hour layer shows and minutes disappear.
+        "all_in_one" to "all_in_one_minute"
     )
 
     /** 优先 AOD（未混淆、方法名完整），回退主题管家（打包了全套组件）。 */
