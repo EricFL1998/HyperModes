@@ -198,7 +198,10 @@ object OfficialTemplatePreview {
         //      并且 setPivotX(0) / setPivotY(0) 以左上角为原点缩放。
         //    这样时钟布局、字号、位置都按真机比例缩小，和系统个性化预览一致。
         val clockViewCls = host.classLoader.loadClass(CLOCK_VIEW_CLS)
-        val clockView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
+        val clockView = clockViewCls.getConstructor(
+            Context::class.java,
+            android.util.AttributeSet::class.java
+        ).newInstance(host.context, null) as View
         val screenW = host.context.resources.displayMetrics.widthPixels
         val screenH = host.context.resources.displayMetrics.heightPixels
         val targetScaleX = if (screenW > 0) targetWidthPx.toFloat() / screenW.toFloat() else 1f
@@ -283,7 +286,10 @@ object OfficialTemplatePreview {
                 val foreBean = beanCls.getConstructor(String::class.java).newInstance(secondaryTemplateId)
                 // 前景小时层复用主 bean 的颜色/字重字段（官方 initTemplateBean 同样复制）
                 fillClockBean(beanCls, foreBean, fields)
-                val foreView = clockViewCls.getConstructor(Context::class.java).newInstance(host.context) as View
+                val foreView = clockViewCls.getConstructor(
+                    Context::class.java,
+                    android.util.AttributeSet::class.java
+                ).newInstance(host.context, null) as View
                 // 官方副层用 displayType=64（isSecondaryType），副层模板
                 // 在该类型下解析为正确的布局（如 oversize_a_minute）。
                 initClockView(clockViewCls, foreView, foreBean, beanCls, displayType = 64)
@@ -345,6 +351,9 @@ object OfficialTemplatePreview {
         fun setBool(name: String, value: Boolean) {
             runCatching { beanCls.getMethod(name, Boolean::class.javaPrimitiveType).invoke(bean, value) }
         }
+        fun setFloat(name: String, value: Float) {
+            runCatching { beanCls.getMethod(name, Float::class.javaPrimitiveType).invoke(bean, value) }
+        }
         fun setString(name: String, value: String?) {
             if (!value.isNullOrEmpty()) {
                 runCatching { beanCls.getMethod(name, String::class.java).invoke(bean, value) }
@@ -377,6 +386,36 @@ object OfficialTemplatePreview {
         setString("setPresetWeatherJson", fields.presetWeatherJson)
         setString("setPresetHealthJson", fields.presetHealthJson)
         setString("setDualClockLocalCity", fields.dualClockLocalCity)
+        // OS4 all_in_one geometry/typography fields; without these the
+        // all-in-one clock renders at zero size and the preview looks empty.
+        setInt("setFontStyle", fields.fontStyle)
+        setInt("setHollowStyle", fields.hollowStyle)
+        setBool("setColonShow", fields.isColonShow)
+        setBool("setDoubleRow", fields.isDoubleRow)
+        setBool("setSkipScreenTransform", fields.isSkipScreenTransform)
+        setFloat("setTimeWidth", fields.timeWidth)
+        setFloat("setTimeHeight", fields.timeHeight)
+        setFloat("setClockTopRatio", fields.clockTopRatio)
+        setFloat("setClockBottomRatio", fields.clockBottomRatio)
+        fields.glassTransparency?.let { transparency ->
+            runCatching {
+                beanCls.getMethod("setGlassTransparency", java.lang.Float::class.java)
+                    .invoke(bean, transparency)
+            }
+        }
+        if (fields.clockDepthType >= 0) {
+            runCatching {
+                val styleCls = beanCls.classLoader
+                    ?.loadClass("com.miui.clock.allInOne.AllInOneClockStyle")
+                    ?: return@runCatching
+                val toRegion = styleCls.getMethod(
+                    "toRegion",
+                    Int::class.javaPrimitiveType
+                )
+                val region = toRegion.invoke(null, fields.clockDepthType)
+                beanCls.getMethod("setClockDepthType", region.javaClass).invoke(bean, region)
+            }
+        }
     }
 
     /** 反射调用 MiuiClockView.init(clockBean, displayType, async)。 */
@@ -387,13 +426,25 @@ object OfficialTemplatePreview {
         beanCls: Class<*>,
         displayType: Int = 0
     ) {
-        val initMethod = clockViewCls.getMethod(
-            "init",
-            beanCls,
-            Int::class.javaPrimitiveType,
-            Boolean::class.javaPrimitiveType
-        )
-        initMethod.invoke(clockView, bean, displayType, false)
+        // OS3/OS4 both expose init(ClockBean,int,boolean); fall back to the
+        // two-arg overload for builds that only ship that one.
+        val initMethod = try {
+            clockViewCls.getMethod(
+                "init",
+                beanCls,
+                Int::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType
+            )
+        } catch (t: NoSuchMethodException) {
+            null
+        }
+        if (initMethod != null) {
+            initMethod.invoke(clockView, bean, displayType, false)
+        } else {
+            clockViewCls
+                .getMethod("init", beanCls, Boolean::class.javaPrimitiveType)
+                .invoke(clockView, bean, false)
+        }
     }
 
     /** 以全屏尺寸 + 左上角缩放挂到 root（与 createScaledPreviewTemplateView 一致）。 */
@@ -564,6 +615,20 @@ object OfficialTemplatePreview {
                 presetWeatherJson = clock.optString("presetWeatherJson").takeIf { it.isNotEmpty() },
                 presetHealthJson = clock.optString("presetHealthJson").takeIf { it.isNotEmpty() },
                 dualClockLocalCity = clock.optString("dualClockLocalCity").takeIf { it.isNotEmpty() },
+                // OS4 all_in_one fields
+                fontStyle = clock.optInt("fontStyle", 0),
+                hollowStyle = clock.optInt("hollowStyle", 0),
+                glassTransparency = if (clock.has("glassTransparency")) {
+                    clock.optDouble("glassTransparency", 0.0).toFloat()
+                } else null,
+                isColonShow = clock.optBoolean("isColonShow", true),
+                isDoubleRow = clock.optBoolean("isDoubleRow", false),
+                isSkipScreenTransform = clock.optBoolean("isSkipScreenTransform", false),
+                timeWidth = clock.optDouble("timeWidth", 0.0).toFloat(),
+                timeHeight = clock.optDouble("timeHeight", 0.0).toFloat(),
+                clockTopRatio = clock.optDouble("clockTopRatio", 0.0).toFloat(),
+                clockBottomRatio = clock.optDouble("clockBottomRatio", 0.0).toFloat(),
+                clockDepthType = clock.optInt("clockDepthType", -1),
                 supportSubject = wallpaperInfo?.optBoolean("supportSubject", false) ?: false
             )
         }.getOrNull()
@@ -598,6 +663,18 @@ object OfficialTemplatePreview {
         val presetWeatherJson: String?,
         val presetHealthJson: String?,
         val dualClockLocalCity: String?,
+        // OS4 all_in_one fields
+        val fontStyle: Int = 0,
+        val hollowStyle: Int = 0,
+        val glassTransparency: Float? = null,
+        val isColonShow: Boolean = true,
+        val isDoubleRow: Boolean = false,
+        val isSkipScreenTransform: Boolean = false,
+        val timeWidth: Float = 0f,
+        val timeHeight: Float = 0f,
+        val clockTopRatio: Float = 0f,
+        val clockBottomRatio: Float = 0f,
+        val clockDepthType: Int = -1,
         val supportSubject: Boolean = false
     )
 }

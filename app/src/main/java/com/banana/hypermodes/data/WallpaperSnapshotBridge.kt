@@ -200,6 +200,8 @@ object WallpaperSnapshotBridge {
         previewOnly: Boolean
     ): WallpaperSet? {
         if (data == null) return null
+        HyperLog.i("WallpaperSnapshotBridge", "parse: modeId=" + modeId + " previewOnly=" + previewOnly +
+            " keys=" + data.keySet().joinToString(","))
         if (previewOnly) {
             cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
             cacheTemplateEditorJson(context, data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON))
@@ -237,6 +239,11 @@ object WallpaperSnapshotBridge {
             previewOnly
         )
         val lockJson = data.getString(Protocol.EXTRA_LOCKSCREEN_JSON)
+        HyperLog.i("WallpaperSnapshotBridge", "parse result: lockBytes=" + (lockBytes?.size) +
+            " desktopBytes=" + (desktopBytes?.size) +
+            " maskBytes=" + (subjectMaskBytes?.size) +
+            " lockImage=" + lockImage + " desktopImage=" + desktopImage +
+            " hasJson=" + (lockJson != null))
         if (lockImage == null && desktopImage == null && lockJson == null) return null
 
         return WallpaperSet(

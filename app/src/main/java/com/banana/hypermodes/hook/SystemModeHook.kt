@@ -410,10 +410,13 @@ class SystemModeHook(private val module: XposedModule) {
             if (lockscreenInfo != null) {
                 bundle.putString(Protocol.EXTRA_LOCKSCREEN_JSON, lockscreenInfo)
             } else {
-                bundle.putString(
-                    Protocol.EXTRA_LOCKSCREEN_JSON,
-                    Settings.Secure.getString(resolver, "constant_lockscreen_info")
-                )
+                // OS4: constant_lockscreen_info is usually null; the real style
+                // lives in constant_template_editor_info (handled above). Fall
+                // back to constant_lockscreen_info, then the OTA default key.
+                val fallbackJson = Settings.Secure.getString(resolver, "constant_lockscreen_info")
+                    ?: Settings.Secure.getString(resolver, "miui_15_default_lockscreen_info")
+                        ?.let { extractLockscreenInfo(it) ?: it }
+                bundle.putString(Protocol.EXTRA_LOCKSCREEN_JSON, fallbackJson)
             }
             bundle.putString(
                 Protocol.EXTRA_TEMPLATE_EDITOR_JSON,
@@ -437,15 +440,22 @@ class SystemModeHook(private val module: XposedModule) {
             // 锁屏源图：无独立锁屏壁纸（跟随桌面）时回退到桌面源图，
             // 保证捕获始终有锁屏壁纸字节，保存后预览不会丢失锁屏图。
             val lockOrig = File(systemDir, "wallpaper_lock_orig")
-                .takeIf { it.exists() } ?: File(systemDir, "wallpaper_orig")
-            if (lockOrig.exists()) {
+                .takeIf { it.exists() }
+                ?: File(systemDir, "wallpaper_orig").takeIf { it.exists() }
+                // OS4: when the standard wallpaper files are missing, the real
+                // bitmap lives in the AOD template dir referenced by the editor
+                // JSON (wallpaperInfo.source).
+                ?: resolveWallpaperSource(lockscreenInfo)
+            if (lockOrig?.exists() == true) {
                 bundle.putByteArray(Protocol.EXTRA_LOCK_IMAGE_BYTES, encodePreview(lockOrig))
                 val sysFile = File(sysModeDir, "lock_wallpaper.jpg")
                 copyFileIfChanged(lockOrig, sysFile)
                 bundle.putString(Protocol.EXTRA_LOCK_SYS_IMAGE_PATH, sysFile.absolutePath)
             }
             val desktopOrig = File(systemDir, "wallpaper_orig")
-            if (desktopOrig.exists()) {
+                .takeIf { it.exists() }
+                ?: resolveHomeWallpaperSource(editorInfo)
+            if (desktopOrig?.exists() == true) {
                 bundle.putByteArray(Protocol.EXTRA_DESKTOP_IMAGE_BYTES, encodePreview(desktopOrig))
                 val sysFile = File(sysModeDir, "desktop_wallpaper.jpg")
                 copyFileIfChanged(desktopOrig, sysFile)
@@ -458,12 +468,20 @@ class SystemModeHook(private val module: XposedModule) {
             if (subjectMask != null) {
                 // 蒙版是灰度/alpha 图，JPEG 有损压缩会破坏景深边缘与灰度精度，
                 // 必须用 PNG 无损编码；尺寸也保持原始（PNG 对黑白蒙版压缩率高）。
-                val bytes = encodeMaskPng(subjectMask)
-                bundle.putByteArray(Protocol.EXTRA_SUBJECT_MASK_BYTES, bytes)
-                if (bytes != null) {
+                val fullBytes = encodeMaskPng(subjectMask)
+                if (fullBytes != null) {
                     val sysFile = File(sysModeDir, "subject_mask.png")
-                    writeIfChanged(sysFile, bytes)
+                    writeIfChanged(sysFile, fullBytes)
                     bundle.putString(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH, sysFile.absolutePath)
+                    // Full-res PNG + two JPEGs easily exceed the ~1MB Binder
+                    // transaction limit of ResultReceiver; a failed send makes
+                    // the App time out and the whole preview go blank. Send a
+                    // downscaled mask (preview-only); apply still uses the
+                    // full-res system-side file for depth precision.
+                    bundle.putByteArray(
+                        Protocol.EXTRA_SUBJECT_MASK_BYTES,
+                        encodeMaskPngScaled(subjectMask, 384)
+                    )
                 }
             }
 
@@ -484,11 +502,35 @@ class SystemModeHook(private val module: XposedModule) {
                 Protocol.EXTRA_WALLPAPER_CHANGED,
                 Settings.Secure.getString(resolver, "wallpaper_changed_2")
             )
-            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId preview=$previewOnly dir=${sysModeDir.absolutePath} lock=${lockOrig.exists()} desktop=${desktopOrig.exists()}")
+            log("CAPTURE_WALLPAPER_SNAPSHOT: mode=$modeId preview=$previewOnly dir=${sysModeDir.absolutePath} lock=${lockOrig?.exists() == true} desktop=${desktopOrig?.exists() == true}")
         } catch (t: Throwable) {
             log("CAPTURE_WALLPAPER_SNAPSHOT failed: ${t.message}")
         }
-        resultReceiver.send(0, bundle)
+        sendBundleSafely(resultReceiver, bundle)
+    }
+
+    /**
+     * ResultReceiver 走 Binder，事务上限约 1MB。超限时 send 抛
+     * TransactionTooLargeException，App 侧只会等到超时——预览整体黑掉。
+     * 先原样发送；失败则丢弃体积最大的图片字节后重试（App 会用
+     * system 侧拷贝的文件路径重新读取图片，只损失一次 IPC 往返）。
+     */
+    private fun sendBundleSafely(resultReceiver: ResultReceiver?, bundle: Bundle) {
+        if (resultReceiver == null) return
+        try {
+            resultReceiver.send(0, bundle)
+            return
+        } catch (t: Throwable) {
+            log("CAPTURE_WALLPAPER_SNAPSHOT send failed (bundle too large?), retrying slim: " + t.message)
+        }
+        runCatching {
+            bundle.remove(Protocol.EXTRA_LOCK_IMAGE_BYTES)
+            bundle.remove(Protocol.EXTRA_DESKTOP_IMAGE_BYTES)
+            bundle.remove(Protocol.EXTRA_SUBJECT_MASK_BYTES)
+            resultReceiver.send(0, bundle)
+        }.onFailure { t ->
+            log("CAPTURE_WALLPAPER_SNAPSHOT slim send failed: " + t.message)
+        }
     }
 
     /** 从 lockscreenInfo JSON 解析 wallpaperInfo.subject 路径（主体蒙版文件）。 */
@@ -546,6 +588,49 @@ class SystemModeHook(private val module: XposedModule) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
             bmp.recycle()
             out.toByteArray()
+        }.getOrNull()
+    }
+
+    /** 蒙版按最大边长采样后 PNG 编码（仅用于 App 预览字节，控制 Binder 体积）。 */
+    private fun encodeMaskPngScaled(file: File, maxSide: Int): ByteArray? {
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            var sample = 1
+            while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) {
+                sample *= 2
+            }
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bmp = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@runCatching null
+            val out = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+            bmp.recycle()
+            out.toByteArray()
+        }.getOrNull()
+    }
+
+    /** OS4: lockscreenInfo.wallpaperInfo.source 指向 AOD 模板目录里的真实壁纸。 */
+    private fun resolveWallpaperSource(lockscreenInfo: String?): File? {
+        if (lockscreenInfo.isNullOrEmpty()) return null
+        return runCatching {
+            val wallpaperInfo = org.json.JSONObject(lockscreenInfo).optJSONObject("wallpaperInfo")
+                ?: return null
+            val source = wallpaperInfo.optString("source").takeIf { it.isNotEmpty() }
+                ?: return null
+            File(source).takeIf { it.exists() && it.isFile }
+        }.getOrNull()
+    }
+
+    /** OS4: homeInfo.wallpaperInfo.source（或 subject）指向桌面壁纸源。 */
+    private fun resolveHomeWallpaperSource(editorInfo: String?): File? {
+        if (editorInfo.isNullOrEmpty()) return null
+        return runCatching {
+            val home = org.json.JSONObject(editorInfo).optJSONObject("homeInfo") ?: return null
+            val wallpaperInfo = home.optJSONObject("wallpaperInfo") ?: return null
+            val source = wallpaperInfo.optString("source").takeIf { it.isNotEmpty() }
+                ?: wallpaperInfo.optString("subject").takeIf { it.isNotEmpty() }
+                ?: return null
+            File(source).takeIf { it.exists() && it.isFile }
         }.getOrNull()
     }
 
