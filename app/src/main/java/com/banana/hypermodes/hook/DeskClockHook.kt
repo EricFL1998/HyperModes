@@ -83,6 +83,14 @@ class DeskClockHook(private val module: XposedModule) {
                             classLoader.loadClass(CLS_ALARM_HELPER)
                                 .getDeclaredMethod("setSleepNotification", Context::class.java)
                                 .invoke(null, context)
+                            // doInWakeTime normally also calls setZenMode,
+                            // which exits zen AND schedules the NEXT night's
+                            // ACTION_ENTER_ZENMODE alarm. Skipping the whole
+                            // call kept zen on but never re-armed the entry
+                            // alarm, so bedtime stopped auto-starting. Schedule
+                            // it here (without exiting zen) to match the
+                            // scheduling half of setZenMode.
+                            scheduleNextZenEntry(context, classLoader)
                             log("wake time reached: bedtime kept on until alarm dismiss")
                         } catch (t: Throwable) {
                             log("setSleepNotification failed, running full doInWakeTime: $t")
@@ -190,6 +198,87 @@ class DeskClockHook(private val module: XposedModule) {
         } catch (_: Throwable) {
             false
         }
+
+    /**
+     * Schedule the next ACTION_ENTER_ZENMODE alarm, mirroring the scheduling
+     * half of AlarmHelper.setZenMode without its exitZenMode side effect.
+     * Called from the doInWakeTime hook so bedtime keeps auto-starting on the
+     * following night even though we skip the real setZenMode call.
+     */
+    private fun scheduleNextZenEntry(context: Context, classLoader: ClassLoader) {
+        try {
+            val alarmHelperCls = classLoader.loadClass(CLS_ALARM_HELPER)
+            val bedtimeUtilCls = classLoader.loadClass(CLS_BEDTIME_UTIL)
+
+            // Alarm alarm = AlarmHelper.getAlarm(cr, Integer.MIN_VALUE)
+            val getAlarm = alarmHelperCls.getDeclaredMethod(
+                "getAlarm",
+                android.content.ContentResolver::class.java,
+                Int::class.javaPrimitiveType
+            )
+            val wakeAlarm = getAlarm.invoke(null, context.contentResolver, Int.MIN_VALUE)
+                ?: run {
+                    log("scheduleNextZenEntry: no wake alarm configured")
+                    return
+                }
+
+            // alarm.skipTime = 0; alarm.enabled = true
+            wakeAlarm.javaClass.getField("skipTime").setLong(wakeAlarm, 0L)
+            wakeAlarm.javaClass.getField("enabled").setBoolean(wakeAlarm, true)
+
+            // long sleepTime = calculateAlarmTime(context, alarm)
+            //     - BedtimeUtil.getSleepDuration(context) * 60_000
+            val calculateAlarmTime = alarmHelperCls.getDeclaredMethod(
+                "calculateAlarmTime",
+                Context::class.java,
+                wakeAlarm.javaClass
+            )
+            val sleepDuration = bedtimeUtilCls.getDeclaredMethod(
+                "getSleepDuration",
+                Context::class.java
+            ).invoke(null, context) as Int
+            val sleepTime = (calculateAlarmTime.invoke(null, context, wakeAlarm) as Long) -
+                    sleepDuration * 60_000L
+
+            // Intent(intent2): ACTION_ENTER_ZENMODE + sleep_time + pkg + FLAGS
+            val enterAction = alarmHelperCls.getField("ACTION_ENTER_ZENMODE")
+                .get(null) as String
+            val intent = Intent(enterAction).apply {
+                setPackage(context.packageName)
+                putExtra("sleep_time", sleepTime)
+                addFlags(0x20) // FLAG_INCLUDE_STOPPED_PACKAGES
+            }
+
+            // Cancel any stale entry alarm, then arm the new one via
+            // AlarmUtils.setAlarm(context, sleepTime, intent) — the exact
+            // call setZenMode uses.
+            val cancelIntent = Intent(enterAction).apply {
+                setPackage(context.packageName)
+            }
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE)
+                    as android.app.AlarmManager
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context, 0, cancelIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or 0x400000 // FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+
+            val alarmUtilsCls = classLoader.loadClass("com.android.deskclock.AlarmUtils")
+            val setAlarm = alarmUtilsCls.getDeclaredMethod(
+                "setAlarm",
+                Context::class.java,
+                Long::class.javaPrimitiveType,
+                Intent::class.java
+            )
+            setAlarm.invoke(null, context, sleepTime, intent)
+
+            val at = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US)
+                .format(java.util.Date(sleepTime))
+            log("scheduleNextZenEntry: next bedtime entry armed at $at")
+        } catch (t: Throwable) {
+            log("scheduleNextZenEntry failed: $t")
+        }
+    }
 
     /**
      * Every official bedtime transition funnels through
