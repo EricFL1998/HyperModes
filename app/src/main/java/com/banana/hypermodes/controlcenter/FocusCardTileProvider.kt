@@ -261,10 +261,13 @@ private class TileInvocationHandler(
         val snapshot = repository.loadOrInitialize()
         val mode = snapshot.displayedMode
         val active = snapshot.isActive && mode != null
-        val label = mode?.let { displayNameResolver?.resolve(it) ?: it.name } ?: fallbackLabel()
+        val modeLabel = mode?.let { displayNameResolver?.resolve(it) ?: it.name } ?: fallbackLabel()
+        val label = controlCenterTileLabel()
         setObjectFieldIfPresent(state, "spec", tileSpec)
         setObjectFieldIfPresent(state, "label", label)
-        setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, active, mode != null))
+        setObjectFieldIfPresent(state, "secondaryLabel", modeLabel)
+        setObjectFieldIfPresent(state, "dualLabelContentDescription", dualLabelContentDescription(label, modeLabel))
+        setObjectFieldIfPresent(state, "contentDescription", contentDescription(label, modeLabel, active, mode != null))
         setObjectFieldIfPresent(state, "icon", createIcon(mode?.icon))
         setIntFieldIfPresent(
             state,
@@ -282,9 +285,7 @@ private class TileInvocationHandler(
     }
 
     private fun tileLabel(): CharSequence {
-        return repository.loadOrInitialize().displayedMode?.let {
-            displayNameResolver?.resolve(it) ?: it.name
-        } ?: fallbackLabel()
+        return controlCenterTileLabel()
     }
 
     private fun stringFromContext(id: Int, fallback: String): String {
@@ -301,6 +302,9 @@ private class TileInvocationHandler(
 
     private fun fallbackLabel(): CharSequence = appLabel(pluginContext) ?: appLabel(moduleContext) ?: "HyperModes"
 
+    private fun controlCenterTileLabel(): CharSequence =
+        stringFromContext(R.string.modes, "Modes")
+
     private fun appLabel(context: Context): CharSequence? {
         return try {
             context.getString(R.string.app_name)
@@ -309,11 +313,21 @@ private class TileInvocationHandler(
         }
     }
 
-    private fun contentDescription(label: CharSequence, active: Boolean, available: Boolean): CharSequence {
+    private fun dualLabelContentDescription(label: CharSequence, modeLabel: CharSequence): CharSequence {
+        return "$label, $modeLabel"
+    }
+
+    private fun contentDescription(
+        label: CharSequence,
+        modeLabel: CharSequence,
+        active: Boolean,
+        available: Boolean
+    ): CharSequence {
+        val base = if (available) "$label, $modeLabel" else label
         return when {
-            !available -> label
-            active -> "$label on"
-            else -> "$label off"
+            !available -> base
+            active -> "$base on"
+            else -> "$base off"
         }
     }
 

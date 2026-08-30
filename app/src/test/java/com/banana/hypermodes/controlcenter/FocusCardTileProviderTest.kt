@@ -30,7 +30,9 @@ class FocusCardTileProviderTest {
         val state = tile.getState()
 
         assertEquals("hypermodes_focus", state.spec)
-        assertEquals("Focus", state.label)
+        assertEquals("Modes", state.label)
+        assertEquals("Focus", state.secondaryLabel)
+        assertEquals("Modes, Focus", state.dualLabelContentDescription)
         assertEquals(2, state.state)
         assertTrue(state.value)
         assertFalse(state.dualTarget)
@@ -48,7 +50,8 @@ class FocusCardTileProviderTest {
 
         val state = tile.getState()
 
-        assertEquals("Work", state.label)
+        assertEquals("Modes", state.label)
+        assertEquals("Work", state.secondaryLabel)
         assertEquals(1, state.state)
         assertFalse(state.value)
         assertTrue(tile.isAvailable())
@@ -77,7 +80,8 @@ class FocusCardTileProviderTest {
         tile.refreshState()
 
         assertEquals(1, callback.states.size)
-        assertEquals("Work", callback.states.single().label)
+        assertEquals("Modes", callback.states.single().label)
+        assertEquals("Work", callback.states.single().secondaryLabel)
     }
 
     @Test
@@ -122,7 +126,8 @@ class FocusCardTileProviderTest {
         fixture.store.fireChange()
 
         assertEquals(1, callback.states.size)
-        assertEquals("Work", callback.states.single().label)
+        assertEquals("Modes", callback.states.single().label)
+        assertEquals("Work", callback.states.single().secondaryLabel)
     }
 
     @Test
@@ -246,7 +251,7 @@ class FocusCardTileProviderTest {
         refresh()
         dismiss()
 
-        assertEquals(listOf("detail:true", "state:Work", "detail:false"), callback.events)
+        assertEquals(listOf("detail:true", "state:Modes", "detail:false"), callback.events)
         assertEquals(1, callback.identityHashes.distinct().size)
     }
 
@@ -586,6 +591,8 @@ class FocusCardTileProviderTest {
     private class FakeBooleanState {
         @JvmField var spec: String? = null
         @JvmField var label: CharSequence? = null
+        @JvmField var secondaryLabel: CharSequence? = null
+        @JvmField var dualLabelContentDescription: CharSequence? = null
         @JvmField var contentDescription: CharSequence? = null
         @JvmField var icon: Any? = null
         @JvmField var state: Int = 0
