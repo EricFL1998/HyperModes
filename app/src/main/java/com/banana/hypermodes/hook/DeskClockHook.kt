@@ -25,6 +25,14 @@ import io.github.libxposed.api.XposedModule
  */
 class DeskClockHook(private val module: XposedModule) {
 
+    /**
+     * BedtimeUtil.doInWakeTime -> AlarmHelper.setZenMode -> ZenModeUtil.exitZenMode
+     * is one synchronous call chain. Keep this flag scoped to that chain so the
+     * official setZenMode implementation can still schedule the next bedtime,
+     * while only its wake-time exit side effect is suppressed.
+     */
+    private val suppressWakeTimeZenExit = ThreadLocal.withInitial { false }
+
     fun install(classLoader: ClassLoader) {
         val attach = Application::class.java.getDeclaredMethod("attach", Context::class.java)
         module.hook(attach)
@@ -56,10 +64,12 @@ class DeskClockHook(private val module: XposedModule) {
      * before the user even touches the ringing alarm. We change the end
      * condition to the official alarm-dismiss gesture instead:
      *
-     *  - doInWakeTime: when a wake alarm is enabled, run only the
-     *    setSleepNotification half and skip setZenMode, so bedtime survives
-     *    the wake time itself. (No wake alarm enabled -> proceed normally,
-     *    otherwise bedtime would have no end trigger at all.)
+     *  - doInWakeTime: let the official implementation run completely, but
+     *    suppress the nested exitZenMode call for this one invocation. This
+     *    preserves both setSleepNotification and the official next-night
+     *    ACTION_ENTER_ZENMODE scheduling while bedtime survives the wake time.
+     *    (No wake alarm enabled -> proceed without suppression, otherwise
+     *    bedtime would have no end trigger at all.)
      *  - AlarmHelper.dismissAlarm: the single funnel every dismiss path
      *    (alert UI button, notification action, auto-dismiss timeout) goes
      *    through. The wake alarm's id is Integer.MIN_VALUE (see
@@ -79,24 +89,14 @@ class DeskClockHook(private val module: XposedModule) {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         val context = chain.getArg(0) as? Context ?: return chain.proceed()
                         if (!isWakeAlarmEnabled(context, classLoader)) return chain.proceed()
+                        suppressWakeTimeZenExit.set(true)
                         try {
-                            classLoader.loadClass(CLS_ALARM_HELPER)
-                                .getDeclaredMethod("setSleepNotification", Context::class.java)
-                                .invoke(null, context)
-                            // doInWakeTime normally also calls setZenMode,
-                            // which exits zen AND schedules the NEXT night's
-                            // ACTION_ENTER_ZENMODE alarm. Skipping the whole
-                            // call kept zen on but never re-armed the entry
-                            // alarm, so bedtime stopped auto-starting. Schedule
-                            // it here (without exiting zen) to match the
-                            // scheduling half of setZenMode.
-                            scheduleNextZenEntry(context, classLoader)
+                            val result = chain.proceed()
                             log("wake time reached: bedtime kept on until alarm dismiss")
-                        } catch (t: Throwable) {
-                            log("setSleepNotification failed, running full doInWakeTime: $t")
-                            return chain.proceed()
+                            return result
+                        } finally {
+                            suppressWakeTimeZenExit.set(false)
                         }
-                        return null
                     }
                 })
             log("BedtimeUtil.doInWakeTime hooked")
@@ -152,33 +152,49 @@ class DeskClockHook(private val module: XposedModule) {
     private fun hookAlertUiDismiss(classLoader: ClassLoader) {
         try {
             val activityCls = classLoader.loadClass(CLS_ALERT_ACTIVITY)
-            for (method in activityCls.declaredMethods.filter { it.name == "dismiss" }) {
+            // Only the 3-arg implementation contains the dismiss logic. Hooking
+            // the 2-arg wrapper too would make one gesture exit bedtime twice.
+            // Both call forms reach this implementation because the wrapper
+            // invokes it directly.
+            for (method in activityCls.declaredMethods.filter {
+                it.name == "dismiss" && it.parameterTypes.size == 3 &&
+                        it.parameterTypes.all { type -> type == Boolean::class.javaPrimitiveType }
+            }) {
                 val params = method.parameterTypes
-                if (params.size !in 2..3) continue
-                if (!params.all { it == Boolean::class.javaPrimitiveType }) continue
                 module.hook(method)
                     .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                     .intercept(object : XposedInterface.Hooker {
                         override fun intercept(chain: XposedInterface.Chain): Any? {
-                            try {
+                            // The original method nulls mAlarm, so capture it first. Never
+                            // let reflection failures block the real alarm dismissal.
+                            val captured = try {
                                 val self = HookUtils.getThisObject(chain) ?: return chain.proceed()
-                                val alarm = self.javaClass.getField("mAlarm").get(self)
-                                val killed = chain.getArg(0) as? Boolean ?: false
-                                if (alarm != null && !killed) {
-                                    val id = alarm.javaClass.getField("id").getInt(alarm)
-                                    if (id == Int.MIN_VALUE) {
-                                        val context = self as Context
-                                        classLoader.loadClass(CLS_ZEN_MODE_UTIL)
-                                            .getDeclaredMethod("exitZenMode", Context::class.java)
-                                            .invoke(null, context)
-                                        log("wake alarm dismissed via alert UI -> exitZenMode")
-                                        sendBedtimeState(context, false, "ALARM_DISMISSED")
-                                    }
-                                }
+                                Triple(self, self.javaClass.getField("mAlarm").get(self),
+                                    chain.getArg(0) as? Boolean ?: false)
                             } catch (t: Throwable) {
-                                log("alert-UI dismiss hook failed: " + t.message)
+                                log("alert-UI alarm capture failed: " + t.message)
+                                null
                             }
-                            return chain.proceed()
+                            val result = chain.proceed()
+                            if (captured != null) {
+                                val (self, alarm, killed) = captured
+                                try {
+                                    if (alarm != null && !killed) {
+                                        val id = alarm.javaClass.getField("id").getInt(alarm)
+                                        if (id == Int.MIN_VALUE) {
+                                            val context = self as Context
+                                            classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                                .getDeclaredMethod("exitZenMode", Context::class.java)
+                                                .invoke(null, context)
+                                            log("wake alarm dismissed via alert UI -> exitZenMode")
+                                            sendBedtimeState(context, false, "ALARM_DISMISSED")
+                                        }
+                                    }
+                                } catch (t: Throwable) {
+                                    log("alert-UI dismiss hook failed: " + t.message)
+                                }
+                            }
+                            return result
                         }
                     })
                 log("AlarmAlertFullScreenActivity.dismiss(" + params.size + " args) hooked")
@@ -198,87 +214,6 @@ class DeskClockHook(private val module: XposedModule) {
         } catch (_: Throwable) {
             false
         }
-
-    /**
-     * Schedule the next ACTION_ENTER_ZENMODE alarm, mirroring the scheduling
-     * half of AlarmHelper.setZenMode without its exitZenMode side effect.
-     * Called from the doInWakeTime hook so bedtime keeps auto-starting on the
-     * following night even though we skip the real setZenMode call.
-     */
-    private fun scheduleNextZenEntry(context: Context, classLoader: ClassLoader) {
-        try {
-            val alarmHelperCls = classLoader.loadClass(CLS_ALARM_HELPER)
-            val bedtimeUtilCls = classLoader.loadClass(CLS_BEDTIME_UTIL)
-
-            // Alarm alarm = AlarmHelper.getAlarm(cr, Integer.MIN_VALUE)
-            val getAlarm = alarmHelperCls.getDeclaredMethod(
-                "getAlarm",
-                android.content.ContentResolver::class.java,
-                Int::class.javaPrimitiveType
-            )
-            val wakeAlarm = getAlarm.invoke(null, context.contentResolver, Int.MIN_VALUE)
-                ?: run {
-                    log("scheduleNextZenEntry: no wake alarm configured")
-                    return
-                }
-
-            // alarm.skipTime = 0; alarm.enabled = true
-            wakeAlarm.javaClass.getField("skipTime").setLong(wakeAlarm, 0L)
-            wakeAlarm.javaClass.getField("enabled").setBoolean(wakeAlarm, true)
-
-            // long sleepTime = calculateAlarmTime(context, alarm)
-            //     - BedtimeUtil.getSleepDuration(context) * 60_000
-            val calculateAlarmTime = alarmHelperCls.getDeclaredMethod(
-                "calculateAlarmTime",
-                Context::class.java,
-                wakeAlarm.javaClass
-            )
-            val sleepDuration = bedtimeUtilCls.getDeclaredMethod(
-                "getSleepDuration",
-                Context::class.java
-            ).invoke(null, context) as Int
-            val sleepTime = (calculateAlarmTime.invoke(null, context, wakeAlarm) as Long) -
-                    sleepDuration * 60_000L
-
-            // Intent(intent2): ACTION_ENTER_ZENMODE + sleep_time + pkg + FLAGS
-            val enterAction = alarmHelperCls.getField("ACTION_ENTER_ZENMODE")
-                .get(null) as String
-            val intent = Intent(enterAction).apply {
-                setPackage(context.packageName)
-                putExtra("sleep_time", sleepTime)
-                addFlags(0x20) // FLAG_INCLUDE_STOPPED_PACKAGES
-            }
-
-            // Cancel any stale entry alarm, then arm the new one via
-            // AlarmUtils.setAlarm(context, sleepTime, intent) — the exact
-            // call setZenMode uses.
-            val cancelIntent = Intent(enterAction).apply {
-                setPackage(context.packageName)
-            }
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE)
-                    as android.app.AlarmManager
-            val pendingIntent = android.app.PendingIntent.getBroadcast(
-                context, 0, cancelIntent,
-                android.app.PendingIntent.FLAG_UPDATE_CURRENT or 0x400000 // FLAG_IMMUTABLE
-            )
-            alarmManager.cancel(pendingIntent)
-
-            val alarmUtilsCls = classLoader.loadClass("com.android.deskclock.AlarmUtils")
-            val setAlarm = alarmUtilsCls.getDeclaredMethod(
-                "setAlarm",
-                Context::class.java,
-                Long::class.javaPrimitiveType,
-                Intent::class.java
-            )
-            setAlarm.invoke(null, context, sleepTime, intent)
-
-            val at = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US)
-                .format(java.util.Date(sleepTime))
-            log("scheduleNextZenEntry: next bedtime entry armed at $at")
-        } catch (t: Throwable) {
-            log("scheduleNextZenEntry failed: $t")
-        }
-    }
 
     /**
      * Every official bedtime transition funnels through
@@ -308,6 +243,19 @@ class DeskClockHook(private val module: XposedModule) {
                 .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
+                        if (name == "exitZenMode" && suppressWakeTimeZenExit.get() == true) {
+                            try {
+                                val heldContext = chain.getArg(0) as? Context
+                                if (heldContext != null) {
+                                    val active = readInZenMode(heldContext, classLoader, true)
+                                    sendBedtimeState(heldContext, active, "WAKE_TIME_HOLD")
+                                }
+                                log("wake-time exitZenMode suppressed")
+                            } catch (t: Throwable) {
+                                log("wake-time exit suppression failed: $t")
+                            }
+                            return null
+                        }
                         val result = chain.proceed()
                         try {
                             val context = chain.getArg(0) as? Context ?: return result
