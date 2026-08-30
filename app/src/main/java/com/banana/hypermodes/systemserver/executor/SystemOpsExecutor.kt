@@ -109,6 +109,15 @@ class SystemOpsExecutor(private val context: Context) {
     /** 防晕车：写 MIUI 开关 + 通知 securitycenter 启停服务（与 DeviceController 同款实现）。 */
     fun setMotionSicknessReliefEnabled(enabled: Boolean): Boolean {
         return try {
+            if (!enabled) {
+                // SecurityCenter 的通知接收器只在开关仍为开时处理 close action，
+                // 因此必须先广播、后写 0。
+                runCatching {
+                    context.sendBroadcast(
+                        Intent("com.miui.action.carsickness_relief_close")
+                    )
+                }
+            }
             Settings.System.putInt(
                 context.contentResolver,
                 "settings_car_sickness_mode",
@@ -124,11 +133,6 @@ class SystemOpsExecutor(private val context: Context) {
                 }
                 context.startService(intent)
             } else {
-                runCatching {
-                    context.sendBroadcast(
-                        Intent("com.miui.action.carsickness_relief_close")
-                    )
-                }
                 runCatching {
                     context.startService(
                         Intent().apply {

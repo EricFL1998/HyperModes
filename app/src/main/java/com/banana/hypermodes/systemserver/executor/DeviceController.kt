@@ -139,10 +139,14 @@ class DeviceController(private val context: Context) {
                 restoreSilentMode(original)
             }
 
-            // Restore motion sickness relief to its original state
+            // Driving-mode semantics: motion sickness relief is a transient
+            // driving aid. Always turn it off when the controlling mode exits.
+            // Restoring the pre-mode value accidentally kept it on when the
+            // feature had already been enabled before activation (or when an
+            // active mode was re-applied after a reboot).
             takeOriginal(KEY_ORIG_MOTION_SICKNESS_RELIEF)?.let { original ->
-                applyMotionSicknessRelief(original == 1)
-                log("restore: set MotionSicknessRelief to ${original == 1}")
+                applyMotionSicknessRelief(false)
+                log("restore: disabled MotionSicknessRelief (pre-mode value was $original)")
             }
 
         } catch (e: Exception) {
@@ -297,6 +301,17 @@ class DeviceController(private val context: Context) {
      */
     private fun applyMotionSicknessRelief(enabled: Boolean) {
         try {
+            if (!enabled) {
+                // Send the official notification-action broadcast while the
+                // switch is still on. SecurityCenter's receiver intentionally
+                // ignores this action after the switch has already been set to 0.
+                runCatching {
+                    context.sendBroadcast(
+                        android.content.Intent("com.miui.action.carsickness_relief_close")
+                    )
+                }
+            }
+
             // 官方开关（settings_car_sickness_mode）：securitycenter 监听它并启停服务
             Settings.System.putInt(
                 context.contentResolver,
@@ -316,13 +331,7 @@ class DeviceController(private val context: Context) {
                 context.startService(intent)
             } else {
                 // 关闭：走官方完整关闭路径
-                // 1) 广播：CarsicknessReliefReceiver 会再次把开关写 0
-                runCatching {
-                    context.sendBroadcast(
-                        android.content.Intent("com.miui.action.carsickness_relief_close")
-                    )
-                }
-                // 2) intent：CarSicknessService.onStartCommand 调用 AntiCarsickManager.F() 移除黑点
+                // 1) intent：CarSicknessService.onStartCommand 调用 AntiCarsickManager.F() 移除黑点
                 runCatching {
                     val closeIntent = android.content.Intent().apply {
                         component = android.content.ComponentName(
@@ -333,7 +342,7 @@ class DeviceController(private val context: Context) {
                     }
                     context.startService(closeIntent)
                 }
-                // 3) stopService：触发 onDestroy -> c("主动关闭") -> F() 移除黑点（兜底）
+                // 2) stopService：触发 onDestroy -> c("主动关闭") -> F() 移除黑点（兜底）
                 runCatching {
                     context.stopService(
                         android.content.Intent().apply {
