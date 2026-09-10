@@ -26,12 +26,35 @@ import io.github.libxposed.api.XposedModule
 class DeskClockHook(private val module: XposedModule) {
 
     /**
-     * BedtimeUtil.doInWakeTime -> AlarmHelper.setZenMode -> ZenModeUtil.exitZenMode
-     * is one synchronous call chain. Keep this flag scoped to that chain so the
-     * official setZenMode implementation can still schedule the next bedtime,
-     * while only its wake-time exit side effect is suppressed.
+     * 睡眠模式的结束条件：只有"本次起床闹钟被关闭"（响铃界面关闭/通知操作/
+     * 自动超时关闭/取消贪睡）或用户显式操作（永久关闭起床闹钟、跳过一次、
+     * 手动关闭模式）才退出。响铃与贪睡只是同一次闹钟会话的延续，不结束睡眠。
+     *
+     * Set synchronously around AlarmHelper.setZenMode while a wake-alarm session
+     * is live: setZenMode's time-window exit branch (fired by miui ALARM_CHANGED
+     * after every ring/snooze re-arm, by doInWakeTime, by boot/time changes) must
+     * not end bedtime — but its next-night ACTION_ENTER_ZENMODE scheduling must
+     * still run, so only the nested exitZenMode is suppressed, never the call.
      */
-    private val suppressWakeTimeZenExit = ThreadLocal.withInitial { false }
+    private val suppressSetZenModeExit = ThreadLocal.withInitial { false }
+
+    /**
+     * True synchronously inside AlarmService.handleAlarm for the wake alarm.
+     * handleAlarm auto-disables a non-repeating wake alarm when it FIRES
+     * (AlarmHelper.enableAlarm(MIN_VALUE, false)) — that nested call must not
+     * be mistaken for the user disabling the wake alarm in settings.
+     */
+    private val inWakeAlarmRingChain = ThreadLocal.withInitial { false }
+
+    /**
+     * The wake alarm has fired and not been dismissed yet (ringing or snoozed).
+     * In-memory only; a pending snooze is additionally persisted by DeskClock
+     * (AlarmClock/snooze_ids) and checked via isWakeAlarmSnoozePending, so the
+     * session survives a DeskClock process restart. Cleared whenever a real
+     * (unsuppressed) ZenModeUtil.exitZenMode runs.
+     */
+    @Volatile
+    private var wakeAlarmSessionActive = false
 
     fun install(classLoader: ClassLoader) {
         val attach = Application::class.java.getDeclaredMethod("attach", Context::class.java)
@@ -53,9 +76,11 @@ class DeskClockHook(private val module: XposedModule) {
             })
         hookBedtimeStateSignals(classLoader)
         hookWakeAlarmDismissal(classLoader)
+        hookWakeAlarmSnoozeCancel(classLoader)
         hookAlarmSkip(classLoader)
         hookAlarmEnable(classLoader)
         hookAlarmRinging(classLoader)
+        hookWakeAlarmRingSession(classLoader)
     }
 
     /**
@@ -64,13 +89,14 @@ class DeskClockHook(private val module: XposedModule) {
      * before the user even touches the ringing alarm. We change the end
      * condition to the official alarm-dismiss gesture instead:
      *
-     *  - doInWakeTime: let the official implementation run completely, but
-     *    suppress the nested exitZenMode call for this one invocation. This
-     *    preserves both setSleepNotification and the official next-night
-     *    ACTION_ENTER_ZENMODE scheduling while bedtime survives the wake time.
-     *    (No wake alarm enabled -> proceed without suppression, otherwise
-     *    bedtime would have no end trigger at all.)
-     *  - AlarmHelper.dismissAlarm: the single funnel every dismiss path
+     *  - doInWakeTime: hold the exit synchronously when the wake alarm is
+     *    enabled (fallback layer for the session-based hold in
+     *    hookAlarmHelperSetZenMode, in case the AlarmService.handleAlarm
+     *    signature ever changes). The official implementation runs completely,
+     *    preserving setSleepNotification and next-night ACTION_ENTER_ZENMODE
+     *    scheduling. (No wake alarm enabled -> proceed without suppression,
+     *    otherwise bedtime would have no end trigger at all.)
+     *  - AlarmHelper.dismissAlarm: the funnel every dismiss path
      *    (alert UI button, notification action, auto-dismiss timeout) goes
      *    through. The wake alarm's id is Integer.MIN_VALUE (see
      *    BedtimeUtil.queryWakeAlarm / AlarmReceiver.registerWakeAlarm). When
@@ -89,13 +115,13 @@ class DeskClockHook(private val module: XposedModule) {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         val context = chain.getArg(0) as? Context ?: return chain.proceed()
                         if (!isWakeAlarmEnabled(context, classLoader)) return chain.proceed()
-                        suppressWakeTimeZenExit.set(true)
+                        suppressSetZenModeExit.set(true)
                         try {
                             val result = chain.proceed()
                             log("wake time reached: bedtime kept on until alarm dismiss")
                             return result
                         } finally {
-                            suppressWakeTimeZenExit.set(false)
+                            suppressSetZenModeExit.set(false)
                         }
                     }
                 })
@@ -216,6 +242,137 @@ class DeskClockHook(private val module: XposedModule) {
         }
 
     /**
+     * True while bedtime is active AND a wake-alarm session is live (the alarm
+     * fired and was not dismissed — ringing right now or snooze pending). In
+     * that state AlarmHelper.setZenMode's time-window exit must be held: it
+     * fires from miui.intent.action.ALARM_CHANGED (async via AlarmInitReceiver)
+     * after every ring/snooze re-arm, from doInWakeTime at ring time, and from
+     * boot/time-change catch-up — none of which is the user ending the alarm.
+     *
+     * Settings-driven exits are not held: turning off the bedtime master switch
+     * or the DND integration flips isBedtimeOpen/getDisturbanceState false
+     * BEFORE setZenMode runs, so those calls fail the checks here and exit
+     * normally. A config whose wake alarm is off never starts a session, so its
+     * wake-time doInWakeTime (armed via ACTION_REACH_WAKE_TIME) still ends
+     * bedtime — bedtime is never left without an end trigger.
+     */
+    private fun shouldHoldWakeTimeExit(context: Context, classLoader: ClassLoader): Boolean =
+        try {
+            if (!readInZenMode(context, classLoader, false)) {
+                false
+            } else {
+                val bedtimeUtil = classLoader.loadClass(CLS_BEDTIME_UTIL)
+                val open = bedtimeUtil.getDeclaredMethod("isBedtimeOpen", Context::class.java)
+                    .invoke(null, context) as? Boolean ?: false
+                val disturbance = bedtimeUtil
+                    .getDeclaredMethod("getDisturbanceState", Context::class.java)
+                    .invoke(null, context) as? Boolean ?: false
+                val wakeAlarm = bedtimeUtil.getDeclaredMethod("getWakeAlarm", Context::class.java)
+                    .invoke(null, context)
+                open && disturbance && wakeAlarm != null &&
+                    (wakeAlarmSessionActive || isWakeAlarmSnoozePending(context, classLoader))
+            }
+        } catch (t: Throwable) {
+            log("shouldHoldWakeTimeExit failed: ${t.message}")
+            false
+        }
+
+    /** DeskClock persists snoozed alarm ids in AlarmClock/snooze_ids, so a
+     *  pending wake-alarm snooze is detectable even after a process restart. */
+    private fun isWakeAlarmSnoozePending(context: Context, classLoader: ClassLoader): Boolean =
+        try {
+            val prefs = classLoader.loadClass(CLS_FBE_UTIL).getDeclaredMethod(
+                "getSharedPreferences", Context::class.java,
+                String::class.java, Int::class.javaPrimitiveType
+            ).invoke(null, context, PREFS_ALARM_CLOCK, 0) as android.content.SharedPreferences
+            prefs.getStringSet(KEY_SNOOZE_IDS, null)?.contains(Int.MIN_VALUE.toString()) == true
+        } catch (_: Throwable) {
+            false
+        }
+
+    /**
+     * AlarmService.handleAlarm is the funnel every alarm ring goes through —
+     * the first fire and every snooze re-fire. For the wake alarm it marks the
+     * session live BEFORE the original runs, so both the nested doInWakeTime
+     * and the ALARM_CHANGED-driven setZenMode that follow hold their zen exit
+     * until the dismiss gesture. The ThreadLocal additionally scopes the
+     * one-shot auto-disable nested inside the ring path (see hookAlarmEnable).
+     */
+    private fun hookWakeAlarmRingSession(classLoader: ClassLoader) {
+        try {
+            val serviceCls = classLoader.loadClass(CLS_ALARM_SERVICE)
+            val alarmCls = classLoader.loadClass(CLS_ALARM)
+            val handleAlarm = serviceCls.getDeclaredMethod(
+                "handleAlarm", alarmCls, java.lang.Boolean.TYPE
+            )
+            module.hook(handleAlarm)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val alarm = chain.getArg(0)
+                        val isWakeAlarm = try {
+                            alarm?.javaClass?.getField("id")?.getInt(alarm) == Int.MIN_VALUE
+                        } catch (_: Throwable) {
+                            false
+                        }
+                        if (!isWakeAlarm) return chain.proceed()
+                        wakeAlarmSessionActive = true
+                        inWakeAlarmRingChain.set(true)
+                        try {
+                            return chain.proceed()
+                        } finally {
+                            inWakeAlarmRingChain.set(false)
+                        }
+                    }
+                })
+            log("AlarmService.handleAlarm hooked (wake-alarm session)")
+        } catch (t: Throwable) {
+            log("handleAlarm not found: ${t.message}")
+        }
+    }
+
+    /**
+     * Swiping away the snoozed wake alarm's notification cancels the pending
+     * snooze (AlarmReceiver ACTION_SNOOZE_CANCEL -> AlarmHelper.cancelSnoozedAlarm)
+     * — the alarm will not ring again, so it counts as dismissing this alarm
+     * and ends bedtime. (Snoozing itself never reaches this method.)
+     */
+    private fun hookWakeAlarmSnoozeCancel(classLoader: ClassLoader) {
+        try {
+            val alarmHelper = classLoader.loadClass(CLS_ALARM_HELPER)
+            val cancelSnoozed = alarmHelper.getDeclaredMethod(
+                "cancelSnoozedAlarm", Context::class.java, Int::class.javaPrimitiveType
+            )
+            module.hook(cancelSnoozed)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val result = chain.proceed()
+                        try {
+                            val alarmId = chain.getArg(1) as? Int ?: return result
+                            val context = chain.getArg(0) as? Context ?: return result
+                            if (alarmId == Int.MIN_VALUE &&
+                                readInZenMode(context, classLoader, false)
+                            ) {
+                                classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                    .getDeclaredMethod("exitZenMode", Context::class.java)
+                                    .invoke(null, context)
+                                log("wake alarm snooze canceled -> exitZenMode")
+                                sendBedtimeState(context, false, "ALARM_DISMISSED")
+                            }
+                        } catch (t: Throwable) {
+                            log("snooze-cancel hook failed: ${t}")
+                        }
+                        return result
+                    }
+                })
+            log("AlarmHelper.cancelSnoozedAlarm hooked")
+        } catch (t: Throwable) {
+            log("cancelSnoozedAlarm not found: ${t.message}")
+        }
+    }
+
+    /**
      * Every official bedtime transition funnels through
      * ZenModeUtil.enterZenMode/exitZenMode:
      *  - scheduled sleep time  -> AlarmReceiver ACTION_ENTER_ZENMODE -> enterZenMode
@@ -243,7 +400,7 @@ class DeskClockHook(private val module: XposedModule) {
                 .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
-                        if (name == "exitZenMode" && suppressWakeTimeZenExit.get() == true) {
+                        if (name == "exitZenMode" && suppressSetZenModeExit.get() == true) {
                             try {
                                 val heldContext = chain.getArg(0) as? Context
                                 if (heldContext != null) {
@@ -257,6 +414,10 @@ class DeskClockHook(private val module: XposedModule) {
                             return null
                         }
                         val result = chain.proceed()
+                        // A real (unsuppressed) exit ends the wake-alarm session:
+                        // dismiss, snooze cancel, skip-once, and manual mode-off
+                        // all funnel through exitZenMode.
+                        if (name == "exitZenMode") wakeAlarmSessionActive = false
                         try {
                             val context = chain.getArg(0) as? Context ?: return result
                             val active = readInZenMode(context, classLoader, fallback)
@@ -298,15 +459,25 @@ class DeskClockHook(private val module: XposedModule) {
             .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
             .intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val result = chain.proceed()
+                    val context = chain.getArg(0) as? Context ?: return chain.proceed()
+                    // 睡眠会话进行中（闹钟已响未关/贪睡待响）时，setZenMode 的
+                    // 时间窗退出分支一律按住——响铃/贪睡导致的 ALARM_CHANGED 也会
+                    // 异步走到这里。睡眠模式只能被"关闭本次闹钟"结束；下一晚的
+                    // ACTION_ENTER_ZENMODE 调度仍会照常执行。
+                    val hold = shouldHoldWakeTimeExit(context, classLoader)
+                    if (hold) suppressSetZenModeExit.set(true)
                     try {
-                        val context = chain.getArg(0) as? Context ?: return result
-                        val active = readMiuiZenMode(context)
-                        sendBedtimeState(context, active, if (active) "ZEN_ENTERED" else "ZEN_EXITED")
-                    } catch (t: Throwable) {
-                        log("setZenMode broadcast failed: $t")
+                        val result = chain.proceed()
+                        try {
+                            val active = readMiuiZenMode(context)
+                            sendBedtimeState(context, active, if (active) "ZEN_ENTERED" else "ZEN_EXITED")
+                        } catch (t: Throwable) {
+                            log("setZenMode broadcast failed: $t")
+                        }
+                        return result
+                    } finally {
+                        if (hold) suppressSetZenModeExit.set(false)
                     }
-                    return result
                 }
             })
         log("AlarmHelper.setZenMode hooked")
@@ -395,16 +566,24 @@ class DeskClockHook(private val module: XposedModule) {
                         val alarmId = chain.getArg(1) as? Int ?: 0
                         val enabled = chain.getArg(2) as? Boolean ?: false
                         if (alarmId == Int.MIN_VALUE && !enabled) {
-                            log("Bedtime wake alarm disabled permanently via AlarmHelper.enableAlarm")
-                            
-                            // OS4 routes permanent alarm disable through this helper.
-                            classLoader.loadClass(CLS_ZEN_MODE_UTIL)
-                                .getDeclaredMethod("exitZenMode", Context::class.java)
-                                .invoke(null, context)
-                            log("wake alarm disabled -> exitZenMode")
-                            
-                            // Then send the bedtime state signal
-                            sendBedtimeState(context, false, "ALARM_DISABLED")
+                            if (inWakeAlarmRingChain.get() == true) {
+                                // AlarmService.handleAlarm auto-disables a
+                                // non-repeating wake alarm when it FIRES — that is
+                                // not the user turning the alarm off, so bedtime
+                                // must wait for the actual dismiss gesture.
+                                log("wake alarm auto-disabled on ring (one-shot); bedtime waits for dismiss")
+                            } else {
+                                log("Bedtime wake alarm disabled permanently via AlarmHelper.enableAlarm")
+
+                                // OS4 routes permanent alarm disable through this helper.
+                                classLoader.loadClass(CLS_ZEN_MODE_UTIL)
+                                    .getDeclaredMethod("exitZenMode", Context::class.java)
+                                    .invoke(null, context)
+                                log("wake alarm disabled -> exitZenMode")
+
+                                // Then send the bedtime state signal
+                                sendBedtimeState(context, false, "ALARM_DISABLED")
+                            }
                         }
                     } catch (t: Throwable) {
                         log("enableAlarm hook failed: $t")
@@ -422,7 +601,7 @@ class DeskClockHook(private val module: XposedModule) {
      */
     private fun hookAlarmRinging(classLoader: ClassLoader) {
         val alarmService = try {
-            classLoader.loadClass("com.android.deskclock.alarm.alert.AlarmService")
+            classLoader.loadClass(CLS_ALARM_SERVICE)
         } catch (t: Throwable) {
             log("AlarmService not found: ${t.message}")
             return
@@ -678,5 +857,8 @@ class DeskClockHook(private val module: XposedModule) {
         private const val KEY_IN_ZENMODE = "inZenMode"
         private const val ACTION_DESKCLOCK_ALARM_ALERT = "com.android.deskclock.ALARM_ALERT"
         private const val CLS_ALERT_ACTIVITY = "com.android.deskclock.alarm.alert.AlarmAlertFullScreenActivity"
+        private const val CLS_ALARM_SERVICE = "com.android.deskclock.alarm.alert.AlarmService"
+        private const val PREFS_ALARM_CLOCK = "AlarmClock"
+        private const val KEY_SNOOZE_IDS = "snooze_ids"
     }
 }

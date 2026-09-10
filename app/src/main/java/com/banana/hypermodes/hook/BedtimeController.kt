@@ -232,14 +232,22 @@ class BedtimeController(
 
         // Official sequence from BedtimeUtil.doInWakeTime (when wake time arrives):
         // 1. Exit powerkeeper sleep mode first
-        // 2. setSleepNotification - reschedule for next day
-        // 3. setZenMode - exits DND if not in sleep time window
+        // 2. exitZenMode - DeskClockHook 现在会在起床闹钟会话期间按住
+        //    setZenMode 的时间窗退出分支，所以这里必须直接退出 DND，
+        //    不能再依赖 setZenMode 的副作用
+        // 3. setSleepNotification - reschedule for next day
+        // 4. setZenMode - 只为重新调度下一次进入；此刻 inZenMode 已是 false，
+        //    其退出分支是无副作用的空转
 
         runStep(results, "exitSleepMode (powerkeeper broadcast)") {
             context.sendBroadcast(Intent(ACTION_REQUEST_WAKE).apply {
                 setPackage(POWERKEEPER_PACKAGE)
                 putExtra(EXTRA_REASON, REASON_DESK_CLOCK)
             })
+        }
+
+        runStep(results, "exitZenMode") {
+            Reflect.callStatic(zenModeUtil, "exitZenMode", context)
         }
 
         runStep(results, "setSleepNotification") {
