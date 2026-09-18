@@ -203,8 +203,19 @@ object WallpaperSnapshotBridge {
         HyperLog.i("WallpaperSnapshotBridge", "parse: modeId=" + modeId + " previewOnly=" + previewOnly +
             " keys=" + data.keySet().joinToString(","))
         if (previewOnly) {
-            cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
-            cacheTemplateEditorJson(context, data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON))
+            // containsKey 区分"桥显式返回 null"（当前系统已无该样式，要清掉旧缓存，
+            // 否则 readCachedCurrent 会把旧样式当成系统当前复活）与
+            // "旧版桥不返回该键"（保持原样，兼容旧模块）。
+            if (data.containsKey(Protocol.EXTRA_LOCKSCREEN_JSON)) {
+                cacheLockscreenJson(context, data.getString(Protocol.EXTRA_LOCKSCREEN_JSON))
+            }
+            if (data.containsKey(Protocol.EXTRA_TEMPLATE_EDITOR_JSON)) {
+                cacheTemplateEditorJson(context, data.getString(Protocol.EXTRA_TEMPLATE_EDITOR_JSON))
+            }
+            // 当前样式不带景深蒙版时同步删掉旧蒙版缓存，避免旧蒙版被当成当前景深。
+            if (!data.containsKey(Protocol.EXTRA_SUBJECT_MASK_SYS_PATH)) {
+                File(previewDir(context), "subject_mask.png").delete()
+            }
             cacheEffectType(
                 context,
                 data.getInt(Protocol.EXTRA_LOCK_WALLPAPER_EFFECT_TYPE, -1).takeIf { it != -1 },
@@ -358,23 +369,30 @@ object WallpaperSnapshotBridge {
         return fallbackPath
     }
 
-    /** preview 模式额外缓存锁屏 JSON，供 readCachedCurrent 立即恢复样式。 */
+    /** preview 模式额外缓存锁屏 JSON，供 readCachedCurrent 立即恢复样式；
+     *  新快照显式无锁屏样式时删除旧缓存，避免旧样式被当成系统当前。 */
     private fun cacheLockscreenJson(context: Context, json: String?) {
-        if (json.isNullOrEmpty()) return
+        val file = File(previewDir(context), "lockscreen.json")
+        if (json.isNullOrEmpty()) {
+            file.delete()
+            return
+        }
         runCatching {
-            val dir = previewDir(context)
-            dir.mkdirs()
-            File(dir, "lockscreen.json").writeText(json)
+            file.parentFile?.mkdirs()
+            file.writeText(json)
         }
     }
 
     /** preview 模式额外缓存完整 template_editor JSON（官方完整锁屏模板需要）。 */
     private fun cacheTemplateEditorJson(context: Context, json: String?) {
-        if (json.isNullOrEmpty()) return
+        val file = File(previewDir(context), "template_editor.json")
+        if (json.isNullOrEmpty()) {
+            file.delete()
+            return
+        }
         runCatching {
-            val dir = previewDir(context)
-            dir.mkdirs()
-            File(dir, "template_editor.json").writeText(json)
+            file.parentFile?.mkdirs()
+            file.writeText(json)
         }
     }
 }

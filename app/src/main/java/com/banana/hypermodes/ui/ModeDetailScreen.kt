@@ -325,13 +325,22 @@ fun ModeDetailScreen(
     var wallpaperRefreshTick by remember(mode.id) { mutableIntStateOf(0) }
     // 预置已保存壁纸到系统（setStream 重新裁剪）耗时，期间显示加载遮罩并防止重复点击
     var isPreparingWallpaper by remember(mode.id) { mutableStateOf(false) }
+    // 快照新鲜度跟踪：页面重新可见（进入 / ON_RESUME）后旧快照一律视为过期，
+    // 必须重新捕获成功才可作为编辑基线/恢复依据；磁盘缓存仅供即时预览。
+    var wallpaperVisibleSince by remember(mode.id) { mutableLongStateOf(0L) }
+    var wallpaperFreshAt by remember(mode.id) { mutableLongStateOf(0L) }
+    var wallpaperCapturing by remember(mode.id) { mutableStateOf(false) }
     LaunchedEffect(mode.id) {
+        wallpaperVisibleSince = System.currentTimeMillis()
         // 先用上次缓存的预览立即显示，避免每次进详情页都等 1-2s 跨进程拉取
         systemWallpaper = WallpaperSnapshotBridge.readCachedCurrent(context)
         // 后台刷新最新快照
+        wallpaperCapturing = true
         WallpaperSnapshotBridge.captureCurrent(context) { snapshot ->
+            wallpaperCapturing = false
             if (snapshot != null) {
                 systemWallpaper = snapshot
+                wallpaperFreshAt = System.currentTimeMillis()
                 wallpaperRefreshTick++
             }
         }
@@ -406,9 +415,13 @@ fun ModeDetailScreen(
                 } else {
                     // 非编辑会话返回（从系统设置/主题商店切回等）：刷新系统当前壁纸快照，
                     // 让“初始壁纸预览图”能反映外部对真实壁纸的修改。
+                    wallpaperVisibleSince = System.currentTimeMillis()
+                    wallpaperCapturing = true
                     WallpaperSnapshotBridge.captureCurrent(context) { snap ->
+                        wallpaperCapturing = false
                         if (snap != null) {
                             systemWallpaper = snap
+                            wallpaperFreshAt = System.currentTimeMillis()
                             wallpaperRefreshTick++
                         }
                     }
@@ -855,19 +868,43 @@ fun ModeDetailScreen(
                 fun openLockEditor() {
                     if (isPreparingWallpaper) return
                     pendingWallpaperCapture = true
-                    // 基线/恢复依据直接用进入时已刷新的 systemWallpaper，点击时不再
-                    // 同步跨进程捕获（这是点击后卡顿数秒的主因）。进入页与每次返回
-                    // 都会刷新 systemWallpaper，因此它足够新。
-                    val baseline = systemWallpaper
-                        ?: WallpaperSnapshotBridge.readCachedCurrent(context)
-                    // 官方编辑器打开时会同时读取锁屏 + 桌面两侧；
-                    // 任一侧缺失都会在编辑后被重置为默认，因此基线必须完整。
-                    if (baseline?.lock == null || baseline.desktop == null) {
+                    // 基线必须是"页面可见以来成功捕获过"的新鲜快照。磁盘缓存只用于
+                    // 即时预览，不能作基线：进入页/返回后 systemWallpaper 会先等于旧
+                    // 缓存，此刻点击编辑器会从旧快照开始编辑；用户未修改直接返回时
+                    // restoreEditSystem 还会把真实系统恢复成旧快照，抹掉外部新修改。
+                    // 快照不新鲜（为 null / 捕获进行中 / 页面可见后未成功捕获）时先
+                    // 强制捕获一次（遮罩覆盖等待）；捕获失败就放弃编辑，不用旧快照。
+                    val baselineNow = systemWallpaper
+                    if (baselineNow == null || wallpaperCapturing ||
+                        wallpaperFreshAt < wallpaperVisibleSince
+                    ) {
                         isPreparingWallpaper = true
                         WallpaperSnapshotBridge.captureCurrent(context) { fresh ->
                             isPreparingWallpaper = false
                             if (fresh != null) {
                                 systemWallpaper = fresh
+                                wallpaperFreshAt = System.currentTimeMillis()
+                                wallpaperRefreshTick++
+                                // 拿到新鲜基线后自动重新走编辑流程
+                                openLockEditor()
+                            } else {
+                                // 捕获失败：拿不到可信基线就放弃本次编辑，
+                                // 避免用旧快照预置/恢复，把真实系统改乱。
+                                pendingWallpaperCapture = false
+                            }
+                        }
+                        return
+                    }
+                    val baseline = baselineNow
+                    // 官方编辑器打开时会同时读取锁屏 + 桌面两侧；
+                    // 任一侧缺失都会在编辑后被重置为默认，因此基线必须完整。
+                    if (baseline.lock == null || baseline.desktop == null) {
+                        isPreparingWallpaper = true
+                        WallpaperSnapshotBridge.captureCurrent(context) { fresh ->
+                            isPreparingWallpaper = false
+                            if (fresh != null) {
+                                systemWallpaper = fresh
+                                wallpaperFreshAt = System.currentTimeMillis()
                                 wallpaperRefreshTick++
                                 // 数据完整后自动重新触发点击
                                 openLockEditor()
@@ -911,15 +948,34 @@ fun ModeDetailScreen(
                 fun openDesktopEditor() {
                     if (isPreparingWallpaper) return
                     pendingWallpaperCapture = true
-                    // 同锁屏：基线直接用已刷新的 systemWallpaper
-                    val baseline = systemWallpaper
-                        ?: WallpaperSnapshotBridge.readCachedCurrent(context)
-                    if (baseline?.lock == null || baseline.desktop == null) {
+                    // 同锁屏：基线必须是"页面可见以来成功捕获过"的新鲜快照，
+                    // 磁盘缓存只用于即时预览，不作基线/恢复依据。
+                    val baselineNow = systemWallpaper
+                    if (baselineNow == null || wallpaperCapturing ||
+                        wallpaperFreshAt < wallpaperVisibleSince
+                    ) {
                         isPreparingWallpaper = true
                         WallpaperSnapshotBridge.captureCurrent(context) { fresh ->
                             isPreparingWallpaper = false
                             if (fresh != null) {
                                 systemWallpaper = fresh
+                                wallpaperFreshAt = System.currentTimeMillis()
+                                wallpaperRefreshTick++
+                                openDesktopEditor()
+                            } else {
+                                pendingWallpaperCapture = false
+                            }
+                        }
+                        return
+                    }
+                    val baseline = baselineNow
+                    if (baseline.lock == null || baseline.desktop == null) {
+                        isPreparingWallpaper = true
+                        WallpaperSnapshotBridge.captureCurrent(context) { fresh ->
+                            isPreparingWallpaper = false
+                            if (fresh != null) {
+                                systemWallpaper = fresh
+                                wallpaperFreshAt = System.currentTimeMillis()
                                 wallpaperRefreshTick++
                                 openDesktopEditor()
                             } else {
