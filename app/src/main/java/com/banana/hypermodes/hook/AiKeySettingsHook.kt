@@ -41,6 +41,7 @@ class AiKeySettingsHook(private val module: XposedModule) {
             decorate(fragment, classLoader)
         }
         hookValueGetter(fragmentClass)
+        hookDropDownValueSetter(classLoader)
         log("AI key settings hook installed")
     }
 
@@ -72,8 +73,8 @@ class AiKeySettingsHook(private val module: XposedModule) {
     }
 
     /**
-     * 原生 o(String) 会把不认识的值回退成默认功能（下拉框显示默认项），
-     * HyperModes 值需要原样返回。
+     * 原生 o(String) 会把不认识的值回退成默认功能（下拉框显示默认项）。
+     * 自定义选择只存在于 HyperModes target 键里，这里按 target 派生功能码。
      */
     private fun hookValueGetter(cls: Class<*>) {
         try {
@@ -83,15 +84,46 @@ class AiKeySettingsHook(private val module: XposedModule) {
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         val key = chain.getArg(0) as? String
-                        if (key != null) {
-                            val raw = readSetting(chain, key)
-                            if (raw != null && raw.startsWith(HYPERMODES_PREFIX)) return raw
+                        val fragment = HookUtils.getThisObject(chain)
+                        if (key != null && fragment != null) {
+                            val press = pressForKey(key)
+                            derivedFunction(fragment, press)?.let { return it }
                         }
                         return chain.proceed()
                     }
                 })
         } catch (t: Throwable) {
             log("Failed to hook value getter: ${t.message}")
+        }
+    }
+
+    /**
+     * Hook DropDownPreference.k(String)：显示自定义项时只更新 UI，不落盘
+     * click_mi_ai_key / long_press_mi_ai_key（避免被原生重置逻辑覆盖）。
+     */
+    private fun hookDropDownValueSetter(classLoader: ClassLoader) {
+        try {
+            val cls = classLoader.loadClass("miuix.preference.DropDownPreference")
+            val method = cls.getDeclaredMethod("k", String::class.java).apply { isAccessible = true }
+            module.hook(method)
+                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                .intercept(object : XposedInterface.Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? {
+                        val value = chain.getArg(0) as? String
+                        if (value != null && value.startsWith(HYPERMODES_PREFIX)) {
+                            // 只更新内部显示值，不调用 persistString。
+                            val self = HookUtils.getThisObject(chain) ?: return chain.proceed()
+                            findField(self.javaClass, "l")?.set(self, value)
+                            findField(self.javaClass, "m")?.setBoolean(self, true)
+                            invokeMethod(self, "notifyChanged")
+                            return null
+                        }
+                        return chain.proceed()
+                    }
+                })
+            log("DropDownPreference.k hooked")
+        } catch (t: Throwable) {
+            log("Failed to hook DropDownPreference.k: ${t.message}")
         }
     }
 
@@ -174,32 +206,52 @@ class AiKeySettingsHook(private val module: XposedModule) {
         press: String
     ) {
         try {
-            val listenerInterface = classLoader.loadClass(
-                "androidx.preference.Preference\$OnPreferenceChangeListener"
-            )
-            val getListener = prefClass.getMethod("getOnPreferenceChangeListener")
-            val setListener = prefClass.getMethod(
-                "setOnPreferenceChangeListener",
-                listenerInterface
-            )
-            val original = runCatching { getListener.invoke(pref) }.getOrNull()
+            // SecurityCoreAdd 的 androidx.preference 被混淆：监听接口不是
+            // Preference$OnPreferenceChangeListener，而是 androidx.preference.o。
+            // 从 setOnPreferenceChangeListener 的参数类型动态取接口最稳。
+            val setListener = prefClass.methods.firstOrNull {
+                it.name == "setOnPreferenceChangeListener" &&
+                    it.parameterTypes.size == 1
+            } ?: run {
+                log("setOnPreferenceChangeListener not found")
+                return
+            }
+            val getListener = prefClass.methods.firstOrNull {
+                it.name == "getOnPreferenceChangeListener" &&
+                    it.parameterTypes.isEmpty()
+            } ?: run {
+                log("getOnPreferenceChangeListener not found")
+                return
+            }
+            val listenerInterface = setListener.parameterTypes[0]
+            val listenerLoader = listenerInterface.classLoader ?: classLoader
             val changeMethod = listenerInterface.methods.firstOrNull {
                 it.name == "onPreferenceChange"
-            } ?: return
+            } ?: listenerInterface.methods.firstOrNull {
+                it.parameterTypes.size == 2
+            } ?: run {
+                log("onPreferenceChange not found on ${listenerInterface.name}")
+                return
+            }
+            val original = runCatching { getListener.invoke(pref) }.getOrNull()
 
             val proxy = Proxy.newProxyInstance(
-                classLoader, arrayOf(listenerInterface)
+                listenerLoader, arrayOf(listenerInterface)
             ) { proxyObj, method, args ->
                 when (method.name) {
-                    "onPreferenceChange" -> {
+                    changeMethod.name -> {
                         val newValue = args?.getOrNull(1) as? String
                         if (newValue != null && newValue.startsWith(HYPERMODES_PREFIX)) {
-                            launchPicker(fragment, press)
+                            launchPicker(fragment, press, kindOf(newValue))
                             false
                         } else {
+                            // 切回原生功能：清掉自定义目标，避免 hook 侧继续派生 HyperModes 动作。
+                            clearTarget(fragment, press)
                             val result = original?.let {
                                 runCatching {
-                                    changeMethod.invoke(it, args?.getOrNull(0), args?.getOrNull(1))
+                                    changeMethod.invoke(
+                                        it, args?.getOrNull(0), args?.getOrNull(1)
+                                    )
                                 }.getOrNull()
                             }
                             result as? Boolean ?: true
@@ -212,6 +264,7 @@ class AiKeySettingsHook(private val module: XposedModule) {
                 }
             }
             setListener.invoke(pref, proxy)
+            log("change listener installed (interface=${listenerInterface.name})")
         } catch (t: Throwable) {
             log("installChangeListener failed: ${t.message}")
         }
@@ -220,17 +273,14 @@ class AiKeySettingsHook(private val module: XposedModule) {
     /** 刷新下拉框选中值 + 摘要（原生 onResume 会调用 o()，这里补摘要）。 */
     private fun refreshSelection(pref: Any, fragment: Any, settingKey: String, press: String) {
         try {
-            val value = readSettingFrom(fragment, settingKey)
-            if (value != null && value.startsWith(HYPERMODES_PREFIX)) {
-                invokeMethod(pref, "k", value)
-                val labelKey = if (press == Protocol.AI_KEY_PRESS_LONG) {
-                    Protocol.AI_KEY_LABEL_LONG
-                } else {
-                    Protocol.AI_KEY_LABEL_CLICK
-                }
-                val label = readSettingFrom(fragment, labelKey)
-                val summary = buildSummary(value, label, press)
-                prefClass_setSummary(pref, summary)
+            val function = derivedFunction(fragment, press)
+            if (function != null) {
+                invokeMethod(pref, "k", function)
+                val label = readSettingFrom(fragment, labelKeyFor(press))
+                prefClass_setSummary(pref, buildSummary(function, label, press))
+            } else if (press == Protocol.AI_KEY_PRESS_LONG) {
+                // 无自定义目标时恢复原生摘要（短按的原生描述由页面自身维护）。
+                prefClass_setSummary(pref, "")
             }
         } catch (t: Throwable) {
             log("refreshSelection failed: ${t.message}")
@@ -258,7 +308,7 @@ class AiKeySettingsHook(private val module: XposedModule) {
         }
     }
 
-    private fun launchPicker(fragment: Any, press: String) {
+    private fun launchPicker(fragment: Any, press: String, kind: String) {
         try {
             val activity = invokeNoArg(fragment, "getActivity") as? Context
                 ?: invokeNoArg(fragment, "getContext") as? Context
@@ -269,12 +319,87 @@ class AiKeySettingsHook(private val module: XposedModule) {
                     "com.banana.hypermodes.ui.AiKeyActionPickerActivity"
                 )
                 putExtra(Protocol.AI_KEY_EXTRA_PRESS, press)
+                putExtra(Protocol.AI_KEY_EXTRA_KIND, kind)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            activity.startActivity(intent)
+            // 让原生下拉框先收起，避免返回后弹层残留。
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                runCatching { activity.startActivity(intent) }
+                    .onFailure { log("launchPicker failed: ${it.message}") }
+            }, 150)
         } catch (t: Throwable) {
             log("launchPicker failed: ${t.message}")
         }
+    }
+
+    private fun targetKeyFor(press: String): String =
+        if (press == Protocol.AI_KEY_PRESS_LONG) {
+            Protocol.AI_KEY_TARGET_LONG
+        } else {
+            Protocol.AI_KEY_TARGET_CLICK
+        }
+
+    private fun labelKeyFor(press: String): String =
+        if (press == Protocol.AI_KEY_PRESS_LONG) {
+            Protocol.AI_KEY_LABEL_LONG
+        } else {
+            Protocol.AI_KEY_LABEL_CLICK
+        }
+
+    private fun pressForKey(key: String): String =
+        when (key) {
+            Protocol.AI_KEY_LONG, Protocol.AI_KEY_TARGET_LONG -> Protocol.AI_KEY_PRESS_LONG
+            else -> Protocol.AI_KEY_PRESS_CLICK
+        }
+
+    /** target 键 → 功能码；无自定义目标返回 null。 */
+    private fun derivedFunction(fragment: Any, press: String): String? {
+        val target = readSettingFrom(fragment, targetKeyFor(press))?.trim().orEmpty()
+        return when {
+            target.startsWith("app:") -> Protocol.AI_KEY_ACTION_APP
+            target.startsWith("mode:") -> Protocol.AI_KEY_ACTION_MODE
+            target.startsWith("automation:") -> Protocol.AI_KEY_ACTION_AUTOMATION
+            else -> null
+        }
+    }
+
+    private fun clearTarget(fragment: Any, press: String) {
+        runCatching {
+            val resolver = (fragment.javaClass.methods.firstOrNull {
+                it.name == "getContentResolver" && it.parameterTypes.isEmpty()
+            }?.invoke(fragment) as? android.content.ContentResolver) ?: return
+            writeSettingDirect(resolver, targetKeyFor(press), "")
+            writeSettingDirect(resolver, labelKeyFor(press), "")
+        }
+    }
+
+    private fun writeSettingDirect(
+        resolver: android.content.ContentResolver,
+        key: String,
+        value: String
+    ) = runCatching {
+        val method = Settings.System::class.java.getMethod(
+            "putStringForUser",
+            android.content.ContentResolver::class.java,
+            String::class.java,
+            String::class.java,
+            Int::class.javaPrimitiveType!!
+        )
+        method.invoke(null, resolver, key, value, currentUserId())
+    }
+
+    private fun currentUserId(): Int = try {
+        Class.forName("android.app.ActivityManager")
+            .getMethod("getCurrentUser").invoke(null) as? Int ?: 0
+    } catch (t: Throwable) {
+        0
+    }
+
+    /** 下拉框选中的功能码 → picker 目标类型。 */
+    private fun kindOf(value: String): String = when (value) {
+        Protocol.AI_KEY_ACTION_APP -> KIND_APP
+        Protocol.AI_KEY_ACTION_MODE -> KIND_MODE
+        else -> KIND_AUTOMATION
     }
 
     // ==================== 反射小工具 ====================
@@ -341,6 +466,9 @@ class AiKeySettingsHook(private val module: XposedModule) {
             "com.miui.miinput.gesture.aikey.GestureShortcutAiKeySettingsActivity\$a"
         private const val HYPERMODES_PREFIX = "hypermodes_"
         private const val VALUE_NONE = "none"
+        private const val KIND_APP = "app"
+        private const val KIND_MODE = "mode"
+        private const val KIND_AUTOMATION = "automation"
         private val HYPERMODE_OPTIONS = listOf(
             "打开应用" to Protocol.AI_KEY_ACTION_APP,
             "模式" to Protocol.AI_KEY_ACTION_MODE,

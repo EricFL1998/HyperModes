@@ -1,6 +1,7 @@
 package com.banana.hypermodes.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.banana.hypermodes.R
 import com.banana.hypermodes.automation.AutomationStore
@@ -50,8 +52,10 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -66,8 +70,13 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * AI 键动作选择页。
  *
  * 由 SecurityCore 的原生「AI 键」设置页（短按/长按下拉）在用户选择
- * 「打开应用 / 开关模式 / 开关自动化」后拉起，选择结果通过
- * ACTION_SYSTEM_OP 写回 Settings.System：
+ * 「打开应用 / 模式 / 自动化」后拉起，按 [Protocol.AI_KEY_EXTRA_KIND] 只展示
+ * 对应类型的列表：
+ *   kind=app        -> 应用列表（带搜索栏）
+ *   kind=mode       -> 模式列表
+ *   kind=automation -> 自动化列表
+ *
+ * 选择结果通过 ACTION_SYSTEM_OP 写回 Settings.System：
  *   click_mi_ai_key / long_press_mi_ai_key = hypermodes_app|mode|automation
  *   hypermodes_ai_key_{click|long}_target   = app:<pkg> | mode:<id> | automation:<id>
  *   hypermodes_ai_key_{click|long}_label    = 展示名（原生设置页摘要用）
@@ -78,6 +87,7 @@ class AiKeyActionPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val press = intent?.getStringExtra(Protocol.AI_KEY_EXTRA_PRESS)
             ?: Protocol.AI_KEY_PRESS_CLICK
+        val kind = intent?.getStringExtra(Protocol.AI_KEY_EXTRA_KIND) ?: KIND_APP
         if (!isAllowedCaller()) {
             finish()
             return
@@ -89,9 +99,9 @@ class AiKeyActionPickerActivity : ComponentActivity() {
             ) {
                 Box(modifier = Modifier.fillMaxSize().background(MiuixTheme.colorScheme.background)) {
                     AiKeyPickerScreen(
-                        press = press,
-                        onPick = { kind, id, label ->
-                            writeSelection(press, kind, id, label)
+                        kind = kind,
+                        onPick = { pickedKind, id, label ->
+                            writeSelection(press, pickedKind, id, label)
                             finish()
                         },
                         onCancel = { finish() }
@@ -102,11 +112,6 @@ class AiKeyActionPickerActivity : ComponentActivity() {
     }
 
     private fun writeSelection(press: String, kind: String, id: String, label: String) {
-        val functionKey = if (press == Protocol.AI_KEY_PRESS_LONG) {
-            Protocol.AI_KEY_LONG
-        } else {
-            Protocol.AI_KEY_CLICK
-        }
         val targetKey = if (press == Protocol.AI_KEY_PRESS_LONG) {
             Protocol.AI_KEY_TARGET_LONG
         } else {
@@ -117,12 +122,8 @@ class AiKeyActionPickerActivity : ComponentActivity() {
         } else {
             Protocol.AI_KEY_LABEL_CLICK
         }
-        val function = when (kind) {
-            KIND_APP -> Protocol.AI_KEY_ACTION_APP
-            KIND_MODE -> Protocol.AI_KEY_ACTION_MODE
-            else -> Protocol.AI_KEY_ACTION_AUTOMATION
-        }
-        writeSystemSetting(functionKey, function)
+        // 只写 HyperModes 自己的 target/label：原生 click/long 设置保持不动，
+        // 避免 SecurityCore 把不认识的功能码重置回默认值。
         writeSystemSetting(targetKey, "$kind:$id")
         writeSystemSetting(labelKey, label)
     }
@@ -168,7 +169,7 @@ class AiKeyActionPickerActivity : ComponentActivity() {
 
     @Composable
     private fun AiKeyPickerScreen(
-        press: String,
+        kind: String,
         onPick: (kind: String, id: String, label: String) -> Unit,
         onCancel: () -> Unit
     ) {
@@ -176,42 +177,59 @@ class AiKeyActionPickerActivity : ComponentActivity() {
         var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
         var modes by remember { mutableStateOf<List<Mode>>(emptyList()) }
         var automations by remember { mutableStateOf<List<SavedAutomation>>(emptyList()) }
-        val selectedTarget = remember(press) { currentTarget(press) }
+        var query by remember { mutableStateOf("") }
+        val selectedTarget = remember(kind) {
+            currentTarget(
+                if (intent?.getStringExtra(Protocol.AI_KEY_EXTRA_PRESS) == Protocol.AI_KEY_PRESS_LONG) {
+                    Protocol.AI_KEY_PRESS_LONG
+                } else {
+                    Protocol.AI_KEY_PRESS_CLICK
+                }
+            )
+        }
         val scrollBehavior = MiuixScrollBehavior()
 
-        LaunchedEffect(Unit) {
-            apps = withContext(Dispatchers.IO) {
-                val pm = context.packageManager
-                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-                    .map {
-                        AppEntry(
-                            packageName = it.activityInfo.packageName,
-                            label = it.loadLabel(pm).toString(),
-                            icon = it.loadIcon(pm)?.toImageBitmap()
-                        )
-                    }
-                    .distinctBy { it.packageName }
-                    .sortedBy { it.label.lowercase() }
-            }
-            modes = withContext(Dispatchers.IO) {
-                ModeStore.load(context) { DefaultModes.get() }
-            }
-            automations = withContext(Dispatchers.IO) {
-                AutomationStore.load(context)
+        val title = when (kind) {
+            KIND_MODE -> stringResource(R.string.ai_key_pick_mode_title)
+            KIND_AUTOMATION -> stringResource(R.string.ai_key_pick_automation_title)
+            else -> stringResource(R.string.ai_key_pick_app_title)
+        }
+
+        LaunchedEffect(kind) {
+            when (kind) {
+                KIND_APP -> apps = withContext(Dispatchers.IO) {
+                    val pm = context.packageManager
+                    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                    pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+                        .map {
+                            AppEntry(
+                                packageName = it.activityInfo.packageName,
+                                label = it.loadLabel(pm).toString(),
+                                icon = it.loadIcon(pm)?.toImageBitmap()
+                            )
+                        }
+                        .distinctBy { it.packageName }
+                        .sortedBy { it.label.lowercase() }
+                }
+                KIND_MODE -> modes = withContext(Dispatchers.IO) {
+                    ModeStore.load(context) { DefaultModes.get() }
+                }
+                else -> automations = withContext(Dispatchers.IO) {
+                    AutomationStore.load(context)
+                }
             }
         }
 
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = context.getString(R.string.ai_key_picker_title),
+                    title = title,
                     scrollBehavior = scrollBehavior,
                     navigationIcon = {
                         IconButton(onClick = onCancel) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = context.getString(R.string.back)
+                                contentDescription = stringResource(R.string.back)
                             )
                         }
                     }
@@ -226,67 +244,96 @@ class AiKeyActionPickerActivity : ComponentActivity() {
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
                 contentPadding = PaddingValues(top = padding.calculateTopPadding())
             ) {
-                item { SectionHeader(context.getString(R.string.ai_key_section_apps)) }
-                val appList = apps
-                if (appList == null) {
-                    item { LoadingRow() }
-                } else {
-                    items(appList, key = { "app:" + it.packageName }) { app ->
-                        val id = "app:${app.packageName}"
-                        PickerRow(
-                            title = app.label,
-                            subtitle = app.packageName,
-                            leadingIcon = app.icon,
-                            selected = selectedTarget == id,
-                            onClick = { onPick(KIND_APP, app.packageName, app.label) }
-                        )
+                if (kind == KIND_APP) {
+                    item {
+                        SearchBar(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            inputField = {
+                                InputField(
+                                    query = query,
+                                    onQueryChange = { query = it },
+                                    onSearch = { },
+                                    expanded = false,
+                                    onExpandedChange = { },
+                                    label = stringResource(R.string.search_apps)
+                                )
+                            },
+                            expanded = false,
+                            onExpandedChange = { }
+                        ) { }
                     }
                 }
 
-                item { SectionHeader(context.getString(R.string.ai_key_section_modes)) }
-                if (modes.isEmpty()) {
-                    item { EmptyRow(context.getString(R.string.ai_key_no_modes)) }
-                } else {
-                    items(modes, key = { "mode:" + it.id }) { mode ->
-                        val id = "mode:${mode.id}"
-                        PickerRow(
-                            title = "${mode.icon} ${mode.name}",
-                            subtitle = mode.description,
-                            leadingIcon = null,
-                            selected = selectedTarget == id,
-                            onClick = { onPick(KIND_MODE, mode.id, mode.name) }
-                        )
+                when (kind) {
+                    KIND_APP -> {
+                        val list = apps
+                        if (list == null) {
+                            item { LoadingRow() }
+                        } else {
+                            val filtered = if (query.isBlank()) list else list.filter {
+                                it.label.contains(query, ignoreCase = true) ||
+                                    it.packageName.contains(query, ignoreCase = true)
+                            }
+                            items(filtered, key = { it.packageName }) { app ->
+                                val id = "$KIND_APP:${app.packageName}"
+                                PickerRow(
+                                    title = app.label,
+                                    subtitle = app.packageName,
+                                    leadingIcon = app.icon,
+                                    selected = selectedTarget == id,
+                                    onClick = { onPick(KIND_APP, app.packageName, app.label) }
+                                )
+                            }
+                        }
                     }
-                }
-
-                item { SectionHeader(context.getString(R.string.ai_key_section_automations)) }
-                if (automations.isEmpty()) {
-                    item { EmptyRow(context.getString(R.string.ai_key_no_automations)) }
-                } else {
-                    items(automations, key = { "automation:" + it.id }) { automation ->
-                        val id = "automation:${automation.id}"
-                        PickerRow(
-                            title = "${automation.icon} ${automation.name}",
-                            subtitle = automation.description,
-                            leadingIcon = null,
-                            selected = selectedTarget == id,
-                            onClick = { onPick(KIND_AUTOMATION, automation.id, automation.name) }
-                        )
+                    KIND_MODE -> {
+                        if (modes.isEmpty()) {
+                            item { EmptyRow(stringResource(R.string.ai_key_no_modes)) }
+                        } else {
+                            items(modes, key = { it.id }) { mode ->
+                                val id = "$KIND_MODE:${mode.id}"
+                                val name = localizedModeName(context, mode)
+                                val subtitle = if (selectedTarget == id) {
+                                    "${mode.description} · 当前选择"
+                                } else {
+                                    mode.description
+                                }
+                                // 与 app 主页的模式列表使用同一个 ModeItem 卡片样式。
+                                ModeItem(
+                                    icon = mode.icon,
+                                    title = name,
+                                    subtitle = subtitle,
+                                    onClick = { onPick(KIND_MODE, mode.id, name) },
+                                    modifier = Modifier
+                                        .padding(horizontal = 12.dp)
+                                        .padding(bottom = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        if (automations.isEmpty()) {
+                            item { EmptyRow(stringResource(R.string.ai_key_no_automations)) }
+                        } else {
+                            items(automations, key = { it.id }) { automation ->
+                                val id = "$KIND_AUTOMATION:${automation.id}"
+                                PickerRow(
+                                    title = "${automation.icon} ${automation.name}",
+                                    subtitle = automation.description,
+                                    leadingIcon = null,
+                                    selected = selectedTarget == id,
+                                    onClick = {
+                                        onPick(KIND_AUTOMATION, automation.id, automation.name)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
                 item { Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding()) }
             }
         }
-    }
-
-    @Composable
-    private fun SectionHeader(title: String) {
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.title4,
-            modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 8.dp)
-        )
     }
 
     @Composable
@@ -369,6 +416,13 @@ class AiKeyActionPickerActivity : ComponentActivity() {
             Protocol.MODULE_PACKAGE
         )
     }
+}
+
+private fun localizedModeName(context: Context, mode: Mode): String = when (mode.id) {
+    "dnd" -> context.getString(R.string.mode_dnd)
+    "bedtime" -> context.getString(R.string.mode_bedtime)
+    "driving" -> context.getString(R.string.mode_driving)
+    else -> mode.name
 }
 
 private fun android.graphics.drawable.Drawable.toImageBitmap(size: Int = 96) =

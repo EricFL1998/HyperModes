@@ -79,27 +79,39 @@ class AiKeyHook(private val module: XposedModule) {
             log("HandleMiAiKey not found: ${t.message}")
             return
         }
-        hookGetter(handleClass, "getClickFunction", Protocol.AI_KEY_CLICK)
-        hookGetter(handleClass, "getLongPressFunction", Protocol.AI_KEY_LONG)
+        hookGetter(handleClass, "getClickFunction", Protocol.AI_KEY_TARGET_CLICK)
+        hookGetter(handleClass, "getLongPressFunction", Protocol.AI_KEY_TARGET_LONG)
     }
 
-    private fun hookGetter(handleClass: Class<*>, methodName: String, settingKey: String) {
+    /**
+     * 自定义选择只保存在 HyperModes 的 target 键里（app:/mode:/automation:），
+     * 不写原生 click_mi_ai_key —— 原生设置页会把不认识的功能码重置回默认值。
+     */
+    private fun hookGetter(handleClass: Class<*>, methodName: String, targetKey: String) {
         try {
             val method = handleClass.getDeclaredMethod(methodName).apply { isAccessible = true }
             module.hook(method)
                 .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                 .intercept(object : XposedInterface.Hooker {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
-                        val raw = readSetting(settingKey)
-                        if (raw != null && raw.startsWith(HYPERMODES_PREFIX)) {
-                            return raw
-                        }
+                        derivedFunction(targetKey)?.let { return it }
                         return chain.proceed()
                     }
                 })
             log("$methodName hooked")
         } catch (t: Throwable) {
             log("Failed to hook $methodName: ${t.message}")
+        }
+    }
+
+    /** target 键 → 功能码；没有自定义目标时返回 null，交还原生逻辑。 */
+    private fun derivedFunction(targetKey: String): String? {
+        val target = readSetting(targetKey)?.trim().orEmpty()
+        return when {
+            target.startsWith("app:") -> Protocol.AI_KEY_ACTION_APP
+            target.startsWith("mode:") -> Protocol.AI_KEY_ACTION_MODE
+            target.startsWith("automation:") -> Protocol.AI_KEY_ACTION_AUTOMATION
+            else -> null
         }
     }
 

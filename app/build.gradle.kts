@@ -14,8 +14,8 @@ android {
         // reject installation on OS3 (Android 16 and older) devices.
         minSdk = 37
         targetSdk = 37
-        versionCode = 17
-        versionName = "3.2"
+        versionCode = 18
+        versionName = "3.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

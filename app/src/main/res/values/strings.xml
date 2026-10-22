@@ -402,4 +402,7 @@
     <string name="ai_key_section_automations">Automations</string>
     <string name="ai_key_no_modes">No modes yet</string>
     <string name="ai_key_no_automations">No automations yet</string>
+    <string name="ai_key_pick_app_title">Choose app</string>
+    <string name="ai_key_pick_mode_title">Choose mode</string>
+    <string name="ai_key_pick_automation_title">Choose automation</string>
 </resources>

@@ -358,4 +358,7 @@
     <string name="ai_key_section_automations">自动化</string>
     <string name="ai_key_no_modes">暂无模式</string>
     <string name="ai_key_no_automations">暂无自动化</string>
+    <string name="ai_key_pick_app_title">选择应用</string>
+    <string name="ai_key_pick_mode_title">选择模式</string>
+    <string name="ai_key_pick_automation_title">选择自动化</string>
 </resources>
