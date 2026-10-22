@@ -143,10 +143,15 @@ class AiKeySettingsHook(private val module: XposedModule) {
 
             val newEntries = oldEntries.toMutableList()
             val newValues = oldValues.toMutableList()
+            // 新选项插在「无」之前，保持原生「无」始终在列表最后。
+            var insertAt = newValues.indexOfFirst { it.toString() == VALUE_NONE }
+            if (insertAt < 0) insertAt = newValues.size
+            var cursor = insertAt
             for ((label, value) in HYPERMODE_OPTIONS) {
                 if (newValues.none { it.toString() == value }) {
-                    newEntries.add(label)
-                    newValues.add(value)
+                    newEntries.add(cursor, label)
+                    newValues.add(cursor, value)
+                    cursor++
                 }
             }
             if (newValues.size == oldValues.size) return
@@ -335,6 +340,7 @@ class AiKeySettingsHook(private val module: XposedModule) {
         private const val FRAGMENT_CLASS =
             "com.miui.miinput.gesture.aikey.GestureShortcutAiKeySettingsActivity\$a"
         private const val HYPERMODES_PREFIX = "hypermodes_"
+        private const val VALUE_NONE = "none"
         private val HYPERMODE_OPTIONS = listOf(
             "打开应用" to Protocol.AI_KEY_ACTION_APP,
             "开关模式" to Protocol.AI_KEY_ACTION_MODE,
