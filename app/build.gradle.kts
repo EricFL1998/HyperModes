@@ -10,10 +10,12 @@ android {
 
     defaultConfig {
         applicationId = "com.banana.hypermodes"
-        minSdk = 35
+        // OS4 line only: Android 17 / HyperOS 4. minSdk 37 makes the platform
+        // reject installation on OS3 (Android 16 and older) devices.
+        minSdk = 37
         targetSdk = 37
-        versionCode = 16
-        versionName = "3.1"
+        versionCode = 17
+        versionName = "3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

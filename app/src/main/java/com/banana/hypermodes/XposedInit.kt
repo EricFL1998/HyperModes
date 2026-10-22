@@ -1,5 +1,6 @@
 package com.banana.hypermodes
 
+import android.os.Build
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
 import com.banana.hypermodes.hook.AiKeyHook
@@ -23,10 +24,21 @@ class XposedInit : XposedModule() {
     override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
         this.processName = param.processName
         HyperLog.d(TAG, "onModuleLoaded: processName=${this.processName}")
+        if (!isSupportedPlatform()) {
+            HyperLog.d(
+                TAG,
+                "unsupported platform (sdk=${Build.VERSION.SDK_INT}, incremental=" +
+                    "${Build.VERSION.INCREMENTAL}); HyperModes OS4 hooks disabled"
+            )
+        }
     }
 
     override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {
         HyperLog.d(TAG, "onSystemServerStarting called")
+        if (!isSupportedPlatform()) {
+            HyperLog.d(TAG, "system_server hooks skipped: requires Android 17 / HyperOS 4")
+            return
+        }
         try {
             SystemModeHook(this).install(param.classLoader)
             SystemKeepAliveHook(this).install(param.classLoader)
@@ -40,6 +52,7 @@ class XposedInit : XposedModule() {
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         val pkg = param.packageName
         HyperLog.d(TAG, "onPackageReady: pkg=$pkg, proc=$processName")
+        if (!isSupportedPlatform()) return
 
         try {
             when (pkg) {
@@ -187,7 +200,28 @@ class XposedInit : XposedModule() {
         return null
     }
 
+    /**
+     * OS4-only guard. Even if the APK is force-installed on an older system
+     * (bypassing minSdk via root), never install hooks there: the OS3 framework
+     * has different classes/signatures and would be destabilized.
+     *
+     * Supported: Android 17 (SDK 37) AND HyperOS 4 (ro.mi.os.version.code >= 4).
+     */
+    private fun isSupportedPlatform(): Boolean {
+        if (Build.VERSION.SDK_INT < MIN_SUPPORTED_SDK) return false
+        val osCode = runCatching {
+            val sp = Class.forName("android.os.SystemProperties")
+            val get = sp.getMethod("get", String::class.java, String::class.java)
+            (get.invoke(null, "ro.mi.os.version.code", "0") as? String)?.toIntOrNull() ?: 0
+        }.getOrDefault(0)
+        if (osCode > 0) return osCode >= MIN_HYPEROS_MAJOR
+        // Fallback for builds without the ro.mi.os.version.code property.
+        return Build.VERSION.INCREMENTAL?.startsWith("OS4") == true
+    }
+
     companion object {
         private const val TAG = "HyperModes"
+        const val MIN_SUPPORTED_SDK = 37
+        const val MIN_HYPEROS_MAJOR = 4
     }
 }

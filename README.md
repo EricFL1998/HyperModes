@@ -1,7 +1,8 @@
 一个为HyperOS 打造的原生风格模式与自动化工具。
 
 > [!IMPORTANT]
-> **系统要求**：Android 15（API 35）及以上；主要针对基于 **Android 16** 的 **Xiaomi HyperOS 3** 设计。
+> **系统要求**：Android 17（API 37）及以上，且为 **Xiaomi HyperOS 4**。
+> 本版本仅支持 OS4；OS3（Android 16 及以下）设备无法安装，模块也不会在旧系统上加载。
 
 ## 核心特性
 

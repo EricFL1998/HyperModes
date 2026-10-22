@@ -247,8 +247,8 @@ class AiKeySettingsHook(private val module: XposedModule) {
     private fun buildSummary(function: String, label: String?, press: String): String {
         val action = when (function) {
             Protocol.AI_KEY_ACTION_APP -> "打开应用"
-            Protocol.AI_KEY_ACTION_MODE -> "开关模式"
-            else -> "开关自动化"
+            Protocol.AI_KEY_ACTION_MODE -> "模式"
+            else -> "自动化"
         }
         val name = label?.takeIf { it.isNotBlank() } ?: "未选择"
         return if (press == Protocol.AI_KEY_PRESS_CLICK) {
@@ -343,8 +343,8 @@ class AiKeySettingsHook(private val module: XposedModule) {
         private const val VALUE_NONE = "none"
         private val HYPERMODE_OPTIONS = listOf(
             "打开应用" to Protocol.AI_KEY_ACTION_APP,
-            "开关模式" to Protocol.AI_KEY_ACTION_MODE,
-            "开关自动化" to Protocol.AI_KEY_ACTION_AUTOMATION
+            "模式" to Protocol.AI_KEY_ACTION_MODE,
+            "自动化" to Protocol.AI_KEY_ACTION_AUTOMATION
         )
     }
 }
