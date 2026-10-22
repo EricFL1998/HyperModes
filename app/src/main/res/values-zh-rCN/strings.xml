@@ -350,4 +350,12 @@
     <string name="automation_name">自动化名称</string>
     <string name="automation_name_hint">我的自动化</string>
     <string name="icon">图标</string>
+
+    <!-- AI 键动作选择 -->
+    <string name="ai_key_picker_title">AI 键动作</string>
+    <string name="ai_key_section_apps">应用</string>
+    <string name="ai_key_section_modes">模式</string>
+    <string name="ai_key_section_automations">自动化</string>
+    <string name="ai_key_no_modes">暂无模式</string>
+    <string name="ai_key_no_automations">暂无自动化</string>
 </resources>

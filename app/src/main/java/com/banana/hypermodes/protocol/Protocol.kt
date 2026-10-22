@@ -160,6 +160,35 @@ object Protocol {
     /** Bit 0 = Monday ... bit 6 = Sunday. 127 = every day. */
     const val EVERY_DAY = 0b1111111
 
+    // ==================== AI 键（HyperOS 4 / SecurityCore） ====================
+    /** MIUI AI 键短按功能（Settings.System）。由 MiAiKeyRule 读取并分发。 */
+    const val AI_KEY_CLICK = "click_mi_ai_key"
+
+    /** MIUI AI 键长按功能（Settings.System）。 */
+    const val AI_KEY_LONG = "long_press_mi_ai_key"
+
+    /** HyperModes 写入的 AI 键动作目标（Settings.System），格式 "app:<pkg>" / "mode:<id>" / "automation:<id>"。 */
+    const val AI_KEY_TARGET_CLICK = "hypermodes_ai_key_click_target"
+    const val AI_KEY_TARGET_LONG = "hypermodes_ai_key_long_target"
+
+    /** 目标显示名（用于原生设置页摘要展示）。 */
+    const val AI_KEY_LABEL_CLICK = "hypermodes_ai_key_click_label"
+    const val AI_KEY_LABEL_LONG = "hypermodes_ai_key_long_label"
+
+    /** 写入 click_mi_ai_key / long_press_mi_ai_key 的 HyperModes 功能码。 */
+    const val AI_KEY_ACTION_APP = "hypermodes_app"
+    const val AI_KEY_ACTION_MODE = "hypermodes_mode"
+    const val AI_KEY_ACTION_AUTOMATION = "hypermodes_automation"
+
+    /** AI 键动作选择页 extras。 */
+    const val AI_KEY_EXTRA_PRESS = "hypermodes_ai_key_press"
+    const val AI_KEY_EXTRA_KIND = "hypermodes_ai_key_kind"
+    const val AI_KEY_PRESS_CLICK = "click"
+    const val AI_KEY_PRESS_LONG = "long"
+
+    /** AI 键设置页宿主（SecurityCoreAdd.apk）。 */
+    const val SECURITY_CORE_PACKAGE = "com.miui.securitycore"
+
     fun daysToBitmask(days: Set<Int>): Int {
         require(days.all { it in 0..6 }) { "day index out of range: $days" }
         return days.fold(0) { acc, day -> acc or (1 shl day) }

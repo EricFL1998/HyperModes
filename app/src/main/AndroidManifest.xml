@@ -90,6 +90,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- AI 键动作选择（由 SecurityCore 的原生 AI 键设置页拉起） -->
+        <activity
+            android:name=".ui.AiKeyActionPickerActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/ai_key_picker_title"
+            android:theme="@style/Theme.HyperModes" />
+
         <!-- Polaris geofence callback receiver -->
         <receiver
             android:name=".systemserver.geofence.PolarisCallbackReceiver"

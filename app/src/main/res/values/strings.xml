@@ -394,4 +394,12 @@
     <string name="any_car_bluetooth">任意车载蓝牙</string>
     <string name="location_trigger">位置触发</string>
     <string name="intent_trigger">Intent 触发</string>
+
+    <!-- AI key action picker -->
+    <string name="ai_key_picker_title">AI key action</string>
+    <string name="ai_key_section_apps">Apps</string>
+    <string name="ai_key_section_modes">Modes</string>
+    <string name="ai_key_section_automations">Automations</string>
+    <string name="ai_key_no_modes">No modes yet</string>
+    <string name="ai_key_no_automations">No automations yet</string>
 </resources>

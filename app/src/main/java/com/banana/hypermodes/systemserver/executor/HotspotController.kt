@@ -17,16 +17,26 @@ import com.banana.hypermodes.utils.HyperLog
  */
 class HotspotController(private val context: Context) {
 
-    /** 当前热点是否开启（isSoftApEnabled 是公开 API）。 */
+    /** 当前热点是否开启。Android 17 移除了 isSoftApEnabled，改用 isWifiApEnabled。 */
     fun isHotspotEnabled(): Boolean {
-        return try {
-            val wifi = context.applicationContext
+        val wifi = try {
+            context.applicationContext
                 .getSystemService(Context.WIFI_SERVICE) as WifiManager
-            wifi.javaClass.getMethod("isSoftApEnabled").invoke(wifi) as? Boolean ?: false
         } catch (t: Throwable) {
-            log("isHotspotEnabled failed: ${t.message}")
-            false
+            log("isHotspotEnabled: WifiManager unavailable: ${t.message}")
+            return false
         }
+        for (methodName in HOTSPOT_STATE_METHODS) {
+            try {
+                val enabled = wifi.javaClass.getMethod(methodName)
+                    .invoke(wifi) as? Boolean
+                if (enabled != null) return enabled
+            } catch (_: Throwable) {
+                // 尝试下一个候选 API
+            }
+        }
+        log("isHotspotEnabled: no supported state API")
+        return false
     }
 
     /** 开关个人热点。返回是否成功。 */
@@ -66,5 +76,6 @@ class HotspotController(private val context: Context) {
 
     companion object {
         private const val TAG = "HyperModes.Hotspot"
+        private val HOTSPOT_STATE_METHODS = listOf("isWifiApEnabled", "isSoftApEnabled")
     }
 }

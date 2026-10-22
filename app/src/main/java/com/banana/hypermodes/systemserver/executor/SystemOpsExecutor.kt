@@ -3,11 +3,14 @@ package com.banana.hypermodes.systemserver.executor
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.provider.Settings
 import android.bluetooth.BluetoothManager
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
 
@@ -54,13 +57,28 @@ class SystemOpsExecutor(private val context: Context) {
         }
     }
 
-    /** 移动数据：反射 ConnectivityManager.setMobileDataEnabled。 */
+    /**
+     * 移动数据：Android 17 移除了 ConnectivityManager.setMobileDataEnabled，
+     * 系统进程改用 TelephonyManager.setDataEnabled（system uid 持 MODIFY_PHONE_STATE）。
+     */
     fun setMobileDataEnabled(enabled: Boolean): Boolean {
+        try {
+            val tm = context.getSystemService(TelephonyManager::class.java)
+            if (tm != null) {
+                @Suppress("DEPRECATION")
+                tm.isDataEnabled = enabled
+                log("setMobileDataEnabled($enabled) via TelephonyManager")
+                return true
+            }
+        } catch (t: Throwable) {
+            log("TelephonyManager.setDataEnabled failed: ${t.message}")
+        }
+        // 旧系统回退：ConnectivityManager hidden API（Android 17 已不存在）。
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE)
             val method = cm.javaClass.getMethod("setMobileDataEnabled", Boolean::class.java)
             method.invoke(cm, enabled)
-            log("setMobileDataEnabled($enabled)")
+            log("setMobileDataEnabled($enabled) via ConnectivityManager")
             true
         } catch (t: Throwable) {
             log("setMobileDataEnabled failed: ${t.message}")
@@ -68,16 +86,20 @@ class SystemOpsExecutor(private val context: Context) {
         }
     }
 
-    /** 手电筒：反射 FlashlightController.setFlashlightEnabled（cmd flashlight 同款服务）。 */
+    /**
+     * 手电筒：Android 17 移除了 com.android.server.flashlight.FlashlightController，
+     * 统一走 CameraManager 的 torch 接口（系统进程有权限）。
+     */
     fun setFlashlightEnabled(enabled: Boolean): Boolean {
         return try {
-            val localServices = Class.forName("com.android.server.LocalServices")
-            val getService = localServices.getMethod("getService", Class::class.java)
-            val controllerClass = Class.forName("com.android.server.flashlight.FlashlightController")
-            val controller = getService.invoke(null, controllerClass)
-            val method = controllerClass.getMethod("setFlashlightEnabled", Boolean::class.java)
-            method.invoke(controller, enabled)
-            log("setFlashlightEnabled($enabled)")
+            val cm = context.getSystemService(CameraManager::class.java)
+                ?: return false
+            val torchCameraId = cm.cameraIdList.firstOrNull { id ->
+                cm.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return false
+            cm.setTorchMode(torchCameraId, enabled)
+            log("setFlashlightEnabled($enabled) via CameraManager($torchCameraId)")
             true
         } catch (t: Throwable) {
             log("setFlashlightEnabled failed: ${t.message}")

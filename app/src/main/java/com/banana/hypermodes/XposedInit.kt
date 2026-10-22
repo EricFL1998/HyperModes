@@ -2,6 +2,8 @@ package com.banana.hypermodes
 
 import android.util.Log
 import com.banana.hypermodes.utils.HyperLog
+import com.banana.hypermodes.hook.AiKeyHook
+import com.banana.hypermodes.hook.AiKeySettingsHook
 import com.banana.hypermodes.hook.ControlCenterCardHook
 import com.banana.hypermodes.hook.AodEditorHook
 import com.banana.hypermodes.hook.DeskClockHook
@@ -29,6 +31,7 @@ class XposedInit : XposedModule() {
             SystemModeHook(this).install(param.classLoader)
             SystemKeepAliveHook(this).install(param.classLoader)
             NotificationFilterHook(this).install(param.classLoader)
+            AiKeyHook(this).install(param.classLoader)
         } catch (t: Throwable) {
             Log.e(TAG, "!!! failed to install system_server hook", t)
         }
@@ -45,6 +48,10 @@ class XposedInit : XposedModule() {
                 }
                 Protocol.SETTINGS_PACKAGE -> {
                     SettingsHook(this).install(param.classLoader)
+                }
+                Protocol.SECURITY_CORE_PACKAGE -> {
+                    HyperLog.d(TAG, "securitycore ready - installing AI key settings hook")
+                    AiKeySettingsHook(this).install(param.classLoader)
                 }
                 "com.android.systemui" -> {
                     HyperLog.d(TAG, "com.android.systemui ready - installing OS4 native QS hook")
